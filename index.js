@@ -23,7 +23,6 @@ const { startMonitoring } = require('./utils/monitoringEngine');
 const { startAutoCallEngine } = require('./utils/autoCallEngine');
 const { createPost } = require('./utils/xPoster');
 
-const { generateRealScan } = require('./utils/scannerEngine');
 const {
   createAutoCallEmbed,
   createDevAddedEmbed,
@@ -62,7 +61,6 @@ const {
 
 const {
   getTrackedCall,
-  saveTrackedCall,
   setApprovalStatus,
   setApprovalMessageMeta,
   markApprovalRequested,
@@ -72,6 +70,17 @@ const {
   setModerationNotes,
   setXPostState
 } = require('./utils/trackedCallsService');
+
+const {
+  upsertUserProfile,
+  getUserProfileByDiscordId,
+  setPublicCreditMode,
+  startXVerification,
+  completeXVerification,
+  getPreferredPublicName,
+  normalizeXHandle,
+  isLikelyXHandle
+} = require('./utils/userProfileService');
 
 const client = new Client({
   intents: [
@@ -83,6 +92,12 @@ const client = new Client({
 
 const devEditSessions = new Map();
 const DEV_EDIT_SESSION_TTL_MS = 10 * 60 * 1000;
+
+const xVerificationSessions = new Map();
+const X_VERIFY_SESSION_TTL_MS = 30 * 60 * 1000;
+const X_VERIFY_CHANNEL_NAME = 'verify-x';
+const X_VERIFIED_ROLE_NAME = 'X Verified';
+const MOD_CHANNEL_NAME = 'mod-chat';
 
 // TESTING APPROVAL ENTRY THRESHOLD
 const APPROVAL_TRIGGER_X = 4;
@@ -126,6 +141,40 @@ function clearDevEditSession(userId, channelId) {
   devEditSessions.delete(createDevSessionKey(userId, channelId));
 }
 
+function createXVerifySessionKey(userId, channelId) {
+  return `${userId}:${channelId}`;
+}
+
+function generateVerificationCode(userId, handle) {
+  const suffix = Math.floor(100000 + Math.random() * 900000);
+  return `MCGZYY-${normalizeXHandle(handle).toUpperCase()}-${suffix}`.slice(0, 32);
+}
+
+function setXVerifySession(userId, channelId, session) {
+  xVerificationSessions.set(createXVerifySessionKey(userId, channelId), {
+    ...session,
+    updatedAt: Date.now()
+  });
+}
+
+function getXVerifySession(userId, channelId) {
+  const key = createXVerifySessionKey(userId, channelId);
+  const session = xVerificationSessions.get(key);
+
+  if (!session) return null;
+
+  if ((Date.now() - session.updatedAt) > X_VERIFY_SESSION_TTL_MS) {
+    xVerificationSessions.delete(key);
+    return null;
+  }
+
+  return session;
+}
+
+function clearXVerifySession(userId, channelId) {
+  xVerificationSessions.delete(createXVerifySessionKey(userId, channelId));
+}
+
 async function replyText(message, content) {
   await message.reply({
     content,
@@ -144,6 +193,179 @@ function getApprovalChannel(guild) {
       ch.isTextBased() &&
       (ch.name === 'coin-approval' || ch.name === 'coin-approvals')
   ) || null;
+}
+
+function getModChannel(guild) {
+  if (!guild) return null;
+
+  return guild.channels.cache.find(
+    ch =>
+      ch &&
+      ch.isTextBased &&
+      typeof ch.isTextBased === 'function' &&
+      ch.isTextBased() &&
+      ch.name === MOD_CHANNEL_NAME
+  ) || null;
+}
+
+async function assignXVerifiedRole(member) {
+  try {
+    if (!member?.guild) return false;
+
+    const role = member.guild.roles.cache.find(r => r.name === X_VERIFIED_ROLE_NAME);
+    if (!role) return false;
+
+    if (member.roles.cache.has(role.id)) return true;
+
+    await member.roles.add(role);
+    return true;
+  } catch (error) {
+    console.error('[XVerify] Failed to assign role:', error.message);
+    return false;
+  }
+}
+
+function buildUserProfileEmbed(profile) {
+  const mode = profile?.publicSettings?.publicCreditMode || 'discord_name';
+  const modeLabel =
+    mode === 'anonymous' ? 'Anonymous' :
+    mode === 'verified_x_tag' ? 'Verified X Tag' :
+    'Discord Name';
+
+  const xStatus = profile?.isXVerified
+    ? `✅ Verified (@${profile.verifiedXHandle})`
+    : profile?.xVerification?.status === 'pending'
+      ? `⏳ Pending (@${profile.xVerification.requestedHandle || profile.xHandle || 'unknown'})`
+      : 'Not verified';
+
+  const previewName = getPreferredPublicName(profile);
+
+  return new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setTitle('👤 Your Public Credit Profile')
+    .setDescription([
+      `**Display Name:** ${profile.displayName || profile.username || 'Unknown'}`,
+      `**Public Credit Mode:** ${modeLabel}`,
+      `**X Verification:** ${xStatus}`,
+      `**Public Preview:** ${previewName}`
+    ].join('\n'))
+    .setFooter({ text: 'Use the buttons below to update your preferences.' })
+    .setTimestamp();
+}
+
+function buildProfileButtons(profile) {
+  const mode = profile?.publicSettings?.publicCreditMode || 'discord_name';
+
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('profile_set_credit:anonymous')
+        .setLabel(mode === 'anonymous' ? '✓ Anonymous' : 'Anonymous')
+        .setStyle(mode === 'anonymous' ? ButtonStyle.Success : ButtonStyle.Secondary),
+
+      new ButtonBuilder()
+        .setCustomId('profile_set_credit:discord_name')
+        .setLabel(mode === 'discord_name' ? '✓ Discord Name' : 'Discord Name')
+        .setStyle(mode === 'discord_name' ? ButtonStyle.Success : ButtonStyle.Secondary),
+
+      new ButtonBuilder()
+        .setCustomId('profile_set_credit:verified_x_tag')
+        .setLabel(mode === 'verified_x_tag' ? '✓ Verified X Tag' : 'Verified X Tag')
+        .setStyle(mode === 'verified_x_tag' ? ButtonStyle.Success : ButtonStyle.Secondary)
+        .setDisabled(!profile?.isXVerified)
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('profile_open_verify_modal')
+        .setLabel(profile?.isXVerified ? 'Update X Verification' : 'Verify X')
+        .setStyle(ButtonStyle.Primary)
+    )
+  ];
+}
+
+function buildVerifyXChannelEmbed() {
+  return new EmbedBuilder()
+    .setColor(0x1d9bf0)
+    .setTitle('🧪 Verify Your X Handle')
+    .setDescription([
+      'Click the button below to verify ownership of your X account.',
+      '',
+      'Once you submit your handle, the bot will give you a code to:',
+      '• put in your X bio, or',
+      '• post in a tweet',
+      '',
+      'Then click **Submit for Review** and a mod will verify it.'
+    ].join('\n'))
+    .setTimestamp();
+}
+
+function buildVerifyXChannelButtons() {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('profile_open_verify_modal')
+        .setLabel('Verify X')
+        .setStyle(ButtonStyle.Primary)
+    )
+  ];
+}
+
+function buildVerifyXHandleModal() {
+  return new ModalBuilder()
+    .setCustomId('verify_x_handle_modal')
+    .setTitle('Verify Your X Handle')
+    .addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('x_handle_input')
+          .setLabel('Enter your X handle')
+          .setPlaceholder('e.g. McGzyy')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setMaxLength(100)
+      )
+    );
+}
+
+function buildXVerifySubmitButtons() {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('xverify_submit_review')
+        .setLabel('Submit for Review')
+        .setStyle(ButtonStyle.Success)
+    )
+  ];
+}
+
+function buildXVerifyEmbed({ user, handle, code }) {
+  return new EmbedBuilder()
+    .setColor(0x1d9bf0)
+    .setTitle('🧪 X Verification Request')
+    .setDescription([
+      `**User:** <@${user.id}> (${user.username})`,
+      `**Handle:** [@${handle}](https://x.com/${handle})`,
+      `**Verification Code:** \`${code}\``,
+      '',
+      'Verify that the code exists in bio or tweet.'
+    ].join('\n'))
+    .setTimestamp();
+}
+
+function buildXVerifyButtons(userId, handle) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`xverify_accept:${userId}:${handle}`)
+        .setLabel('Accept')
+        .setStyle(ButtonStyle.Success),
+
+      new ButtonBuilder()
+        .setCustomId(`xverify_deny:${userId}:${handle}`)
+        .setLabel('Deny')
+        .setStyle(ButtonStyle.Danger)
+    )
+  ];
 }
 
 function buildApprovalButtons(contractAddress) {
@@ -622,6 +844,23 @@ function buildNoteModal(contractAddress) {
     );
 }
 
+function buildXVerifyDenyModal(userId, handle) {
+  return new ModalBuilder()
+    .setCustomId(`xverify_deny_modal:${userId}:${handle}`)
+    .setTitle('Deny X Verification')
+    .addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('deny_reason')
+          .setLabel('Reason for denial')
+          .setPlaceholder('e.g. Could not find verification code on profile or recent posts')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
+          .setMaxLength(300)
+      )
+    );
+}
+
 async function handleDevSessionReply(message) {
   const session = getDevEditSession(message.author.id, message.channel.id);
   if (!session) return false;
@@ -855,6 +1094,47 @@ async function handleDevSessionReply(message) {
   return false;
 }
 
+async function handleXVerificationReply(message) {
+  const channelName = message.channel?.name || '';
+  if (channelName !== X_VERIFY_CHANNEL_NAME) return false;
+
+  if (message.author.bot) return true;
+
+  upsertUserProfile({
+    discordUserId: message.author.id,
+    username: message.author.username,
+    displayName: message.member?.displayName || message.author.globalName || message.author.username
+  });
+
+  return false;
+}
+
+async function ensureVerifyXPrompt(guild) {
+  try {
+    if (!guild) return;
+
+    const verifyChannel = guild.channels.cache.find(ch => ch.name === X_VERIFY_CHANNEL_NAME);
+    if (!verifyChannel || !verifyChannel.isTextBased()) return;
+
+    const recentMessages = await verifyChannel.messages.fetch({ limit: 10 }).catch(() => null);
+    if (!recentMessages) return;
+
+    const existingBotPrompt = recentMessages.find(msg =>
+      msg.author?.id === client.user.id &&
+      msg.embeds?.[0]?.title === '🧪 Verify Your X Handle'
+    );
+
+    if (existingBotPrompt) return;
+
+    await verifyChannel.send({
+      embeds: [buildVerifyXChannelEmbed()],
+      components: buildVerifyXChannelButtons()
+    });
+  } catch (error) {
+    console.error('[VerifyX] Failed to ensure verify prompt:', error.message);
+  }
+}
+
 client.once('clientReady', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 
@@ -882,6 +1162,8 @@ client.once('clientReady', async () => {
   startMonitoring(firstTextChannel, 60000);
   startAutoCallEngine(firstTextChannel);
 
+  await ensureVerifyXPrompt(firstGuild);
+
   setInterval(() => {
     cleanupExpiredApprovals().catch(err => {
       console.error('[ApprovalQueue] Interval cleanup failed:', err.message);
@@ -891,20 +1173,127 @@ client.once('clientReady', async () => {
 
 client.on('interactionCreate', async (interaction) => {
   try {
-    /**
-     * =========================
-     * BUTTONS
-     * =========================
-     */
     if (interaction.isButton()) {
+      const parts = interaction.customId.split(':');
+
+      if (interaction.customId === 'profile_open_verify_modal') {
+        await interaction.showModal(buildVerifyXHandleModal());
+        return;
+      }
+
+      if (interaction.customId === 'xverify_submit_review') {
+        const profile = getUserProfileByDiscordId(interaction.user.id);
+
+        if (!profile) {
+          await interaction.reply({
+            content: '❌ No profile found for verification.',
+            ephemeral: true
+          });
+          return;
+        }
+
+        const handle =
+          profile?.xVerification?.requestedHandle ||
+          profile?.xHandle ||
+          '';
+
+        const code =
+          profile?.xVerification?.verificationCode ||
+          '';
+
+        if (!handle || !code) {
+          await interaction.reply({
+            content: '❌ No active X verification request found. Please start again.',
+            ephemeral: true
+          });
+          return;
+        }
+
+        const modChannel = getModChannel(interaction.guild);
+
+        if (modChannel) {
+          await modChannel.send({
+            embeds: [
+              buildXVerifyEmbed({
+                user: interaction.user,
+                handle,
+                code
+              })
+            ],
+            components: buildXVerifyButtons(interaction.user.id, handle)
+          });
+        }
+
+        await interaction.update({
+          content: `✅ Your verification request has been submitted.\nA MOD will review and verify your request.`,
+          components: []
+        });
+
+        return;
+      }
+
+      if (parts[0] === 'profile_set_credit') {
+        const mode = parts[1];
+
+        const updated = setPublicCreditMode(interaction.user.id, mode);
+
+        if (!updated) {
+          await interaction.reply({
+            content: '❌ Failed to update your profile setting.',
+            ephemeral: true
+          });
+          return;
+        }
+
+        await interaction.update({
+          embeds: [buildUserProfileEmbed(updated)],
+          components: buildProfileButtons(updated)
+        });
+
+        return;
+      }
+
+      if (parts[0] === 'xverify_accept') {
+        const userId = parts[1];
+        const handle = parts[2];
+
+        completeXVerification(userId, handle);
+
+        const member = await interaction.guild.members.fetch(userId).catch(() => null);
+        if (member) {
+          await assignXVerifiedRole(member);
+        }
+
+        const verifyChannel = interaction.guild.channels.cache.find(
+          ch => ch.name === X_VERIFY_CHANNEL_NAME
+        );
+
+        if (verifyChannel) {
+          await verifyChannel.send(
+            `✅ <@${userId}> has been verified as **@${handle}**`
+          );
+        }
+
+        await interaction.update({
+          content: `✅ Verified **@${handle}**`,
+          embeds: [],
+          components: []
+        });
+
+        return;
+      }
+
+      if (parts[0] === 'xverify_deny') {
+        const userId = parts[1];
+        const handle = parts[2];
+
+        await interaction.showModal(buildXVerifyDenyModal(userId, handle));
+        return;
+      }
+
       const [action, contractAddress] = interaction.customId.split(':');
       if (!action || !contractAddress) return;
 
-      /**
-       * =========================
-       * CALL / WATCH BUTTONS
-       * =========================
-       */
       if (action === 'call_coin') {
         await interaction.deferReply({ ephemeral: false });
 
@@ -955,11 +1344,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
       }
 
-      /**
-       * =========================
-       * MODERATION BUTTONS
-       * =========================
-       */
       const trackedCall = getTrackedCall(contractAddress);
       if (!trackedCall) {
         await interaction.reply({
@@ -1065,12 +1449,78 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
 
-    /**
-     * =========================
-     * MODALS
-     * =========================
-     */
     if (interaction.isModalSubmit()) {
+      const parts = interaction.customId.split(':');
+
+      if (interaction.customId === 'verify_x_handle_modal') {
+        upsertUserProfile({
+          discordUserId: interaction.user.id,
+          username: interaction.user.username,
+          displayName: interaction.member?.displayName || interaction.user.globalName || interaction.user.username
+        });
+
+        const rawHandle = interaction.fields.getTextInputValue('x_handle_input');
+        const handle = normalizeXHandle(rawHandle);
+
+        if (!isLikelyXHandle(handle)) {
+          await interaction.reply({
+            content: '❌ Please enter a valid X handle.',
+            ephemeral: true
+          });
+          return;
+        }
+
+        const code = generateVerificationCode(interaction.user.id, handle);
+
+        startXVerification(interaction.user.id, handle, code);
+        setXVerifySession(interaction.user.id, interaction.channel.id, {
+          handle,
+          code
+        });
+
+        await interaction.reply({
+          content: [
+            `🧪 To verify ownership of **@${handle}**:`,
+            '',
+            `**Option 1:** Add this code to your X bio`,
+            `**Option 2:** Post a tweet containing this code`,
+            '',
+            `**Verification Code:** \`${code}\``,
+            '',
+            `When you're done, click **Submit for Review** below.`,
+            `A MOD will review and verify your request.`
+          ].join('\n'),
+          components: buildXVerifySubmitButtons(),
+          ephemeral: true
+        });
+
+        return;
+      }
+
+      if (parts[0] === 'xverify_deny_modal') {
+        const userId = parts[1];
+        const handle = parts[2];
+        const reason = interaction.fields.getTextInputValue('deny_reason');
+
+        const verifyChannel = interaction.guild.channels.cache.find(
+          ch => ch.name === X_VERIFY_CHANNEL_NAME
+        );
+
+        if (verifyChannel) {
+          await verifyChannel.send(
+            `❌ <@${userId}>, your X verification for **@${handle}** was denied.\n**Reason:** ${reason}`
+          );
+        }
+
+        await interaction.update({
+          content: `❌ Denied **@${handle}**\n**Reason:** ${reason}`,
+          embeds: [],
+          components: []
+        });
+
+        return;
+      }
+
       const [action, contractAddress] = interaction.customId.split(':');
       if (!action || !contractAddress) return;
 
@@ -1161,13 +1611,23 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
     const content = message.content.trim();
+    const lowerContent = content.toLowerCase();
     const channelName = message.channel?.name || '';
+
+    upsertUserProfile({
+      discordUserId: message.author.id,
+      username: message.author.username,
+      displayName: message.member?.displayName || message.author.globalName || message.author.username
+    });
+
+    const handledXVerify = await handleXVerificationReply(message);
+    if (handledXVerify) return;
 
     const handledSession = await handleDevSessionReply(message);
     if (handledSession) return;
 
     if (content.startsWith('!')) {
-      if (content.toLowerCase() === '!testx') {
+      if (lowerContent === '!testx') {
         const result = await createPost('Test post from McGBot 🚀');
 
         if (result.success) {
@@ -1179,7 +1639,121 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase() === '!devleaderboard') {
+      if (lowerContent === '!myprofile') {
+        const profile = getUserProfileByDiscordId(message.author.id);
+
+        if (!profile) {
+          await replyText(message, '❌ No profile found yet.');
+          return;
+        }
+
+        await message.reply({
+          embeds: [buildUserProfileEmbed(profile)],
+          components: buildProfileButtons(profile),
+          allowedMentions: { repliedUser: false }
+        });
+
+        return;
+      }
+
+      if (lowerContent.startsWith('!credit ')) {
+        const modeInput = content.replace(/^!credit\s+/i, '').trim().toLowerCase();
+
+        let mode = null;
+        if (modeInput === 'anonymous') mode = 'anonymous';
+        if (modeInput === 'discord') mode = 'discord_name';
+        if (modeInput === 'xtag') mode = 'verified_x_tag';
+
+        if (!mode) {
+          await replyText(message, '❌ Usage: `!credit anonymous`, `!credit discord`, or `!credit xtag`');
+          return;
+        }
+
+        const profile = getUserProfileByDiscordId(message.author.id);
+
+        if (!profile) {
+          await replyText(message, '❌ No profile found yet.');
+          return;
+        }
+
+        if (mode === 'verified_x_tag' && !profile.isXVerified) {
+          await replyText(
+            message,
+            `❌ You do not have a verified X handle yet.\nUse **#${X_VERIFY_CHANNEL_NAME}** or **!myprofile** first.`
+          );
+          return;
+        }
+
+        const updated = setPublicCreditMode(message.author.id, mode);
+
+        if (!updated) {
+          await replyText(message, '❌ Failed to update your credit preference.');
+          return;
+        }
+
+        await message.reply({
+          embeds: [buildUserProfileEmbed(updated)],
+          components: buildProfileButtons(updated),
+          allowedMentions: { repliedUser: false }
+        });
+
+        return;
+      }
+
+      if (lowerContent.startsWith('!verifyx ')) {
+        if (!message.member?.permissions?.has('ManageGuild')) {
+          await replyText(message, '❌ You need **Manage Server** permission to use this command.');
+          return;
+        }
+
+        const mentionedUser = message.mentions.users.first();
+        if (!mentionedUser) {
+          await replyText(message, '❌ Usage: `!verifyx @user`');
+          return;
+        }
+
+        const targetProfile = getUserProfileByDiscordId(mentionedUser.id);
+        if (!targetProfile) {
+          await replyText(message, '❌ That user does not have a profile yet.');
+          return;
+        }
+
+        const pendingHandle =
+          targetProfile?.xVerification?.requestedHandle ||
+          targetProfile?.xHandle ||
+          '';
+
+        if (!pendingHandle) {
+          await replyText(message, '❌ That user does not have a pending X verification request.');
+          return;
+        }
+
+        completeXVerification(mentionedUser.id, pendingHandle);
+
+        const member = await message.guild.members.fetch(mentionedUser.id).catch(() => null);
+        if (member) {
+          await assignXVerifiedRole(member);
+        }
+
+        const verifyChannel = message.guild.channels.cache.find(
+          ch => ch.name === X_VERIFY_CHANNEL_NAME
+        );
+
+        if (verifyChannel) {
+          await verifyChannel.send(
+            `✅ <@${mentionedUser.id}> has been verified as **@${pendingHandle}**`
+          );
+        }
+
+        await replyText(
+          message,
+          `✅ Verified **${mentionedUser.username}** as **@${pendingHandle}**${member ? ` and assigned **${X_VERIFIED_ROLE_NAME}**.` : '.'}`
+        );
+
+        return;
+      }
+
+      if (lowerContent === '!devleaderboard') {
         const leaderboard = getDevLeaderboard(10);
         const embed = createDevLeaderboardEmbed(leaderboard);
 
@@ -1191,7 +1765,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase().startsWith('!caller ')) {
+      if (lowerContent.startsWith('!caller ')) {
         const username = content.replace(/^!caller\s+/i, '').trim();
 
         if (!username) {
@@ -1210,7 +1784,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase() === '!callerboard') {
+      if (lowerContent === '!callerboard') {
         const leaderboard = getCallerLeaderboard(10);
         const embed = createCallerLeaderboardEmbed(leaderboard);
 
@@ -1222,7 +1796,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase() === '!bestcall24h') {
+      if (lowerContent === '!bestcall24h') {
         const best = getBestCallInTimeframe(1);
         const embed = createSingleCallEmbed(best, '🏆 BEST USER CALL — LAST 24 HOURS');
 
@@ -1234,7 +1808,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase() === '!bestcallweek') {
+      if (lowerContent === '!bestcallweek') {
         const best = getBestCallInTimeframe(7);
         const embed = createSingleCallEmbed(best, '🏆 BEST USER CALL — LAST 7 DAYS');
 
@@ -1246,7 +1820,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase() === '!bestcallmonth') {
+      if (lowerContent === '!bestcallmonth') {
         const best = getBestCallInTimeframe(30);
         const embed = createSingleCallEmbed(best, '🏆 BEST USER CALL — LAST 30 DAYS');
 
@@ -1258,7 +1832,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase() === '!topcaller24h') {
+      if (lowerContent === '!topcaller24h') {
         const top = getTopCallerInTimeframe(1);
         const embed = createTopCallerTimeframeEmbed(top, '👤 TOP CALLER — LAST 24 HOURS');
 
@@ -1270,7 +1844,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase() === '!topcallerweek') {
+      if (lowerContent === '!topcallerweek') {
         const top = getTopCallerInTimeframe(7);
         const embed = createTopCallerTimeframeEmbed(top, '👤 TOP CALLER — LAST 7 DAYS');
 
@@ -1282,7 +1856,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase() === '!topcallermonth') {
+      if (lowerContent === '!topcallermonth') {
         const top = getTopCallerInTimeframe(30);
         const embed = createTopCallerTimeframeEmbed(top, '👤 TOP CALLER — LAST 30 DAYS');
 
@@ -1294,7 +1868,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase() === '!bestbot24h') {
+      if (lowerContent === '!bestbot24h') {
         const best = getBestBotCallInTimeframe(1);
         const embed = createSingleCallEmbed(best, '🤖 BEST BOT CALL — LAST 24 HOURS');
 
@@ -1306,7 +1880,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase() === '!bestbotweek') {
+      if (lowerContent === '!bestbotweek') {
         const best = getBestBotCallInTimeframe(7);
         const embed = createSingleCallEmbed(best, '🤖 BEST BOT CALL — LAST 7 DAYS');
 
@@ -1318,7 +1892,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase() === '!bestbotmonth') {
+      if (lowerContent === '!bestbotmonth') {
         const best = getBestBotCallInTimeframe(30);
         const embed = createSingleCallEmbed(best, '🤖 BEST BOT CALL — LAST 30 DAYS');
 
@@ -1330,7 +1904,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (content.toLowerCase().startsWith('!addlaunch ')) {
+      if (lowerContent.startsWith('!addlaunch ')) {
         const parts = content.split(/\s+/).filter(Boolean);
 
         if (parts.length < 3) {
@@ -1392,6 +1966,44 @@ client.on('messageCreate', async (message) => {
           embeds: [embed],
           allowedMentions: { repliedUser: false }
         });
+
+        return;
+      }
+
+      if (lowerContent.startsWith('!call ')) {
+        const parts = content.split(/\s+/).filter(Boolean);
+        const contractAddress = parts[1];
+
+        if (!contractAddress) {
+          await replyText(message, '⚠️ Usage: `!call [SOLANA_CONTRACT_ADDRESS]`');
+          return;
+        }
+
+        try {
+          await handleCallCommand(message, contractAddress, 'command');
+        } catch (error) {
+          console.error('[Call Command Error]', error);
+          await replyText(message, `❌ Call failed: ${error.message}`);
+        }
+
+        return;
+      }
+
+      if (lowerContent.startsWith('!watch ')) {
+        const parts = content.split(/\s+/).filter(Boolean);
+        const contractAddress = parts[1];
+
+        if (!contractAddress) {
+          await replyText(message, '⚠️ Usage: `!watch [SOLANA_CONTRACT_ADDRESS]`');
+          return;
+        }
+
+        try {
+          await handleWatchCommand(message, contractAddress, 'command');
+        } catch (error) {
+          console.error('[Watch Command Error]', error);
+          await replyText(message, `❌ Watch failed: ${error.message}`);
+        }
 
         return;
       }
@@ -1480,8 +2092,6 @@ client.on('messageCreate', async (message) => {
     if (!isLikelySolanaCA(ca)) return;
 
     try {
-      // IMPORTANT:
-      // Raw CA handling is now fully delegated to basicCommands.js
       await handleBasicCommands(message, {
         scanChannelNames: ['scanner', 'scanner-feed', 'calls', 'coin-calls', 'token-calls']
       });

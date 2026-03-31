@@ -320,6 +320,48 @@ function buildScanFlags(data) {
   return { greenFlags, redFlags };
 }
 
+function normalizeRealDataToScan(realData) {
+  const score = calculateQuickRealScore(realData);
+
+  return {
+    tokenName: realData.token?.tokenName || 'Unknown Token',
+    ticker: realData.token?.ticker || 'UNKNOWN',
+    contractAddress: realData.token?.contractAddress || 'Unknown',
+    website: realData.token?.website || null,
+    twitter: realData.token?.twitter || null,
+    telegram: realData.token?.telegram || null,
+
+    marketCap: Number(realData.market?.marketCap || 0),
+    liquidity: Number(realData.market?.liquidity || 0),
+    volume5m: Number(realData.market?.volume5m || 0),
+    volume1h: Number(realData.market?.volume1h || 0),
+    ageMinutes: Number(realData.market?.ageMinutes || 0),
+    ath: Number(realData.market?.ath || 0),
+    percentFromAth: Number(realData.market?.percentFromAth || 0),
+
+    holders: realData.holders?.holders ?? null,
+    top10HolderPercent: realData.holders?.top10HolderPercent ?? null,
+    devHoldingPercent: realData.holders?.devHoldingPercent ?? null,
+    bundleHoldingPercent: realData.holders?.bundleHoldingPercent ?? null,
+    sniperPercent: realData.holders?.sniperPercent ?? null,
+
+    buySellRatio5m: Number(realData.tradeSignals?.buySellRatio5m || 0),
+    buySellRatio1h: Number(realData.tradeSignals?.buySellRatio1h || 0),
+    tradePressure: realData.tradeSignals?.tradePressure || 'Unknown',
+    volumeTrend: realData.tradeSignals?.volumeTrend || 'Unknown',
+
+    dexPaid: !!realData.socials?.dexPaid,
+    migrated: !!realData.meta?.migrated,
+
+    entryScore: score,
+    grade: getQuickGrade(score),
+    alertType: getQuickAlertType(score),
+    status: score >= 70 ? 'Strong' : score >= 55 ? 'Watch' : 'Risky',
+    conviction: score >= 80 ? 'High' : score >= 60 ? 'Moderate' : 'Low',
+    riskLevel: getRiskLabel(realData)
+  };
+}
+
 async function refreshTrackedCallLive(contractAddress) {
   try {
     const realData = await fetchRealTokenData(contractAddress);
@@ -542,16 +584,30 @@ function createTrackedDetailEmbed(call) {
 }
 
 function createCallStatusLine(scan) {
+  const isWatchOnly = scan.callSourceType === 'watch_only';
+
   let statusLine = '';
 
-  if (scan.isReactivated) {
-    statusLine = `♻️ **REACTIVATED**`;
-  } else if (scan.isNewCall) {
-    statusLine = `🆕 **FIRST CALLED**`;
-  } else if (scan.lifecycleStatus === 'stagnant') {
-    statusLine = `⏸️ **STAGNANT TRACKED COIN**`;
+  if (isWatchOnly) {
+    if (scan.isReactivated) {
+      statusLine = `♻️ **WATCH REACTIVATED**`;
+    } else if (scan.isNewCall) {
+      statusLine = `👀 **WATCHLIST ADDED**`;
+    } else if (scan.lifecycleStatus === 'stagnant') {
+      statusLine = `⏸️ **STAGNANT WATCHLIST COIN**`;
+    } else {
+      statusLine = `👀 **ALREADY WATCHING**`;
+    }
   } else {
-    statusLine = `🧠 **ALREADY TRACKED**`;
+    if (scan.isReactivated) {
+      statusLine = `♻️ **REACTIVATED**`;
+    } else if (scan.isNewCall) {
+      statusLine = `🆕 **FIRST CALLED**`;
+    } else if (scan.lifecycleStatus === 'stagnant') {
+      statusLine = `⏸️ **STAGNANT TRACKED COIN**`;
+    } else {
+      statusLine = `🧠 **ALREADY TRACKED**`;
+    }
   }
 
   const sourceLine =
@@ -784,7 +840,7 @@ function getMilestoneLabel(current, firstCalled) {
   return null;
 }
 
-async function applyTrackedCallState(contractAddress, message, marketCap, options = {}) {
+async function applyTrackedCallState(contractAddress, message, marketCap, liveScanData, options = {}) {
   let wasNewCall = false;
   let wasReactivated = false;
 
@@ -801,7 +857,21 @@ async function applyTrackedCallState(contractAddress, message, marketCap, option
     saveTrackedCall(
       {
         contractAddress,
-        marketCap: marketCap || 0
+        marketCap: marketCap || 0,
+        tokenName: liveScanData?.tokenName || 'Unknown Token',
+        ticker: liveScanData?.ticker || 'UNKNOWN',
+        latestMarketCap: marketCap || 0,
+        entryScore: liveScanData?.entryScore || 0,
+        grade: liveScanData?.grade || 'N/A',
+        alertType: liveScanData?.alertType || 'N/A',
+        ath: liveScanData?.ath || marketCap || 0,
+        percentFromAth: liveScanData?.percentFromAth || 0,
+        migrated: liveScanData?.migrated || false,
+        holders: liveScanData?.holders ?? null,
+        top10HolderPercent: liveScanData?.top10HolderPercent ?? null,
+        devHoldingPercent: liveScanData?.devHoldingPercent ?? null,
+        bundleHoldingPercent: liveScanData?.bundleHoldingPercent ?? null,
+        sniperPercent: liveScanData?.sniperPercent ?? null
       },
       message.author.id,
       message.author.username,
@@ -823,7 +893,21 @@ async function applyTrackedCallState(contractAddress, message, marketCap, option
       reactivateTrackedCall(
         {
           contractAddress,
-          marketCap: marketCap || 0
+          marketCap: marketCap || 0,
+          tokenName: liveScanData?.tokenName || existingCall.tokenName,
+          ticker: liveScanData?.ticker || existingCall.ticker,
+          latestMarketCap: marketCap || existingCall.latestMarketCap || 0,
+          entryScore: liveScanData?.entryScore || existingCall.entryScore || 0,
+          grade: liveScanData?.grade || existingCall.grade || 'N/A',
+          alertType: liveScanData?.alertType || existingCall.alertType || 'N/A',
+          ath: liveScanData?.ath || existingCall.ath || marketCap || 0,
+          percentFromAth: liveScanData?.percentFromAth || existingCall.percentFromAth || 0,
+          migrated: liveScanData?.migrated || existingCall.migrated || false,
+          holders: liveScanData?.holders ?? existingCall.holders ?? null,
+          top10HolderPercent: liveScanData?.top10HolderPercent ?? existingCall.top10HolderPercent ?? null,
+          devHoldingPercent: liveScanData?.devHoldingPercent ?? existingCall.devHoldingPercent ?? null,
+          bundleHoldingPercent: liveScanData?.bundleHoldingPercent ?? existingCall.bundleHoldingPercent ?? null,
+          sniperPercent: liveScanData?.sniperPercent ?? existingCall.sniperPercent ?? null
         },
         message.author.id,
         message.author.username,
@@ -835,13 +919,44 @@ async function applyTrackedCallState(contractAddress, message, marketCap, option
       saveTrackedCall(
         {
           contractAddress,
-          marketCap: marketCap || 0
+          marketCap: marketCap || 0,
+          tokenName: liveScanData?.tokenName || existingCall.tokenName,
+          ticker: liveScanData?.ticker || existingCall.ticker,
+          latestMarketCap: marketCap || existingCall.latestMarketCap || 0,
+          entryScore: liveScanData?.entryScore || existingCall.entryScore || 0,
+          grade: liveScanData?.grade || existingCall.grade || 'N/A',
+          alertType: liveScanData?.alertType || existingCall.alertType || 'N/A',
+          ath: liveScanData?.ath || existingCall.ath || marketCap || 0,
+          percentFromAth: liveScanData?.percentFromAth || existingCall.percentFromAth || 0,
+          migrated: liveScanData?.migrated || existingCall.migrated || false,
+          holders: liveScanData?.holders ?? existingCall.holders ?? null,
+          top10HolderPercent: liveScanData?.top10HolderPercent ?? existingCall.top10HolderPercent ?? null,
+          devHoldingPercent: liveScanData?.devHoldingPercent ?? existingCall.devHoldingPercent ?? null,
+          bundleHoldingPercent: liveScanData?.bundleHoldingPercent ?? existingCall.bundleHoldingPercent ?? null,
+          sniperPercent: liveScanData?.sniperPercent ?? existingCall.sniperPercent ?? null
         },
         message.author.id,
         message.author.username,
         message.member?.displayName || message.author.globalName || message.author.username,
         { callSourceType: 'user_call' }
       );
+    } else {
+      updateTrackedCallData(contractAddress, {
+        tokenName: liveScanData?.tokenName || existingCall.tokenName,
+        ticker: liveScanData?.ticker || existingCall.ticker,
+        latestMarketCap: marketCap || existingCall.latestMarketCap || 0,
+        entryScore: liveScanData?.entryScore || existingCall.entryScore || 0,
+        grade: liveScanData?.grade || existingCall.grade || 'N/A',
+        alertType: liveScanData?.alertType || existingCall.alertType || 'N/A',
+        ath: liveScanData?.ath || existingCall.ath || marketCap || 0,
+        percentFromAth: liveScanData?.percentFromAth || existingCall.percentFromAth || 0,
+        migrated: liveScanData?.migrated || existingCall.migrated || false,
+        holders: liveScanData?.holders ?? existingCall.holders ?? null,
+        top10HolderPercent: liveScanData?.top10HolderPercent ?? existingCall.top10HolderPercent ?? null,
+        devHoldingPercent: liveScanData?.devHoldingPercent ?? existingCall.devHoldingPercent ?? null,
+        bundleHoldingPercent: liveScanData?.bundleHoldingPercent ?? existingCall.bundleHoldingPercent ?? null,
+        sniperPercent: liveScanData?.sniperPercent ?? existingCall.sniperPercent ?? null
+      });
     }
   }
 
@@ -916,12 +1031,14 @@ async function handleDeepScanReply(message, contractAddress, withButtons = false
 }
 
 async function handleCallCommand(message, contractAddress, source = 'command') {
-  const scan = await runDeepScan(contractAddress);
+  const realData = await runQuickCa(contractAddress);
+  const scan = normalizeRealDataToScan(realData);
 
   const { trackedCall, wasNewCall, wasReactivated } = await applyTrackedCallState(
     contractAddress,
     message,
     scan.marketCap || 0,
+    scan,
     { callSourceType: 'user_call' }
   );
 
@@ -933,19 +1050,7 @@ async function handleCallCommand(message, contractAddress, source = 'command') {
     ? getMilestoneLabel(scan.marketCap || 0, trackedCall.firstCalledMarketCap)
     : null;
 
-  const { greenFlags, redFlags } = buildScanFlags({
-    market: {
-      liquidity: scan.liquidity,
-      volume5m: scan.volume5m,
-      volume1h: scan.volume1h
-    },
-    tradeSignals: {
-      tradePressure: scan.tradePressure
-    },
-    socials: {
-      dexPaid: scan.dexPaid
-    }
-  });
+  const { greenFlags, redFlags } = buildScanFlags(realData);
 
   const embed = createTraderScanEmbed({
     ...scan,
@@ -966,20 +1071,20 @@ async function handleCallCommand(message, contractAddress, source = 'command') {
   });
 
   return message.reply({
-    content: source === 'button'
-      ? '📍 Coin officially called and now being tracked.'
-      : '📍 Coin officially called and now being tracked.',
+    content: '📍 Coin officially called and now being tracked.',
     embeds: [embed]
   });
 }
 
 async function handleWatchCommand(message, contractAddress, source = 'command') {
-  const scan = await runDeepScan(contractAddress);
+  const realData = await runQuickCa(contractAddress);
+  const scan = normalizeRealDataToScan(realData);
 
   const { trackedCall, wasNewCall, wasReactivated } = await applyTrackedCallState(
     contractAddress,
     message,
     scan.marketCap || 0,
+    scan,
     { callSourceType: 'watch_only' }
   );
 
@@ -991,19 +1096,7 @@ async function handleWatchCommand(message, contractAddress, source = 'command') 
     ? getMilestoneLabel(scan.marketCap || 0, trackedCall.firstCalledMarketCap)
     : null;
 
-  const { greenFlags, redFlags } = buildScanFlags({
-    market: {
-      liquidity: scan.liquidity,
-      volume5m: scan.volume5m,
-      volume1h: scan.volume1h
-    },
-    tradeSignals: {
-      tradePressure: scan.tradePressure
-    },
-    socials: {
-      dexPaid: scan.dexPaid
-    }
-  });
+  const { greenFlags, redFlags } = buildScanFlags(realData);
 
   const embed = createTraderScanEmbed({
     ...scan,
@@ -1024,9 +1117,7 @@ async function handleWatchCommand(message, contractAddress, source = 'command') 
   });
 
   return message.reply({
-    content: source === 'button'
-      ? '👀 Added to watchlist tracking (no caller credit).'
-      : '👀 Added to watchlist tracking (no caller credit).',
+    content: '👀 Added to watchlist tracking (no caller credit).',
     embeds: [embed]
   });
 }
