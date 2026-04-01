@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path = require('path');
-const { upsertUserProfile } = require('../utils/userProfileService');
+const {
+  upsertUserProfile,
+  resolvePublicCallerName
+} = require('../utils/userProfileService');
 
 const trackedCallsFilePath = path.join(__dirname, '../data/trackedCalls.json');
 
@@ -31,7 +34,7 @@ function saveTrackedCalls(calls) {
 }
 
 function normalizeTrackedCall(call = {}) {
-  return {
+  const normalized = {
     ...call,
 
     milestonesHit: Array.isArray(call.milestonesHit) ? call.milestonesHit : [],
@@ -68,6 +71,8 @@ function normalizeTrackedCall(call = {}) {
     xLastReplyPostId: call.xLastReplyPostId || null,
     xLastPostedAt: call.xLastPostedAt || null
   };
+
+  return refreshPublicCallerName(normalized);
 }
 
 function getTrackedCall(contractAddress) {
@@ -79,9 +84,19 @@ function getAllTrackedCalls() {
   return loadTrackedCalls();
 }
 
+/**
+ * =========================
+ * CALLER PROFILE SYNC
+ * =========================
+ */
+
 function syncCallerProfile(callerId = null, callerUsername = 'Unknown', callerDisplayName = '') {
   try {
     if (!callerId && !callerUsername && !callerDisplayName) return null;
+
+    if (String(callerId || '').toUpperCase() === 'AUTO_BOT') {
+      return null;
+    }
 
     return upsertUserProfile({
       discordUserId: callerId ? String(callerId) : null,
@@ -94,25 +109,94 @@ function syncCallerProfile(callerId = null, callerUsername = 'Unknown', callerDi
   }
 }
 
-function buildCallerFields(callerId = null, callerUsername = 'Unknown', callerDisplayName = '') {
+function buildCallerFields(
+  callerId = null,
+  callerUsername = 'Unknown',
+  callerDisplayName = '',
+  options = {}
+) {
+  const callSourceType = options.callSourceType || 'user_call';
+  const isBotCall = callSourceType === 'bot_call';
+
+  if (isBotCall) {
+    return {
+      firstCallerId: 'AUTO_BOT',
+      firstCallerUsername: 'Auto Bot',
+      firstCallerDiscordId: null,
+      firstCallerDisplayName: 'Auto Bot',
+      firstCallerPublicName: 'Auto Bot'
+    };
+  }
+
   const syncedProfile = syncCallerProfile(callerId, callerUsername, callerDisplayName);
 
+  const discordUserId = callerId ? String(callerId) : null;
+  const username = callerUsername || 'Unknown';
+  const displayName = callerDisplayName || callerUsername || 'Unknown';
+
+  const publicName = resolvePublicCallerName({
+    discordUserId,
+    username,
+    displayName,
+    fallback: displayName || username || 'Unknown'
+  });
+
   return {
-    firstCallerId: callerId ? String(callerId) : null,
-    firstCallerUsername: callerUsername || 'Unknown',
-    firstCallerDiscordId: callerId ? String(callerId) : null,
-    firstCallerDisplayName: callerDisplayName || callerUsername || 'Unknown',
-    firstCallerPublicName: syncedProfile
-      ? (
-          syncedProfile.publicSettings?.publicAlias ||
-          syncedProfile.displayName ||
-          syncedProfile.username ||
-          callerDisplayName ||
-          callerUsername ||
-          'Unknown'
-        )
-      : (callerDisplayName || callerUsername || 'Unknown')
+    firstCallerId: discordUserId,
+    firstCallerUsername: username,
+    firstCallerDiscordId: discordUserId,
+    firstCallerDisplayName: displayName,
+    firstCallerPublicName:
+      publicName ||
+      syncedProfile?.publicSettings?.publicAlias ||
+      syncedProfile?.displayName ||
+      syncedProfile?.username ||
+      displayName ||
+      username ||
+      'Unknown'
   };
+}
+
+function refreshPublicCallerName(call = {}) {
+  const normalized = { ...call };
+
+  if (normalized.callSourceType === 'bot_call') {
+    normalized.firstCallerId = 'AUTO_BOT';
+    normalized.firstCallerUsername = 'Auto Bot';
+    normalized.firstCallerDiscordId = null;
+    normalized.firstCallerDisplayName = 'Auto Bot';
+    normalized.firstCallerPublicName = 'Auto Bot';
+    return normalized;
+  }
+
+  if (normalized.callSourceType === 'watch_only') {
+    return {
+      ...normalized,
+      firstCallerId: normalized.firstCallerId || null,
+      firstCallerUsername: normalized.firstCallerUsername || null,
+      firstCallerDiscordId: normalized.firstCallerDiscordId || null,
+      firstCallerDisplayName: normalized.firstCallerDisplayName || null,
+      firstCallerPublicName:
+        normalized.firstCallerPublicName ||
+        normalized.firstCallerDisplayName ||
+        normalized.firstCallerUsername ||
+        null
+    };
+  }
+
+  normalized.firstCallerPublicName = resolvePublicCallerName({
+    discordUserId: normalized.firstCallerDiscordId || normalized.firstCallerId || null,
+    username: normalized.firstCallerUsername || '',
+    displayName: normalized.firstCallerDisplayName || '',
+    trackedCall: normalized,
+    fallback:
+      normalized.firstCallerDisplayName ||
+      normalized.firstCallerUsername ||
+      normalized.firstCallerPublicName ||
+      'Unknown'
+  });
+
+  return normalized;
 }
 
 /**
@@ -132,14 +216,19 @@ function saveTrackedCall(
   const existingIndex = calls.findIndex(call => call.contractAddress === scan.contractAddress);
   const now = new Date().toISOString();
 
-  const callerFields = buildCallerFields(callerId, callerUsername, callerDisplayName);
-
   const callSourceType =
     options.callSourceType === 'watch_only'
       ? 'watch_only'
       : options.callSourceType === 'bot_call'
         ? 'bot_call'
         : 'user_call';
+
+  const callerFields = buildCallerFields(
+    callerId,
+    callerUsername,
+    callerDisplayName,
+    { callSourceType }
+  );
 
   const wasWatched = callSourceType === 'watch_only';
 
@@ -149,7 +238,15 @@ function saveTrackedCall(
     const shouldUpgradeWatchToCall =
       existing.callSourceType === 'watch_only' && callSourceType === 'user_call';
 
-    calls[existingIndex] = normalizeTrackedCall({
+    const shouldUpgradeBotToUser =
+      existing.callSourceType === 'bot_call' && callSourceType === 'user_call';
+
+    const shouldPreserveExistingCaller =
+      !shouldUpgradeWatchToCall &&
+      !shouldUpgradeBotToUser &&
+      existing.callSourceType === 'user_call';
+
+    const updated = normalizeTrackedCall({
       ...existing,
 
       tokenName: scan.tokenName || existing.tokenName,
@@ -174,41 +271,59 @@ function saveTrackedCall(
       discordMessageId: existing.discordMessageId || null,
 
       firstCallerId:
-        shouldUpgradeWatchToCall
-          ? callerFields.firstCallerId
-          : (existing.firstCallerId || (callSourceType === 'user_call' ? callerFields.firstCallerId : null)),
+        shouldPreserveExistingCaller
+          ? existing.firstCallerId
+          : (shouldUpgradeWatchToCall || shouldUpgradeBotToUser
+              ? callerFields.firstCallerId
+              : existing.firstCallerId || callerFields.firstCallerId),
 
       firstCallerUsername:
-        shouldUpgradeWatchToCall
-          ? callerFields.firstCallerUsername
-          : (existing.firstCallerUsername || (callSourceType === 'user_call' ? callerFields.firstCallerUsername : null)),
+        shouldPreserveExistingCaller
+          ? existing.firstCallerUsername
+          : (shouldUpgradeWatchToCall || shouldUpgradeBotToUser
+              ? callerFields.firstCallerUsername
+              : existing.firstCallerUsername || callerFields.firstCallerUsername),
 
       firstCallerDiscordId:
-        shouldUpgradeWatchToCall
-          ? callerFields.firstCallerDiscordId
-          : (existing.firstCallerDiscordId || (callSourceType === 'user_call' ? callerFields.firstCallerDiscordId : null)),
+        shouldPreserveExistingCaller
+          ? existing.firstCallerDiscordId
+          : (shouldUpgradeWatchToCall || shouldUpgradeBotToUser
+              ? callerFields.firstCallerDiscordId
+              : existing.firstCallerDiscordId || callerFields.firstCallerDiscordId),
 
       firstCallerDisplayName:
-        shouldUpgradeWatchToCall
-          ? callerFields.firstCallerDisplayName
-          : (existing.firstCallerDisplayName || (callSourceType === 'user_call' ? callerFields.firstCallerDisplayName : null)),
+        shouldPreserveExistingCaller
+          ? existing.firstCallerDisplayName
+          : (shouldUpgradeWatchToCall || shouldUpgradeBotToUser
+              ? callerFields.firstCallerDisplayName
+              : existing.firstCallerDisplayName || callerFields.firstCallerDisplayName),
 
       firstCallerPublicName:
-        shouldUpgradeWatchToCall
-          ? callerFields.firstCallerPublicName
-          : (existing.firstCallerPublicName || (callSourceType === 'user_call' ? callerFields.firstCallerPublicName : null)),
+        shouldPreserveExistingCaller
+          ? existing.firstCallerPublicName
+          : (shouldUpgradeWatchToCall || shouldUpgradeBotToUser
+              ? callerFields.firstCallerPublicName
+              : existing.firstCallerPublicName || callerFields.firstCallerPublicName),
 
       firstCalledAt:
-        shouldUpgradeWatchToCall
+        shouldUpgradeWatchToCall || shouldUpgradeBotToUser
           ? now
           : (existing.firstCalledAt || now),
 
       firstCalledMarketCap:
-        shouldUpgradeWatchToCall
+        shouldUpgradeWatchToCall || shouldUpgradeBotToUser
           ? (scan.marketCap ?? existing.firstCalledMarketCap)
           : (existing.firstCalledMarketCap ?? scan.marketCap),
 
-      callSourceType: shouldUpgradeWatchToCall ? 'user_call' : (existing.callSourceType || callSourceType),
+      callSourceType:
+        shouldUpgradeWatchToCall || shouldUpgradeBotToUser
+          ? 'user_call'
+          : (
+              existing.callSourceType === 'bot_call' && callSourceType === 'bot_call'
+                ? 'bot_call'
+                : existing.callSourceType || callSourceType
+            ),
+
       wasWatched: existing.wasWatched === true || wasWatched === true,
 
       approvalStatus: existing.approvalStatus || 'pending',
@@ -237,6 +352,7 @@ function saveTrackedCall(
       xLastPostedAt: existing.xLastPostedAt || null
     });
 
+    calls[existingIndex] = refreshPublicCallerName(updated);
     saveTrackedCalls(calls);
     return calls[existingIndex];
   }
@@ -245,21 +361,21 @@ function saveTrackedCall(
     tokenName: scan.tokenName,
     ticker: scan.ticker,
     contractAddress: scan.contractAddress,
-    firstCalledMarketCap: callSourceType === 'user_call' ? scan.marketCap : scan.marketCap,
+    firstCalledMarketCap: scan.marketCap,
     latestMarketCap: scan.marketCap,
     entryScore: scan.entryScore,
     grade: scan.grade,
     alertType: scan.alertType,
 
-    ...(callSourceType === 'user_call'
-      ? callerFields
-      : {
+    ...(callSourceType === 'watch_only'
+      ? {
           firstCallerId: null,
           firstCallerUsername: null,
           firstCallerDiscordId: null,
           firstCallerDisplayName: null,
           firstCallerPublicName: null
-        }),
+        }
+      : callerFields),
 
     firstCalledAt: now,
     lastUpdatedAt: now,
@@ -295,9 +411,9 @@ function saveTrackedCall(
     xLastPostedAt: null
   });
 
-  calls.push(trackedCallData);
+  calls.push(refreshPublicCallerName(trackedCallData));
   saveTrackedCalls(calls);
-  return trackedCallData;
+  return calls[calls.length - 1];
 }
 
 function reactivateTrackedCall(
@@ -317,7 +433,7 @@ function reactivateTrackedCall(
   const existing = normalizeTrackedCall(calls[existingIndex]);
   const now = new Date().toISOString();
 
-  calls[existingIndex] = normalizeTrackedCall({
+  const updated = normalizeTrackedCall({
     ...existing,
     tokenName: scan.tokenName || existing.tokenName,
     ticker: scan.ticker || existing.ticker,
@@ -335,153 +451,98 @@ function reactivateTrackedCall(
     )
   });
 
+  calls[existingIndex] = refreshPublicCallerName(updated);
   saveTrackedCalls(calls);
   return calls[existingIndex];
 }
+
+/**
+ * =========================
+ * UPDATE HELPERS
+ * =========================
+ */
 
 function updateTrackedCallData(contractAddress, updates = {}) {
   const calls = loadTrackedCalls();
-  const existingIndex = calls.findIndex(call => call.contractAddress === contractAddress);
+  const index = calls.findIndex(call => call.contractAddress === contractAddress);
 
-  if (existingIndex === -1) return null;
+  if (index === -1) return null;
 
-  const existing = normalizeTrackedCall(calls[existingIndex]);
+  const existing = normalizeTrackedCall(calls[index]);
 
-  const blockedOwnershipFields = new Set([
-    'firstCallerId',
-    'firstCallerUsername',
-    'firstCallerDiscordId',
-    'firstCallerDisplayName',
-    'firstCallerPublicName',
-    'firstCalledAt',
-    'firstCalledMarketCap',
-    'callSourceType',
-    'wasWatched'
-  ]);
-
-  const safeUpdates = { ...updates };
-
-  for (const key of blockedOwnershipFields) {
-    delete safeUpdates[key];
-  }
-
-  calls[existingIndex] = normalizeTrackedCall({
+  const updated = normalizeTrackedCall({
     ...existing,
-    ...safeUpdates,
-    lastUpdatedAt: new Date().toISOString()
+    ...updates,
+    contractAddress: existing.contractAddress,
+    lastUpdatedAt: new Date().toISOString(),
+    athMc: Math.max(
+      Number(existing.athMc || existing.latestMarketCap || existing.firstCalledMarketCap || 0),
+      Number(updates.latestMarketCap ?? updates.marketCap ?? existing.latestMarketCap ?? 0),
+      Number(updates.athMc ?? updates.ath ?? existing.athMc ?? 0)
+    )
   });
 
+  calls[index] = refreshPublicCallerName(updated);
   saveTrackedCalls(calls);
-  return calls[existingIndex];
+  return calls[index];
 }
 
-function setApprovalStatus(contractAddress, status, moderator = {}) {
-  const allowed = new Set(['pending', 'approved', 'denied', 'excluded', 'expired']);
-  if (!allowed.has(status)) return null;
+function markMilestoneHit(contractAddress, milestoneKey) {
+  const tracked = getTrackedCall(contractAddress);
+  if (!tracked || !milestoneKey) return null;
 
-  const updates = {
-    approvalStatus: status,
-    excludedFromStats: status === 'excluded',
-    moderatedById: moderator.id ? String(moderator.id) : null,
-    moderatedByUsername: moderator.username || null,
-    moderatedAt: new Date().toISOString()
-  };
+  const milestonesHit = Array.isArray(tracked.milestonesHit)
+    ? [...new Set([...tracked.milestonesHit, milestoneKey])]
+    : [milestoneKey];
 
-  if (status === 'approved') {
-    updates.xApproved = true;
-  }
-
-  return updateTrackedCallData(contractAddress, updates);
+  return updateTrackedCallData(contractAddress, { milestonesHit });
 }
 
-function excludeTrackedCall(contractAddress, moderator = {}) {
-  return setApprovalStatus(contractAddress, 'excluded', moderator);
+function markDumpAlertHit(contractAddress, dumpKey) {
+  const tracked = getTrackedCall(contractAddress);
+  if (!tracked || !dumpKey) return null;
+
+  const dumpAlertsHit = Array.isArray(tracked.dumpAlertsHit)
+    ? [...new Set([...tracked.dumpAlertsHit, dumpKey])]
+    : [dumpKey];
+
+  return updateTrackedCallData(contractAddress, { dumpAlertsHit });
 }
 
-function includeTrackedCall(contractAddress, moderator = {}) {
+function setLifecycleStatus(contractAddress, lifecycleStatus, isActive = true) {
+  return updateTrackedCallData(contractAddress, {
+    lifecycleStatus,
+    isActive
+  });
+}
+
+/**
+ * =========================
+ * APPROVAL HELPERS
+ * =========================
+ */
+
+function markApprovalRequested(contractAddress, triggerX = 0, expiresAt = null) {
+  const tracked = getTrackedCall(contractAddress);
+  if (!tracked) return null;
+
+  const triggered = Array.isArray(tracked.approvalMilestonesTriggered)
+    ? [...new Set([...tracked.approvalMilestonesTriggered, Number(triggerX || 0)])]
+    : [Number(triggerX || 0)];
+
   return updateTrackedCallData(contractAddress, {
     approvalStatus: 'pending',
-    excludedFromStats: false,
-    moderatedById: moderator.id ? String(moderator.id) : null,
-    moderatedByUsername: moderator.username || null,
-    moderatedAt: new Date().toISOString()
-  });
-}
-
-function addModerationTag(contractAddress, tag, moderator = {}) {
-  const trackedCall = getTrackedCall(contractAddress);
-  if (!trackedCall || !tag) return null;
-
-  const cleanTag = String(tag).trim().toLowerCase();
-  if (!cleanTag) return null;
-
-  const existingTags = Array.isArray(trackedCall.moderationTags)
-    ? trackedCall.moderationTags
-    : [];
-
-  const nextTags = [...new Set([...existingTags, cleanTag])];
-
-  return updateTrackedCallData(contractAddress, {
-    moderationTags: nextTags,
-    moderatedById: moderator.id ? String(moderator.id) : null,
-    moderatedByUsername: moderator.username || null,
-    moderatedAt: new Date().toISOString()
-  });
-}
-
-function removeModerationTag(contractAddress, tag, moderator = {}) {
-  const trackedCall = getTrackedCall(contractAddress);
-  if (!trackedCall || !tag) return null;
-
-  const cleanTag = String(tag).trim().toLowerCase();
-  if (!cleanTag) return null;
-
-  const existingTags = Array.isArray(trackedCall.moderationTags)
-    ? trackedCall.moderationTags
-    : [];
-
-  const nextTags = existingTags.filter(t => t !== cleanTag);
-
-  return updateTrackedCallData(contractAddress, {
-    moderationTags: nextTags,
-    moderatedById: moderator.id ? String(moderator.id) : null,
-    moderatedByUsername: moderator.username || null,
-    moderatedAt: new Date().toISOString()
-  });
-}
-
-function setModerationNotes(contractAddress, notes, moderator = {}) {
-  return updateTrackedCallData(contractAddress, {
-    moderationNotes: String(notes || '').trim(),
-    moderatedById: moderator.id ? String(moderator.id) : null,
-    moderatedByUsername: moderator.username || null,
-    moderatedAt: new Date().toISOString()
+    approvalRequestedAt: new Date().toISOString(),
+    approvalExpiresAt: expiresAt || null,
+    lastApprovalTriggerX: Number(triggerX || 0),
+    approvalMilestonesTriggered: triggered
   });
 }
 
 function setApprovalMessageMeta(contractAddress, approvalMessageId = null, approvalChannelId = null) {
   return updateTrackedCallData(contractAddress, {
-    approvalMessageId: approvalMessageId ? String(approvalMessageId) : null,
-    approvalChannelId: approvalChannelId ? String(approvalChannelId) : null
-  });
-}
-
-function markApprovalRequested(contractAddress, triggerX, expiresAtIso) {
-  const trackedCall = getTrackedCall(contractAddress);
-  if (!trackedCall) return null;
-
-  const existingMilestones = Array.isArray(trackedCall.approvalMilestonesTriggered)
-    ? trackedCall.approvalMilestonesTriggered
-    : [];
-
-  const nextMilestones = [...new Set([...existingMilestones, Number(triggerX)])];
-
-  return updateTrackedCallData(contractAddress, {
-    approvalStatus: 'pending',
-    approvalRequestedAt: new Date().toISOString(),
-    approvalExpiresAt: expiresAtIso,
-    lastApprovalTriggerX: Number(triggerX || 0),
-    approvalMilestonesTriggered: nextMilestones
+    approvalMessageId: approvalMessageId || null,
+    approvalChannelId: approvalChannelId || null
   });
 }
 
@@ -494,31 +555,169 @@ function clearApprovalRequest(contractAddress) {
   });
 }
 
-function setXPostState(contractAddress, updates = {}) {
+function setApprovalStatus(
+  contractAddress,
+  status = 'pending',
+  moderation = {}
+) {
   return updateTrackedCallData(contractAddress, {
-    ...updates
+    approvalStatus: status,
+    excludedFromStats: moderation.excludedFromStats === true,
+    moderationTags: Array.isArray(moderation.moderationTags) ? moderation.moderationTags : [],
+    moderationNotes: typeof moderation.moderationNotes === 'string' ? moderation.moderationNotes : '',
+    moderatedById: moderation.moderatedById || null,
+    moderatedByUsername: moderation.moderatedByUsername || null,
+    moderatedAt: new Date().toISOString(),
+    xApproved: status === 'approved'
   });
 }
+
+/**
+ * =========================
+ * X POST HELPERS
+ * =========================
+ */
+
+function setXPostState(contractAddress, updates = {}) {
+  return updateTrackedCallData(contractAddress, {
+    xApproved: updates.xApproved ?? undefined,
+    xPostedMilestones: Array.isArray(updates.xPostedMilestones)
+      ? updates.xPostedMilestones
+      : undefined,
+    xOriginalPostId: updates.xOriginalPostId ?? undefined,
+    xLastReplyPostId: updates.xLastReplyPostId ?? undefined,
+    xLastPostedAt: updates.xLastPostedAt ?? undefined
+  });
+}
+/**
+ * =========================
+ * STATS RESET HELPERS
+ * =========================
+ */
+
+function excludeTrackedCallsFromStatsByCaller(
+  callerLookup = {},
+  resetMeta = {}
+) {
+  const calls = loadTrackedCalls();
+
+  let updatedCount = 0;
+
+  const updatedCalls = calls.map(call => {
+    if (!call || call.callSourceType !== 'user_call') return call;
+
+    const callDiscordId = String(call.firstCallerDiscordId || call.firstCallerId || '');
+    const callUsername = String(call.firstCallerUsername || '').toLowerCase().trim();
+    const callDisplayName = String(call.firstCallerDisplayName || '').toLowerCase().trim();
+
+    const lookupDiscordId = String(callerLookup.discordUserId || '').trim();
+    const lookupUsername = String(callerLookup.username || '').toLowerCase().trim();
+    const lookupDisplayName = String(callerLookup.displayName || '').toLowerCase().trim();
+
+    const matches =
+      (lookupDiscordId && callDiscordId && lookupDiscordId === callDiscordId) ||
+      (lookupUsername && callUsername && lookupUsername === callUsername) ||
+      (lookupDisplayName && callDisplayName && lookupDisplayName === callDisplayName);
+
+    if (!matches) return call;
+
+    updatedCount += 1;
+
+    const resetHistory = Array.isArray(call.statsResetHistory)
+      ? [...call.statsResetHistory]
+      : [];
+
+    resetHistory.push({
+      resetAt: new Date().toISOString(),
+      resetById: resetMeta.resetById || null,
+      resetByUsername: resetMeta.resetByUsername || null,
+      resetReason: resetMeta.resetReason || 'Manual reset'
+    });
+
+    return normalizeTrackedCall({
+      ...call,
+      excludedFromStats: true,
+      statsResetAt: new Date().toISOString(),
+      statsResetById: resetMeta.resetById || null,
+      statsResetByUsername: resetMeta.resetByUsername || null,
+      statsResetReason: resetMeta.resetReason || 'Manual reset',
+      statsResetHistory: resetHistory
+    });
+  });
+
+  saveTrackedCalls(updatedCalls);
+
+  return {
+    success: true,
+    updatedCount
+  };
+}
+
+function excludeTrackedBotCallsFromStats(resetMeta = {}) {
+  const calls = loadTrackedCalls();
+
+  let updatedCount = 0;
+
+  const updatedCalls = calls.map(call => {
+    if (!call || call.callSourceType !== 'bot_call') return call;
+
+    updatedCount += 1;
+
+    const resetHistory = Array.isArray(call.statsResetHistory)
+      ? [...call.statsResetHistory]
+      : [];
+
+    resetHistory.push({
+      resetAt: new Date().toISOString(),
+      resetById: resetMeta.resetById || null,
+      resetByUsername: resetMeta.resetByUsername || null,
+      resetReason: resetMeta.resetReason || 'Manual bot reset'
+    });
+
+    return normalizeTrackedCall({
+      ...call,
+      excludedFromStats: true,
+      statsResetAt: new Date().toISOString(),
+      statsResetById: resetMeta.resetById || null,
+      statsResetByUsername: resetMeta.resetByUsername || null,
+      statsResetReason: resetMeta.resetReason || 'Manual bot reset',
+      statsResetHistory: resetHistory
+    });
+  });
+
+  saveTrackedCalls(updatedCalls);
+
+  return {
+    success: true,
+    updatedCount
+  };
+}
+
+/**
+ * =========================
+ * EXPORTS
+ * =========================
+ */
 
 module.exports = {
   loadTrackedCalls,
   saveTrackedCalls,
-  normalizeTrackedCall,
   getTrackedCall,
   getAllTrackedCalls,
   saveTrackedCall,
   reactivateTrackedCall,
   updateTrackedCallData,
+  markMilestoneHit,
+  markDumpAlertHit,
+  setLifecycleStatus,
 
-  setApprovalStatus,
-  excludeTrackedCall,
-  includeTrackedCall,
-  addModerationTag,
-  removeModerationTag,
-  setModerationNotes,
-  setApprovalMessageMeta,
   markApprovalRequested,
+  setApprovalMessageMeta,
   clearApprovalRequest,
+  setApprovalStatus,
 
-  setXPostState
+  setXPostState,
+
+  excludeTrackedCallsFromStatsByCaller,
+  excludeTrackedBotCallsFromStats,
 };

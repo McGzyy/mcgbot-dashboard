@@ -14,6 +14,12 @@ const {
   loadTrackedCalls,
   updateTrackedCallData
 } = require('../utils/trackedCallsService');
+const { resolvePublicCallerName } = require('../utils/userProfileService');
+const {
+  getCallerStats,
+  getCallerLeaderboard,
+  getBotStats
+} = require('../utils/callerStatsService');
 
 function formatUsd(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return 'N/A';
@@ -421,7 +427,10 @@ function createCommandsEmbed() {
         name: '📚 Tracking Commands',
         value:
           '`!tracked` — view tracked coin summary\n' +
-          '`!tracked [CA]` — view tracked coin details (with live refresh)',
+          '`!tracked [CA]` — view tracked coin details (with live refresh)\n' +
+          '`!caller [name]` — view caller stats\n' +
+          '`!callerboard` — top caller leaderboard\n' +
+          '`!botstats` — auto bot stats',
         inline: false
       },
       {
@@ -537,7 +546,15 @@ function createTrackedDetailEmbed(call) {
   const callerDisplay =
     call.callSourceType === 'watch_only'
       ? 'No caller credit'
-      : formatValue(call.firstCallerUsername, 'Unknown');
+      : call.callSourceType === 'bot_call'
+        ? 'Auto Bot'
+        : resolvePublicCallerName({
+            discordUserId: call.firstCallerDiscordId || null,
+            username: call.firstCallerUsername || '',
+            displayName: call.firstCallerDisplayName || '',
+            trackedCall: call,
+            fallback: call.firstCallerUsername || 'Unknown'
+          });
 
   const fields = [
     {
@@ -583,8 +600,29 @@ function createTrackedDetailEmbed(call) {
     .setTimestamp();
 }
 
+function getPublicCaller(scan) {
+  if (!scan) return 'Unknown';
+
+  if (scan.callSourceType === 'bot_call') {
+    return 'Auto Bot';
+  }
+
+  if (scan.callSourceType === 'watch_only') {
+    return 'No caller credit';
+  }
+
+  return resolvePublicCallerName({
+    discordUserId: scan.firstCallerDiscordId || null,
+    username: scan.firstCallerUsername || '',
+    displayName: scan.firstCallerDisplayName || '',
+    trackedCall: scan,
+    fallback: scan.firstCallerUsername || 'Unknown'
+  });
+}
+
 function createCallStatusLine(scan) {
   const isWatchOnly = scan.callSourceType === 'watch_only';
+  const callerName = getPublicCaller(scan);
 
   let statusLine = '';
 
@@ -615,7 +653,7 @@ function createCallStatusLine(scan) {
       ? `👀 **Watch Only • No caller credit**`
       : scan.callSourceType === 'bot_call'
         ? `🤖 **Bot Tracked Coin**`
-        : `📍 **Called by ${scan.firstCallerUsername} @ ${formatUsd(scan.firstCalledMarketCap)}**`;
+        : `📍 **Called by ${callerName} @ ${formatUsd(scan.firstCalledMarketCap)}**`;
 
   return `${statusLine}\n${sourceLine}\n\n`;
 }
@@ -1058,6 +1096,8 @@ async function handleCallCommand(message, contractAddress, source = 'command') {
     redFlags,
     riskLevel: scan.riskLevel || 'Low',
     firstCallerUsername: trackedCall?.firstCallerUsername,
+    firstCallerDisplayName: trackedCall?.firstCallerDisplayName,
+    firstCallerDiscordId: trackedCall?.firstCallerDiscordId,
     firstCalledMarketCap: trackedCall?.firstCalledMarketCap,
     lifecycleStatus: trackedCall?.lifecycleStatus,
     callSourceType: trackedCall?.callSourceType,
@@ -1104,6 +1144,8 @@ async function handleWatchCommand(message, contractAddress, source = 'command') 
     redFlags,
     riskLevel: scan.riskLevel || 'Low',
     firstCallerUsername: trackedCall?.firstCallerUsername,
+    firstCallerDisplayName: trackedCall?.firstCallerDisplayName,
+    firstCallerDiscordId: trackedCall?.firstCallerDiscordId,
     firstCalledMarketCap: trackedCall?.firstCalledMarketCap,
     lifecycleStatus: trackedCall?.lifecycleStatus,
     callSourceType: trackedCall?.callSourceType,
@@ -1144,6 +1186,73 @@ async function handleBasicCommands(message, options = {}) {
 
   if (lowerContent === '!status') {
     await message.reply('🟢 Crypto Scanner Bot is online and ready.');
+    return true;
+  }
+
+  if (lowerContent.startsWith('!callerboard')) {
+    const leaderboard = getCallerLeaderboard(10);
+
+    if (!leaderboard.length) {
+      await message.reply('No caller data available yet.');
+      return true;
+    }
+
+    const lines = leaderboard.map((c, i) => {
+      return `#${i + 1} **${c.username}** — Avg ${c.avgX.toFixed(2)}x | ${c.totalCalls} calls`;
+    });
+
+    await message.reply(lines.join('\n'));
+    return true;
+  }
+
+  if (lowerContent.startsWith('!caller ')) {
+    const input = content.replace('!caller ', '').trim();
+
+    if (!input) {
+      await message.reply('Usage: `!caller [username]`');
+      return true;
+    }
+
+    const stats = getCallerStats(input);
+
+    if (!stats) {
+      await message.reply('No stats found for that caller.');
+      return true;
+    }
+
+    const lines = [
+      `👤 **${stats.username}**`,
+      `Calls: ${stats.totalCalls}`,
+      `Avg X: ${stats.avgX.toFixed(2)}x`,
+      `Avg ATH: ${formatUsd(stats.avgAth)}`,
+      stats.bestCall
+        ? `🏆 Best: ${stats.bestCall.tokenName} (${stats.bestCall.ticker}) — ${stats.bestCall.x.toFixed(2)}x`
+        : ''
+    ].filter(Boolean);
+
+    await message.reply(lines.join('\n'));
+    return true;
+  }
+
+  if (lowerContent === '!botstats') {
+    const stats = getBotStats();
+
+    if (!stats) {
+      await message.reply('No bot stats yet.');
+      return true;
+    }
+
+    const lines = [
+      `🤖 **Auto Bot**`,
+      `Calls: ${stats.totalCalls}`,
+      `Avg X: ${stats.avgX.toFixed(2)}x`,
+      `Avg ATH: ${formatUsd(stats.avgAth)}`,
+      stats.bestCall
+        ? `🏆 Best: ${stats.bestCall.tokenName} (${stats.bestCall.ticker}) — ${stats.bestCall.x.toFixed(2)}x`
+        : ''
+    ].filter(Boolean);
+
+    await message.reply(lines.join('\n'));
     return true;
   }
 

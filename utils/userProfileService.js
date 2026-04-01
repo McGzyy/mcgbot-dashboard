@@ -137,7 +137,7 @@ function getDefaultXVerification() {
     requestedHandle: '',
     requestedAt: null,
     verificationCode: '',
-    status: 'none' // 'none' | 'pending' | 'verified'
+    status: 'none' // 'none' | 'pending' | 'verified' | 'denied'
   };
 }
 
@@ -374,7 +374,15 @@ function updateUserProfile(discordUserId, updates = {}) {
         updates?.xVerification?.requestedHandle ??
         existing?.xVerification?.requestedHandle ??
         ''
-      )
+      ),
+      verificationCode:
+        updates?.xVerification?.verificationCode ??
+        existing?.xVerification?.verificationCode ??
+        '',
+      status:
+        updates?.xVerification?.status ??
+        existing?.xVerification?.status ??
+        'none'
     },
     publicSettings: {
       ...getDefaultPublicSettings(),
@@ -399,56 +407,43 @@ function updateUserProfile(discordUserId, updates = {}) {
 
 /**
  * =========================
- * X VERIFICATION HELPERS
+ * INDEX.JS COMPAT HELPERS
  * =========================
  */
 
-function setPublicCreditMode(discordUserId, mode) {
-  const allowed = ['anonymous', 'discord_name', 'verified_x_tag'];
-  if (!allowed.includes(mode)) return null;
-
-  const profile = getUserProfileByDiscordId(discordUserId);
-  if (!profile) return null;
-
-  const isVerifiedMode = mode === 'verified_x_tag';
+function setPublicCreditMode(discordUserId, mode = 'discord_name') {
+  const normalizedMode =
+    mode === 'anonymous'
+      ? 'anonymous'
+      : mode === 'verified_x_tag'
+      ? 'verified_x_tag'
+      : 'discord_name';
 
   return updateUserProfile(discordUserId, {
     publicSettings: {
-      ...profile.publicSettings,
-      publicCreditMode: isVerifiedMode && !profile.isXVerified ? 'discord_name' : mode,
-      allowPublicXTag: isVerifiedMode && profile.isXVerified
+      publicCreditMode: normalizedMode,
+      allowPublicXTag: normalizedMode === 'verified_x_tag',
+      allowPublicDisplayName: normalizedMode !== 'anonymous'
     }
   });
 }
 
-function startXVerification(discordUserId, requestedHandle, verificationCode) {
-  const normalizedHandle = normalizeXHandle(requestedHandle);
-
-  if (!discordUserId || !isLikelyXHandle(normalizedHandle)) return null;
-
-  const profile = getUserProfileByDiscordId(discordUserId);
-  if (!profile) return null;
+function startXVerification(discordUserId, handle, verificationCode = '') {
+  const normalizedHandle = normalizeXHandle(handle);
 
   return updateUserProfile(discordUserId, {
     xHandle: normalizedHandle,
     xVerification: {
       requestedHandle: normalizedHandle,
       requestedAt: new Date().toISOString(),
-      verificationCode: normalizeString(verificationCode),
+      verificationCode,
       status: 'pending'
     }
   });
 }
 
-function completeXVerification(discordUserId, verifiedHandle) {
-  const normalizedHandle = normalizeXHandle(verifiedHandle);
-
-  if (!discordUserId || !isLikelyXHandle(normalizedHandle)) return null;
-
-  const profile = getUserProfileByDiscordId(discordUserId);
-  if (!profile) return null;
-
-  const currentMode = profile?.publicSettings?.publicCreditMode || 'discord_name';
+function completeXVerification(discordUserId, handle) {
+  const normalizedHandle = normalizeXHandle(handle);
 
   return updateUserProfile(discordUserId, {
     xHandle: normalizedHandle,
@@ -456,56 +451,193 @@ function completeXVerification(discordUserId, verifiedHandle) {
     isXVerified: true,
     xVerification: {
       requestedHandle: normalizedHandle,
-      requestedAt: profile?.xVerification?.requestedAt || new Date().toISOString(),
-      verificationCode: profile?.xVerification?.verificationCode || '',
+      requestedAt: new Date().toISOString(),
+      verificationCode: '',
       status: 'verified'
     },
     publicSettings: {
-      ...profile.publicSettings,
-      allowPublicXTag: true,
-      publicCreditMode: currentMode === 'verified_x_tag' ? 'verified_x_tag' : currentMode
+      allowPublicXTag: true
     }
   });
 }
 
-function clearXVerificationRequest(discordUserId) {
-  const profile = getUserProfileByDiscordId(discordUserId);
-  if (!profile) return null;
+function getPreferredPublicName(profile = {}) {
+  const mode = String(
+    profile?.publicSettings?.publicCreditMode || 'discord_name'
+  ).toLowerCase();
 
-  return updateUserProfile(discordUserId, {
-    xVerification: getDefaultXVerification()
-  });
+  if (mode === 'anonymous') {
+    return 'Anonymous';
+  }
+
+  if (
+    mode === 'verified_x_tag' &&
+    profile?.isXVerified === true &&
+    profile?.publicSettings?.allowPublicXTag === true
+  ) {
+    const verifiedHandle = normalizeXHandle(
+      profile?.verifiedXHandle ||
+      profile?.xVerification?.requestedHandle ||
+      profile?.xHandle ||
+      ''
+    );
+
+    if (verifiedHandle) return `@${verifiedHandle}`;
+  }
+
+  return (
+    normalizeString(profile?.publicSettings?.publicAlias) ||
+    normalizeString(profile?.displayName) ||
+    normalizeString(profile?.username) ||
+    'Anonymous'
+  );
 }
 
 /**
  * =========================
- * PUBLIC HELPERS
+ * PUBLIC IDENTITY HELPERS
  * =========================
  */
 
-function getPreferredPublicName(profile) {
-  if (!profile) return 'Discord User';
-
-  const mode = profile?.publicSettings?.publicCreditMode || 'discord_name';
-  const publicAlias = normalizeString(profile?.publicSettings?.publicAlias);
-
-  if (mode === 'anonymous') return 'Discord User';
-
-  if (mode === 'verified_x_tag' && profile.isXVerified && profile.verifiedXHandle) {
-    return `@${normalizeXHandle(profile.verifiedXHandle)}`;
-  }
-
-  if (publicAlias) return publicAlias;
-  if (profile.displayName) return profile.displayName;
-  if (profile.username) return profile.username;
-
-  return 'Discord User';
+function buildAnonymousLabel() {
+  return 'Anonymous';
 }
 
-function canUserBeTaggedOnX(profile) {
-  return !!profile?.isXVerified &&
-    profile?.publicSettings?.publicCreditMode === 'verified_x_tag' &&
-    !!normalizeXHandle(profile?.verifiedXHandle);
+function buildDiscordPublicLabel(profile = {}, fallback = {}) {
+  const alias = normalizeString(profile?.publicSettings?.publicAlias || '');
+  if (alias) return alias;
+
+  if (profile?.publicSettings?.allowPublicDisplayName !== false) {
+    const display =
+      normalizeString(profile?.displayName) ||
+      normalizeString(fallback.displayName) ||
+      normalizeString(profile?.username) ||
+      normalizeString(fallback.username);
+
+    if (display) return display;
+  }
+
+  const username =
+    normalizeString(profile?.username) ||
+    normalizeString(fallback.username) ||
+    normalizeString(profile?.displayName) ||
+    normalizeString(fallback.displayName);
+
+  return username || buildAnonymousLabel();
+}
+
+function buildVerifiedXPublicLabel(profile = {}, fallback = {}) {
+  const verifiedHandle = normalizeXHandle(profile?.verifiedXHandle || '');
+  const requestedHandle = normalizeXHandle(profile?.xVerification?.requestedHandle || '');
+  const xHandle = normalizeXHandle(profile?.xHandle || '');
+
+  const canUseVerifiedX =
+    profile?.isXVerified === true &&
+    profile?.publicSettings?.allowPublicXTag === true;
+
+  if (canUseVerifiedX) {
+    const handle = verifiedHandle || requestedHandle || xHandle;
+    if (handle) return `@${handle}`;
+  }
+
+  return buildDiscordPublicLabel(profile, fallback);
+}
+
+function resolvePublicCallerName({
+  discordUserId = null,
+  username = '',
+  displayName = '',
+  trackedCall = null,
+  fallback = 'Unknown'
+} = {}) {
+  const fallbackData = {
+    username:
+      normalizeString(username) ||
+      normalizeString(trackedCall?.firstCallerUsername) ||
+      '',
+    displayName:
+      normalizeString(displayName) ||
+      normalizeString(trackedCall?.firstCallerDisplayName) ||
+      ''
+  };
+
+  const profile = findUserProfile({
+    discordUserId: discordUserId || trackedCall?.firstCallerDiscordId || trackedCall?.firstCallerId || null,
+    username: fallbackData.username,
+    displayName: fallbackData.displayName
+  });
+
+  const mode = String(
+    profile?.publicSettings?.publicCreditMode ||
+    'discord_name'
+  ).toLowerCase();
+
+  let publicName = '';
+
+  if (mode === 'anonymous') {
+    publicName = buildAnonymousLabel();
+  } else if (mode === 'verified_x_tag') {
+    publicName = buildVerifiedXPublicLabel(profile, fallbackData);
+  } else {
+    publicName = buildDiscordPublicLabel(profile, fallbackData);
+  }
+
+  return normalizeString(publicName) || fallback;
+}
+
+function getPublicCallerIdentity({
+  discordUserId = null,
+  username = '',
+  displayName = '',
+  trackedCall = null
+} = {}) {
+  const fallbackData = {
+    username:
+      normalizeString(username) ||
+      normalizeString(trackedCall?.firstCallerUsername) ||
+      '',
+    displayName:
+      normalizeString(displayName) ||
+      normalizeString(trackedCall?.firstCallerDisplayName) ||
+      ''
+  };
+
+  const profile = findUserProfile({
+    discordUserId: discordUserId || trackedCall?.firstCallerDiscordId || trackedCall?.firstCallerId || null,
+    username: fallbackData.username,
+    displayName: fallbackData.displayName
+  });
+
+  const publicName = resolvePublicCallerName({
+    discordUserId,
+    username,
+    displayName,
+    trackedCall,
+    fallback: 'Unknown'
+  });
+
+  const mode = String(
+    profile?.publicSettings?.publicCreditMode ||
+    'discord_name'
+  ).toLowerCase();
+
+  const verifiedHandle = normalizeXHandle(profile?.verifiedXHandle || '');
+  const canUseVerifiedX =
+    profile?.isXVerified === true &&
+    profile?.publicSettings?.allowPublicXTag === true &&
+    !!verifiedHandle;
+
+  return {
+    publicName,
+    mode,
+    isAnonymous: mode === 'anonymous',
+    isVerifiedX: canUseVerifiedX,
+    verifiedXHandle: canUseVerifiedX ? verifiedHandle : '',
+    discordUserId: profile?.discordUserId || discordUserId || trackedCall?.firstCallerDiscordId || trackedCall?.firstCallerId || null,
+    username: profile?.username || fallbackData.username || '',
+    displayName: profile?.displayName || fallbackData.displayName || '',
+    profile
+  };
 }
 
 /**
@@ -515,8 +647,11 @@ function canUserBeTaggedOnX(profile) {
  */
 
 module.exports = {
-  loadUserProfiles,
-  saveUserProfiles,
+  // basic helpers
+  normalizeXHandle,
+  isLikelyXHandle,
+
+  // profile CRUD
   getAllUserProfiles,
   getUserProfileByDiscordId,
   getUserProfileByUsername,
@@ -524,12 +659,14 @@ module.exports = {
   findUserProfile,
   upsertUserProfile,
   updateUserProfile,
+
+  // index.js compatibility
   setPublicCreditMode,
   startXVerification,
   completeXVerification,
-  clearXVerificationRequest,
   getPreferredPublicName,
-  canUserBeTaggedOnX,
-  normalizeXHandle,
-  isLikelyXHandle
+
+  // public identity
+  resolvePublicCallerName,
+  getPublicCallerIdentity
 };

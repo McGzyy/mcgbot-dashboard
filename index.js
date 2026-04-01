@@ -20,7 +20,7 @@ const {
 } = require('./commands/basicCommands');
 
 const { startMonitoring } = require('./utils/monitoringEngine');
-const { startAutoCallEngine } = require('./utils/autoCallEngine');
+const { startAutoCallLoop } = require('./utils/autoCallEngine');
 const { createPost } = require('./utils/xPoster');
 
 const {
@@ -53,6 +53,9 @@ const {
 
 const {
   getCallerStats,
+  getCallerStatsRaw,
+  getBotStats,
+  getBotStatsRaw,
   getCallerLeaderboard,
   getTopCallerInTimeframe,
   getBestCallInTimeframe,
@@ -68,6 +71,8 @@ const {
   getAllTrackedCalls,
   addModerationTag,
   setModerationNotes,
+  excludeTrackedCallsFromStatsByCaller,
+  excludeTrackedBotCallsFromStats,
   setXPostState
 } = require('./utils/trackedCallsService');
 
@@ -240,16 +245,37 @@ function buildUserProfileEmbed(profile) {
 
   const previewName = getPreferredPublicName(profile);
 
+  const callerLookup =
+    profile?.discordUserId ||
+    profile?.username ||
+    profile?.displayName ||
+    '';
+
+  const stats = callerLookup ? getCallerStats(callerLookup) : null;
+
+  const totalCalls = stats?.totalCalls ?? 0;
+  const approvedCalls = stats?.approvedCalls ?? 0;
+  const bestX = Number(stats?.bestX ?? 0);
+  const bestCallToken = stats?.bestCallToken || null;
+
+  const bestCallLine =
+    bestX > 0
+      ? `${bestX.toFixed(2)}x${bestCallToken ? ` (${bestCallToken})` : ''}`
+      : 'No tracked winners yet';
+
   return new EmbedBuilder()
     .setColor(0x5865f2)
-    .setTitle('👤 Your Public Credit Profile')
+    .setTitle(`👤 Caller Profile — ${profile.displayName || profile.username || 'Unknown'}`)
     .setDescription([
-      `**Display Name:** ${profile.displayName || profile.username || 'Unknown'}`,
-      `**Public Credit Mode:** ${modeLabel}`,
+      `**Public Preview:** ${previewName}`,
+      `**Credit Mode:** ${modeLabel}`,
       `**X Verification:** ${xStatus}`,
-      `**Public Preview:** ${previewName}`
+      '',
+      `**📊 Total Calls:** ${totalCalls}`,
+      `**✅ Approved Calls:** ${approvedCalls}`,
+      `**🚀 Best Call:** ${bestCallLine}`
     ].join('\n'))
-    .setFooter({ text: 'Use the buttons below to update your preferences.' })
+    .setFooter({ text: 'Profile + caller performance snapshot' })
     .setTimestamp();
 }
 
@@ -570,7 +596,7 @@ function buildApprovalStatusEmbed(trackedCall, scan = null) {
 
   const descriptionLines = [
     `**Status:** ${statusLabel}`,
-    `**Caller:** ${trackedCall.firstCallerDisplayName || trackedCall.firstCallerUsername || 'Unknown'}`,
+    `**Caller:** ${getPreferredPublicName(getUserProfileByDiscordId(trackedCall.firstCallerDiscordId || trackedCall.firstCallerId || '')) || trackedCall.firstCallerPublicName || trackedCall.firstCallerDisplayName || trackedCall.firstCallerUsername || (trackedCall.callSourceType === 'bot_call' ? 'Auto Bot' : trackedCall.callSourceType === 'watch_only' ? 'No caller credit' : 'Unknown')}`,
     `**CA:** \`${ca}\``,
     `**Links:** ${links}`,
     '',
@@ -619,7 +645,7 @@ function buildApprovalStatusEmbed(trackedCall, scan = null) {
 function buildXPostText(trackedCall, milestoneX, isReply = false) {
   const ticker = trackedCall.ticker || 'UNKNOWN';
   const ca = trackedCall.contractAddress;
-  const caller = trackedCall.firstCallerDisplayName || trackedCall.firstCallerUsername || 'Unknown';
+  const caller = getPreferredPublicName(getUserProfileByDiscordId(trackedCall.firstCallerDiscordId || trackedCall.firstCallerId || '')) || trackedCall.firstCallerPublicName || trackedCall.firstCallerDisplayName || trackedCall.firstCallerUsername || (trackedCall.callSourceType === 'bot_call' ? 'Auto Bot' : trackedCall.callSourceType === 'watch_only' ? 'No caller credit' : 'Unknown');
   const athMc = formatUsd(
     trackedCall.ath ||
     trackedCall.athMc ||
@@ -1160,7 +1186,7 @@ client.once('clientReady', async () => {
   console.log(`[DevTracker] Loaded ${trackedDevs.length} tracked dev(s).`);
 
   startMonitoring(firstTextChannel, 60000);
-  startAutoCallEngine(firstTextChannel);
+  startAutoCallLoop(firstTextChannel);
 
   await ensureVerifyXPrompt(firstGuild);
 
@@ -1639,17 +1665,34 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      if (lowerContent === '!myprofile') {
-        const profile = getUserProfileByDiscordId(message.author.id);
+      if (lowerContent.startsWith('!profile') || lowerContent === '!myprofile') {
+        const mentionedUser = message.mentions.users.first();
+
+        let targetUser = message.author;
+
+        // If mention exists → viewing someone else's profile
+        if (mentionedUser) {
+          targetUser = mentionedUser;
+        }
+
+        let profile = getUserProfileByDiscordId(targetUser.id);
 
         if (!profile) {
-          await replyText(message, '❌ No profile found yet.');
-          return;
+          profile = upsertUserProfile({
+            discordUserId: targetUser.id,
+            username: targetUser.username,
+            displayName:
+              message.guild?.members?.cache?.get(targetUser.id)?.displayName ||
+              targetUser.globalName ||
+              targetUser.username
+          });
         }
+
+        const isOwnProfile = targetUser.id === message.author.id;
 
         await message.reply({
           embeds: [buildUserProfileEmbed(profile)],
-          components: buildProfileButtons(profile),
+          components: isOwnProfile ? buildProfileButtons(profile) : [],
           allowedMentions: { repliedUser: false }
         });
 
@@ -1764,16 +1807,178 @@ client.on('messageCreate', async (message) => {
 
         return;
       }
+if (lowerContent.startsWith('!resetstats')) {
+        const mentionedUser = message.mentions.users.first();
+        const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
 
-      if (lowerContent.startsWith('!caller ')) {
-        const username = content.replace(/^!caller\s+/i, '').trim();
+        let targetUser = message.author;
 
-        if (!username) {
-          await replyText(message, '❌ Usage: `!caller <username>`');
+        if (mentionedUser) {
+          if (!isModOrAdmin) {
+            await replyText(message, '❌ Only mods/admins can reset another user’s stats.');
+            return;
+          }
+
+          targetUser = mentionedUser;
+        }
+
+        const targetProfile = upsertUserProfile({
+          discordUserId: targetUser.id,
+          username: targetUser.username,
+          displayName:
+            message.guild?.members?.cache?.get(targetUser.id)?.displayName ||
+            targetUser.globalName ||
+            targetUser.username
+        });
+
+        const result = excludeTrackedCallsFromStatsByCaller(
+          {
+            discordUserId: targetProfile.discordUserId,
+            username: targetProfile.username,
+            displayName: targetProfile.displayName
+          },
+          {
+            resetById: message.author.id,
+            resetByUsername: message.author.username,
+            resetReason:
+              targetUser.id === message.author.id
+                ? 'Self-requested stats reset'
+                : `Admin/mod reset by ${message.author.username}`
+          }
+        );
+
+        if (!result?.updatedCount) {
+          await replyText(
+            message,
+            targetUser.id === message.author.id
+              ? '❌ No tracked user-call stats found to reset for your account.'
+              : `❌ No tracked user-call stats found to reset for **${targetProfile.displayName || targetProfile.username}**.`
+          );
           return;
         }
 
-        const stats = getCallerStats(username);
+        await replyText(
+          message,
+          targetUser.id === message.author.id
+            ? `✅ Reset **${result.updatedCount}** of your tracked user-call stat entr${result.updatedCount === 1 ? 'y' : 'ies'}.`
+            : `✅ Reset **${result.updatedCount}** tracked user-call stat entr${result.updatedCount === 1 ? 'y' : 'ies'} for **${targetProfile.displayName || targetProfile.username}**.`
+        );
+
+        return;
+      }
+      if (lowerContent.startsWith('!resetstats')) {
+        const mentionedUser = message.mentions.users.first();
+        const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
+
+        let targetUser = message.author;
+
+        if (mentionedUser) {
+          if (!isModOrAdmin) {
+            await replyText(message, '❌ Only mods/admins can reset another user’s stats.');
+            return;
+          }
+
+          targetUser = mentionedUser;
+        }
+
+        const targetProfile = upsertUserProfile({
+          discordUserId: targetUser.id,
+          username: targetUser.username,
+          displayName:
+            message.guild?.members?.cache?.get(targetUser.id)?.displayName ||
+            targetUser.globalName ||
+            targetUser.username
+        });
+
+        const result = excludeTrackedCallsFromStatsByCaller(
+          {
+            discordUserId: targetProfile.discordUserId,
+            username: targetProfile.username,
+            displayName: targetProfile.displayName
+          },
+          {
+            resetById: message.author.id,
+            resetByUsername: message.author.username,
+            resetReason:
+              targetUser.id === message.author.id
+                ? 'Self-requested stats reset'
+                : `Admin/mod reset by ${message.author.username}`
+          }
+        );
+
+        if (!result?.updatedCount) {
+          await replyText(
+            message,
+            targetUser.id === message.author.id
+              ? '❌ No tracked user-call stats found to reset for your account.'
+              : `❌ No tracked user-call stats found to reset for **${targetProfile.displayName || targetProfile.username}**.`
+          );
+          return;
+        }
+
+        await replyText(
+          message,
+          targetUser.id === message.author.id
+            ? `✅ Reset **${result.updatedCount}** of your tracked user-call stat entr${result.updatedCount === 1 ? 'y' : 'ies'}.`
+            : `✅ Reset **${result.updatedCount}** tracked user-call stat entr${result.updatedCount === 1 ? 'y' : 'ies'} for **${targetProfile.displayName || targetProfile.username}**.`
+        );
+
+        return;
+      }
+      if (lowerContent === '!resetbotstats') {
+        const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
+
+        if (!isModOrAdmin) {
+          await replyText(message, '❌ Only mods/admins can reset bot stats.');
+          return;
+        }
+
+        const result = excludeTrackedBotCallsFromStats({
+          resetById: message.author.id,
+          resetByUsername: message.author.username,
+          resetReason: `Bot stats reset by ${message.author.username}`
+        });
+
+        if (!result?.updatedCount) {
+          await replyText(message, '❌ No tracked bot-call stats found to reset.');
+          return;
+        }
+
+        await replyText(
+          message,
+          `✅ Reset **${result.updatedCount}** tracked bot-call stat entr${result.updatedCount === 1 ? 'y' : 'ies'}.`
+        );
+
+        return;
+      }
+      if (lowerContent.startsWith('!caller ')) {
+        const mentionedUser = message.mentions.users.first();
+
+        let lookup = content.replace(/^!caller\s+/i, '').trim();
+
+        if (mentionedUser) {
+          const targetProfile = upsertUserProfile({
+            discordUserId: mentionedUser.id,
+            username: mentionedUser.username,
+            displayName:
+              message.guild?.members?.cache?.get(mentionedUser.id)?.displayName ||
+              mentionedUser.globalName ||
+              mentionedUser.username
+          });
+
+          lookup = {
+            discordUserId: targetProfile.discordUserId,
+            username: targetProfile.username,
+            displayName: targetProfile.displayName
+          };
+        }
+
+        if (!lookup) {
+          await replyText(message, '❌ Usage: `!caller <username>` or `!caller @user`');
+          return;
+        }
+
+        const stats = getCallerStats(lookup);
         const embed = createCallerCardEmbed(stats);
 
         await message.reply({
@@ -1783,7 +1988,96 @@ client.on('messageCreate', async (message) => {
 
         return;
       }
+if (lowerContent === '!truebotstats') {
+        const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
 
+        if (!isModOrAdmin) {
+          await replyText(message, '❌ Only mods/admins can use this command.');
+          return;
+        }
+
+        const stats = getBotStatsRaw();
+
+        if (!stats) {
+          await replyText(message, '❌ No tracked bot-call data found.');
+          return;
+        }
+
+        const embed = createCallerCardEmbed(stats)
+          .setTitle('🤖 TRUE BOT STATS — AUTO BOT')
+          .setFooter({ text: `Includes reset/excluded bot calls • Requested by ${message.author.username}` });
+
+        if (typeof stats.resetExcludedCount === 'number') {
+          embed.addFields({
+            name: 'Reset / Excluded Calls',
+            value: `${stats.resetExcludedCount}`,
+            inline: true
+          });
+        }
+
+        await message.reply({
+          embeds: [embed],
+          allowedMentions: { repliedUser: false }
+        });
+
+        return;
+      }
+if (lowerContent.startsWith('!truestats')) {
+        const mentionedUser = message.mentions.users.first();
+        const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
+
+        if (!mentionedUser) {
+          await replyText(message, '❌ Usage: `!truestats @user`');
+          return;
+        }
+
+        if (!isModOrAdmin) {
+          await replyText(message, '❌ Only mods/admins can use this command.');
+          return;
+        }
+
+        const targetProfile = upsertUserProfile({
+          discordUserId: mentionedUser.id,
+          username: mentionedUser.username,
+          displayName:
+            message.guild?.members?.cache?.get(mentionedUser.id)?.displayName ||
+            mentionedUser.globalName ||
+            mentionedUser.username
+        });
+
+        const stats = getCallerStatsRaw({
+          discordUserId: targetProfile.discordUserId,
+          username: targetProfile.username,
+          displayName: targetProfile.displayName
+        });
+
+        if (!stats) {
+          await replyText(
+            message,
+            `❌ No tracked caller data found for **${targetProfile.displayName || targetProfile.username}**.`
+          );
+          return;
+        }
+
+        const embed = createCallerCardEmbed(stats)
+          .setTitle(`🧾 TRUE CALLER STATS — @${stats.username || targetProfile.username}`)
+          .setFooter({ text: `Includes reset/excluded calls • Requested by ${message.author.username}` });
+
+        if (typeof stats.resetExcludedCount === 'number') {
+          embed.addFields({
+            name: 'Reset / Excluded Calls',
+            value: `${stats.resetExcludedCount}`,
+            inline: true
+          });
+        }
+
+        await message.reply({
+          embeds: [embed],
+          allowedMentions: { repliedUser: false }
+        });
+
+        return;
+      }
       if (lowerContent === '!callerboard') {
         const leaderboard = getCallerLeaderboard(10);
         const embed = createCallerLeaderboardEmbed(leaderboard);

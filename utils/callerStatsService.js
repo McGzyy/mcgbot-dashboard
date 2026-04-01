@@ -38,6 +38,24 @@ function isValid(call) {
   return Number.isFinite(x) && x > 0 && x <= MAX_VALID_X;
 }
 
+function isHumanUserCall(call) {
+  return (
+    call &&
+    call.callSourceType === 'user_call' &&
+    !call.excludedFromStats &&
+    !['denied', 'excluded', 'expired'].includes(String(call.approvalStatus || '').toLowerCase())
+  );
+}
+
+function isBotCall(call) {
+  return (
+    call &&
+    call.callSourceType === 'bot_call' &&
+    !call.excludedFromStats &&
+    !['denied', 'excluded', 'expired'].includes(String(call.approvalStatus || '').toLowerCase())
+  );
+}
+
 function getCallerAliases(call) {
   return [
     call.firstCallerUsername,
@@ -52,14 +70,29 @@ function matchCaller(call, lookup, profile) {
   const lookupId = lookup.discordUserId || profile?.discordUserId || null;
   const callId = call.firstCallerDiscordId || call.firstCallerId || null;
 
+  // Strongest match = Discord ID
   if (lookupId && callId) {
     return String(lookupId) === String(callId);
   }
 
-  const lookupName = normalize(lookup.raw || '');
+  // Fallback = exact normalized alias match
+  const lookupCandidates = new Set([
+    normalize(lookup.raw || ''),
+    normalize(lookup.username || ''),
+    normalize(lookup.displayName || ''),
+    normalize(profile?.username || ''),
+    normalize(profile?.displayName || '')
+  ]);
+
   const aliases = getCallerAliases(call);
 
-  return aliases.includes(lookupName);
+  for (const candidate of lookupCandidates) {
+    if (candidate && aliases.includes(candidate)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function resolveBestName(calls = []) {
@@ -67,9 +100,9 @@ function resolveBestName(calls = []) {
 
   for (const call of calls) {
     const name =
+      call.firstCallerPublicName ||
       call.firstCallerDisplayName ||
-      call.firstCallerUsername ||
-      call.firstCallerPublicName;
+      call.firstCallerUsername;
 
     if (!name) continue;
     counts[name] = (counts[name] || 0) + 1;
@@ -89,7 +122,9 @@ function buildTopCalls(calls = [], limit = 5) {
         tokenName: call.tokenName,
         ticker: call.ticker,
         x,
-        ath
+        ath,
+        contractAddress: call.contractAddress,
+        firstCalledMarketCap: call.firstCalledMarketCap
       };
     })
     .sort((a, b) => b.x - a.x)
@@ -98,7 +133,7 @@ function buildTopCalls(calls = [], limit = 5) {
 
 /**
  * =========================
- * CALLER STATS
+ * HUMAN CALLER STATS
  * =========================
  */
 
@@ -112,7 +147,8 @@ function getCallerStats(input) {
     rawInput: lookup.raw
   });
 
-  const calls = getAllTrackedCalls();
+  const calls = getAllTrackedCalls()
+    .filter(isHumanUserCall);
 
   const matched = calls.filter(call => matchCaller(call, lookup, profile));
 
@@ -143,36 +179,90 @@ function getCallerStats(input) {
   const totalCalls = valid.length;
 
   return {
-    // ✅ MATCH EMBED EXPECTATION
     username: resolveBestName(matched),
-
     totalCalls,
     avgX: totalCalls ? totalX / totalCalls : 0,
     avgAth: totalCalls ? totalAth / totalCalls : 0,
-
     bestCall,
-
-    // ✅ FIX TOP CALLS
     topCalls: buildTopCalls(valid, 5)
   };
 }
+function getCallerStatsRaw(input) {
+  const lookup = parseCallerLookupInput(input);
 
+  const profile = resolveCallerIdentity({
+    discordUserId: lookup.discordUserId,
+    username: lookup.username,
+    displayName: lookup.displayName,
+    rawInput: lookup.raw
+  });
+
+  const calls = getAllTrackedCalls()
+    .filter(call =>
+      call &&
+      call.callSourceType === 'user_call' &&
+      !['denied', 'excluded', 'expired'].includes(String(call.approvalStatus || '').toLowerCase())
+    );
+
+  const matched = calls.filter(call => matchCaller(call, lookup, profile));
+
+  if (!matched.length) return null;
+
+  const valid = matched.filter(isValid);
+
+  let totalX = 0;
+  let totalAth = 0;
+  let bestCall = null;
+
+  for (const call of valid) {
+    const ath = getAth(call);
+    const x = calculateX(call.firstCalledMarketCap, ath);
+
+    totalX += x;
+    totalAth += ath;
+
+    if (!bestCall || x > bestCall.x) {
+      bestCall = {
+        tokenName: call.tokenName,
+        ticker: call.ticker,
+        x
+      };
+    }
+  }
+
+  const totalCalls = valid.length;
+  const resetExcludedCount = matched.filter(call => call.excludedFromStats === true).length;
+
+  return {
+    username: resolveBestName(matched),
+    totalCalls,
+    avgX: totalCalls ? totalX / totalCalls : 0,
+    avgAth: totalCalls ? totalAth / totalCalls : 0,
+    bestCall,
+    topCalls: buildTopCalls(valid, 5),
+    resetExcludedCount
+  };
+}
 /**
  * =========================
- * LEADERBOARD
+ * HUMAN LEADERBOARD
  * =========================
  */
 
 function getCallerLeaderboard(limit = 10) {
-  const calls = getAllTrackedCalls().filter(isValid);
+  const calls = getAllTrackedCalls()
+    .filter(isHumanUserCall)
+    .filter(isValid);
 
   const map = new Map();
 
   for (const call of calls) {
     const key =
       call.firstCallerDiscordId ||
+      call.firstCallerId ||
       normalize(call.firstCallerUsername) ||
-      normalize(call.firstCallerDisplayName);
+      normalize(call.firstCallerDisplayName) ||
+      normalize(call.firstCallerPublicName);
 
     if (!key) continue;
 
@@ -199,9 +289,7 @@ function getCallerLeaderboard(limit = 10) {
       const totalCalls = entry.calls.length;
 
       return {
-        // ✅ MATCH EMBED EXPECTATION
         username: resolveBestName(entry.calls),
-
         totalCalls,
         avgX: totalCalls ? entry.totalX / totalCalls : 0,
         avgAth: totalCalls ? entry.totalAth / totalCalls : 0
@@ -211,7 +299,99 @@ function getCallerLeaderboard(limit = 10) {
     .slice(0, limit);
 }
 
+/**
+ * =========================
+ * BOT STATS
+ * =========================
+ */
+
+function getBotStats() {
+  const calls = getAllTrackedCalls()
+    .filter(isBotCall)
+    .filter(isValid);
+
+  if (!calls.length) return null;
+
+  let totalX = 0;
+  let totalAth = 0;
+  let bestCall = null;
+
+  for (const call of calls) {
+    const ath = getAth(call);
+    const x = calculateX(call.firstCalledMarketCap, ath);
+
+    totalX += x;
+    totalAth += ath;
+
+    if (!bestCall || x > bestCall.x) {
+      bestCall = {
+        tokenName: call.tokenName,
+        ticker: call.ticker,
+        x
+      };
+    }
+  }
+
+  const totalCalls = calls.length;
+
+  return {
+    username: 'Auto Bot',
+    totalCalls,
+    avgX: totalCalls ? totalX / totalCalls : 0,
+    avgAth: totalCalls ? totalAth / totalCalls : 0,
+    bestCall,
+    topCalls: buildTopCalls(calls, 5)
+  };
+}
+function getBotStatsRaw() {
+  const calls = getAllTrackedCalls()
+    .filter(call =>
+      call &&
+      call.callSourceType === 'bot_call' &&
+      !['denied', 'excluded', 'expired'].includes(String(call.approvalStatus || '').toLowerCase())
+    )
+    .filter(isValid);
+
+  if (!calls.length) return null;
+
+  let totalX = 0;
+  let totalAth = 0;
+  let bestCall = null;
+
+  for (const call of calls) {
+    const ath = getAth(call);
+    const x = calculateX(call.firstCalledMarketCap, ath);
+
+    totalX += x;
+    totalAth += ath;
+
+    if (!bestCall || x > bestCall.x) {
+      bestCall = {
+        tokenName: call.tokenName,
+        ticker: call.ticker,
+        x
+      };
+    }
+  }
+
+  const totalCalls = calls.length;
+  const resetExcludedCount = calls.filter(call => call.excludedFromStats === true).length;
+
+  return {
+    username: 'Auto Bot',
+    totalCalls,
+    avgX: totalCalls ? totalX / totalCalls : 0,
+    avgAth: totalCalls ? totalAth / totalCalls : 0,
+    bestCall,
+    topCalls: buildTopCalls(calls, 5),
+    resetExcludedCount
+  };
+}
+
 module.exports = {
   getCallerStats,
-  getCallerLeaderboard
+  getCallerStatsRaw,
+  getCallerLeaderboard,
+  getBotStats,
+  getBotStatsRaw
 };

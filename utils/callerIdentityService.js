@@ -39,11 +39,18 @@ function resolveCallerIdentity({
   const resolvedUsername = normalizeString(username);
   const resolvedDisplayName = normalizeString(displayName);
 
-  return findUserProfile({
+  const profile = findUserProfile({
     discordUserId: resolvedDiscordId,
     username: resolvedUsername || '',
     displayName: resolvedDisplayName || ''
   });
+
+  return {
+    discordUserId: profile?.discordUserId || resolvedDiscordId || null,
+    username: profile?.username || resolvedUsername || '',
+    displayName: profile?.displayName || resolvedDisplayName || '',
+    ...(profile || {})
+  };
 }
 
 function ensureCallerProfile({
@@ -65,6 +72,16 @@ function ensureCallerProfile({
  */
 
 function parseCallerLookupInput(input = '') {
+  // Support rich object input (used by !caller @user and future profile/stat lookups)
+  if (typeof input === 'object' && input !== null) {
+    return {
+      raw: '',
+      discordUserId: normalizeString(input.discordUserId || ''),
+      username: normalizeString(input.username || ''),
+      displayName: normalizeString(input.displayName || '')
+    };
+  }
+
   const raw = normalizeString(input);
   const discordUserId = extractDiscordIdFromMention(raw);
 

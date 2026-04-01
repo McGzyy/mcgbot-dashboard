@@ -220,7 +220,14 @@ function shouldTrackAutoCall(scan) {
 
 function trackAutoCall(scan) {
   if (!shouldTrackAutoCall(scan)) return null;
-  return saveTrackedCall(scan, 'AUTO_BOT', 'Auto Bot');
+
+  return saveTrackedCall(
+    scan,
+    'AUTO_BOT',
+    'Auto Bot',
+    'Auto Bot',
+    { callSourceType: 'bot_call' }
+  );
 }
 
 /**
@@ -357,51 +364,93 @@ async function runAutoCallCycle(channel) {
       }
 
       markCalled(scan.contractAddress);
-      callsThisHour++;
+      callsThisHour += 1;
+
+      console.log(
+        `[AutoCall] Posted ${scan.tokenName || scan.contractAddress} (${profileName})`
+      );
     }, {
       type: 'auto_call',
-      contractAddress: scan.contractAddress
+      contractAddress: scan.contractAddress,
+      key: `auto_call_${scan.contractAddress}`
     });
   }
 
-  console.log(`[AutoCall] Cycle complete — queued ${selected.length}`);
-
   if (debugEnabled()) {
-    console.log('Reject Summary:', rejectCounts);
+    console.log('[AutoCall DEBUG] Reject counts:', rejectCounts);
+    console.log('[AutoCall DEBUG] Selected:', selected.map(x => ({
+      tokenName: x.scan.tokenName,
+      ticker: x.scan.ticker,
+      score: x.scan.entryScore,
+      rankScore: x.rankScore
+    })));
   }
 }
 
 /**
  * =========================
- * START LOOP
+ * START / STOP
  * =========================
  */
 
-function startAutoCallEngine(channel) {
-  if (isRunning) return;
+function startAutoCallLoop(channel) {
+  if (isRunning) {
+    console.log('[AutoCall] Already running');
+    return;
+  }
+
+  const intervalMs = autoCallConfig.loop.intervalMs || 60000;
 
   isRunning = true;
 
-  console.log('[AutoCall] Started');
+  console.log(`[AutoCall] Starting loop every ${intervalMs / 1000}s`);
 
-  runAutoCallCycle(channel);
+  runAutoCallCycle(channel).catch(err => {
+    console.error('[AutoCall] Initial cycle failed:', err.message);
+  });
 
   intervalHandle = setInterval(() => {
-    runAutoCallCycle(channel);
-  }, autoCallConfig.loop.intervalMs);
+    runAutoCallCycle(channel).catch(err => {
+      console.error('[AutoCall] Cycle failed:', err.message);
+    });
+  }, intervalMs);
 }
 
-function stopAutoCallEngine() {
+function stopAutoCallLoop() {
+  if (!isRunning) {
+    console.log('[AutoCall] Not running');
+    return;
+  }
+
   if (intervalHandle) {
     clearInterval(intervalHandle);
     intervalHandle = null;
   }
 
   isRunning = false;
+  console.log('[AutoCall] Stopped');
+}
+
+/**
+ * =========================
+ * STATUS
+ * =========================
+ */
+
+function getAutoCallStatus() {
+  resetHourlyCounterIfNeeded();
+
+  return {
+    isRunning,
+    callsThisHour,
+    trackedRecentlyCalled: recentlyCalled.size,
+    lastHourReset
+  };
 }
 
 module.exports = {
-  startAutoCallEngine,
-  stopAutoCallEngine,
+  startAutoCallLoop,
+  stopAutoCallLoop,
+  getAutoCallStatus,
   runAutoCallCycle
 };

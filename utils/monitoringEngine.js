@@ -13,6 +13,7 @@ const {
 } = require('./alertEmbeds');
 const { enqueueAlert } = require('./alertQueue');
 const { createPost } = require('./xPoster');
+const { resolvePublicCallerName } = require('./userProfileService');
 
 let monitoringInterval = null;
 let isRunning = false;
@@ -75,6 +76,35 @@ function formatUsd(value) {
   return `$${num.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 
+function getPublicCallerLabel(trackedCall, fallback = 'Unknown') {
+  if (!trackedCall) return fallback;
+
+  if (trackedCall.callSourceType === 'bot_call') {
+    return 'Auto Bot';
+  }
+
+  if (trackedCall.callSourceType === 'watch_only') {
+    return (
+      trackedCall.firstCallerPublicName ||
+      trackedCall.firstCallerDisplayName ||
+      trackedCall.firstCallerUsername ||
+      fallback
+    );
+  }
+
+  return resolvePublicCallerName({
+    discordUserId: trackedCall.firstCallerDiscordId || trackedCall.firstCallerId || null,
+    username: trackedCall.firstCallerUsername || '',
+    displayName: trackedCall.firstCallerDisplayName || '',
+    trackedCall,
+    fallback:
+      trackedCall.firstCallerPublicName ||
+      trackedCall.firstCallerDisplayName ||
+      trackedCall.firstCallerUsername ||
+      fallback
+  });
+}
+
 /**
  * =========================
  * X POST HELPERS
@@ -91,10 +121,7 @@ function buildXPostText(trackedCall, milestoneX, isReply = false) {
   const tokenName = trackedCall.tokenName || 'Unknown Token';
   const ticker = trackedCall.ticker || 'UNKNOWN';
   const ca = trackedCall.contractAddress;
-  const caller =
-    trackedCall.firstCallerDisplayName ||
-    trackedCall.firstCallerUsername ||
-    'Unknown';
+  const caller = getPublicCallerLabel(trackedCall, 'Unknown');
 
   const athMc = formatUsd(
     trackedCall.ath ||
@@ -350,6 +377,8 @@ function buildApprovalStatusEmbed(trackedCall, scan = null) {
     ? trackedCall.moderationTags.map(t => `\`${t}\``).join(' ')
     : 'None';
 
+  const callerLabel = getPublicCallerLabel(trackedCall, 'Unknown');
+
   const embed = new EmbedBuilder()
     .setColor(
       status === 'approved' ? 0x22c55e :
@@ -362,7 +391,7 @@ function buildApprovalStatusEmbed(trackedCall, scan = null) {
     .setDescription(
       [
         `**Status:** ${statusLabel}`,
-        `**Caller:** ${trackedCall.firstCallerDisplayName || trackedCall.firstCallerUsername || 'Unknown'}`,
+        `**Caller:** ${callerLabel}`,
         `**CA:** \`${trackedCall.contractAddress}\``,
         '',
         `**First Called MC:** ${formatUsd(firstCalledMc)}`,

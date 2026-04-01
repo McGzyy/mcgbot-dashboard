@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+const { resolvePublicCallerName } = require('./userProfileService');
 
 function formatUsd(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return 'N/A';
@@ -111,17 +112,44 @@ function getSafeAth(coin, scan) {
   );
 }
 
-function getOriginalCallerLabel(coin, fallback = 'Auto Bot') {
-  const caller =
-    coin?.firstCallerDisplayName ||
-    coin?.firstCallerPublicName ||
-    coin?.firstCallerUsername ||
-    coin?.calledByName ||
-    coin?.calledBy ||
-    coin?.originalCaller ||
-    fallback;
+/**
+ * =========================
+ * PUBLIC CALLER RESOLUTION
+ * =========================
+ */
 
-  return formatValue(caller, fallback);
+function getOriginalCallerLabel(coin, fallback = 'Auto Bot') {
+  if (!coin) return fallback;
+
+  if (coin.callSourceType === 'bot_call') {
+    return 'Auto Bot';
+  }
+
+  if (coin.callSourceType === 'watch_only') {
+    return formatValue(
+      coin?.firstCallerPublicName ||
+      coin?.firstCallerDisplayName ||
+      coin?.firstCallerUsername,
+      fallback
+    );
+  }
+
+  const resolved = resolvePublicCallerName({
+    discordUserId: coin?.firstCallerDiscordId || coin?.firstCallerId || null,
+    username: coin?.firstCallerUsername || coin?.calledByName || coin?.calledBy || '',
+    displayName: coin?.firstCallerDisplayName || coin?.calledByName || '',
+    trackedCall: coin,
+    fallback:
+      coin?.firstCallerPublicName ||
+      coin?.firstCallerDisplayName ||
+      coin?.firstCallerUsername ||
+      coin?.calledByName ||
+      coin?.calledBy ||
+      coin?.originalCaller ||
+      fallback
+  });
+
+  return formatValue(resolved, fallback);
 }
 
 function buildCoinHeader(name, ticker) {
@@ -556,13 +584,15 @@ function createSingleCallEmbed(call, title = '🏆 TOP CALL') {
       .setTimestamp();
   }
 
+  const callerLabel = getOriginalCallerLabel(call, 'Unknown');
+
   return new EmbedBuilder()
     .setColor(0xf59e0b)
     .setTitle(title)
     .setDescription(
       [
         `**Token:** ${formatValue(call.tokenName, 'Unknown Token')} ($${formatValue(call.ticker, 'UNKNOWN')})`,
-        `**Caller:** ${formatValue(call.firstCallerUsername || call.callerName, 'Unknown')}`,
+        `**Caller:** ${callerLabel}`,
         `**From Call:** ${formatX(call.x)}`,
         `**ATH MC:** ${formatUsd(call.ath)}`,
         `**First Called MC:** ${formatUsd(call.firstCalledMarketCap)}`,
