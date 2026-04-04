@@ -400,50 +400,44 @@ async function refreshTrackedCallLive(contractAddress) {
 function createCommandsEmbed() {
   return new EmbedBuilder()
     .setColor(0x5865f2)
-    .setTitle('📘 Crypto Scanner Bot Commands')
-    .setDescription('Use these commands to scan, monitor, and inspect tracked coins.')
+    .setTitle('📘 Crypto Scanner Bot — Command cheat sheet')
+    .setDescription(
+      'Short reference. **Full list:** type `!help` or `!commands` in Discord (plain-text list, includes mod/owner commands if you have access).'
+    )
     .addFields(
       {
-        name: '🔍 Scanner Commands',
+        name: '🔍 Scan & call',
         value:
-          '`!ca [CA]` — compact contract intel (no tracking)\n' +
-          '`!scan` — run a random scanner test\n' +
-          '`!scan [CA]` — trader-style deep scan (no tracking)\n' +
-          '`!call [CA]` — officially call + track coin\n' +
-          '`!watch [CA]` — track coin without caller credit\n' +
-          '`!testreal [CA]` — test live provider output',
+          '`!ping` / `!status` — bot checks\n' +
+          '`!ca [CA]` — compact intel (no tracking)\n' +
+          '`!scan` — random simulated scan\n' +
+          '`!scan [CA]` — simulated deep scan (no tracking)\n' +
+          '`!call [CA]` — call + track\n' +
+          '`!watch [CA]` — track, no caller credit\n' +
+          '`!testreal [CA]` — live provider test (embed)\n' +
+          '`!autoscantest` [profile] — simulated auto alerts',
         inline: false
       },
       {
-        name: '📡 Auto Alert Commands',
+        name: '📚 Tracking & stats',
         value:
-          '`!autoscantest` — run balanced simulated auto alerts\n' +
-          '`!autoscantest conservative`\n' +
-          '`!autoscantest balanced`\n' +
-          '`!autoscantest aggressive`',
+          '`!tracked` / `!tracked [CA]` — summary or detail\n' +
+          '`!caller [name]` or `!caller @user` — caller stats\n' +
+          '`!callerboard` / `!botstats` — leaderboards & McGBot stats\n' +
+          '`!profile` / `!myprofile` — profile + X verify (use **#verify-x** too)\n' +
+          '`!credit` anonymous|discord|xtag — public credit label',
         inline: false
       },
       {
-        name: '📚 Tracking Commands',
+        name: '🛠 More (text `!help`)',
         value:
-          '`!tracked` — view tracked coin summary\n' +
-          '`!tracked [CA]` — view tracked coin details (with live refresh)\n' +
-          '`!caller [name]` — view caller stats\n' +
-          '`!callerboard` — top caller leaderboard\n' +
-          '`!botstats` — auto bot stats',
-        inline: false
-      },
-      {
-        name: '🛠 Utility Commands',
-        value:
-          '`!ping` — test if bot is alive\n' +
-          '`!status` — check bot status\n' +
-          '`!help` — show this menu\n' +
-          '`!commands` — show this menu',
+          'Highlights: `!bestcall24h` … `!addlaunch` … `!devleaderboard`\n' +
+          '**Manage Server:** `!scanner` / `!scanner on|off`, approvals, `!pendingapprovals`, `!verifyx @user`, `!resetmonitor`, …\n' +
+          '**Bot owner:** scanner thresholds & sanity filters — see `!help` (`!testx` / channel permissions)',
         inline: false
       }
     )
-    .setFooter({ text: 'Crypto Scanner Bot • Command Directory' })
+    .setFooter({ text: 'Crypto Scanner Bot • Use !help for the authoritative list' })
     .setTimestamp();
 }
 

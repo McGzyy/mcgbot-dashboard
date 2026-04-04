@@ -2331,60 +2331,62 @@ if (lowerContent === '!commands' || lowerContent === '!help') {
   // USER COMMANDS
   contentOut +=
     `👤 **User Commands**\n` +
-    `• \`!help\` / \`!commands\` — Show available commands\n` +
+    `• \`!help\` / \`!commands\` — This list\n` +
+    `• \`!ping\` — Quick alive check\n` +
+    `• \`!status\` — Bot status\n` +
     `• \`!ca <ca>\` — Compact contract intel (no tracking)\n` +
-    `• \`!scan\` — Run a random scanner test\n` +
-    `• \`!scan <ca>\` — Deep scan a specific token\n` +
-    `• \`!call <ca>\` — Officially call + track a coin\n` +
-    `• \`!watch <ca>\` — Track a coin without caller credit\n` +
-    `• \`!tracked\` — View tracked coin summary\n` +
-    `• \`!tracked <ca>\` — View tracked coin details\n` +
-    `• \`!caller <name>\` — View caller stats\n` +
-    `• \`!callerboard\` — View top caller leaderboard\n` +
-    `• \`!botstats\` — View auto bot performance\n` +
-    `• \`!verifyx\` — Start X verification\n` +
-    `• \`!setx <handle>\` — Set or update your X handle\n` +
-    `• \`!profile\` — View your public caller profile\n` +
-    `• \`!mystats\` — View your caller stats\n\n`;
+    `• \`!scan\` — Random scanner-style test\n` +
+    `• \`!scan <ca>\` — Deep scan a token (no tracking)\n` +
+    `• \`!call <ca>\` — Official call + track\n` +
+    `• \`!watch <ca>\` — Track without caller credit\n` +
+    `• \`!tracked\` / \`!tracked <ca>\` — Tracked summary or detail (live refresh)\n` +
+    `• \`!caller <name>\` or \`!caller @user\` — Caller stats (embed)\n` +
+    `• \`!callerboard\` — Top callers (embed)\n` +
+    `• \`!botstats\` — McGBot aggregate stats\n` +
+    `• \`!profile\` / \`!myprofile\` — Your caller profile (+ Verify X button)\n` +
+    `• \`!credit anonymous\` / \`discord\` / \`xtag\` — Public credit label on calls\n` +
+    `• \`!resetstats\` — Reset your tracked stat flags (mods: \`!resetstats @user\`)\n` +
+    `• **X verification:** use **#verify-x** or **!profile → Verify X** (not a user \`!verifyx\` text command)\n` +
+    `• \`!bestcall24h\` / \`!bestcallweek\` / \`!bestcallmonth\` — Best user call windows\n` +
+    `• \`!topcaller24h\` / \`!topcallerweek\` / \`!topcallermonth\` — Top caller windows\n` +
+    `• \`!bestbot24h\` / \`!bestbotweek\` / \`!bestbotmonth\` — Best bot call windows\n` +
+    `• \`!devleaderboard\` — Dev leaderboard (embed)\n` +
+    `• \`!addlaunch <dev_wallet> <token_ca>\` — Log a launch on a tracked dev\n` +
+    `• \`!testreal <ca>\` — Live provider / token test (embed)\n` +
+    `• \`!autoscantest\` [conservative|balanced|aggressive] — Simulated auto alerts\n` +
+    `• \`!testx\` — Post a test tweet *(no extra bot permission check — rely on channel access)*\n\n`;
 
-  // MOD COMMANDS
+  // MOD COMMANDS (Manage Server — bot owner always sees this block too)
   if (isModOrAdmin || isOwner) {
     contentOut +=
-      `🛡️ **Mod Commands**\n` +
-      `• Approval buttons in mod review / approval channels\n` +
-      `• \`!approvalstats\` — View approval queue stats\n` +
-      `• \`!recentcalls\` — View recent bot calls\n` +
-      `• \`!monitorstatus\` — View tracked / archived coin counts\n\n`;
+      `🛡️ **Mod / Manage Server**\n` +
+      `• Approval buttons in **#coin-approval** / mod flows\n` +
+      `• \`!approvalstats\` — Approval queue counts\n` +
+      `• \`!pendingapprovals\` — Pending X verifications + top pending **bot** approvals\n` +
+      `• \`!recentcalls\` — Recent bot-tracked calls\n` +
+      `• \`!monitorstatus\` — Active / archived / pending / scanner state\n` +
+      `• \`!scanner\` — Show whether scanner is ON or OFF\n` +
+      `• \`!scanner on\` / \`!scanner off\` — Start or stop scanner + monitor + auto-call\n` +
+      `• \`!verifyx @user\` — Approve a member’s pending X verification (requires **Manage Server**)\n` +
+      `• \`!resetbotstats\` — Reset bot-call stat exclusions on tracked data\n` +
+      `• \`!resetmonitor\` — **Destructive:** clear all tracked coins, stop scanner & loops\n` +
+      `• \`!truestats @user\` — Caller stats including reset/excluded calls\n` +
+      `• \`!truebotstats\` — Bot stats including reset/excluded calls\n\n`;
   }
 
-  // OWNER / ADMIN COMMANDS
+  // BOT OWNER ONLY
   if (isOwner) {
     contentOut +=
-      `⚙️ **Owner / Scanner Commands**\n` +
-      `• \`!scanneron\` — Start scanner + monitor\n` +
-      `• \`!scanneroff\` — Stop scanner + monitor\n` +
-      `• \`!scannerconfig\` — View live scanner config\n` +
-      `• \`!resetmonitor\` — Reset tracked monitor data\n` +
-      `• \`!resetbotstats\` — Reset bot call stats\n` +
-      `• \`!testreal <ca>\` — Test live provider output\n` +
-      `• \`!autoscantest\` — Run simulated auto alert test\n\n` +
+      `⚙️ **Bot owner only** (commands below enforce **BOT_OWNER_ID**)\n` +
 
-      `📊 **Scanner Threshold Commands**\n` +
-      `• \`!setminmc <number>\`\n` +
-      `• \`!setminliq <number>\`\n` +
-      `• \`!setminvol5m <number>\`\n` +
-      `• \`!setminvol1h <number>\`\n` +
-      `• \`!setmintxns5m <number>\`\n` +
-      `• \`!setmintxns1h <number>\`\n` +
-      `• \`!setapprovalx <number>\`\n\n` +
+      `📊 **Scanner thresholds**\n` +
+      `• \`!setminmc\` / \`!setminliq\` / \`!setminvol5m\` / \`!setminvol1h\`\n` +
+      `• \`!setmintxns5m\` / \`!setmintxns1h\` / \`!setapprovalx <number>\`\n` +
+      `• \`!setapprovalladder\` — Custom approval milestone rungs (comma-separated)\n\n` +
 
-      `🧪 **Sanity Filter Commands**\n` +
-      `• \`!setsanityminmc <number>\`\n` +
-      `• \`!setsanityminliq <number>\`\n` +
-      `• \`!setsanityminliqratio <number>\`\n` +
-      `• \`!setsanitymaxliqratio <number>\`\n` +
-      `• \`!setsanitymaxratio5m <number>\`\n` +
-      `• \`!setsanitymaxratio1h <number>\`\n`;
+      `🧪 **Sanity filters**\n` +
+      `• \`!setsanityminmc\` / \`!setsanityminliq\` / \`!setsanityminliqratio\` / \`!setsanitymaxliqratio\`\n` +
+      `• \`!setsanitymaxratio5m\` / \`!setsanitymaxratio1h\`\n`;
   }
 
   await message.reply({
