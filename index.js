@@ -102,6 +102,7 @@ const {
   startXVerification,
   getPendingXVerifications,
   completeXVerification,
+  denyXVerification,
   getPreferredPublicName,
   normalizeXHandle,
   isLikelyXHandle
@@ -224,6 +225,15 @@ function getXVerifySession(userId, channelId) {
 
 function clearXVerifySession(userId, channelId) {
   xVerificationSessions.delete(createXVerifySessionKey(userId, channelId));
+}
+
+function clearXVerifySessionsForUser(userId) {
+  const prefix = `${String(userId)}:`;
+  for (const key of [...xVerificationSessions.keys()]) {
+    if (key.startsWith(prefix)) {
+      xVerificationSessions.delete(key);
+    }
+  }
 }
 
 async function replyText(message, content) {
@@ -1623,15 +1633,17 @@ let updated = null;
   const handle = parts[2];
   const reason = interaction.fields.getTextInputValue('deny_reason');
 
-  const profile = getUserProfileByDiscordId(userId);
+  const deniedProfile = denyXVerification(userId, handle, reason);
 
-  if (!profile || profile.isXVerified || profile.xVerification?.status !== 'pending') {
+  if (!deniedProfile) {
     await interaction.reply({
       content: 'This verification request has already been handled.',
       ephemeral: true
     });
     return;
   }
+
+  clearXVerifySessionsForUser(userId);
 
   const verifyChannel = interaction.guild.channels.cache.find(ch => ch.name === X_VERIFY_CHANNEL_NAME);
   if (verifyChannel) {

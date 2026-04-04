@@ -437,7 +437,9 @@ function startXVerification(discordUserId, handle, verificationCode = '') {
       requestedHandle: normalizedHandle,
       requestedAt: new Date().toISOString(),
       verificationCode,
-      status: 'pending'
+      status: 'pending',
+      deniedAt: null,
+      deniedReason: ''
     }
   });
 }
@@ -457,6 +459,37 @@ function completeXVerification(discordUserId, handle) {
     },
     publicSettings: {
       allowPublicXTag: true
+    }
+  });
+}
+
+/**
+ * Persist a mod denial. Clears pending queue eligibility and unblocks a new request.
+ */
+function denyXVerification(discordUserId, handle, reason = '') {
+  const profile = getUserProfileByDiscordId(discordUserId);
+  if (!profile) return null;
+  if (profile.isXVerified) return null;
+  if (String(profile.xVerification?.status || '').toLowerCase() !== 'pending') {
+    return null;
+  }
+
+  const existingV = profile.xVerification || {};
+  const reqHandle = normalizeXHandle(
+    existingV.requestedHandle || normalizeXHandle(handle) || ''
+  );
+
+  return updateUserProfile(discordUserId, {
+    xHandle: '',
+    isXVerified: false,
+    verifiedXHandle: normalizeXHandle(profile.verifiedXHandle || ''),
+    xVerification: {
+      requestedHandle: reqHandle,
+      requestedAt: existingV.requestedAt || null,
+      verificationCode: '',
+      status: 'denied',
+      deniedAt: new Date().toISOString(),
+      deniedReason: String(reason || '').trim().slice(0, 500)
     }
   });
 }
@@ -572,6 +605,22 @@ function resolvePublicCallerName({
     'discord_name'
   ).toLowerCase();
 
+  const sourceType = String(trackedCall?.callSourceType || '').toLowerCase();
+const callerId = String(
+  discordUserId ||
+  trackedCall?.firstCallerDiscordId ||
+  trackedCall?.firstCallerId ||
+  ''
+).toUpperCase();
+
+if (sourceType === 'bot_call' || callerId === 'MCGBOT_AUTO' || callerId === 'AUTO_BOT') {
+  return 'McGBot';
+}
+
+if (sourceType === 'watch_only') {
+  return 'No caller credit';
+}
+
   let publicName = '';
 
   if (mode === 'anonymous') {
@@ -583,6 +632,19 @@ function resolvePublicCallerName({
   }
 
   return normalizeString(publicName) || fallback;
+}
+
+function getPendingXVerifications(limit = 10) {
+  const profiles = loadUserProfiles();
+
+  return profiles
+    .filter(profile => String(profile?.xVerification?.status || '').toLowerCase() === 'pending')
+    .sort((a, b) => {
+      const aTime = new Date(a?.xVerification?.requestedAt || 0).getTime();
+      const bTime = new Date(b?.xVerification?.requestedAt || 0).getTime();
+      return bTime - aTime;
+    })
+    .slice(0, limit);
 }
 
 function getPublicCallerIdentity({
@@ -660,10 +722,14 @@ module.exports = {
   upsertUserProfile,
   updateUserProfile,
 
+   // x verification
+  getPendingXVerifications,
+
   // index.js compatibility
   setPublicCreditMode,
   startXVerification,
   completeXVerification,
+  denyXVerification,
   getPreferredPublicName,
 
   // public identity
