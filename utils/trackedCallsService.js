@@ -33,6 +33,11 @@ function saveTrackedCalls(calls) {
   }
 }
 
+function resetAllTrackedCalls() {
+  saveTrackedCalls([]);
+  return { cleared: true };
+}
+
 function normalizeTrackedCall(call = {}) {
   const normalized = {
     ...call,
@@ -45,7 +50,7 @@ function normalizeTrackedCall(call = {}) {
     callSourceType: call.callSourceType || 'user_call', // user_call | watch_only | bot_call
     wasWatched: call.wasWatched === true,
 
-    approvalStatus: call.approvalStatus || 'pending',
+    approvalStatus: call.approvalStatus || 'none',
     excludedFromStats: call.excludedFromStats === true,
     moderationTags: Array.isArray(call.moderationTags) ? call.moderationTags : [],
     moderationNotes: typeof call.moderationNotes === 'string' ? call.moderationNotes : '',
@@ -84,6 +89,81 @@ function getAllTrackedCalls() {
   return loadTrackedCalls();
 }
 
+function getRecentBotCalls(limit = 10) {
+  const tracked = getAllTrackedCalls();
+
+  return tracked
+    .filter(call => call.callSourceType === 'bot_call')
+    .sort((a, b) => {
+      const aTime = new Date(a.calledAt || a.createdAt || 0).getTime();
+      const bTime = new Date(b.calledAt || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    })
+    .slice(0, limit);
+}
+
+function getPendingApprovals(limit = 10) {
+  const tracked = getAllTrackedCalls();
+
+  return tracked
+    .filter(call =>
+      String(call.approvalStatus || '').toLowerCase() === 'pending' &&
+      !!call.approvalRequestedAt &&
+      !!call.approvalMessageId
+    )
+    .sort((a, b) => {
+      const aTime = new Date(a.approvalRequestedAt || 0).getTime();
+      const bTime = new Date(b.approvalRequestedAt || 0).getTime();
+      return bTime - aTime;
+    })
+    .slice(0, limit);
+}
+
+function getApprovalStats() {
+  const tracked = getAllTrackedCalls();
+
+  const stats = {
+    pending: 0,
+    approved: 0,
+    denied: 0,
+    expiredOrCleared: 0,
+    totalTracked: tracked.length
+  };
+
+  for (const call of tracked) {
+    const status = String(call.approvalStatus || '').toLowerCase();
+
+    if (status === 'pending') {
+      stats.pending += 1;
+    } else if (status === 'approved') {
+      stats.approved += 1;
+    } else if (status === 'denied') {
+      stats.denied += 1;
+    }
+
+    const hadApprovalFlow =
+      call.approvalRequestedAt ||
+      call.approvalExpiresAt ||
+      call.approvalMessageId ||
+      call.approvalChannelId;
+
+    const isCleared =
+      hadApprovalFlow &&
+      !call.approvalMessageId &&
+      !call.approvalChannelId &&
+      !call.approvalRequestedAt &&
+      !call.approvalExpiresAt &&
+      status !== 'pending' &&
+      status !== 'approved' &&
+      status !== 'denied';
+
+    if (isCleared) {
+      stats.expiredOrCleared += 1;
+    }
+  }
+
+  return stats;
+}
 /**
  * =========================
  * CALLER PROFILE SYNC
@@ -119,14 +199,14 @@ function buildCallerFields(
   const isBotCall = callSourceType === 'bot_call';
 
   if (isBotCall) {
-    return {
-      firstCallerId: 'AUTO_BOT',
-      firstCallerUsername: 'Auto Bot',
-      firstCallerDiscordId: null,
-      firstCallerDisplayName: 'Auto Bot',
-      firstCallerPublicName: 'Auto Bot'
-    };
-  }
+  return {
+    firstCallerId: 'AUTO_BOT',
+    firstCallerUsername: 'McGBot',
+    firstCallerDiscordId: 'AUTO_BOT',
+    firstCallerDisplayName: 'McGBot',
+    firstCallerPublicName: 'McGBot'
+  };
+}
 
   const syncedProfile = syncCallerProfile(callerId, callerUsername, callerDisplayName);
 
@@ -160,12 +240,21 @@ function buildCallerFields(
 function refreshPublicCallerName(call = {}) {
   const normalized = { ...call };
 
-  if (normalized.callSourceType === 'bot_call') {
+  const looksLikeBotCall =
+    normalized.callSourceType === 'bot_call' ||
+    String(normalized.firstCallerId || '').toUpperCase() === 'AUTO_BOT' ||
+    String(normalized.firstCallerDiscordId || '').toUpperCase() === 'AUTO_BOT' ||
+    String(normalized.firstCallerUsername || '').toLowerCase() === 'mcgbot' ||
+    String(normalized.firstCallerDisplayName || '').toLowerCase() === 'mcgbot' ||
+    String(normalized.firstCallerPublicName || '').toLowerCase() === 'mcgbot';
+
+  if (looksLikeBotCall) {
+    normalized.callSourceType = 'bot_call';
     normalized.firstCallerId = 'AUTO_BOT';
-    normalized.firstCallerUsername = 'Auto Bot';
-    normalized.firstCallerDiscordId = null;
-    normalized.firstCallerDisplayName = 'Auto Bot';
-    normalized.firstCallerPublicName = 'Auto Bot';
+    normalized.firstCallerUsername = 'McGBot';
+    normalized.firstCallerDiscordId = 'AUTO_BOT';
+    normalized.firstCallerDisplayName = 'McGBot';
+    normalized.firstCallerPublicName = 'McGBot';
     return normalized;
   }
 
@@ -326,7 +415,7 @@ function saveTrackedCall(
 
       wasWatched: existing.wasWatched === true || wasWatched === true,
 
-      approvalStatus: existing.approvalStatus || 'pending',
+      approvalStatus: existing.approvalStatus || 'none',
       excludedFromStats: existing.excludedFromStats === true,
       moderationTags: Array.isArray(existing.moderationTags) ? existing.moderationTags : [],
       moderationNotes: typeof existing.moderationNotes === 'string' ? existing.moderationNotes : '',
@@ -389,7 +478,7 @@ function saveTrackedCall(
     callSourceType,
     wasWatched,
 
-    approvalStatus: 'pending',
+    approvalStatus: 'none',
     excludedFromStats: false,
     moderationTags: [],
     moderationNotes: '',
@@ -516,6 +605,37 @@ function setLifecycleStatus(contractAddress, lifecycleStatus, isActive = true) {
   });
 }
 
+function addModerationTag(contractAddress, tag, moderator = {}) {
+  const tracked = getTrackedCall(contractAddress);
+  if (!tracked || !tag) return null;
+
+  const cleanTag = String(tag).trim().toLowerCase();
+  if (!cleanTag) return null;
+
+  const moderationTags = Array.isArray(tracked.moderationTags)
+    ? [...new Set([...tracked.moderationTags, cleanTag])]
+    : [cleanTag];
+
+  return updateTrackedCallData(contractAddress, {
+    moderationTags,
+    moderatedById: moderator.id || tracked.moderatedById || null,
+    moderatedByUsername: moderator.username || tracked.moderatedByUsername || null,
+    moderatedAt: new Date().toISOString()
+  });
+}
+
+function setModerationNotes(contractAddress, note, moderator = {}) {
+  const tracked = getTrackedCall(contractAddress);
+  if (!tracked) return null;
+
+  return updateTrackedCallData(contractAddress, {
+    moderationNotes: String(note || '').trim(),
+    moderatedById: moderator.id || tracked.moderatedById || null,
+    moderatedByUsername: moderator.username || tracked.moderatedByUsername || null,
+    moderatedAt: new Date().toISOString()
+  });
+}
+
 /**
  * =========================
  * APPROVAL HELPERS
@@ -560,13 +680,42 @@ function setApprovalStatus(
   status = 'pending',
   moderation = {}
 ) {
+  const tracked = getTrackedCall(contractAddress);
+  if (!tracked) return null;
+
+  const excludedFromStats =
+    status === 'excluded' || moderation.excludedFromStats === true;
+
+  const moderationTags = Object.prototype.hasOwnProperty.call(moderation, 'moderationTags')
+    ? (Array.isArray(moderation.moderationTags) ? moderation.moderationTags : [])
+    : Array.isArray(tracked.moderationTags)
+      ? tracked.moderationTags
+      : [];
+
+  const moderationNotes = Object.prototype.hasOwnProperty.call(moderation, 'moderationNotes')
+    ? String(moderation.moderationNotes || '').trim()
+    : typeof tracked.moderationNotes === 'string'
+      ? tracked.moderationNotes
+      : '';
+
+  const moderatedById = Object.prototype.hasOwnProperty.call(moderation, 'moderatedById')
+    ? moderation.moderatedById || null
+    : tracked.moderatedById || null;
+
+  const moderatedByUsername = Object.prototype.hasOwnProperty.call(
+    moderation,
+    'moderatedByUsername'
+  )
+    ? moderation.moderatedByUsername || null
+    : tracked.moderatedByUsername || null;
+
   return updateTrackedCallData(contractAddress, {
     approvalStatus: status,
-    excludedFromStats: moderation.excludedFromStats === true,
-    moderationTags: Array.isArray(moderation.moderationTags) ? moderation.moderationTags : [],
-    moderationNotes: typeof moderation.moderationNotes === 'string' ? moderation.moderationNotes : '',
-    moderatedById: moderation.moderatedById || null,
-    moderatedByUsername: moderation.moderatedByUsername || null,
+    excludedFromStats,
+    moderationTags,
+    moderationNotes,
+    moderatedById,
+    moderatedByUsername,
     moderatedAt: new Date().toISOString(),
     xApproved: status === 'approved'
   });
@@ -704,12 +853,17 @@ module.exports = {
   saveTrackedCalls,
   getTrackedCall,
   getAllTrackedCalls,
+  getRecentBotCalls,
+  getApprovalStats,
+  getPendingApprovals,
   saveTrackedCall,
   reactivateTrackedCall,
   updateTrackedCallData,
   markMilestoneHit,
   markDumpAlertHit,
   setLifecycleStatus,
+  addModerationTag,
+  setModerationNotes,
 
   markApprovalRequested,
   setApprovalMessageMeta,
@@ -720,4 +874,5 @@ module.exports = {
 
   excludeTrackedCallsFromStatsByCaller,
   excludeTrackedBotCallsFromStats,
+  resetAllTrackedCalls,
 };
