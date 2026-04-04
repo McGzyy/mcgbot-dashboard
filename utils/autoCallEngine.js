@@ -2,6 +2,7 @@ const { generateRealScan } = require('./scannerEngine');
 const { autoCallConfig } = require('../config/autoCallConfig');
 const { scanFilterConfig } = require('../config/scanFilterConfig');
 const { createAutoCallEmbed } = require('./alertEmbeds');
+const { loadScannerSettings } = require('./scannerSettingsService');
 const {
   saveTrackedCall,
   getTrackedCall,
@@ -69,7 +70,30 @@ function logDebug(...args) {
  */
 
 function getSanityRejectReason(scan) {
-  const cfg = autoCallConfig.sanity;
+  const baseCfg = autoCallConfig.sanity;
+const live = loadScannerSettings() || {};
+
+const cfg = {
+  ...baseCfg,
+  minMeaningfulMarketCap: Number(
+    live.sanityMinMeaningfulMarketCap ?? baseCfg.minMeaningfulMarketCap ?? 0
+  ),
+  minMeaningfulLiquidity: Number(
+    live.sanityMinMeaningfulLiquidity ?? baseCfg.minMeaningfulLiquidity ?? 0
+  ),
+  minLiquidityToMarketCapRatio: Number(
+    live.sanityMinLiquidityToMarketCapRatio ?? baseCfg.minLiquidityToMarketCapRatio ?? 0
+  ),
+  maxLiquidityToMarketCapRatio: Number(
+    live.sanityMaxLiquidityToMarketCapRatio ?? baseCfg.maxLiquidityToMarketCapRatio ?? 999
+  ),
+  maxBuySellRatio5m: Number(
+    live.sanityMaxBuySellRatio5m ?? baseCfg.maxBuySellRatio5m ?? 999
+  ),
+  maxBuySellRatio1h: Number(
+    live.sanityMaxBuySellRatio1h ?? baseCfg.maxBuySellRatio1h ?? 999
+  )
+};
 
   const mc = Number(scan.marketCap || 0);
   const liq = Number(scan.liquidity || 0);
@@ -176,14 +200,26 @@ function getGlobalRejectReason(scan, profileName) {
   const filter = scanFilterConfig.autoCall[profileName];
   if (!filter) return 'missing_global_filter';
 
-  if (scan.marketCap < filter.minMarketCap) return 'global_min_mc';
+  const live = loadScannerSettings() || {};
+
+  const minMarketCap = Number(live.minMarketCap ?? filter.minMarketCap ?? 0);
+  const minLiquidity = Number(live.minLiquidity ?? filter.minLiquidity ?? 0);
+  const minVolume5m = Number(live.minVolume5m ?? filter.minVolume5m ?? 0);
+  const minVolume1h = Number(live.minVolume1h ?? filter.minVolume1h ?? 0);
+  const minTxns5m = Number(live.minTxns5m ?? 0);
+  const minTxns1h = Number(live.minTxns1h ?? 0);
+
+  if (scan.marketCap < minMarketCap) return 'global_min_mc';
   if (scan.marketCap > filter.maxMarketCap) return 'global_max_mc';
-  if (scan.liquidity < filter.minLiquidity) return 'global_liq';
-  if (scan.volume5m < filter.minVolume5m) return 'global_vol5';
-  if (scan.volume1h < filter.minVolume1h) return 'global_vol1';
+  if (scan.liquidity < minLiquidity) return 'global_liq';
+  if (scan.volume5m < minVolume5m) return 'global_vol5';
+  if (scan.volume1h < minVolume1h) return 'global_vol1';
   if (scan.buySellRatio5m < filter.minBuySellRatio5m) return 'global_ratio';
   if (scan.ageMinutes > filter.maxAgeMinutes) return 'global_age';
   if (scan.entryScore < filter.minScore) return 'global_score';
+
+  if (Number(scan.txns5m || 0) < minTxns5m) return 'global_txns5m';
+  if (Number(scan.txns1h || 0) < minTxns1h) return 'global_txns1h';
 
   return null;
 }
@@ -221,11 +257,12 @@ function shouldTrackAutoCall(scan) {
 function trackAutoCall(scan) {
   if (!shouldTrackAutoCall(scan)) return null;
 
+  // Caller fields for bot_call are forced in trackedCallsService.buildCallerFields
   return saveTrackedCall(
     scan,
     'AUTO_BOT',
-    'Auto Bot',
-    'Auto Bot',
+    'McGBot',
+    'McGBot',
     { callSourceType: 'bot_call' }
   );
 }
@@ -276,6 +313,7 @@ async function runAutoCallCycle(channel) {
 
   const rejectCounts = {};
   const passers = [];
+  const fallbackCandidates = [];
 
   console.log(`[AutoCall] Fetching GeckoTerminal candidates (${profileName})...`);
 
@@ -320,16 +358,49 @@ async function runAutoCallCycle(channel) {
     }
 
     const profileReject = getProfileRejectReason(scan, profileName);
-    if (profileReject) {
-      rejectCounts[profileReject] = (rejectCounts[profileReject] || 0) + 1;
-      continue;
-    }
+if (profileReject) {
+  rejectCounts[profileReject] = (rejectCounts[profileReject] || 0) + 1;
+
+  if ([
+    'profile_score',
+    'profile_liquidity',
+    'profile_volume5m',
+    'profile_ratio',
+    'profile_age'
+  ].includes(profileReject)) {
+    fallbackCandidates.push({
+      scan,
+      rankScore: getPasserRankScore(scan),
+      fallbackReason: profileReject
+    });
+  }
+
+  continue;
+}
 
     const globalReject = getGlobalRejectReason(scan, profileName);
-    if (globalReject) {
-      rejectCounts[globalReject] = (rejectCounts[globalReject] || 0) + 1;
-      continue;
-    }
+if (globalReject) {
+  rejectCounts[globalReject] = (rejectCounts[globalReject] || 0) + 1;
+
+  if ([
+    'global_min_mc',
+    'global_liq',
+    'global_vol5',
+    'global_vol1',
+    'global_ratio',
+    'global_score',
+    'global_txns5m',
+    'global_txns1h'
+  ].includes(globalReject)) {
+    fallbackCandidates.push({
+      scan,
+      rankScore: getPasserRankScore(scan),
+      fallbackReason: globalReject
+    });
+  }
+
+  continue;
+}
 
     const momentumReject = getMomentumRejectReason(scan);
     if (momentumReject) {
@@ -345,7 +416,17 @@ async function runAutoCallCycle(channel) {
 
   passers.sort((a, b) => b.rankScore - a.rankScore);
 
-  const selected = passers.slice(0, maxPerCycle);
+  let selected = passers.slice(0, maxPerCycle);
+
+if (selected.length === 0 && fallbackCandidates.length > 0) {
+  fallbackCandidates.sort((a, b) => b.rankScore - a.rankScore);
+  selected = [fallbackCandidates[0]];
+
+  console.log(
+    `[AutoCall] Fallback selected ${selected[0].scan.tokenName || selected[0].scan.contractAddress} ` +
+    `(${selected[0].fallbackReason})`
+  );
+}
 
   for (const item of selected) {
     const scan = item.scan;

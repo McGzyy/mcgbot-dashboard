@@ -1,5 +1,8 @@
 require('dotenv').config();
 
+const fs = require('fs');
+const path = require('path');
+
 const {
   Client,
   GatewayIntentBits,
@@ -19,8 +22,8 @@ const {
   isLikelySolanaCA
 } = require('./commands/basicCommands');
 
-const { startMonitoring } = require('./utils/monitoringEngine');
-const { startAutoCallLoop } = require('./utils/autoCallEngine');
+const { startMonitoring, stopMonitoring } = require('./utils/monitoringEngine');
+const { startAutoCallLoop, stopAutoCallLoop } = require('./utils/autoCallEngine');
 const { createPost } = require('./utils/xPoster');
 
 const {
@@ -69,18 +72,35 @@ const {
   markApprovalRequested,
   clearApprovalRequest,
   getAllTrackedCalls,
+  getRecentBotCalls,
+  getApprovalStats,
+  getPendingApprovals,
   addModerationTag,
   setModerationNotes,
   excludeTrackedCallsFromStatsByCaller,
   excludeTrackedBotCallsFromStats,
-  setXPostState
+  setXPostState,
+  resetAllTrackedCalls,
 } = require('./utils/trackedCallsService');
+
+const {
+  loadScannerSettings,
+  updateScannerSetting
+} = require('./utils/scannerSettingsService');
+
+const {
+  getApprovalTriggerX,
+  getHighestEligibleApprovalMilestone,
+  computeApprovalAthX,
+  shouldCreateApprovalRequest
+} = require('./utils/approvalMilestoneService');
 
 const {
   upsertUserProfile,
   getUserProfileByDiscordId,
   setPublicCreditMode,
   startXVerification,
+  getPendingXVerifications,
   completeXVerification,
   getPreferredPublicName,
   normalizeXHandle,
@@ -104,13 +124,39 @@ const X_VERIFY_CHANNEL_NAME = 'verify-x';
 const X_VERIFIED_ROLE_NAME = 'X Verified';
 const MOD_CHANNEL_NAME = 'mod-chat';
 
-// TESTING APPROVAL ENTRY THRESHOLD
-const APPROVAL_TRIGGER_X = 4;
-
-// ACTUAL X / APPROVAL MILESTONE LADDER
-const APPROVAL_MILESTONE_LADDER = [4, 8, 16, 32, 64, 100];
-
 const APPROVAL_EXPIRY_MINUTES = 20;
+const BOT_SETTINGS_PATH = path.join(__dirname, 'data', 'botSettings.json');
+
+function loadBotSettings() {
+  try {
+    if (!fs.existsSync(BOT_SETTINGS_PATH)) {
+      const defaults = { scannerEnabled: true };
+      fs.writeFileSync(BOT_SETTINGS_PATH, JSON.stringify(defaults, null, 2), 'utf8');
+      return defaults;
+    }
+
+    const raw = fs.readFileSync(BOT_SETTINGS_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+
+    return {
+      scannerEnabled: parsed.scannerEnabled !== false
+    };
+  } catch (error) {
+    console.error('[BotSettings] Failed to load settings:', error.message);
+    return { scannerEnabled: true };
+  }
+}
+
+function saveBotSettings(settings) {
+  try {
+    fs.writeFileSync(BOT_SETTINGS_PATH, JSON.stringify(settings, null, 2), 'utf8');
+  } catch (error) {
+    console.error('[BotSettings] Failed to save settings:', error.message);
+  }
+}
+
+let BOT_SETTINGS = loadBotSettings();
+let SCANNER_ENABLED = BOT_SETTINGS.scannerEnabled;
 
 function extractSolanaAddress(text) {
   const match = text.match(/\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/);
@@ -187,6 +233,19 @@ async function replyText(message, content) {
   });
 }
 
+function getBotCallsChannel(guild) {
+  if (!guild) return null;
+
+  return guild.channels.cache.find(
+    ch =>
+      ch &&
+      ch.isTextBased &&
+      typeof ch.isTextBased === 'function' &&
+      ch.isTextBased() &&
+      ch.name === 'bot-calls'
+  ) || null;
+}
+
 function getApprovalChannel(guild) {
   if (!guild) return null;
 
@@ -212,7 +271,18 @@ function getModChannel(guild) {
       ch.name === MOD_CHANNEL_NAME
   ) || null;
 }
+function getXApprovalChannel(guild) {
+  if (!guild) return null;
 
+  return guild.channels.cache.find(
+    ch =>
+      ch &&
+      ch.isTextBased &&
+      typeof ch.isTextBased === 'function' &&
+      ch.isTextBased() &&
+      ch.name === 'x-approvals'
+  ) || null;
+}
 async function assignXVerifiedRole(member) {
   try {
     if (!member?.guild) return false;
@@ -448,6 +518,12 @@ function formatX(value) {
   return `${num.toFixed(2)}x`;
 }
 
+function formatPercent(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 'N/A';
+  return `${num.toFixed(1)}%`;
+}
+
 function formatDateTime(iso) {
   if (!iso) return 'N/A';
   const date = new Date(iso);
@@ -460,58 +536,6 @@ function formatDateTime(iso) {
     hour: 'numeric',
     minute: '2-digit'
   });
-}
-
-function getCurrentX(trackedCall) {
-  const ath = Number(
-    trackedCall.ath ||
-    trackedCall.athMc ||
-    trackedCall.athMarketCap ||
-    trackedCall.latestMarketCap ||
-    trackedCall.firstCalledMarketCap ||
-    0
-  );
-
-  const firstCalledMc = Number(trackedCall.firstCalledMarketCap || 0);
-  if (firstCalledMc <= 0) return 0;
-
-  return ath / firstCalledMc;
-}
-
-function getHighestEligibleApprovalMilestone(currentX) {
-  const eligible = APPROVAL_MILESTONE_LADDER.filter(x => currentX >= x);
-  if (!eligible.length) return 0;
-  return Math.max(...eligible);
-}
-
-function shouldCreateApprovalRequest(trackedCall) {
-  if (!trackedCall) return { shouldSend: false, triggerX: 0 };
-
-  const currentX = getCurrentX(trackedCall);
-  if (currentX < APPROVAL_TRIGGER_X) {
-    return { shouldSend: false, triggerX: 0 };
-  }
-
-  const nextMilestone = getHighestEligibleApprovalMilestone(currentX);
-  if (!nextMilestone) {
-    return { shouldSend: false, triggerX: 0 };
-  }
-
-  const alreadyTriggered = Array.isArray(trackedCall.approvalMilestonesTriggered)
-    ? trackedCall.approvalMilestonesTriggered.includes(nextMilestone)
-    : false;
-
-  const currentlyPending = trackedCall.approvalMessageId && trackedCall.approvalStatus === 'pending';
-
-  if (currentlyPending && Number(trackedCall.lastApprovalTriggerX || 0) >= nextMilestone) {
-    return { shouldSend: false, triggerX: 0 };
-  }
-
-  if (alreadyTriggered && Number(trackedCall.lastApprovalTriggerX || 0) >= nextMilestone) {
-    return { shouldSend: false, triggerX: 0 };
-  }
-
-  return { shouldSend: true, triggerX: nextMilestone };
 }
 
 function getResolutionLines(trackedCall) {
@@ -573,7 +597,10 @@ function buildApprovalStatusEmbed(trackedCall, scan = null) {
   );
 
   const firstCalledMc = Number(trackedCall.firstCalledMarketCap || 0);
+  const currentMc = Number(trackedCall.latestMarketCap || 0);
   const x = firstCalledMc > 0 ? ath / firstCalledMc : 0;
+  const currentX = firstCalledMc > 0 ? currentMc / firstCalledMc : 0;
+  const drawdown = ath > 0 ? ((ath - currentMc) / ath) * 100 : 0;
 
   const status = trackedCall.approvalStatus || 'pending';
   const statusLabel =
@@ -594,18 +621,37 @@ function buildApprovalStatusEmbed(trackedCall, scan = null) {
     `[Dexscreener](https://dexscreener.com/solana/${ca})`
   ].join(' | ');
 
+  let callerLabel = 'Unknown';
+
+if (trackedCall.callSourceType === 'bot_call') {
+  callerLabel = 'McGBot';
+} else if (trackedCall.callSourceType === 'watch_only') {
+  callerLabel = 'No caller credit';
+} else {
+  callerLabel =
+    getPreferredPublicName(
+      getUserProfileByDiscordId(trackedCall.firstCallerDiscordId || trackedCall.firstCallerId || '')
+    ) ||
+    trackedCall.firstCallerPublicName ||
+    trackedCall.firstCallerDisplayName ||
+    trackedCall.firstCallerUsername ||
+    'Unknown';
+}
+
   const descriptionLines = [
-    `**Status:** ${statusLabel}`,
-    `**Caller:** ${getPreferredPublicName(getUserProfileByDiscordId(trackedCall.firstCallerDiscordId || trackedCall.firstCallerId || '')) || trackedCall.firstCallerPublicName || trackedCall.firstCallerDisplayName || trackedCall.firstCallerUsername || (trackedCall.callSourceType === 'bot_call' ? 'Auto Bot' : trackedCall.callSourceType === 'watch_only' ? 'No caller credit' : 'Unknown')}`,
+    `## ${statusLabel}`,
+    '',
+    `**Caller:** ${callerLabel}`,
     `**CA:** \`${ca}\``,
     `**Links:** ${links}`,
     '',
-    `**First Called MC:** ${formatUsd(firstCalledMc)}`,
-    `**Current / Latest MC:** ${formatUsd(trackedCall.latestMarketCap)}`,
-    `**ATH MC:** ${formatUsd(ath)}`,
-    `**From Call:** ${formatX(x)}`,
-    `**Approval Trigger:** ${formatX(trackedCall.lastApprovalTriggerX)}`,
+    `### 📈 Performance`,
+    `**Current X:** ${formatX(currentX)} • **ATH X:** ${formatX(x)} • **Trigger:** ${formatX(trackedCall.lastApprovalTriggerX)}`,
+    `**Current MC:** ${formatUsd(currentMc)} • **ATH MC:** ${formatUsd(ath)}`,
+    `**Drawdown from ATH:** ${formatPercent(drawdown)}`,
     '',
+    `### 📊 Call Details`,
+    `**First Called MC:** ${formatUsd(firstCalledMc)}`,
     `**Excluded From Stats:** ${trackedCall.excludedFromStats ? 'Yes' : 'No'}`,
     `**Tags:** ${tags}`,
     `**Notes:** ${trackedCall.moderationNotes || 'None'}`
@@ -645,7 +691,7 @@ function buildApprovalStatusEmbed(trackedCall, scan = null) {
 function buildXPostText(trackedCall, milestoneX, isReply = false) {
   const ticker = trackedCall.ticker || 'UNKNOWN';
   const ca = trackedCall.contractAddress;
-  const caller = getPreferredPublicName(getUserProfileByDiscordId(trackedCall.firstCallerDiscordId || trackedCall.firstCallerId || '')) || trackedCall.firstCallerPublicName || trackedCall.firstCallerDisplayName || trackedCall.firstCallerUsername || (trackedCall.callSourceType === 'bot_call' ? 'Auto Bot' : trackedCall.callSourceType === 'watch_only' ? 'No caller credit' : 'Unknown');
+  const caller = getPreferredPublicName(getUserProfileByDiscordId(trackedCall.firstCallerDiscordId || trackedCall.firstCallerId || '')) || trackedCall.firstCallerPublicName || trackedCall.firstCallerDisplayName || trackedCall.firstCallerUsername || (trackedCall.callSourceType === 'bot_call' ? 'McGBot' : trackedCall.callSourceType === 'watch_only' ? 'No caller credit' : 'Unknown');
   const athMc = formatUsd(
     trackedCall.ath ||
     trackedCall.athMc ||
@@ -680,8 +726,7 @@ async function publishApprovedCoinToX(contractAddress) {
   if (!trackedCall) return { success: false, reason: 'missing_call' };
   if (!trackedCall.xApproved) return { success: false, reason: 'not_approved' };
 
-  const currentX = getCurrentX(trackedCall);
-  const milestoneX = getHighestEligibleApprovalMilestone(currentX);
+  const milestoneX = getHighestEligibleApprovalMilestone(computeApprovalAthX(trackedCall));
 
   if (!milestoneX) {
     return { success: false, reason: 'no_milestone' };
@@ -764,6 +809,7 @@ async function postApprovalReview(guild, trackedCall, scan = null, triggerX = 0)
 
     const embed = buildApprovalStatusEmbed(refreshed, scan);
     const buttons = buildApprovalButtons(trackedCall.contractAddress);
+    const modChannel = getModChannel(guild);
 
     const sent = await approvalChannel.send({
       embeds: [embed],
@@ -771,6 +817,13 @@ async function postApprovalReview(guild, trackedCall, scan = null, triggerX = 0)
     });
 
     setApprovalMessageMeta(trackedCall.contractAddress, sent.id, approvalChannel.id);
+
+    if (modChannel && modChannel.id !== approvalChannel.id) {
+      await modChannel.send({
+        embeds: [embed],
+        components: buttons
+      });
+    }
 
     return sent.id;
   } catch (error) {
@@ -1172,21 +1225,22 @@ client.once('clientReady', async () => {
     return;
   }
 
-  const channels = firstGuild.channels.cache.filter(channel => channel.isTextBased());
-  const firstTextChannel = channels.first();
+  const botChannel = getBotCallsChannel(firstGuild);
 
-  if (!firstTextChannel) {
-    console.log('❌ No text channel found for alerts.');
-    return;
-  }
+if (!botChannel) {
+  console.log('❌ Could not find #bot-calls channel.');
+  return;
+}
 
-  console.log(`📡 Alerts will post in: #${firstTextChannel.name}`);
+console.log(`📡 Alerts will post in: #${botChannel.name}`);
 
   const trackedDevs = getAllTrackedDevs();
   console.log(`[DevTracker] Loaded ${trackedDevs.length} tracked dev(s).`);
 
-  startMonitoring(firstTextChannel, 60000);
-  startAutoCallLoop(firstTextChannel);
+  if (SCANNER_ENABLED) {
+  startMonitoring(botChannel, 60000);
+  startAutoCallLoop(botChannel);
+}
 
   await ensureVerifyXPrompt(firstGuild);
 
@@ -1235,20 +1289,30 @@ client.on('interactionCreate', async (interaction) => {
           return;
         }
 
-        const modChannel = getModChannel(interaction.guild);
+        const embed = buildXVerifyEmbed({
+  user: interaction.user,
+  handle,
+  code
+});
 
-        if (modChannel) {
-          await modChannel.send({
-            embeds: [
-              buildXVerifyEmbed({
-                user: interaction.user,
-                handle,
-                code
-              })
-            ],
-            components: buildXVerifyButtons(interaction.user.id, handle)
-          });
-        }
+const buttons = buildXVerifyButtons(interaction.user.id, handle);
+
+const modChannel = getModChannel(interaction.guild);
+const xApprovalChannel = getXApprovalChannel(interaction.guild);
+
+if (modChannel) {
+  await modChannel.send({
+    embeds: [embed],
+    components: buttons
+  });
+}
+
+if (xApprovalChannel && (!modChannel || xApprovalChannel.id !== modChannel.id)) {
+  await xApprovalChannel.send({
+    embeds: [embed],
+    components: buttons
+  });
+}
 
         await interaction.update({
           content: `✅ Your verification request has been submitted.\nA MOD will review and verify your request.`,
@@ -1280,42 +1344,62 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (parts[0] === 'xverify_accept') {
-        const userId = parts[1];
-        const handle = parts[2];
+  const userId = parts[1];
+  const handle = parts[2];
 
-        completeXVerification(userId, handle);
+  const profile = getUserProfileByDiscordId(userId);
 
-        const member = await interaction.guild.members.fetch(userId).catch(() => null);
-        if (member) {
-          await assignXVerifiedRole(member);
-        }
+  if (!profile || profile.isXVerified || profile.xVerification?.status !== 'pending') {
+    await interaction.reply({
+      content: 'This verification request has already been handled.',
+      ephemeral: true
+    });
+    return;
+  }
 
-        const verifyChannel = interaction.guild.channels.cache.find(
-          ch => ch.name === X_VERIFY_CHANNEL_NAME
-        );
+  completeXVerification(userId, handle);
 
-        if (verifyChannel) {
-          await verifyChannel.send(
-            `✅ <@${userId}> has been verified as **@${handle}**`
-          );
-        }
+  const member = await interaction.guild.members.fetch(userId).catch(() => null);
+  if (member) {
+    await assignXVerifiedRole(member);
+  }
 
-        await interaction.update({
-          content: `✅ Verified **@${handle}**`,
-          embeds: [],
-          components: []
-        });
+  const verifyChannel = interaction.guild.channels.cache.find(
+    ch => ch.name === X_VERIFY_CHANNEL_NAME
+  );
 
-        return;
-      }
+  if (verifyChannel) {
+    await verifyChannel.send(
+      `✅ <@${userId}> has been verified as **@${handle}**`
+    );
+  }
+
+  await interaction.update({
+    content: `✅ Verified **@${handle}**`,
+    embeds: [],
+    components: []
+  });
+
+  return;
+}
 
       if (parts[0] === 'xverify_deny') {
-        const userId = parts[1];
-        const handle = parts[2];
+  const userId = parts[1];
+  const handle = parts[2];
 
-        await interaction.showModal(buildXVerifyDenyModal(userId, handle));
-        return;
-      }
+  const profile = getUserProfileByDiscordId(userId);
+
+  if (!profile || profile.isXVerified || profile.xVerification?.status !== 'pending') {
+    await interaction.reply({
+      content: 'This verification request has already been handled.',
+      ephemeral: true
+    });
+    return;
+  }
+
+  await interaction.showModal(buildXVerifyDenyModal(userId, handle));
+  return;
+}
 
       const [action, contractAddress] = interaction.customId.split(':');
       if (!action || !contractAddress) return;
@@ -1371,21 +1455,32 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       const trackedCall = getTrackedCall(contractAddress);
-      if (!trackedCall) {
-        await interaction.reply({
-          content: '❌ That tracked call could not be found.',
-          ephemeral: true
-        });
-        return;
-      }
+if (!trackedCall) {
+  await interaction.reply({
+    content: '❌ That tracked call could not be found.',
+    ephemeral: true
+  });
+  return;
+}
 
-      let updated = null;
+if (
+  ['approve_call', 'deny_call', 'exclude_call'].includes(action) &&
+  trackedCall.approvalStatus !== 'pending'
+) {
+  await interaction.reply({
+    content: 'This approval request has already been handled.',
+    ephemeral: true
+  });
+  return;
+}
+
+let updated = null;
 
       if (action === 'approve_call') {
         updated = setApprovalStatus(contractAddress, 'approved', {
-          id: interaction.user.id,
-          username: interaction.user.username
-        });
+  moderatedById: interaction.user.id,
+  moderatedByUsername: interaction.user.username
+});
 
         const xResult = await publishApprovedCoinToX(contractAddress);
 
@@ -1411,9 +1506,9 @@ client.on('interactionCreate', async (interaction) => {
 
       if (action === 'deny_call') {
         updated = setApprovalStatus(contractAddress, 'denied', {
-          id: interaction.user.id,
-          username: interaction.user.username
-        });
+  moderatedById: interaction.user.id,
+  moderatedByUsername: interaction.user.username
+});
 
         await refreshApprovalMessage(interaction.guild, contractAddress);
 
@@ -1428,9 +1523,9 @@ client.on('interactionCreate', async (interaction) => {
 
       if (action === 'exclude_call') {
         updated = setApprovalStatus(contractAddress, 'excluded', {
-          id: interaction.user.id,
-          username: interaction.user.username
-        });
+  moderatedById: interaction.user.id,
+  moderatedByUsername: interaction.user.username
+});
 
         await refreshApprovalMessage(interaction.guild, contractAddress);
 
@@ -1524,28 +1619,32 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (parts[0] === 'xverify_deny_modal') {
-        const userId = parts[1];
-        const handle = parts[2];
-        const reason = interaction.fields.getTextInputValue('deny_reason');
+  const userId = parts[1];
+  const handle = parts[2];
+  const reason = interaction.fields.getTextInputValue('deny_reason');
 
-        const verifyChannel = interaction.guild.channels.cache.find(
-          ch => ch.name === X_VERIFY_CHANNEL_NAME
-        );
+  const profile = getUserProfileByDiscordId(userId);
 
-        if (verifyChannel) {
-          await verifyChannel.send(
-            `❌ <@${userId}>, your X verification for **@${handle}** was denied.\n**Reason:** ${reason}`
-          );
-        }
+  if (!profile || profile.isXVerified || profile.xVerification?.status !== 'pending') {
+    await interaction.reply({
+      content: 'This verification request has already been handled.',
+      ephemeral: true
+    });
+    return;
+  }
 
-        await interaction.update({
-          content: `❌ Denied **@${handle}**\n**Reason:** ${reason}`,
-          embeds: [],
-          components: []
-        });
+  const verifyChannel = interaction.guild.channels.cache.find(ch => ch.name === X_VERIFY_CHANNEL_NAME);
+  if (verifyChannel) {
+    await verifyChannel.send(`❌ <@${userId}>, your X verification for **@${handle}** was denied.\n**Reason:** ${reason}`);
+  }
 
-        return;
-      }
+  await interaction.update({
+    content: `❌ Denied **@${handle}**\n**Reason:** ${reason}`,
+    embeds: [],
+    components: []
+  });
+  return;
+}
 
       const [action, contractAddress] = interaction.customId.split(':');
       if (!action || !contractAddress) return;
@@ -1653,6 +1752,69 @@ client.on('messageCreate', async (message) => {
     if (handledSession) return;
 
     if (content.startsWith('!')) {
+      if (lowerContent === '!scanner') {
+  if (!message.member?.permissions?.has('ManageGuild')) {
+    await replyText(message, '❌ Mods/admins only.');
+    return;
+  }
+
+  await replyText(
+    message,
+    SCANNER_ENABLED ? '🟢 Scanner is currently **ON**.' : '🔴 Scanner is currently **OFF**.'
+  );
+  return;
+}
+
+if (lowerContent === '!scanner on') {
+  if (!message.member?.permissions?.has('ManageGuild')) {
+    await replyText(message, '❌ Mods/admins only.');
+    return;
+  }
+
+  if (SCANNER_ENABLED) {
+    await replyText(message, '🟢 Scanner is already **ON**.');
+    return;
+  }
+
+  SCANNER_ENABLED = true;
+  BOT_SETTINGS.scannerEnabled = true;
+saveBotSettings(BOT_SETTINGS);
+
+  const botChannel = getBotCallsChannel(message.guild);
+
+if (!botChannel) {
+  await replyText(message, '❌ Could not find #bot-calls channel.');
+  return;
+}
+
+startMonitoring(botChannel, 60000);
+startAutoCallLoop(botChannel);
+
+  await replyText(message, '🟢 Scanner **ENABLED** (monitor + auto-call running).');
+  return;
+}
+
+if (lowerContent === '!scanner off') {
+  if (!message.member?.permissions?.has('ManageGuild')) {
+    await replyText(message, '❌ Mods/admins only.');
+    return;
+  }
+
+  if (!SCANNER_ENABLED) {
+    await replyText(message, '🔴 Scanner is already **OFF**.');
+    return;
+  }
+
+  SCANNER_ENABLED = false;
+  BOT_SETTINGS.scannerEnabled = false;
+saveBotSettings(BOT_SETTINGS);
+
+  stopMonitoring();
+  stopAutoCallLoop();
+
+  await replyText(message, '🔴 Scanner **DISABLED** (all loops stopped).');
+  return;
+}
       if (lowerContent === '!testx') {
         const result = await createPost('Test post from McGBot 🚀');
 
@@ -1866,65 +2028,618 @@ if (lowerContent.startsWith('!resetstats')) {
 
         return;
       }
-      if (lowerContent.startsWith('!resetstats')) {
-        const mentionedUser = message.mentions.users.first();
-        const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
 
-        let targetUser = message.author;
+     if (lowerContent === '!pendingapprovals') {
+  const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
 
-        if (mentionedUser) {
-          if (!isModOrAdmin) {
-            await replyText(message, '❌ Only mods/admins can reset another user’s stats.');
-            return;
-          }
+  if (!isModOrAdmin) {
+    await replyText(message, '❌ Only mods/admins can use this command.');
+    return;
+  }
 
-          targetUser = mentionedUser;
-        }
+  const pendingX = getPendingXVerifications(10);
+  const pendingBot = getPendingApprovals(25);
 
-        const targetProfile = upsertUserProfile({
-          discordUserId: targetUser.id,
-          username: targetUser.username,
-          displayName:
-            message.guild?.members?.cache?.get(targetUser.id)?.displayName ||
-            targetUser.globalName ||
-            targetUser.username
-        });
+  const xLines = pendingX.map((profile, index) => {
+    const displayName =
+      profile.preferredPublicName ||
+      profile.username ||
+      profile.discordUsername ||
+      `User ${index + 1}`;
 
-        const result = excludeTrackedCallsFromStatsByCaller(
-          {
-            discordUserId: targetProfile.discordUserId,
-            username: targetProfile.username,
-            displayName: targetProfile.displayName
-          },
-          {
-            resetById: message.author.id,
-            resetByUsername: message.author.username,
-            resetReason:
-              targetUser.id === message.author.id
-                ? 'Self-requested stats reset'
-                : `Admin/mod reset by ${message.author.username}`
-          }
-        );
+    const handle = profile?.xVerification?.requestedHandle
+      ? `@${String(profile.xVerification.requestedHandle).replace(/^@/, '')}`
+      : 'Unknown';
 
-        if (!result?.updatedCount) {
-          await replyText(
-            message,
-            targetUser.id === message.author.id
-              ? '❌ No tracked user-call stats found to reset for your account.'
-              : `❌ No tracked user-call stats found to reset for **${targetProfile.displayName || targetProfile.username}**.`
-          );
-          return;
-        }
+    let minutes = 0;
+    if (profile?.xVerification?.requestedAt) {
+      const diff =
+        Date.now() - new Date(profile.xVerification.requestedAt).getTime();
+      minutes = Math.floor(diff / 60000);
+    }
 
-        await replyText(
-          message,
-          targetUser.id === message.author.id
-            ? `✅ Reset **${result.updatedCount}** of your tracked user-call stat entr${result.updatedCount === 1 ? 'y' : 'ies'}.`
-            : `✅ Reset **${result.updatedCount}** tracked user-call stat entr${result.updatedCount === 1 ? 'y' : 'ies'} for **${targetProfile.displayName || targetProfile.username}**.`
-        );
+    return `${index + 1}. **${displayName}** • ${handle} • ${minutes}m ago`;
+  });
 
-        return;
-      }
+  const rankedBot = [...pendingBot]
+    .map(call => {
+      const entry = Number(call.firstCalledMarketCap || call.marketCap || 0);
+      const current = Number(call.latestMarketCap || call.marketCap || 0);
+      const mult = entry > 0 ? current / entry : 0;
+
+      return { call, mult };
+    })
+    .sort((a, b) => b.mult - a.mult)
+    .slice(0, 5);
+
+  const botLines = rankedBot.map((item, index) => {
+    const call = item.call;
+    const token = call.tokenName || 'Unknown';
+    const ticker = call.ticker ? `$${call.ticker}` : '';
+
+    return `${index + 1}. **${token}** ${ticker} • **${item.mult.toFixed(2)}x**`;
+  });
+
+  await message.reply({
+    content:
+      `📋 **Pending Approvals**\n\n` +
+      `🔗 **Pending X Verifications**\n` +
+      (xLines.length ? xLines.join('\n') : 'None') +
+      `\n\n🔥 **Top Pending Bot Approval Coins**\n` +
+      (botLines.length ? botLines.join('\n') : 'None'),
+    allowedMentions: { repliedUser: false }
+  });
+
+  return;
+}
+
+if (lowerContent.startsWith('!setminmc ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const parts = content.split(/\s+/);
+  const value = Number(parts[1]);
+
+  if (!Number.isFinite(value) || value < 0) {
+    await replyText(message, '❌ Usage: `!setminmc <number>`');
+    return;
+  }
+
+  const ok = updateScannerSetting('minMarketCap', value);
+
+  if (!ok) {
+    await replyText(message, '❌ Failed to update scanner setting.');
+    return;
+  }
+
+  await replyText(message, `✅ Min Market Cap updated to **${value.toLocaleString()}**.`);
+  return;
+}
+if (lowerContent.startsWith('!setminliq ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value < 0) {
+    await replyText(message, '❌ Usage: `!setminliq <number>`');
+    return;
+  }
+
+  updateScannerSetting('minLiquidity', value);
+
+  await replyText(message, `✅ Min Liquidity updated to **${value.toLocaleString()}**.`);
+  return;
+}
+
+if (lowerContent.startsWith('!setminvol5m ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value < 0) {
+    await replyText(message, '❌ Usage: `!setminvol5m <number>`');
+    return;
+  }
+
+  updateScannerSetting('minVolume5m', value);
+
+  await replyText(message, `✅ Min 5m Volume updated to **${value.toLocaleString()}**.`);
+  return;
+}
+
+if (lowerContent.startsWith('!setminvol1h ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value < 0) {
+    await replyText(message, '❌ Usage: `!setminvol1h <number>`');
+    return;
+  }
+
+  updateScannerSetting('minVolume1h', value);
+
+  await replyText(message, `✅ Min 1h Volume updated to **${value.toLocaleString()}**.`);
+  return;
+}
+
+if (lowerContent.startsWith('!setmintxns5m ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value < 0) {
+    await replyText(message, '❌ Usage: `!setmintxns5m <number>`');
+    return;
+  }
+
+  updateScannerSetting('minTxns5m', value);
+
+  await replyText(message, `✅ Min 5m Txns updated to **${value.toLocaleString()}**.`);
+  return;
+}
+
+if (lowerContent.startsWith('!setmintxns1h ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value < 0) {
+    await replyText(message, '❌ Usage: `!setmintxns1h <number>`');
+    return;
+  }
+
+  updateScannerSetting('minTxns1h', value);
+
+  await replyText(message, `✅ Min 1h Txns updated to **${value.toLocaleString()}**.`);
+  return;
+}
+
+if (lowerContent.startsWith('!setapprovalx ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value < 1) {
+    await replyText(message, '❌ Usage: `!setapprovalx <number>`');
+    return;
+  }
+
+  updateScannerSetting('approvalTriggerX', value);
+  updateScannerSetting('approvalMilestoneLadder', []);
+
+  await replyText(message, `✅ Approval Trigger updated to **${value}x**.`);
+  return;
+}
+if (lowerContent.startsWith('!setapprovalladder ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const rawInput = content.slice('!setapprovalladder '.length).trim();
+
+  if (!rawInput) {
+    await replyText(message, '❌ Usage: `!setapprovalladder 3,5,8,12,20,30,50,74,100`');
+    return;
+  }
+
+  const ladder = rawInput
+    .split(',')
+    .map(x => Number(x.trim()))
+    .filter(x => Number.isFinite(x) && x >= 1);
+
+  const uniqueSorted = [...new Set(ladder)].sort((a, b) => a - b);
+
+  if (!uniqueSorted.length) {
+    await replyText(message, '❌ No valid milestone values found.');
+    return;
+  }
+
+  const ok1 = updateScannerSetting('approvalMilestoneLadder', uniqueSorted);
+  const ok2 = updateScannerSetting('approvalTriggerX', uniqueSorted[0]);
+
+  if (!ok1 || !ok2) {
+    await replyText(message, '❌ Failed to update approval ladder.');
+    return;
+  }
+
+  await replyText(
+    message,
+    `✅ Approval milestone ladder updated to **${uniqueSorted.join(', ')}x**\n` +
+    `🎯 First trigger automatically set to **${uniqueSorted[0]}x**`
+  );
+  return;
+}
+
+if (lowerContent.startsWith('!setsanityminmc ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value < 0) {
+    await replyText(message, '❌ Usage: `!setsanityminmc <number>`');
+    return;
+  }
+
+  updateScannerSetting('sanityMinMeaningfulMarketCap', value);
+
+  await replyText(message, `✅ Sanity Min MC updated to **${value.toLocaleString()}**.`);
+  return;
+}
+
+if (lowerContent.startsWith('!setsanityminliq ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value < 0) {
+    await replyText(message, '❌ Usage: `!setsanityminliq <number>`');
+    return;
+  }
+
+  updateScannerSetting('sanityMinMeaningfulLiquidity', value);
+
+  await replyText(message, `✅ Sanity Min Liquidity updated to **${value.toLocaleString()}**.`);
+  return;
+}
+
+if (lowerContent.startsWith('!setsanityminliqratio ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value < 0) {
+    await replyText(message, '❌ Usage: `!setsanityminliqratio <number>`');
+    return;
+  }
+
+  updateScannerSetting('sanityMinLiquidityToMarketCapRatio', value);
+
+  await replyText(message, `✅ Min Liq/MC ratio updated to **${value}**.`);
+  return;
+}
+
+if (lowerContent.startsWith('!setsanitymaxliqratio ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    await replyText(message, '❌ Usage: `!setsanitymaxliqratio <number>`');
+    return;
+  }
+
+  updateScannerSetting('sanityMaxLiquidityToMarketCapRatio', value);
+
+  await replyText(message, `✅ Max Liq/MC ratio updated to **${value}**.`);
+  return;
+}
+
+if (lowerContent.startsWith('!setsanitymaxratio5m ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    await replyText(message, '❌ Usage: `!setsanitymaxratio5m <number>`');
+    return;
+  }
+
+  updateScannerSetting('sanityMaxBuySellRatio5m', value);
+
+  await replyText(message, `✅ Max 5m Buy/Sell ratio updated to **${value}**.`);
+  return;
+}
+
+if (lowerContent.startsWith('!setsanitymaxratio1h ')) {
+  if (message.author.id !== process.env.BOT_OWNER_ID) {
+    await replyText(message, '❌ Only the bot owner can use this command.');
+    return;
+  }
+
+  const value = Number(content.split(/\s+/)[1]);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    await replyText(message, '❌ Usage: `!setsanitymaxratio1h <number>`');
+    return;
+  }
+
+  updateScannerSetting('sanityMaxBuySellRatio1h', value);
+
+  await replyText(message, `✅ Max 1h Buy/Sell ratio updated to **${value}**.`);
+  return;
+}
+
+if (lowerContent === '!commands' || lowerContent === '!help') {
+  const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
+  const isOwner = message.author.id === process.env.BOT_OWNER_ID;
+
+  let contentOut = `📘 **McGBot Command List**\n\n`;
+
+  // USER COMMANDS
+  contentOut +=
+    `👤 **User Commands**\n` +
+    `• \`!help\` / \`!commands\` — Show available commands\n` +
+    `• \`!ca <ca>\` — Compact contract intel (no tracking)\n` +
+    `• \`!scan\` — Run a random scanner test\n` +
+    `• \`!scan <ca>\` — Deep scan a specific token\n` +
+    `• \`!call <ca>\` — Officially call + track a coin\n` +
+    `• \`!watch <ca>\` — Track a coin without caller credit\n` +
+    `• \`!tracked\` — View tracked coin summary\n` +
+    `• \`!tracked <ca>\` — View tracked coin details\n` +
+    `• \`!caller <name>\` — View caller stats\n` +
+    `• \`!callerboard\` — View top caller leaderboard\n` +
+    `• \`!botstats\` — View auto bot performance\n` +
+    `• \`!verifyx\` — Start X verification\n` +
+    `• \`!setx <handle>\` — Set or update your X handle\n` +
+    `• \`!profile\` — View your public caller profile\n` +
+    `• \`!mystats\` — View your caller stats\n\n`;
+
+  // MOD COMMANDS
+  if (isModOrAdmin || isOwner) {
+    contentOut +=
+      `🛡️ **Mod Commands**\n` +
+      `• Approval buttons in mod review / approval channels\n` +
+      `• \`!approvalstats\` — View approval queue stats\n` +
+      `• \`!recentcalls\` — View recent bot calls\n` +
+      `• \`!monitorstatus\` — View tracked / archived coin counts\n\n`;
+  }
+
+  // OWNER / ADMIN COMMANDS
+  if (isOwner) {
+    contentOut +=
+      `⚙️ **Owner / Scanner Commands**\n` +
+      `• \`!scanneron\` — Start scanner + monitor\n` +
+      `• \`!scanneroff\` — Stop scanner + monitor\n` +
+      `• \`!scannerconfig\` — View live scanner config\n` +
+      `• \`!resetmonitor\` — Reset tracked monitor data\n` +
+      `• \`!resetbotstats\` — Reset bot call stats\n` +
+      `• \`!testreal <ca>\` — Test live provider output\n` +
+      `• \`!autoscantest\` — Run simulated auto alert test\n\n` +
+
+      `📊 **Scanner Threshold Commands**\n` +
+      `• \`!setminmc <number>\`\n` +
+      `• \`!setminliq <number>\`\n` +
+      `• \`!setminvol5m <number>\`\n` +
+      `• \`!setminvol1h <number>\`\n` +
+      `• \`!setmintxns5m <number>\`\n` +
+      `• \`!setmintxns1h <number>\`\n` +
+      `• \`!setapprovalx <number>\`\n\n` +
+
+      `🧪 **Sanity Filter Commands**\n` +
+      `• \`!setsanityminmc <number>\`\n` +
+      `• \`!setsanityminliq <number>\`\n` +
+      `• \`!setsanityminliqratio <number>\`\n` +
+      `• \`!setsanitymaxliqratio <number>\`\n` +
+      `• \`!setsanitymaxratio5m <number>\`\n` +
+      `• \`!setsanitymaxratio1h <number>\`\n`;
+  }
+
+  await message.reply({
+    content: contentOut,
+    allowedMentions: { repliedUser: false }
+  });
+
+  return;
+}
+
+if (lowerContent === '!approvalstats') {
+  const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
+
+  if (!isModOrAdmin) {
+    await replyText(message, '❌ Only mods/admins can use this command.');
+    return;
+  }
+
+  const stats = getApprovalStats();
+
+  await message.reply({
+    content:
+      `📋 **Approval Stats**\n` +
+      `• Pending approvals: **${stats.pending}**\n` +
+      `• Approved bot calls: **${stats.approved}**\n` +
+      `• Denied bot calls: **${stats.denied}**\n` +
+      `• Expired / cleared: **${stats.expiredOrCleared}**\n` +
+      `• Total tracked coins: **${stats.totalTracked}**`,
+    allowedMentions: { repliedUser: false }
+  });
+
+  return;
+}
+
+if (lowerContent === '!pendingapprovals') {
+  const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
+
+  if (!isModOrAdmin) {
+    await replyText(message, '❌ Only mods/admins can use this command.');
+    return;
+  }
+
+  const pendingX = getPendingXVerifications(10);
+  const pendingBot = getPendingApprovals(25).filter(
+    c => String(c.approvalStatus || '').toLowerCase() === 'pending'
+  );
+
+  const xLines = pendingX.map((profile, index) => {
+    const displayName =
+      profile.preferredPublicName ||
+      profile.username ||
+      profile.discordUsername ||
+      `User ${index + 1}`;
+
+    const handle = profile?.xVerification?.requestedHandle
+      ? `@${String(profile.xVerification.requestedHandle).replace(/^@/, '')}`
+      : 'Unknown';
+
+    let minutes = 0;
+    if (profile?.xVerification?.requestedAt) {
+      const diff =
+        Date.now() - new Date(profile.xVerification.requestedAt).getTime();
+      minutes = Math.floor(diff / 60000);
+    }
+
+    return `${index + 1}. **${displayName}** • ${handle} • ${minutes}m ago`;
+  });
+
+  const rankedBot = [...pendingBot]
+    .map(call => {
+      const entry = Number(call.firstCalledMarketCap || call.marketCap || 0);
+      const current = Number(call.latestMarketCap || call.marketCap || 0);
+      const mult = entry > 0 ? current / entry : 0;
+
+      return { call, mult };
+    })
+    .sort((a, b) => b.mult - a.mult)
+    .slice(0, 5);
+
+  const botLines = rankedBot.map((item, index) => {
+    const call = item.call;
+    const token = call.tokenName || 'Unknown';
+    const ticker = call.ticker ? `$${call.ticker}` : '';
+
+    return `${index + 1}. **${token}** ${ticker} • **${item.mult.toFixed(2)}x**`;
+  });
+
+  await message.reply({
+    content:
+      `📋 **Pending Approvals**\n\n` +
+      `🔗 **Pending X Verifications**\n` +
+      (xLines.length ? xLines.join('\n') : 'None') +
+      `\n\n🔥 **Top Pending Bot Approval Coins**\n` +
+      (botLines.length ? botLines.join('\n') : 'None'),
+    allowedMentions: { repliedUser: false }
+  });
+
+  return;
+}
+
+if (lowerContent === '!recentcalls') {
+  const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
+
+  if (!isModOrAdmin) {
+    await replyText(message, '❌ Only mods/admins can use this command.');
+    return;
+  }
+
+  const calls = getRecentBotCalls(10);
+
+  if (!calls.length) {
+    await replyText(message, 'ℹ️ No recent bot calls found.');
+    return;
+  }
+
+  const lines = calls.map((call, index) => {
+    const token = call.tokenName || 'Unknown';
+    const ticker = call.ticker ? `$${call.ticker}` : '';
+    const entryMc = Number(call.firstCalledMarketCap || call.marketCapAtCall || call.marketCap || 0);
+    const currentMc = Number(call.latestMarketCap || call.currentMarketCap || call.marketCap || 0);
+    const multiplier = entryMc > 0 ? (currentMc / entryMc).toFixed(2) : '0.00';
+    const status = call.isActive === false ? 'Archived' : 'Active';
+
+    return `${index + 1}. **${token}** ${ticker} • ${status} • Entry MC: **$${entryMc.toLocaleString()}** • Current MC: **$${currentMc.toLocaleString()}** • **${multiplier}x**`;
+  });
+
+  await message.reply({
+    content:
+      `🕒 **Recent Bot Calls**\n\n` +
+      lines.join('\n'),
+    allowedMentions: { repliedUser: false }
+  });
+
+  return;
+}
+
+if (lowerContent === '!monitorstatus') {
+  const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
+
+  if (!isModOrAdmin) {
+    await replyText(message, '❌ Only mods/admins can use this command.');
+    return;
+  }
+
+  const allCalls = getAllTrackedCalls();
+
+  const active = allCalls.filter(c => c.isActive).length;
+  const archived = allCalls.filter(c => c.lifecycleStatus === 'archived').length;
+  const pending = allCalls.filter(c => c.approvalStatus === 'pending').length;
+
+  let scannerState = 'UNKNOWN';
+  try {
+    const settings = loadBotSettings();
+    scannerState = settings?.scannerEnabled ? 'ON' : 'OFF';
+  } catch (_) {}
+
+  await message.reply({
+    content:
+      `📊 **Monitor Status**\n` +
+      `• Active tracked coins: **${active}**\n` +
+      `• Archived coins: **${archived}**\n` +
+      `• Pending approvals: **${pending}**\n` +
+      `• Scanner: **${scannerState}**`,
+    allowedMentions: { repliedUser: false }
+  });
+
+  return;
+}
+if (lowerContent === '!resetmonitor') {
+  const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
+
+  if (!isModOrAdmin) {
+    await replyText(message, '❌ Only mods/admins can use this command.');
+    return;
+  }
+
+  stopMonitoring();
+  stopAutoCallLoop();
+  SCANNER_ENABLED = false;
+  BOT_SETTINGS.scannerEnabled = false;
+  saveBotSettings(BOT_SETTINGS);
+
+  resetAllTrackedCalls();
+
+  await replyText(
+    message,
+    '🧹 Monitor reset complete.\n• All tracked coins cleared\n• Pending approval state cleared\n• Scanner turned OFF'
+  );
+
+  return;
+}
       if (lowerContent === '!resetbotstats') {
         const isModOrAdmin = message.member?.permissions?.has('ManageGuild');
 
@@ -2004,7 +2719,7 @@ if (lowerContent === '!truebotstats') {
         }
 
         const embed = createCallerCardEmbed(stats)
-          .setTitle('🤖 TRUE BOT STATS — AUTO BOT')
+          .setTitle('🤖 TRUE BOT STATS — McGBot')
           .setFooter({ text: `Includes reset/excluded bot calls • Requested by ${message.author.username}` });
 
         if (typeof stats.resetExcludedCount === 'number') {

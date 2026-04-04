@@ -8,12 +8,21 @@ const {
   setXPostState
 } = require('./trackedCallsService');
 const {
+  getApprovalTriggerX,
+  getHighestEligibleApprovalMilestone,
+  shouldCreateApprovalRequest
+} = require('./approvalMilestoneService');
+const {
   createMilestoneEmbed,
   createDumpEmbed
 } = require('./alertEmbeds');
 const { enqueueAlert } = require('./alertQueue');
 const { createPost } = require('./xPoster');
 const { resolvePublicCallerName } = require('./userProfileService');
+const {
+  determineLifecycleStatus,
+  getLifecycleChangeReason
+} = require('./lifecycleEngine');
 
 let monitoringInterval = null;
 let isRunning = false;
@@ -35,9 +44,6 @@ const DISCORD_MILESTONE_LEVELS = [
   { key: '100x', x: 100, threshold: 9900 }
 ];
 
-// Approval / X ladder
-const APPROVAL_TRIGGER_X = 4;
-const APPROVAL_MILESTONE_LADDER = [4, 8, 16, 32, 64, 100];
 const APPROVAL_EXPIRY_MINUTES = 20;
 
 // Top approval pool size
@@ -80,7 +86,7 @@ function getPublicCallerLabel(trackedCall, fallback = 'Unknown') {
   if (!trackedCall) return fallback;
 
   if (trackedCall.callSourceType === 'bot_call') {
-    return 'Auto Bot';
+    return 'McGBot';
   }
 
   if (trackedCall.callSourceType === 'watch_only') {
@@ -110,12 +116,6 @@ function getPublicCallerLabel(trackedCall, fallback = 'Unknown') {
  * X POST HELPERS
  * =========================
  */
-
-function getHighestEligibleApprovalMilestone(currentX) {
-  const eligible = APPROVAL_MILESTONE_LADDER.filter(x => currentX >= x);
-  if (!eligible.length) return 0;
-  return Math.max(...eligible);
-}
 
 function buildXPostText(trackedCall, milestoneX, isReply = false) {
   const tokenName = trackedCall.tokenName || 'Unknown Token';
@@ -279,37 +279,6 @@ function getHighestDump(drawdown, hits = []) {
  * =========================
  */
 
-function shouldCreateApprovalRequest(trackedCall, currentX) {
-  if (!trackedCall) return { shouldSend: false, triggerX: 0 };
-
-  if (currentX < APPROVAL_TRIGGER_X) {
-    return { shouldSend: false, triggerX: 0 };
-  }
-
-  const nextMilestone = getHighestEligibleApprovalMilestone(currentX);
-  if (!nextMilestone) {
-    return { shouldSend: false, triggerX: 0 };
-  }
-
-  const alreadyTriggered = Array.isArray(trackedCall.approvalMilestonesTriggered)
-    ? trackedCall.approvalMilestonesTriggered.includes(nextMilestone)
-    : false;
-
-  const currentlyPending =
-    trackedCall.approvalMessageId &&
-    trackedCall.approvalStatus === 'pending';
-
-  if (currentlyPending && Number(trackedCall.lastApprovalTriggerX || 0) >= nextMilestone) {
-    return { shouldSend: false, triggerX: 0 };
-  }
-
-  if (alreadyTriggered && Number(trackedCall.lastApprovalTriggerX || 0) >= nextMilestone) {
-    return { shouldSend: false, triggerX: 0 };
-  }
-
-  return { shouldSend: true, triggerX: nextMilestone };
-}
-
 function getApprovalChannel(guild) {
   if (!guild) return null;
 
@@ -397,7 +366,7 @@ function buildApprovalStatusEmbed(trackedCall, scan = null) {
         `**First Called MC:** ${formatUsd(firstCalledMc)}`,
         `**Current / Latest MC:** ${formatUsd(trackedCall.latestMarketCap)}`,
         `**ATH MC:** ${formatUsd(ath)}`,
-        `**From Call:** ${formatX(x)}`,
+        `**ATH X:** ${formatX(x)}`,
         `**Approval Trigger:** ${formatX(trackedCall.lastApprovalTriggerX)}`,
         '',
         `**Excluded From Stats:** ${trackedCall.excludedFromStats ? 'Yes' : 'No'}`,
@@ -440,12 +409,14 @@ async function deleteApprovalMessage(guild, trackedCall) {
 }
 
 function getActivePendingApprovals() {
-  return getAllTrackedCalls()
-    .filter(call =>
-      call.approvalStatus === 'pending' &&
-      call.approvalMessageId &&
-      Number(call.lastApprovalTriggerX || 0) >= APPROVAL_TRIGGER_X
-    )
+  const approvalTriggerX = getApprovalTriggerX();
+
+return getAllTrackedCalls()
+  .filter(call =>
+    call.approvalStatus === 'pending' &&
+    call.approvalMessageId &&
+    Number(call.lastApprovalTriggerX || 0) >= approvalTriggerX
+  )
     .sort((a, b) => {
       const ax = Number(a.lastApprovalTriggerX || 0);
       const bx = Number(b.lastApprovalTriggerX || 0);
@@ -604,17 +575,68 @@ async function checkTrackedCoins(channel) {
       const scan = await generateRealScan(coin.contractAddress);
 
       if (!scan || !scan.marketCap || scan.marketCap <= 0) {
-        console.log(`[Monitor] ${coin.tokenName} → N/A%`);
-        continue;
-      }
+  const failedScans = Number(coin.failedScans || 0) + 1;
+
+  updateTrackedCallData(coin.contractAddress, {
+    failedScans,
+    lastUpdatedAt: new Date().toISOString()
+  });
+
+  if (failedScans >= 3) {
+    updateTrackedCallData(coin.contractAddress, {
+      lifecycleStatus: 'archived',
+      isActive: false,
+      failedScans,
+      lastUpdatedAt: new Date().toISOString()
+    });
+
+    console.log(
+      `[Monitor] Archived ${coin.tokenName || coin.contractAddress} -> repeated failed scans (${failedScans})`
+    );
+  } else {
+    console.log(
+      `[Monitor] ${coin.tokenName || coin.contractAddress} -> scan failed (${failedScans}/3)`
+    );
+  }
+
+  continue;
+}
 
       const currentMc = scan.marketCap;
       const firstMc = coin.firstCalledMarketCap || currentMc;
       const athMc = Math.max(coin.athMc || firstMc, currentMc);
 
       const perf = calculatePerformancePercent(firstMc, currentMc);
-      const drawdown = calculateDrawdownPercent(athMc, currentMc);
-      const currentX = calculateCurrentX(firstMc, athMc);
+const drawdown = calculateDrawdownPercent(athMc, currentMc);
+const currentX = calculateCurrentX(firstMc, athMc);
+
+let lifecycleStatus = determineLifecycleStatus(coin, scan);
+let forceArchiveReason = null;
+
+// HARD KILL RULES for main scanner
+if (currentMc < 5000) {
+  lifecycleStatus = 'archived';
+  forceArchiveReason = `Hard archived: market cap fell below $5k (${formatUsd(currentMc)})`;
+} else if (perf !== null && perf <= -80) {
+  lifecycleStatus = 'archived';
+  forceArchiveReason = `Hard archived: performance dropped to ${perf.toFixed(1)}%`;
+}
+
+if (lifecycleStatus === 'archived') {
+  updateTrackedCallData(coin.contractAddress, {
+    latestMarketCap: currentMc,
+    athMc,
+    lastUpdatedAt: new Date().toISOString(),
+    lifecycleStatus: 'archived',
+    isActive: false
+  });
+
+  console.log(
+    `[Monitor] Archived ${coin.tokenName || coin.contractAddress} -> ${forceArchiveReason || 'Lifecycle archived'}`
+  );
+
+  continue;
+}
 
       console.log(
         `[Monitor] ${coin.tokenName} → ${perf?.toFixed(1) ?? 'N/A'}% (${formatX(currentX)})`
