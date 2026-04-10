@@ -253,18 +253,25 @@ const cfg = {
 
   if (!mc || !liq) return 'sanity_missing_core';
 
-  const effectiveMinAgeMinutes = Math.max(1, Math.floor(cfg.minAgeMinutes * 0.4));
-  if (cfg.minAgeMinutes > 0 && age > 0 && age < effectiveMinAgeMinutes) return 'sanity_too_young';
+  const isEarlyCoin = age > 0 && age < 10;
+
+  // EARLY POOL MODE: don't reject for being young; only reject invalid/zero age.
+  if (cfg.minAgeMinutes > 0 && (!Number.isFinite(age) || age <= 0)) return 'sanity_too_young';
+
   // skip migration check
 
-  if (cfg.minVolume5m > 0 && vol5 < cfg.minVolume5m) return 'sanity_low_vol5';
-  if (cfg.minVolume24h > 0 && vol24 > 0 && vol24 < cfg.minVolume24h) return 'sanity_low_vol24h';
+  // Early coins (<10m): skip strict volume / trade / buy / holder requirements.
+  // Normal coins: apply the configured floors.
+  if (!isEarlyCoin) {
+    if (cfg.minVolume5m > 0 && vol5 < cfg.minVolume5m) return 'sanity_low_vol5';
+    if (cfg.minVolume24h > 0 && vol24 > 0 && vol24 < cfg.minVolume24h) return 'sanity_low_vol24h';
 
-  if (cfg.minTrades24h > 0 && trades24h > 0 && trades24h < cfg.minTrades24h) return 'sanity_low_trades24h';
-  if (cfg.minBuys24h > 0 && buys24h > 0 && buys24h < cfg.minBuys24h) return 'sanity_low_buys24h';
+    if (cfg.minTrades24h > 0 && trades24h > 0 && trades24h < cfg.minTrades24h) return 'sanity_low_trades24h';
+    if (cfg.minBuys24h > 0 && buys24h > 0 && buys24h < cfg.minBuys24h) return 'sanity_low_buys24h';
 
-  if (cfg.minHolders > 0 && holders !== null && Number.isFinite(holders) && holders < cfg.minHolders) {
-    return 'sanity_low_holders';
+    if (cfg.minHolders > 0 && holders !== null && Number.isFinite(holders) && holders < cfg.minHolders) {
+      return 'sanity_low_holders';
+    }
   }
 
   /**
