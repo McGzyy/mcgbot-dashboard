@@ -177,9 +177,13 @@ function buildCoinHeader(name, ticker) {
 function createAutoCallEmbed(scan, profileName = 'balanced') {
   const quickTradeLinks = buildQuickTradeLinksLine(scan.contractAddress, scan.pairAddress);
   const socialLinks = buildSocialLinksLine(scan);
-  const originalCaller = getOriginalCallerLabel(scan, 'Auto Bot');
-
   const isManual = String(profileName || '').toLowerCase() === 'manual';
+  const originalCaller = isManual
+    ? getOriginalCallerLabel(scan, 'Auto Bot')
+    : resolvePublicCallerName({
+        trackedCall: { callSourceType: 'bot_call' },
+        fallback: 'Anonymous'
+      });
   const callTypeLine = isManual ? '📌 **MANUAL CALL**' : '🚨 **AUTO CALL**';
   const alertLabel = scan.alertType || (isManual ? '👤 Manual Scan' : '📡 Auto Call');
 
