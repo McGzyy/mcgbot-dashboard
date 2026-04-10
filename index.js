@@ -1507,6 +1507,24 @@ if (xApprovalChannel && (!modChannel || xApprovalChannel.id !== modChannel.id)) 
         return;
       }
 
+      if (['approve_call', 'deny_call', 'exclude_call'].includes(action)) {
+        // Require ManageGuild permission
+        if (!interaction.memberPermissions?.has('ManageGuild')) {
+          return interaction.reply({
+            content: '❌ You do not have permission to use this.',
+            ephemeral: true
+          });
+        }
+
+        // Require correct channel
+        if (interaction.channel?.name !== 'mod-approvals') {
+          return interaction.reply({
+            content: '❌ This action can only be used in #mod-approvals.',
+            ephemeral: true
+          });
+        }
+      }
+
       const trackedCall = getTrackedCall(contractAddress);
 if (!trackedCall) {
   await interaction.reply({
@@ -1871,6 +1889,10 @@ saveBotSettings(BOT_SETTINGS);
   return;
 }
       if (lowerContent === '!testx') {
+        if (message.author.id !== process.env.BOT_OWNER_ID) {
+          return message.reply('❌ You do not have permission to use this command.');
+        }
+
         const result = await createPost('Test post from McGBot 🚀');
 
         if (result.success) {
@@ -2415,7 +2437,7 @@ if (lowerContent === '!commands' || lowerContent === '!help') {
   if (canSeeModHelp) {
     contentOut +=
       `🛡️ **Mod / Manage Server**\n` +
-      `• Approval buttons in **#coin-approval** / mod flows\n` +
+      `• Approval buttons in **#mod-approvals** / mod flows\n` +
       `• \`!approvalstats\` — Approval queue counts\n` +
       `• \`!pendingapprovals\` — Pending X verifications + top pending **bot** approvals\n` +
       `• \`!recentcalls\` — Recent bot-tracked calls\n` +

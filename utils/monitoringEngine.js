@@ -296,7 +296,7 @@ function getApprovalChannel(guild) {
       ch.isTextBased &&
       typeof ch.isTextBased === 'function' &&
       ch.isTextBased() &&
-      (ch.name === 'coin-approval' || ch.name === 'coin-approvals')
+      (ch.name === 'mod-approvals')
   ) || null;
 }
 

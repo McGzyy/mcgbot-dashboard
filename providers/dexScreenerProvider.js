@@ -172,7 +172,7 @@ async function fetchDexScreenerTokenData(contractAddress) {
   );
 
   if (!pairs.length) {
-    throw new Error('No token pairs found on DexScreener.');
+    return null;
   }
 
   const bestPair = getBestPair(pairs, contractAddress);
