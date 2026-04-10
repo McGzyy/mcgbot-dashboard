@@ -255,7 +255,7 @@ const cfg = {
 
   const effectiveMinAgeMinutes = Math.max(1, Math.floor(cfg.minAgeMinutes * 0.4));
   if (cfg.minAgeMinutes > 0 && age > 0 && age < effectiveMinAgeMinutes) return 'sanity_too_young';
-  if (cfg.requireMigrated && scan.migrated !== true) return 'sanity_not_migrated';
+  // skip migration check
 
   if (cfg.minVolume5m > 0 && vol5 < cfg.minVolume5m) return 'sanity_low_vol5';
   if (cfg.minVolume24h > 0 && vol24 > 0 && vol24 < cfg.minVolume24h) return 'sanity_low_vol24h';
