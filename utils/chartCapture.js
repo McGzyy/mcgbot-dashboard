@@ -93,6 +93,22 @@ async function captureGMGNChart(contractAddress) {
 
     await sleep(4000);
 
+    const cwd = process.cwd();
+    try {
+      await page.screenshot({
+        path: path.join(cwd, 'debug_page.png'),
+        fullPage: true
+      });
+    } catch (_) {
+      /* ignore */
+    }
+    try {
+      const html = await page.content();
+      await fs.writeFile(path.join(cwd, 'debug_page.html'), html, 'utf8');
+    } catch (_) {
+      /* ignore */
+    }
+
     for (const sel of SELECTORS) {
       try {
         await page.waitForSelector(sel, { state: 'visible', timeout: 20000 });
@@ -107,6 +123,7 @@ async function captureGMGNChart(contractAddress) {
       }
     }
 
+    console.log('No chart element found');
     await page.close().catch(() => null);
     return null;
   } catch (_) {
