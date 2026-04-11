@@ -824,14 +824,20 @@ if (trackedCall.callSourceType === 'bot_call') {
   return embed;
 }
 
-function buildXPostText(trackedCall, displayXFromCall, isReply = false) {
+function buildXPostText(trackedCall) {
   const ticker = trackedCall.ticker || 'UNKNOWN';
-  const ca = trackedCall.contractAddress;
-  const caller = getPreferredPublicName(getUserProfileByDiscordId(trackedCall.firstCallerDiscordId || trackedCall.firstCallerId || '')) || trackedCall.firstCallerPublicName || trackedCall.firstCallerDisplayName || trackedCall.firstCallerUsername || (trackedCall.callSourceType === 'bot_call' ? 'McGBot' : trackedCall.callSourceType === 'watch_only' ? 'No caller credit' : 'Unknown');
-  const xLabel = Number.isFinite(Number(displayXFromCall))
-    ? Number(displayXFromCall).toFixed(2)
-    : '0.00';
-  const athMc = formatUsd(
+  const ca = trackedCall.contractAddress || '';
+  const firstCalledMc = Number(trackedCall.firstCalledMarketCap || 0);
+  const latestMc = Number(
+    trackedCall.latestMarketCap ||
+    trackedCall.firstCalledMarketCap ||
+    0
+  );
+  const displayX =
+    firstCalledMc > 0 ? Number((latestMc / firstCalledMc).toFixed(2)) : 0;
+
+  const initialMcStr = formatUsd(firstCalledMc);
+  const athMcStr = formatUsd(
     trackedCall.ath ||
     trackedCall.athMc ||
     trackedCall.athMarketCap ||
@@ -840,23 +846,19 @@ function buildXPostText(trackedCall, displayXFromCall, isReply = false) {
     0
   );
 
-  if (!isReply) {
-    return [
-      `📊 $${ticker} just reached ${xLabel}x from call.`,
-      ``,
-      `Called by: ${caller}`,
-      `ATH Market Cap: ${athMc}`,
-      `Contract: ${ca}`,
-      ``,
-      `Tracked by MCGZYY Bot`
-    ].join('\n');
-  }
-
   return [
-    `📈 $${ticker} has now reached ${xLabel}x from call.`,
+    `🚀 $${ticker} — ${displayX.toFixed(2)}x from call`,
     ``,
-    `ATH Market Cap: ${athMc}`,
-    `CA: In OP`
+    `Called by: @McGBot`,
+    ``,
+    `Initial MC: ${initialMcStr}`,
+    `ATH MC: ${athMcStr}`,
+    ``,
+    `CA:`,
+    `\`${ca}\``,
+    ``,
+    `📊 DexScreener: https://dexscreener.com/solana/${ca}`,
+    `📊 GMGN: https://gmgn.ai/sol/token/${ca}`
   ].join('\n');
 }
 
@@ -881,16 +883,7 @@ async function publishApprovedCoinToX(contractAddress) {
 
   const hasOriginal = !!trackedCall.xOriginalPostId;
 
-  const firstCalledMc = Number(trackedCall.firstCalledMarketCap || 0);
-  const latestMc = Number(
-    trackedCall.latestMarketCap ||
-    trackedCall.firstCalledMarketCap ||
-    0
-  );
-  const rawSpotX = firstCalledMc > 0 ? latestMc / firstCalledMc : 0;
-  const displayXFromCall = Number(rawSpotX.toFixed(2));
-
-  const postText = buildXPostText(trackedCall, displayXFromCall, hasOriginal);
+  const postText = buildXPostText(trackedCall);
   const result = await createPost(postText, hasOriginal ? trackedCall.xOriginalPostId : null);
 
   if (!result.success || !result.id) {

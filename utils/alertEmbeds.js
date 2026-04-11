@@ -174,7 +174,7 @@ function buildCoinHeader(name, ticker) {
   return `# ${formatValue(name, 'Unknown Token')} ($${formatValue(ticker, 'UNKNOWN')})`;
 }
 
-function createAutoCallEmbed(scan, profileName = 'balanced') {
+function createAutoCallEmbed(scan, profileName = 'balanced', options = {}) {
   const quickTradeLinks = buildQuickTradeLinksLine(scan.contractAddress, scan.pairAddress);
   const socialLinks = buildSocialLinksLine(scan);
   const isManual = String(profileName || '').toLowerCase() === 'manual';
@@ -201,37 +201,53 @@ function createAutoCallEmbed(scan, profileName = 'balanced') {
     `**Pressure:** ${formatValue(scan.tradePressure)}`
   ];
 
+  const mainFields = [];
+
+  if (options.chartPending) {
+    mainFields.push({
+      name: '📊 Chart',
+      value: 'Chart Loading...',
+      inline: false
+    });
+  }
+
+  mainFields.push(
+    {
+      name: 'CA',
+      value: `\`${formatValue(scan.contractAddress, 'Unknown')}\``,
+      inline: false
+    },
+    {
+      name: '📊 Market Setup',
+      value:
+        `**Liquidity:** ${formatUsd(scan.liquidity)}\n` +
+        `**Vol (5m):** ${formatUsd(scan.volume5m)}\n` +
+        `**Vol (1h):** ${formatUsd(scan.volume1h)}\n` +
+        `**Age:** ${formatAgeMinutes(scan.ageMinutes)}`,
+      inline: true
+    },
+    {
+      name: '📈 Trade Strength',
+      value:
+        `**Buy/Sell (5m):** ${formatValue(scan.buySellRatio5m, 'N/A')}\n` +
+        `**Buy/Sell (1h):** ${formatValue(scan.buySellRatio1h, 'N/A')}\n` +
+        `**Trade Quality:** ${formatValue(scan.tradeQuality, 'N/A')}\n` +
+        `**Score:** ${formatValue(scan.entryScore, 'N/A')}/100`,
+      inline: true
+    }
+  );
+
   const embed = new EmbedBuilder()
     .setColor(isManual ? 0x3b82f6 : 0x00cc99)
     .setTitle(' ')
     .setDescription(descriptionParts.join('\n'))
-    .addFields(
-      {
-        name: 'CA',
-        value: `\`${formatValue(scan.contractAddress, 'Unknown')}\``,
-        inline: false
-      },
-      {
-        name: '📊 Market Setup',
-        value:
-          `**Liquidity:** ${formatUsd(scan.liquidity)}\n` +
-          `**Vol (5m):** ${formatUsd(scan.volume5m)}\n` +
-          `**Vol (1h):** ${formatUsd(scan.volume1h)}\n` +
-          `**Age:** ${formatAgeMinutes(scan.ageMinutes)}`,
-        inline: true
-      },
-      {
-        name: '📈 Trade Strength',
-        value:
-          `**Buy/Sell (5m):** ${formatValue(scan.buySellRatio5m, 'N/A')}\n` +
-          `**Buy/Sell (1h):** ${formatValue(scan.buySellRatio1h, 'N/A')}\n` +
-          `**Trade Quality:** ${formatValue(scan.tradeQuality, 'N/A')}\n` +
-          `**Score:** ${formatValue(scan.entryScore, 'N/A')}/100`,
-        inline: true
-      }
-    )
+    .addFields(mainFields)
     .setFooter({ text: isManual ? 'Crypto Scanner Bot • Manual Call' : 'Crypto Scanner Bot • Auto Call' })
     .setTimestamp();
+
+  if (options.chartImageUrl) {
+    embed.setImage(options.chartImageUrl);
+  }
 
   if (quickTradeLinks) {
     embed.addFields({

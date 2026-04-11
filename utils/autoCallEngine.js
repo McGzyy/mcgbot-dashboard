@@ -1,7 +1,9 @@
 const { generateRealScan } = require('./scannerEngine');
 const { autoCallConfig } = require('../config/autoCallConfig');
 const { scanFilterConfig } = require('../config/scanFilterConfig');
+const { AttachmentBuilder } = require('discord.js');
 const { createAutoCallEmbed } = require('./alertEmbeds');
+const { captureDexScreenerChartPng } = require('./chartScreenshot');
 const { loadScannerSettings } = require('./scannerSettingsService');
 const {
   saveTrackedCall,
@@ -156,10 +158,34 @@ async function revalidateQueuedCandidate(contractAddress, profileName) {
   return scan;
 }
 
+async function hydrateAutoCallChartMessage(message, scan, profileName) {
+  try {
+    const buf = await captureDexScreenerChartPng(scan.contractAddress);
+    const embed = createAutoCallEmbed(scan, profileName, {
+      chartPending: false,
+      chartImageUrl: buf ? 'attachment://chart.png' : undefined
+    });
+
+    if (!buf) {
+      await message.edit({ embeds: [embed] });
+      return;
+    }
+
+    const file = new AttachmentBuilder(buf, { name: 'chart.png' });
+    await message.edit({ embeds: [embed], files: [file] });
+  } catch (err) {
+    console.error('[AutoCallChart]', err.message);
+  }
+}
+
 async function postBotCallScan(channel, scan, profileName) {
   enqueueAlert(async () => {
-    const embed = createAutoCallEmbed(scan, profileName);
+    const embed = createAutoCallEmbed(scan, profileName, { chartPending: true });
     const sentMessage = await channel.send({ embeds: [embed] });
+
+    hydrateAutoCallChartMessage(sentMessage, scan, profileName).catch(err => {
+      console.error('[AutoCallChart]', err.message);
+    });
 
     markRecentTickerCall(scan);
 

@@ -1,5 +1,6 @@
 const {
   EmbedBuilder,
+  AttachmentBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -21,6 +22,7 @@ const {
   getCallerLeaderboard,
   getBotStats
 } = require('../utils/callerStatsService');
+const { captureDexScreenerChartPng } = require('../utils/chartScreenshot');
 
 function memberCanManageGuild(member) {
   if (!member?.permissions) return false;
@@ -733,6 +735,14 @@ function createTraderScanEmbed(scan, options = {}) {
     inline: false
   });
 
+  if (options.chartPending) {
+    fields.push({
+      name: '📊 Chart',
+      value: 'Chart Loading...',
+      inline: false
+    });
+  }
+
   const links = buildLinksLine([
     scan.website ? `[Website](${scan.website})` : null,
     scan.twitter ? `[X / Twitter](${scan.twitter})` : null,
@@ -803,7 +813,7 @@ function createTraderScanEmbed(scan, options = {}) {
     `**Pressure:** ${formatValue(scan.tradePressure, 'Unknown')}`
   ];
 
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(0x00ff99)
     .setTitle(`🎯 ${scan.tokenName} (${scan.ticker})`)
     .setDescription(
@@ -817,6 +827,33 @@ function createTraderScanEmbed(scan, options = {}) {
     .addFields(fields)
     .setFooter({ text: 'Crypto Scanner Bot • Trader Scan' })
     .setTimestamp();
+
+  if (options.chartImageUrl) {
+    embed.setImage(options.chartImageUrl);
+  }
+
+  return embed;
+}
+
+async function hydrateTraderCallChartMessage(message, scan, embedOptions = {}) {
+  try {
+    const buf = await captureDexScreenerChartPng(scan.contractAddress);
+    const embed = createTraderScanEmbed(scan, {
+      ...embedOptions,
+      chartPending: false,
+      chartImageUrl: buf ? 'attachment://chart.png' : undefined
+    });
+
+    if (!buf) {
+      await message.edit({ embeds: [embed] });
+      return;
+    }
+
+    const file = new AttachmentBuilder(buf, { name: 'chart.png' });
+    await message.edit({ embeds: [embed], files: [file] });
+  } catch (err) {
+    console.error('[CallChart]', err.message);
+  }
 }
 
 function createScanEmbed(scan) {
@@ -1121,7 +1158,7 @@ async function handleCallCommand(message, contractAddress, source = 'command') {
 
   const { greenFlags, redFlags } = buildScanFlags(realData);
 
-  const embed = createTraderScanEmbed({
+  const embedScan = {
     ...scan,
     greenFlags,
     redFlags,
@@ -1137,14 +1174,27 @@ async function handleCallCommand(message, contractAddress, source = 'command') {
     performancePercent,
     milestoneHit,
     isNewMilestone: false
-  }, {
-    showTrackedMeta: true
+  };
+
+  const callChartPending = wasNewCall || wasReactivated;
+
+  const embed = createTraderScanEmbed(embedScan, {
+    showTrackedMeta: true,
+    chartPending: callChartPending
   });
 
-  return message.reply({
+  const reply = await message.reply({
     content: '📍 Coin officially called and now being tracked.',
     embeds: [embed]
   });
+
+  if (callChartPending) {
+    hydrateTraderCallChartMessage(reply, embedScan, { showTrackedMeta: true }).catch(err => {
+      console.error('[CallChart]', err.message);
+    });
+  }
+
+  return reply;
 }
 
 async function handleWatchCommand(message, contractAddress, source = 'command') {
