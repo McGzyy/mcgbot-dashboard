@@ -7,22 +7,24 @@ const path = require('path');
 const fs = require('fs').promises;
 const { chromium } = require('playwright');
 
-let browser = null;
 let context = null;
 
 async function getBrowser() {
-  if (!browser) {
-    browser = await chromium.launch({
+  if (!context) {
+    const profileDir = path.join(process.cwd(), 'browser-profile');
+    context = await chromium.launchPersistentContext(profileDir, {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    context = await browser.newContext({
       viewport: { width: 1400, height: 900 },
       colorScheme: 'dark',
-      locale: 'en-US'
+      locale: 'en-US',
+      args: [
+        '--disable-blink-features=AutomationControlled',
+        '--no-sandbox',
+        '--disable-setuid-sandbox'
+      ]
     });
   }
-  return { browser, context };
+  return { context };
 }
 
 /** Prefer larger visible nodes (main chart vs tiny sparkline). */
