@@ -3,7 +3,7 @@ const { autoCallConfig } = require('../config/autoCallConfig');
 const { scanFilterConfig } = require('../config/scanFilterConfig');
 const { AttachmentBuilder } = require('discord.js');
 const { createAutoCallEmbed } = require('./alertEmbeds');
-const { captureTradingViewChart } = require('./chartCapture');
+const { captureGMGNChart } = require('./chartCapture');
 const { loadScannerSettings } = require('./scannerSettingsService');
 const {
   saveTrackedCall,
@@ -159,11 +159,13 @@ async function revalidateQueuedCandidate(contractAddress, profileName) {
 }
 
 async function hydrateAutoCallChartMessage(message, scan, profileName) {
+  if (!message || typeof message.edit !== 'function') return;
+  if (!scan) {
+    console.error('[AutoCallChart]', '(no scan)', 'hydrate skipped');
+    return;
+  }
   try {
-    const buf = await captureTradingViewChart(scan.contractAddress, {
-      pairAddress: scan.pairAddress,
-      ticker: scan.ticker
-    });
+    const buf = await captureGMGNChart(scan.contractAddress);
     const embed = createAutoCallEmbed(scan, profileName, {
       chartPending: false,
       chartImageUrl: buf ? 'attachment://chart.png' : undefined
@@ -177,7 +179,7 @@ async function hydrateAutoCallChartMessage(message, scan, profileName) {
     const file = new AttachmentBuilder(buf, { name: 'chart.png' });
     await message.edit({ embeds: [embed], files: [file] });
   } catch (err) {
-    console.error('[AutoCallChart]', err.message);
+    console.error('[AutoCallChart]', scan.contractAddress, err.message);
   }
 }
 
@@ -187,7 +189,7 @@ async function postBotCallScan(channel, scan, profileName) {
     const sentMessage = await channel.send({ embeds: [embed] });
 
     hydrateAutoCallChartMessage(sentMessage, scan, profileName).catch(err => {
-      console.error('[AutoCallChart]', err.message);
+      console.error('[AutoCallChart]', scan?.contractAddress, err.message);
     });
 
     markRecentTickerCall(scan);

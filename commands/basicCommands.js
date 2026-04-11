@@ -22,7 +22,7 @@ const {
   getCallerLeaderboard,
   getBotStats
 } = require('../utils/callerStatsService');
-const { captureTradingViewChart } = require('../utils/chartCapture');
+const { captureGMGNChart } = require('../utils/chartCapture');
 
 function memberCanManageGuild(member) {
   if (!member?.permissions) return false;
@@ -852,11 +852,13 @@ function createTraderScanEmbed(scan, options = {}) {
 }
 
 async function hydrateTraderCallChartMessage(message, scan, embedOptions = {}) {
+  if (!message || typeof message.edit !== 'function') return;
+  if (!scan) {
+    console.error('[CallChart]', '(no scan)', 'hydrate skipped');
+    return;
+  }
   try {
-    const buf = await captureTradingViewChart(scan.contractAddress, {
-      pairAddress: scan.pairAddress,
-      ticker: scan.ticker
-    });
+    const buf = await captureGMGNChart(scan.contractAddress);
     const embed = createTraderScanEmbed(scan, {
       ...embedOptions,
       chartPending: false,
@@ -871,7 +873,7 @@ async function hydrateTraderCallChartMessage(message, scan, embedOptions = {}) {
     const file = new AttachmentBuilder(buf, { name: 'chart.png' });
     await message.edit({ embeds: [embed], files: [file] });
   } catch (err) {
-    console.error('[CallChart]', err.message);
+    console.error('[CallChart]', scan.contractAddress, err.message);
   }
 }
 
@@ -1209,7 +1211,7 @@ async function handleCallCommand(message, contractAddress, source = 'command') {
 
   if (callChartPending) {
     hydrateTraderCallChartMessage(reply, embedScan, { showTrackedMeta: true }).catch(err => {
-      console.error('[CallChart]', err.message);
+      console.error('[CallChart]', embedScan?.contractAddress, err.message);
     });
   }
 

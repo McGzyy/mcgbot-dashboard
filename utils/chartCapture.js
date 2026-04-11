@@ -1,171 +1,144 @@
 /**
- * TradingView-first chart capture with DexScreener fallback (TV-powered chart UI).
- * Single shared Playwright browser + browser context; new page per capture.
- *
- * Optional later: !chart <CA>, milestone charts — import captureTradingViewChart.
+ * GMGN token chart capture (Step 1 — standalone).
+ * Persistent Playwright Chromium + context; new page per capture.
  */
 
+const path = require('path');
+const fs = require('fs').promises;
 const { chromium } = require('playwright');
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-let browserInstance = null;
-let contextInstance = null;
+let browser = null;
+let context = null;
 
-async function getSharedContext() {
-  if (!browserInstance) {
-    browserInstance = await chromium.launch({
+async function getBrowser() {
+  if (!browser) {
+    browser = await chromium.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
-  }
-  if (!contextInstance) {
-    contextInstance = await browserInstance.newContext({
-      viewport: { width: 1280, height: 800 },
+    context = await browser.newContext({
+      viewport: { width: 1400, height: 900 },
       colorScheme: 'dark',
       locale: 'en-US'
     });
   }
-  return contextInstance;
+  return { browser, context };
 }
 
-async function tryScreenshotTradingViewWidget(page) {
-  await sleep(5000);
+/** Prefer larger visible nodes (main chart vs tiny sparkline). */
+const MIN_W = 120;
+const MIN_H = 80;
 
-  const frames = page.frames();
-  for (const frame of frames) {
-    try {
-      if (!frame.url().includes('tradingview.com')) continue;
-      const canvas = await frame.$('canvas');
-      if (canvas) {
-        const buf = await canvas.screenshot({ type: 'png' });
-        if (buf && buf.length > 500) return buf;
-      }
-    } catch (_) {
-      /* continue */
-    }
-  }
+const SELECTORS = [
+  'div[class*="kline"]',
+  'canvas',
+  'div[class*="chart"]',
+  'div[class*="tv-chart"]'
+];
 
-  const topCanvas = await page.$('canvas');
-  if (topCanvas) {
-    const buf = await topCanvas.screenshot({ type: 'png' });
-    if (buf && buf.length > 500) return buf;
-  }
-
-  const buf = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 1280, height: 720 } });
-  return buf && buf.length > 500 ? buf : null;
-}
-
-async function captureFromTradingViewEmbed(symbol) {
-  const sym = String(symbol || '').trim();
-  if (!sym) return null;
-
-  const encoded = encodeURIComponent(sym);
-  const url =
-    `https://www.tradingview.com/embed-widget/advanced-chart/?autosize=1` +
-    `&theme=dark&style=1&interval=60&locale=en&hide_top_toolbar=0&symbol=${encoded}`;
-
-  let page;
+async function screenshotLargestMatch(page, selector) {
   try {
-    const context = await getSharedContext();
-    page = await context.newPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 55000 });
-    return await tryScreenshotTradingViewWidget(page);
+    const loc = page.locator(selector);
+    const count = await loc.count();
+    if (!count) return null;
+
+    const candidates = [];
+    for (let i = 0; i < count; i++) {
+      const el = loc.nth(i);
+      const visible = await el.isVisible().catch(() => false);
+      if (!visible) continue;
+      const box = await el.boundingBox().catch(() => null);
+      if (!box || box.width < MIN_W || box.height < MIN_H) continue;
+      candidates.push({ el, area: box.width * box.height });
+    }
+
+    candidates.sort((a, b) => b.area - a.area);
+
+    for (const { el } of candidates) {
+      try {
+        const buf = await el.screenshot({ type: 'png' });
+        if (buf && Buffer.isBuffer(buf) && buf.length > 800) return buf;
+      } catch (_) {
+        /* try next */
+      }
+    }
   } catch (_) {
     return null;
-  } finally {
-    try {
-      if (page) await page.close();
-    } catch (_) {
-      /* ignore */
-    }
   }
+  return null;
 }
 
-async function captureFromDexScreener(contractAddress, pairAddress) {
+/**
+ * @param {string} contractAddress
+ * @returns {Promise<Buffer|null>}
+ */
+async function captureGMGNChart(contractAddress) {
   const ca = String(contractAddress || '').trim();
   if (!ca) return null;
 
-  const path = (pairAddress && String(pairAddress).trim()) || ca;
-  const url = `https://dexscreener.com/solana/${path}`;
-
   let page;
   try {
-    const context = await getSharedContext();
-    page = await context.newPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await sleep(4500);
+    const { context: ctx } = await getBrowser();
+    page = await ctx.newPage();
 
-    const canvas = await page.$('canvas');
-    if (canvas) {
-      const buf = await canvas.screenshot({ type: 'png' });
-      if (buf && buf.length > 500) return buf;
+    const url = `https://gmgn.ai/sol/token/${ca}`;
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+    } catch (_) {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
     }
 
-    const buf = await page.screenshot({
-      type: 'png',
-      clip: { x: 0, y: 72, width: 1280, height: 600 }
-    });
-    return buf && buf.length > 500 ? buf : null;
-  } catch (_) {
+    await sleep(4000);
+
+    for (const sel of SELECTORS) {
+      try {
+        await page.waitForSelector(sel, { state: 'visible', timeout: 20000 });
+      } catch (_) {
+        continue;
+      }
+
+      const buf = await screenshotLargestMatch(page, sel);
+      if (buf) {
+        await page.close().catch(() => null);
+        return buf;
+      }
+    }
+
+    await page.close().catch(() => null);
     return null;
-  } finally {
+  } catch (_) {
     try {
       if (page) await page.close();
-    } catch (_) {
+    } catch (__) {
       /* ignore */
     }
+    return null;
   }
 }
 
 /**
- * @param {string} contractAddress - Solana token mint
- * @param {{ pairAddress?: string, ticker?: string }} [options]
- * @returns {Promise<Buffer|null>}
+ * Saves ./debug_chart.png (cwd) and logs result.
+ * @param {string} contractAddress
  */
-async function captureTradingViewChart(contractAddress, options = {}) {
+async function debugCapture(contractAddress) {
+  const outPath = path.join(process.cwd(), 'debug_chart.png');
   try {
-    const ca = String(contractAddress || '').trim();
-    if (!ca) return null;
-
-    const pair = options.pairAddress && String(options.pairAddress).trim();
-    const rawTicker = options.ticker && String(options.ticker).trim().toUpperCase();
-    const ticker = rawTicker ? rawTicker.replace(/[^A-Z0-9]/g, '') : '';
-
-    const tvSymbols = [];
-    if (ticker.length >= 2 && ticker.length <= 12) {
-      tvSymbols.push(`BINANCE:${ticker}USDT`);
-      tvSymbols.push(`MEXC:${ticker}USDT`);
+    const buf = await captureGMGNChart(contractAddress);
+    if (buf) {
+      await fs.writeFile(outPath, buf);
+      console.log(`[chartCapture] debug OK → ${outPath} (${buf.length} bytes)`);
+    } else {
+      console.log('[chartCapture] debug FAILED (null buffer)');
     }
-
-    for (const sym of tvSymbols) {
-      const buf = await captureFromTradingViewEmbed(sym);
-      if (buf) return buf;
-    }
-
-    return await captureFromDexScreener(ca, pair);
-  } catch (_) {
-    return null;
+  } catch (err) {
+    console.log('[chartCapture] debug FAILED:', err?.message || err);
   }
-}
-
-async function shutdownChartBrowser() {
-  try {
-    if (contextInstance) await contextInstance.close();
-  } catch (_) {
-    /* ignore */
-  }
-  contextInstance = null;
-
-  try {
-    if (browserInstance) await browserInstance.close();
-  } catch (_) {
-    /* ignore */
-  }
-  browserInstance = null;
 }
 
 module.exports = {
-  captureTradingViewChart,
-  shutdownChartBrowser
+  captureGMGNChart,
+  debugCapture
 };
