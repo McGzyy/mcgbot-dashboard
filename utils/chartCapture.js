@@ -7,8 +7,6 @@ const path = require('path');
 const fs = require('fs').promises;
 const { chromium } = require('playwright');
 
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
 let browser = null;
 let context = null;
 
@@ -86,12 +84,14 @@ async function captureGMGNChart(contractAddress) {
     const url = `https://gmgn.ai/sol/token/${ca}`;
 
     try {
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     } catch (_) {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      console.log('[ChartCapture] navigation failed for', contractAddress);
+      await page.close().catch(() => null);
+      return null;
     }
 
-    await sleep(4000);
+    await page.waitForTimeout(4000);
 
     const cwd = process.cwd();
     try {
