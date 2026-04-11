@@ -26,7 +26,7 @@ const {
 const { startMonitoring, stopMonitoring } = require('./utils/monitoringEngine');
 const { startAutoCallLoop, stopAutoCallLoop } = require('./utils/autoCallEngine');
 const { createPost } = require('./utils/xPoster');
-const { captureGMGNChart } = require('./utils/chartCapture');
+const { captureGeckoChart } = require('./utils/chartCapture');
 
 const {
   createAutoCallEmbed,
@@ -889,7 +889,10 @@ async function publishApprovedCoinToX(contractAddress) {
   let chartBuf = null;
   if (!hasOriginal) {
     try {
-      chartBuf = await captureGMGNChart(trackedCall.contractAddress);
+      chartBuf = await captureGeckoChart({
+        contractAddress: trackedCall.contractAddress,
+        pairAddress: trackedCall.pairAddress
+      });
     } catch (_) {
       chartBuf = null;
     }

@@ -1,5 +1,5 @@
 /**
- * GMGN token chart capture (Step 1 — standalone).
+ * GeckoTerminal chart capture.
  * Persistent Playwright Chromium + context; new page per capture.
  */
 
@@ -30,10 +30,10 @@ const MIN_W = 120;
 const MIN_H = 80;
 
 const SELECTORS = [
-  'div[class*="kline"]',
   'canvas',
   'div[class*="chart"]',
-  'div[class*="tv-chart"]'
+  'div[class*="tv-chart"]',
+  'svg'
 ];
 
 async function screenshotLargestMatch(page, selector) {
@@ -68,8 +68,8 @@ async function screenshotLargestMatch(page, selector) {
   return null;
 }
 
-/** Full-page HTML + PNG in cwd for headless GMGN inspection (always attempt both). */
-async function saveGmgnDebugPageSnapshot(page) {
+/** Full-page HTML + PNG in cwd for headless inspection (always attempt both). */
+async function saveDebugPageSnapshot(page) {
   const cwd = process.cwd();
   const pngPath = path.join(cwd, 'debug_page.png');
   const htmlPath = path.join(cwd, 'debug_page.html');
@@ -92,32 +92,46 @@ async function saveGmgnDebugPageSnapshot(page) {
   }
 }
 
+function buildGeckoUrl(contractAddress, pairAddress) {
+  const ca = String(contractAddress || '').trim();
+  const pair = String(pairAddress || '').trim();
+  if (pair) {
+    return `https://www.geckoterminal.com/solana/pools/${pair}`;
+  }
+  if (ca) {
+    return `https://www.geckoterminal.com/solana/tokens/${ca}`;
+  }
+  return null;
+}
+
 /**
- * @param {string} contractAddress
+ * @param {{ contractAddress?: string, pairAddress?: string }} params
  * @returns {Promise<Buffer|null>}
  */
-async function captureGMGNChart(contractAddress) {
+async function captureGeckoChart({ contractAddress, pairAddress } = {}) {
+  const url = buildGeckoUrl(contractAddress, pairAddress);
+  if (!url) return null;
+
   const ca = String(contractAddress || '').trim();
-  if (!ca) return null;
+  const pair = String(pairAddress || '').trim();
+  const logKey = pair || ca;
 
   let page;
   try {
     const { context: ctx } = await getBrowser();
     page = await ctx.newPage();
 
-    const url = `https://gmgn.ai/sol/token/${ca}`;
-
     try {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     } catch (_) {
-      console.log('[ChartCapture] navigation failed for', contractAddress);
+      console.log('[ChartCapture] navigation failed for', logKey);
       await page.close().catch(() => null);
       return null;
     }
 
     await page.waitForTimeout(4000);
 
-    await saveGmgnDebugPageSnapshot(page);
+    await saveDebugPageSnapshot(page);
 
     for (const sel of SELECTORS) {
       try {
@@ -149,11 +163,12 @@ async function captureGMGNChart(contractAddress) {
 /**
  * Saves ./debug_chart.png (cwd) and logs result.
  * @param {string} contractAddress
+ * @param {string} [pairAddress]
  */
-async function debugCapture(contractAddress) {
+async function debugCapture(contractAddress, pairAddress) {
   const outPath = path.join(process.cwd(), 'debug_chart.png');
   try {
-    const buf = await captureGMGNChart(contractAddress);
+    const buf = await captureGeckoChart({ contractAddress, pairAddress });
     if (buf) {
       await fs.writeFile(outPath, buf);
       console.log(`[chartCapture] debug OK → ${outPath} (${buf.length} bytes)`);
@@ -166,6 +181,6 @@ async function debugCapture(contractAddress) {
 }
 
 module.exports = {
-  captureGMGNChart,
+  captureGeckoChart,
   debugCapture
 };

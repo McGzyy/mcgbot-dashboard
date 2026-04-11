@@ -22,7 +22,7 @@ const {
   getCallerLeaderboard,
   getBotStats
 } = require('../utils/callerStatsService');
-const { captureGMGNChart } = require('../utils/chartCapture');
+const { captureGeckoChart } = require('../utils/chartCapture');
 
 function memberCanManageGuild(member) {
   if (!member?.permissions) return false;
@@ -858,7 +858,10 @@ async function hydrateTraderCallChartMessage(message, scan, embedOptions = {}) {
     return;
   }
   try {
-    const buf = await captureGMGNChart(scan.contractAddress);
+    const buf = await captureGeckoChart({
+      contractAddress: scan.contractAddress,
+      pairAddress: scan.pairAddress
+    });
     const embed = createTraderScanEmbed(scan, {
       ...embedOptions,
       chartPending: false,
