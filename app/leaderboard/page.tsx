@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type TabId = "bot-calls" | "user-calls" | "referrals";
 
@@ -22,43 +22,25 @@ const TOP_MONTHLY = {
   label: "Monthly" as const,
 };
 
-type Row = { rank: number; name: string; metric: string; score: string };
-
-const MOCK_BY_TAB: Record<
-  TabId,
-  { metricColumn: string; rows: Row[] }
-> = {
-  "bot-calls": {
-    metricColumn: "Avg X",
-    rows: [
-      { rank: 1, name: "mcgzzy", metric: "Avg X", score: "4.2x" },
-      { rank: 2, name: "user2", metric: "Avg X", score: "3.8x" },
-      { rank: 3, name: "alpha_caller", metric: "Avg X", score: "3.4x" },
-      { rank: 4, name: "degen_dev", metric: "Avg X", score: "3.1x" },
-      { rank: 5, name: "sol_scanner", metric: "Avg X", score: "2.9x" },
-    ],
-  },
-  "user-calls": {
-    metricColumn: "Win rate",
-    rows: [
-      { rank: 1, name: "caller_one", metric: "Win rate", score: "68%" },
-      { rank: 2, name: "user2", metric: "Win rate", score: "61%" },
-      { rank: 3, name: "whale_watcher", metric: "Win rate", score: "55%" },
-      { rank: 4, name: "meme_lord", metric: "Win rate", score: "52%" },
-      { rank: 5, name: "quiet_trader", metric: "Win rate", score: "48%" },
-    ],
-  },
-  referrals: {
-    metricColumn: "Referrals",
-    rows: [
-      { rank: 1, name: "mcgzzy", metric: "Referrals", score: "42" },
-      { rank: 2, name: "user2", metric: "Referrals", score: "31" },
-      { rank: 3, name: "invite_king", metric: "Referrals", score: "28" },
-      { rank: 4, name: "community_mod", metric: "Referrals", score: "19" },
-      { rank: 5, name: "new_member", metric: "Referrals", score: "12" },
-    ],
-  },
+type ApiLeaderRow = {
+  rank: number;
+  username: string;
+  avgX: number;
+  totalCalls: number;
+  wins: number;
 };
+
+function tabToApiType(tab: TabId): "bot" | "user" | null {
+  if (tab === "bot-calls") return "bot";
+  if (tab === "user-calls") return "user";
+  return null;
+}
+
+function formatAvgX(avgX: number): string {
+  const n = Number(avgX);
+  if (!Number.isFinite(n)) return "—";
+  return `${n.toFixed(1)}x`;
+}
 
 function PerformerCard({
   name,
@@ -85,11 +67,64 @@ function PerformerCard({
 
 export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState<TabId>("bot-calls");
+  const [data, setData] = useState<ApiLeaderRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const { metricColumn, rows } = useMemo(
-    () => MOCK_BY_TAB[activeTab],
-    [activeTab]
-  );
+  useEffect(() => {
+    const apiType = tabToApiType(activeTab);
+    if (apiType === null) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/leaderboard?type=${apiType}`);
+        if (!res.ok) {
+          if (!cancelled) setData([]);
+          return;
+        }
+        const json: unknown = await res.json();
+        if (cancelled) return;
+        if (!Array.isArray(json)) {
+          setData([]);
+          return;
+        }
+        const parsed: ApiLeaderRow[] = json
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const o = item as Record<string, unknown>;
+            return {
+              rank: typeof o.rank === "number" ? o.rank : Number(o.rank) || 0,
+              username: String(o.username ?? ""),
+              avgX: typeof o.avgX === "number" ? o.avgX : Number(o.avgX) || 0,
+              totalCalls:
+                typeof o.totalCalls === "number"
+                  ? o.totalCalls
+                  : Number(o.totalCalls) || 0,
+              wins: typeof o.wins === "number" ? o.wins : Number(o.wins) || 0,
+            };
+          })
+          .filter((r): r is ApiLeaderRow => r !== null && r.username !== "");
+        setData(parsed);
+      } catch {
+        if (!cancelled) setData([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
+
+  const scoreColumnLabel = activeTab === "user-calls" ? "Wins" : "Calls";
+  const showApiTable = activeTab !== "referrals";
 
   return (
     <div className="mx-auto max-w-[1100px]">
@@ -142,57 +177,77 @@ export default function LeaderboardPage() {
         </div>
 
         <div className="mt-6 w-full overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 backdrop-blur-sm sm:p-5">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[320px] border-separate border-spacing-0 text-left text-sm">
-              <thead>
-                <tr className="border-b border-zinc-800/50">
-                  <th
-                    scope="col"
-                    className="pb-2.5 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
-                  >
-                    Rank
-                  </th>
-                  <th
-                    scope="col"
-                    className="pb-2.5 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
-                  >
-                    User
-                  </th>
-                  <th
-                    scope="col"
-                    className="pb-2.5 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
-                  >
-                    {metricColumn}
-                  </th>
-                  <th
-                    scope="col"
-                    className="pb-2.5 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
-                  >
-                    Score
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/40 text-zinc-300">
-                {rows.map((row) => (
-                  <tr
-                    key={`${activeTab}-${row.rank}-${row.name}`}
-                    className="transition-colors duration-150 hover:bg-zinc-800/45"
-                  >
-                    <td className="py-3 pr-4 tabular-nums text-zinc-400">
-                      #{row.rank}
-                    </td>
-                    <td className="py-3 pr-4 font-medium text-zinc-200">
-                      {row.name}
-                    </td>
-                    <td className="py-3 pr-4 text-zinc-400">{row.metric}</td>
-                    <td className="py-3 font-semibold tabular-nums text-zinc-100">
-                      {row.score}
-                    </td>
+          {loading && showApiTable ? (
+            <div className="flex min-h-[120px] items-center justify-center py-10">
+              <p className="text-sm text-zinc-500">Loading leaderboard...</p>
+            </div>
+          ) : activeTab === "referrals" ? (
+            <div className="flex min-h-[120px] items-center justify-center py-10">
+              <p className="text-sm text-zinc-500">
+                Referrals leaderboard is not available yet.
+              </p>
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex min-h-[120px] items-center justify-center py-10">
+              <p className="text-sm text-zinc-500">No leaderboard data yet.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[320px] border-separate border-spacing-0 text-left text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800/50">
+                    <th
+                      scope="col"
+                      className="pb-2.5 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                    >
+                      Rank
+                    </th>
+                    <th
+                      scope="col"
+                      className="pb-2.5 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                    >
+                      User
+                    </th>
+                    <th
+                      scope="col"
+                      className="pb-2.5 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                    >
+                      Avg X
+                    </th>
+                    <th
+                      scope="col"
+                      className="pb-2.5 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                    >
+                      {scoreColumnLabel}
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/40 text-zinc-300">
+                  {data.map((row) => (
+                    <tr
+                      key={`${activeTab}-${row.rank}-${row.username}`}
+                      className="transition-colors duration-150 hover:bg-zinc-800/45"
+                    >
+                      <td className="py-3 pr-4 tabular-nums text-zinc-400">
+                        #{row.rank}
+                      </td>
+                      <td className="py-3 pr-4 font-medium text-zinc-200">
+                        {row.username}
+                      </td>
+                      <td className="py-3 pr-4 font-semibold tabular-nums text-zinc-100">
+                        {formatAvgX(row.avgX)}
+                      </td>
+                      <td className="py-3 tabular-nums text-zinc-400">
+                        {activeTab === "user-calls"
+                          ? row.wins
+                          : row.totalCalls}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
     </div>
