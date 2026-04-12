@@ -45,7 +45,22 @@ export const authOptions: NextAuthOptions = {
             "[auth signIn] users insert:",
             insertError.message || insertError
           );
+          return true;
         }
+      }
+
+      const { error: prefsError } = await supabase
+        .from("user_preferences")
+        .upsert(
+          { discord_id: user.id },
+          { onConflict: "discord_id" }
+        );
+
+      if (prefsError) {
+        console.error(
+          "[auth signIn] user_preferences upsert:",
+          prefsError.message || prefsError
+        );
       }
 
       return true;

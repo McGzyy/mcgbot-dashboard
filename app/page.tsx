@@ -53,6 +53,93 @@ type ActivityItem = {
   discordId: string;
 };
 
+type NotificationPrefs = {
+  own_calls: boolean;
+  include_following: boolean;
+  include_global: boolean;
+  min_multiple: number;
+};
+
+type NotificationFilter = {
+  userId: string;
+  prefs: NotificationPrefs;
+  followedIds: Set<string>;
+};
+
+const NOTIFICATION_PREFS_DEFAULT: NotificationPrefs = {
+  own_calls: true,
+  include_following: true,
+  include_global: false,
+  min_multiple: 2,
+};
+
+function passesPreferenceFilter(
+  item: ActivityItem,
+  filter: NotificationFilter
+): boolean {
+  const { prefs, followedIds, userId } = filter;
+  if (prefs.include_global) return true;
+  const actor = item.discordId.trim();
+  if (!actor) return false;
+  if (prefs.own_calls && actor === userId) return true;
+  if (prefs.include_following && followedIds.has(actor)) return true;
+  return false;
+}
+
+async function fetchNotificationFilter(
+  userId: string
+): Promise<NotificationFilter> {
+  const prefs: NotificationPrefs = { ...NOTIFICATION_PREFS_DEFAULT };
+
+  try {
+    const [prefsRes, followRes] = await Promise.all([
+      fetch("/api/me/preferences"),
+      fetch("/api/follow"),
+    ]);
+
+    if (prefsRes.ok) {
+      const j: unknown = await prefsRes.json();
+      if (j && typeof j === "object" && !("error" in j)) {
+        const o = j as Record<string, unknown>;
+        if (typeof o.own_calls === "boolean") prefs.own_calls = o.own_calls;
+        if (typeof o.include_following === "boolean") {
+          prefs.include_following = o.include_following;
+        }
+        if (typeof o.include_global === "boolean") {
+          prefs.include_global = o.include_global;
+        }
+        const mm = Number(o.min_multiple);
+        if (Number.isFinite(mm)) prefs.min_multiple = mm;
+      }
+    }
+
+    const followedIds = new Set<string>();
+    if (followRes.ok) {
+      const j: unknown = await followRes.json();
+      if (j && typeof j === "object") {
+        const list = (j as Record<string, unknown>).following;
+        if (Array.isArray(list)) {
+          for (const entry of list) {
+            if (!entry || typeof entry !== "object") continue;
+            const id = (entry as Record<string, unknown>).targetId;
+            if (typeof id === "string" && id.trim() !== "") {
+              followedIds.add(id.trim());
+            }
+          }
+        }
+      }
+    }
+
+    return { userId, prefs, followedIds };
+  } catch {
+    return {
+      userId,
+      prefs: { ...NOTIFICATION_PREFS_DEFAULT },
+      followedIds: new Set<string>(),
+    };
+  }
+}
+
 /** Solana-style base58 public key length (typical mint/address in UI text). */
 const CA_IN_TEXT_RE = /[1-9A-HJ-NP-Za-km-z]{32,44}/;
 
@@ -184,7 +271,8 @@ function processActivityNotifications(
     createdAt: number;
     multiple?: number;
   }) => void,
-  lastSeenKeys: MutableRefObject<Set<string>>
+  lastSeenKeys: MutableRefObject<Set<string>>,
+  filter: NotificationFilter | null
 ): void {
   const keyOf = activityItemDedupeKey;
 
@@ -201,6 +289,24 @@ function processActivityNotifications(
     if (prevKeys.has(k)) continue;
     if (lastSeenKeys.current.has(k)) continue;
     if (!activityItemNotifiable(item)) continue;
+
+    if (!filter) {
+      lastSeenKeys.current.add(k);
+      continue;
+    }
+
+    const minM = Number(filter.prefs.min_multiple);
+    const minMultiple = Number.isFinite(minM) ? minM : NOTIFICATION_PREFS_DEFAULT.min_multiple;
+    if (item.multiple < minMultiple) {
+      lastSeenKeys.current.add(k);
+      continue;
+    }
+
+    if (!passesPreferenceFilter(item, filter)) {
+      lastSeenKeys.current.add(k);
+      continue;
+    }
+
     lastSeenKeys.current.add(k);
     addNotification({
       id: crypto.randomUUID(),
@@ -355,9 +461,12 @@ export default function Home() {
   }, []);
 
   const loadActivity = useCallback(() => {
-    fetch(`/api/activity?mode=${encodeURIComponent(feedMode)}`)
-      .then((res) => res.json())
-      .then((data: unknown) => {
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/activity?mode=${encodeURIComponent(feedMode)}`
+        );
+        const data: unknown = await res.json();
         if (!Array.isArray(data)) {
           setActivity([]);
           return;
@@ -398,6 +507,13 @@ export default function Home() {
             discordId,
           });
         }
+
+        const uid = session?.user?.id?.trim() ?? "";
+        const notificationFilter =
+          uid && feedMode === "all"
+            ? await fetchNotificationFilter(uid)
+            : null;
+
         setActivity((prev) => {
           if (feedMode === "all") {
             if (activitySourceModeRef.current === "all") {
@@ -405,7 +521,8 @@ export default function Home() {
                 prev,
                 parsed,
                 addNotification,
-                lastSeenActivityKeysRef
+                lastSeenActivityKeysRef,
+                notificationFilter
               );
             } else {
               for (const item of parsed) {
@@ -418,10 +535,13 @@ export default function Home() {
           }
           return parsed;
         });
-      })
-      .catch(() => setActivity([]))
-      .finally(() => setLoadingActivity(false));
-  }, [addNotification, feedMode]);
+      } catch {
+        setActivity([]);
+      } finally {
+        setLoadingActivity(false);
+      }
+    })();
+  }, [addNotification, feedMode, session?.user?.id]);
 
   const nowMs = Date.now();
   const displayedReferrals = useMemo(
