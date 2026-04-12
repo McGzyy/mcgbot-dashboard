@@ -9,10 +9,18 @@ export async function GET() {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!
-  );
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY;
+
+  if (!url || !key) {
+    console.error("Missing Supabase env vars");
+    return Response.json(
+      { error: "Supabase not configured" },
+      { status: 500 }
+    );
+  }
+
+  const supabase = createClient(url, key);
 
   const discordId = String(session.user.id);
 
