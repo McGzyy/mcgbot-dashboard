@@ -1,0 +1,142 @@
+[
+  {
+    "discordUserId": "AUTO_BOT",
+    "username": "Auto Bot",
+    "displayName": "Auto Bot",
+    "previousUsernames": [],
+    "previousDisplayNames": [],
+    "xHandle": "",
+    "publicSettings": {
+      "publicCreditMode": "discord_name",
+      "allowPublicXTag": false,
+      "allowPublicDisplayName": true,
+      "publicAlias": "",
+      "minimumMilestoneForPublicShoutout": "4x",
+      "maxPublicMentionsPerDay": 1
+    },
+    "publicTracking": {
+      "mentionCountToday": 0,
+      "mentionCountDate": null,
+      "lastPublicMentionAt": null
+    },
+    "createdAt": "2026-03-30T01:51:56.855Z",
+    "updatedAt": "2026-03-31T09:27:46.998Z",
+    "aliases": [
+      "id:AUTO_BOT",
+      "username:auto bot",
+      "display:auto bot"
+    ],
+    "verifiedXHandle": "",
+    "isXVerified": false,
+    "xVerification": {
+      "requestedHandle": "",
+      "requestedAt": null,
+      "verificationCode": "",
+      "status": "none"
+    }
+  },
+  {
+    "discordUserId": "732566370914664499",
+    "username": "mcgzyy",
+    "displayName": "McGzyy",
+    "previousUsernames": [],
+    "previousDisplayNames": [],
+    "xHandle": "McGzyy",
+    "publicSettings": {
+      "publicCreditMode": "verified_x_tag",
+      "allowPublicXTag": true,
+      "allowPublicDisplayName": true,
+      "publicAlias": "",
+      "minimumMilestoneForPublicShoutout": "4x",
+      "maxPublicMentionsPerDay": 1
+    },
+    "publicTracking": {
+      "mentionCountToday": 0,
+      "mentionCountDate": null,
+      "lastPublicMentionAt": null
+    },
+    "createdAt": "2026-03-30T03:19:10.628Z",
+    "updatedAt": "2026-04-12T08:59:22.066Z",
+    "aliases": [
+      "id:732566370914664499",
+      "username:mcgzyy",
+      "display:mcgzyy"
+    ],
+    "verifiedXHandle": "McGzyy",
+    "isXVerified": true,
+    "xVerification": {
+      "requestedHandle": "McGzyy",
+      "requestedAt": "2026-03-31T09:31:30.203Z",
+      "verificationCode": "MCGZYY-MCGZYY-112829",
+      "status": "verified"
+    }
+  },
+  {
+    "discordUserId": "1236736719353548900",
+    "username": ".trader.dave.",
+    "displayName": "Degenninja",
+    "previousUsernames": [],
+    "previousDisplayNames": [],
+    "xHandle": "",
+    "verifiedXHandle": "",
+    "isXVerified": false,
+    "xVerification": {
+      "requestedHandle": "",
+      "requestedAt": null,
+      "verificationCode": "",
+      "status": "none"
+    },
+    "publicSettings": {
+      "publicCreditMode": "discord_name",
+      "allowPublicXTag": false,
+      "allowPublicDisplayName": true,
+      "publicAlias": ""
+    },
+    "publicTracking": {
+      "mentionCountToday": 0,
+      "mentionCountDate": null,
+      "lastPublicMentionAt": null
+    },
+    "createdAt": "2026-04-01T03:23:48.701Z",
+    "updatedAt": "2026-04-09T03:23:49.950Z",
+    "aliases": [
+      "id:1236736719353548900",
+      "username:.trader.dave.",
+      "display:degenninja"
+    ]
+  },
+  {
+    "discordUserId": "197252595822231552",
+    "username": "zikusuperfroggy",
+    "displayName": "Ziku𓆏🪦🥀",
+    "previousUsernames": [],
+    "previousDisplayNames": [],
+    "xHandle": "",
+    "verifiedXHandle": "",
+    "isXVerified": false,
+    "xVerification": {
+      "requestedHandle": "",
+      "requestedAt": null,
+      "verificationCode": "",
+      "status": "none"
+    },
+    "publicSettings": {
+      "publicCreditMode": "discord_name",
+      "allowPublicXTag": false,
+      "allowPublicDisplayName": true,
+      "publicAlias": ""
+    },
+    "publicTracking": {
+      "mentionCountToday": 0,
+      "mentionCountDate": null,
+      "lastPublicMentionAt": null
+    },
+    "createdAt": "2026-04-01T05:59:44.681Z",
+    "updatedAt": "2026-04-01T05:59:44.681Z",
+    "aliases": [
+      "id:197252595822231552",
+      "username:zikusuperfroggy",
+      "display:ziku𓆏🪦🥀"
+    ]
+  }
+]
