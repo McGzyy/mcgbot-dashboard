@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { hasAccess } from "@/lib/hasAccess";
 
 type Agg = {
   discord_id: string;
@@ -20,12 +21,24 @@ function rowCallTime(row: Record<string, unknown>): number {
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+
     if (!session?.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type") || "bot";
+    let type = searchParams.get("type") || "user";
+
+    if (type === "bot") {
+      const allowed = userId
+        ? await hasAccess(userId, "view_bot_calls")
+        : false;
+
+      if (!allowed) {
+        type = "user";
+      }
+    }
 
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_ANON_KEY;
