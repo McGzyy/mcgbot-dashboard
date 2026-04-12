@@ -79,6 +79,7 @@ export async function GET() {
           time: r.call_time,
           link_chart,
           link_post,
+          multiple,
         };
       }
 
@@ -88,6 +89,7 @@ export async function GET() {
         time: r.call_time,
         link_chart,
         link_post,
+        multiple,
       };
     });
 

@@ -1,12 +1,15 @@
 "use client";
 
+import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { ActivityPopup } from "./components/ActivityPopup";
 import { signIn, useSession } from "next-auth/react";
 import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
+  type MutableRefObject,
   type ReactNode,
 } from "react";
 
@@ -44,6 +47,7 @@ type ActivityItem = {
   time: unknown;
   link_chart: string | null;
   link_post: string | null;
+  multiple: number;
 };
 
 /** Solana-style base58 public key length (typical mint/address in UI text). */
@@ -149,6 +153,60 @@ function callTimeMs(t: unknown): number {
     if (Number.isFinite(p)) return p;
   }
   return 0;
+}
+
+/** Non-win calls at or above this multiple can notify (tune later). */
+const ACTIVITY_BIG_CALL_NOTIFY_MIN = 3;
+
+function activityItemDedupeKey(item: ActivityItem): string {
+  return `${callTimeMs(item.time)}::${item.text}`;
+}
+
+function activityItemNotifiable(item: ActivityItem): boolean {
+  if (item.type === "win") return true;
+  return (
+    item.type === "call" &&
+    Number.isFinite(item.multiple) &&
+    item.multiple >= ACTIVITY_BIG_CALL_NOTIFY_MIN
+  );
+}
+
+function processActivityNotifications(
+  prev: ActivityItem[],
+  next: ActivityItem[],
+  addNotification: (n: {
+    id: string;
+    text: string;
+    type: "win" | "call";
+    createdAt: number;
+    multiple?: number;
+  }) => void,
+  lastSeenKeys: MutableRefObject<Set<string>>
+): void {
+  const keyOf = activityItemDedupeKey;
+
+  if (prev.length === 0 && next.length > 0) {
+    for (const item of next) {
+      lastSeenKeys.current.add(keyOf(item));
+    }
+    return;
+  }
+
+  const prevKeys = new Set(prev.map(keyOf));
+  for (const item of next) {
+    const k = keyOf(item);
+    if (prevKeys.has(k)) continue;
+    if (lastSeenKeys.current.has(k)) continue;
+    if (!activityItemNotifiable(item)) continue;
+    lastSeenKeys.current.add(k);
+    addNotification({
+      id: crypto.randomUUID(),
+      text: item.text,
+      type: item.type,
+      createdAt: Date.now(),
+      multiple: item.multiple,
+    });
+  }
 }
 
 function multipleClass(multiple: number): string {
@@ -267,6 +325,8 @@ function PanelCard({
 
 export default function Home() {
   const { data: session, status } = useSession();
+  const { addNotification } = useNotifications();
+  const lastSeenActivityKeysRef = useRef(new Set<string>());
   const [copied, setCopied] = useState(false);
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -306,19 +366,30 @@ export default function Home() {
             o.link_post.trim() !== ""
               ? o.link_post.trim()
               : null;
+          const multRaw = Number(o.multiple);
+          const multiple = Number.isFinite(multRaw) ? multRaw : 0;
           parsed.push({
             type: o.type,
             text,
             time: o.time,
             link_chart,
             link_post,
+            multiple,
           });
         }
-        setActivity(parsed);
+        setActivity((prev) => {
+          processActivityNotifications(
+            prev,
+            parsed,
+            addNotification,
+            lastSeenActivityKeysRef
+          );
+          return parsed;
+        });
       })
       .catch(() => setActivity([]))
       .finally(() => setLoadingActivity(false));
-  }, []);
+  }, [addNotification]);
 
   const nowMs = Date.now();
   const displayedReferrals = useMemo(
