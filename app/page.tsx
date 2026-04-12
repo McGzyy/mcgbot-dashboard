@@ -162,9 +162,7 @@ export default function Home() {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen flex-col bg-[#0f1117] text-zinc-400">
-        <div className="h-1 w-full shrink-0 bg-red-500" aria-hidden />
-        <div className="flex flex-1 flex-col items-center justify-center">
+      <div className="flex min-h-[calc(100vh-3rem)] flex-col items-center justify-center text-zinc-400">
         <div className="flex flex-col items-center gap-4">
           <div
             className="h-9 w-9 animate-spin rounded-full border-2 border-zinc-600 border-t-sky-500"
@@ -172,16 +170,13 @@ export default function Home() {
           />
           <p className="text-sm">Loading dashboard…</p>
         </div>
-        </div>
       </div>
     );
   }
 
   if (!session) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#0f1117] px-4">
-        <div className="h-1 w-full shrink-0 bg-red-500" aria-hidden />
-        <div className="flex flex-1 items-center justify-center">
+      <div className="flex min-h-[calc(100vh-3rem)] flex-col items-center justify-center px-4">
         <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/70 p-10 text-center shadow-xl shadow-black/40 backdrop-blur-sm">
           <h1 className="text-xl font-semibold text-zinc-100">McGBot Dashboard</h1>
           <p className="mt-3 text-sm leading-relaxed text-zinc-400">
@@ -195,133 +190,129 @@ export default function Home() {
             Login with Discord
           </button>
         </div>
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0f1117] text-zinc-100">
-      <div className="h-1 w-full bg-red-500" aria-hidden />
-      <div className="mx-auto max-w-[1100px] px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-10 flex flex-col gap-4 border-b border-zinc-800/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl">
-            McGBot Dashboard
-          </h1>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-            {session.user?.image ? (
-              <img
-                src={session.user.image}
-                alt=""
-                className="h-9 w-9 rounded-full border border-zinc-700 object-cover"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-medium text-zinc-400">
-                {(session.user?.name ?? "?").slice(0, 1).toUpperCase()}
-              </div>
-            )}
-            <span className="max-w-[200px] truncate text-sm font-medium text-zinc-300">
-              {session.user?.name ?? "User"}
-            </span>
-            <button
-              type="button"
-              onClick={() => signOut()}
-              className="rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-            >
-              Logout
-            </button>
-          </div>
-        </header>
-
-        <section className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total Referrals" value={total} loading={statsLoading} />
-          <StatCard title="Today" value={today} loading={statsLoading} />
-          <StatCard title="This Week" value={week} loading={statsLoading} />
-          <StatCard title="Rank" value="—" />
-        </section>
-
-        <section>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-            Your Referral Link
-          </h2>
-          <div className="flex flex-col gap-3 rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 sm:flex-row sm:items-stretch sm:gap-3">
-            <input
-              type="text"
-              readOnly
-              value={referralUrl || "Unavailable — sign in again if this stays empty"}
-              className="min-h-11 w-full flex-1 rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 font-mono text-sm text-zinc-300 outline-none ring-sky-500/30 focus:ring-2"
+    <div className="mx-auto max-w-[1100px]">
+      <header className="mb-10 flex flex-col gap-4 border-b border-zinc-800/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl">
+          Dashboard
+        </h1>
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          {session.user?.image ? (
+            <img
+              src={session.user.image}
+              alt=""
+              className="h-9 w-9 rounded-full border border-zinc-700 object-cover"
+              referrerPolicy="no-referrer"
             />
-            <button
-              type="button"
-              onClick={handleCopy}
-              disabled={!referralUrl}
-              className="shrink-0 rounded-lg bg-sky-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
-            >
-              {copied ? "Copied!" : "Copy"}
-            </button>
-          </div>
-        </section>
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-medium text-zinc-400">
+              {(session.user?.name ?? "?").slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <span className="max-w-[200px] truncate text-sm font-medium text-zinc-300">
+            {session.user?.name ?? "User"}
+          </span>
+          <button
+            type="button"
+            onClick={() => signOut()}
+            className="rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+          >
+            Logout
+          </button>
+        </div>
+      </header>
 
-        <section className="mt-12">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-            Your Referrals
-          </h2>
-          <div className="w-full overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 backdrop-blur-sm sm:p-5">
-            {statsLoading ? (
-              <div className="flex min-h-[120px] items-center justify-center py-8">
-                <div className="flex flex-col items-center gap-3">
-                  <div
-                    className="h-8 w-48 animate-pulse rounded-md bg-zinc-800/90"
-                    aria-hidden
-                  />
-                  <p className="text-sm text-zinc-500">Loading referrals…</p>
-                </div>
+      <section className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard title="Total Referrals" value={total} loading={statsLoading} />
+        <StatCard title="Today" value={today} loading={statsLoading} />
+        <StatCard title="This Week" value={week} loading={statsLoading} />
+        <StatCard title="Rank" value="—" />
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Your Referral Link
+        </h2>
+        <div className="flex flex-col gap-3 rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 sm:flex-row sm:items-stretch sm:gap-3">
+          <input
+            type="text"
+            readOnly
+            value={referralUrl || "Unavailable — sign in again if this stays empty"}
+            className="min-h-11 w-full flex-1 rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 font-mono text-sm text-zinc-300 outline-none ring-sky-500/30 focus:ring-2"
+          />
+          <button
+            type="button"
+            onClick={handleCopy}
+            disabled={!referralUrl}
+            className="shrink-0 rounded-lg bg-sky-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      </section>
+
+      <section className="mt-12">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Your Referrals
+        </h2>
+        <div className="w-full overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 backdrop-blur-sm sm:p-5">
+          {statsLoading ? (
+            <div className="flex min-h-[120px] items-center justify-center py-8">
+              <div className="flex flex-col items-center gap-3">
+                <div
+                  className="h-8 w-48 animate-pulse rounded-md bg-zinc-800/90"
+                  aria-hidden
+                />
+                <p className="text-sm text-zinc-500">Loading referrals…</p>
               </div>
-            ) : displayedReferrals.length === 0 ? (
-              <div className="flex min-h-[120px] items-center justify-center py-10">
-                <p className="text-sm text-zinc-500">No referrals yet</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[280px] border-separate border-spacing-0 text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-800/50">
-                      <th
-                        scope="col"
-                        className="pb-2.5 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
-                      >
-                        User
-                      </th>
-                      <th
-                        scope="col"
-                        className="pb-2.5 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
-                      >
-                        Joined
-                      </th>
+            </div>
+          ) : displayedReferrals.length === 0 ? (
+            <div className="flex min-h-[120px] items-center justify-center py-10">
+              <p className="text-sm text-zinc-500">No referrals yet</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[280px] border-separate border-spacing-0 text-left text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800/50">
+                    <th
+                      scope="col"
+                      className="pb-2.5 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                    >
+                      User
+                    </th>
+                    <th
+                      scope="col"
+                      className="pb-2.5 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                    >
+                      Joined
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/40 text-zinc-300">
+                  {displayedReferrals.map((row) => (
+                    <tr
+                      key={`${row.userId}-${row.joinedAt}`}
+                      className="transition-colors duration-150 hover:bg-zinc-800/45"
+                    >
+                      <td className="py-3 pr-4 font-mono text-xs text-zinc-200 sm:text-sm">
+                        {row.userId}
+                      </td>
+                      <td className="py-3 text-zinc-400">
+                        {formatJoinedAt(row.joinedAt, nowMs)}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/40 text-zinc-300">
-                    {displayedReferrals.map((row) => (
-                      <tr
-                        key={`${row.userId}-${row.joinedAt}`}
-                        className="transition-colors duration-150 hover:bg-zinc-800/45"
-                      >
-                        <td className="py-3 pr-4 font-mono text-xs text-zinc-200 sm:text-sm">
-                          {row.userId}
-                        </td>
-                        <td className="py-3 text-zinc-400">
-                          {formatJoinedAt(row.joinedAt, nowMs)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </section>
-      </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
