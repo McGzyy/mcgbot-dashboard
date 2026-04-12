@@ -11,7 +11,32 @@ const authOptions: NextAuthOptions = {
     })
   ],
   secret: process.env.NEXTAUTH_SECRET,
-  session: { strategy: 'jwt' }
+  session: { strategy: 'jwt' },
+  callbacks: {
+    async jwt({ token, profile }) {
+      const discordId =
+        profile &&
+        typeof profile === 'object' &&
+        'id' in profile &&
+        typeof (profile as { id: unknown }).id === 'string'
+          ? (profile as { id: string }).id
+          : undefined;
+      if (discordId) {
+        token.discordId = discordId;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      const id =
+        (typeof token.discordId === 'string' && token.discordId) ||
+        (typeof token.sub === 'string' && token.sub) ||
+        '';
+      if (session.user && id) {
+        session.user.id = id;
+      }
+      return session;
+    }
+  }
 };
 
 const handler = NextAuth(authOptions);
