@@ -1,25 +1,35 @@
 "use client";
 
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
 function StatCard({
   title,
   value,
+  loading,
 }: {
   title: string;
   value: string | number;
+  loading?: boolean;
 }) {
   return (
     <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-5 shadow-sm shadow-black/20 backdrop-blur-sm">
       <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
         {title}
       </p>
-      <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-zinc-50">
-        {value}
-      </p>
+      {loading ? (
+        <div
+          className="mt-2 h-9 w-20 max-w-full animate-pulse rounded-md bg-zinc-800/90"
+          aria-busy
+          aria-label="Loading"
+        />
+      ) : (
+        <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-zinc-50">
+          {value}
+        </p>
+      )}
     </div>
   );
 }
@@ -27,6 +37,59 @@ function StatCard({
 export default function Home() {
   const { data: session, status } = useSession();
   const [copied, setCopied] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [today, setToday] = useState(0);
+  const [week, setWeek] = useState(0);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!session) return;
+    const userId = session.user?.id?.trim();
+    if (!userId) {
+      setStatsLoading(false);
+      setTotal(0);
+      setToday(0);
+      setWeek(0);
+      return;
+    }
+
+    let cancelled = false;
+    setStatsLoading(true);
+
+    (async () => {
+      try {
+        const res = await fetch("/api/referrals");
+        if (!res.ok) {
+          if (!cancelled) {
+            setTotal(0);
+            setToday(0);
+            setWeek(0);
+          }
+          return;
+        }
+        const data: unknown = await res.json();
+        if (cancelled || !data || typeof data !== "object") return;
+        const o = data as Record<string, unknown>;
+        if (!cancelled) {
+          setTotal(typeof o.total === "number" ? o.total : 0);
+          setToday(typeof o.today === "number" ? o.today : 0);
+          setWeek(typeof o.week === "number" ? o.week : 0);
+        }
+      } catch {
+        if (!cancelled) {
+          setTotal(0);
+          setToday(0);
+          setWeek(0);
+        }
+      } finally {
+        if (!cancelled) setStatsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, session?.user?.id]);
 
   const referralUrl =
     session?.user?.id != null && session.user.id !== ""
@@ -119,9 +182,9 @@ export default function Home() {
         </header>
 
         <section className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total Referrals" value={0} />
-          <StatCard title="Today" value={0} />
-          <StatCard title="This Week" value={0} />
+          <StatCard title="Total Referrals" value={total} loading={statsLoading} />
+          <StatCard title="Today" value={today} loading={statsLoading} />
+          <StatCard title="This Week" value={week} loading={statsLoading} />
           <StatCard title="Rank" value="—" />
         </section>
 
