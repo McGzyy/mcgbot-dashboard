@@ -10,6 +10,13 @@ type Agg = {
   wins: number;
 };
 
+function rowCallTime(row: Record<string, unknown>): number {
+  const t = row.call_time;
+  if (typeof t === "number" && Number.isFinite(t)) return t;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -47,10 +54,15 @@ export async function GET(request: Request) {
     }
 
     const rows = Array.isArray(data) ? data : [];
+    const sorted = [...rows].sort(
+      (a, b) =>
+        rowCallTime(a as Record<string, unknown>) -
+        rowCallTime(b as Record<string, unknown>)
+    );
 
     const map = new Map<string, Agg>();
 
-    for (const row of rows) {
+    for (const row of sorted) {
       const r = row as Record<string, unknown>;
       const discordId =
         typeof r.discord_id === "string"
@@ -66,11 +78,9 @@ export async function GET(request: Request) {
 
       let user = map.get(discordId);
       if (!user) {
-        const un =
-          typeof r.username === "string" ? r.username.trim() : "";
         user = {
           discord_id: discordId,
-          username: un,
+          username: "",
           totalCalls: 0,
           sumX: 0,
           wins: 0,
@@ -81,9 +91,8 @@ export async function GET(request: Request) {
       user.totalCalls += 1;
       user.sumX += mult;
       if (mult >= 2) user.wins += 1;
-      if (typeof r.username === "string" && r.username.trim()) {
-        user.username = r.username.trim();
-      }
+      user.username =
+        typeof r.username === "string" ? r.username.trim() : "";
     }
 
     const results = Array.from(map.values()).map((user) => ({

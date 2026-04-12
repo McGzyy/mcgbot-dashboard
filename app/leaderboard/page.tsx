@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-type TabId = "bot-calls" | "user-calls" | "referrals";
+type TabId = "user" | "bot" | "referrals";
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: "bot-calls", label: "Bot Calls" },
-  { id: "user-calls", label: "User Calls" },
+  { id: "user", label: "User Calls" },
+  { id: "bot", label: "Bot Calls" },
   { id: "referrals", label: "Referrals" },
 ];
 
@@ -29,12 +29,6 @@ type ApiLeaderRow = {
   totalCalls: number;
   wins: number;
 };
-
-function tabToApiType(tab: TabId): "bot" | "user" | null {
-  if (tab === "bot-calls") return "bot";
-  if (tab === "user-calls") return "user";
-  return null;
-}
 
 function formatAvgX(avgX: number): string {
   const n = Number(avgX);
@@ -66,13 +60,12 @@ function PerformerCard({
 }
 
 export default function LeaderboardPage() {
-  const [activeTab, setActiveTab] = useState<TabId>("bot-calls");
+  const [activeTab, setActiveTab] = useState("user");
   const [data, setData] = useState<ApiLeaderRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const apiType = tabToApiType(activeTab);
-    if (apiType === null) {
+    if (activeTab === "referrals") {
       setData([]);
       setLoading(false);
       return;
@@ -83,7 +76,7 @@ export default function LeaderboardPage() {
 
     (async () => {
       try {
-        const res = await fetch(`/api/leaderboard?type=${apiType}`);
+        const res = await fetch(`/api/leaderboard?type=${activeTab}`);
         if (!res.ok) {
           if (!cancelled) setData([]);
           return;
@@ -123,7 +116,7 @@ export default function LeaderboardPage() {
     };
   }, [activeTab]);
 
-  const scoreColumnLabel = activeTab === "user-calls" ? "Wins" : "Calls";
+  const scoreColumnLabel = activeTab === "user" ? "Wins" : "Calls";
   const showApiTable = activeTab !== "referrals";
 
   return (
@@ -238,9 +231,7 @@ export default function LeaderboardPage() {
                         {formatAvgX(row.avgX)}
                       </td>
                       <td className="py-3 tabular-nums text-zinc-400">
-                        {activeTab === "user-calls"
-                          ? row.wins
-                          : row.totalCalls}
+                        {activeTab === "user" ? row.wins : row.totalCalls}
                       </td>
                     </tr>
                   ))}

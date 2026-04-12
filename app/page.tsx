@@ -1,9 +1,27 @@
 "use client";
 
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 const REF_BASE = "https://mcgbot.xyz/ref";
+
+const LIVE_FEED_MOCK = [
+  "🔥 alpha_sniper hit 4.2x",
+  "⚡ New call: SOLXYZ",
+  "📈 trend_hunter 3.1x",
+  "🚀 New dev detected",
+];
+
+const RECENT_CALLS_MOCK = [
+  { token: "SOLXYZ", result: "2.3x", when: "2h ago" },
+  { token: "ABC", result: "rugged", when: "5h ago" },
+];
 
 type ReferralRow = { userId: string; joinedAt: number };
 
@@ -73,12 +91,30 @@ function StatCard({
   );
 }
 
+function PanelCard({
+  title,
+  children,
+  className = "",
+}: {
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-5 shadow-sm shadow-black/20 backdrop-blur-sm ${className}`}
+    >
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
 export default function Home() {
   const { data: session, status } = useSession();
   const [copied, setCopied] = useState(false);
-  const [total, setTotal] = useState(0);
-  const [today, setToday] = useState(0);
-  const [week, setWeek] = useState(0);
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -96,9 +132,6 @@ export default function Home() {
     const userId = session.user?.id?.trim();
     if (!userId) {
       setStatsLoading(false);
-      setTotal(0);
-      setToday(0);
-      setWeek(0);
       setReferrals([]);
       return;
     }
@@ -111,9 +144,6 @@ export default function Home() {
         const res = await fetch("/api/referrals");
         if (!res.ok) {
           if (!cancelled) {
-            setTotal(0);
-            setToday(0);
-            setWeek(0);
             setReferrals([]);
           }
           return;
@@ -122,16 +152,10 @@ export default function Home() {
         if (cancelled || !data || typeof data !== "object") return;
         const o = data as Record<string, unknown>;
         if (!cancelled) {
-          setTotal(typeof o.total === "number" ? o.total : 0);
-          setToday(typeof o.today === "number" ? o.today : 0);
-          setWeek(typeof o.week === "number" ? o.week : 0);
           setReferrals(parseReferrals(o.referrals));
         }
       } catch {
         if (!cancelled) {
-          setTotal(0);
-          setToday(0);
-          setWeek(0);
           setReferrals([]);
         }
       } finally {
@@ -195,8 +219,8 @@ export default function Home() {
   }
 
   return (
-    <div className="mx-auto max-w-[1100px]">
-      <header className="mb-10 flex flex-col gap-4 border-b border-zinc-800/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto max-w-[1200px] px-1 sm:px-0">
+      <header className="mb-8 flex flex-col gap-4 border-b border-zinc-800/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl">
           Dashboard
         </h1>
@@ -226,14 +250,72 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Referrals" value={total} loading={statsLoading} />
-        <StatCard title="Today" value={today} loading={statsLoading} />
-        <StatCard title="This Week" value={week} loading={statsLoading} />
-        <StatCard title="Rank" value="—" />
+      <section className="mb-8">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Personal Stats
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard title="Avg X" value="3.4x" />
+          <StatCard title="Win Rate" value="62%" />
+          <StatCard title="Calls Today" value={5} />
+          <StatCard title="Streak" value="🔥 2" />
+        </div>
       </section>
 
-      <section>
+      <div className="mb-8 grid gap-6 lg:grid-cols-2 lg:items-start">
+        <PanelCard title="Live Activity">
+          <ul className="mt-4 max-h-[300px] space-y-0 divide-y divide-zinc-800/50 overflow-y-auto pr-1 text-sm text-zinc-300">
+            {LIVE_FEED_MOCK.map((line, i) => (
+              <li key={i} className="py-3 first:pt-1">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </PanelCard>
+
+        <PanelCard title="Quick Actions">
+          <div className="mt-4 flex flex-col gap-2">
+            <button
+              type="button"
+              className="w-full rounded-lg bg-sky-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+            >
+              Submit Call
+            </button>
+            <button
+              type="button"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+            >
+              Copy CA
+            </button>
+            <button
+              type="button"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+            >
+              Open Chart
+            </button>
+          </div>
+        </PanelCard>
+      </div>
+
+      <section className="mb-10">
+        <PanelCard title="Your Recent Calls">
+          <ul className="mt-4 space-y-0 divide-y divide-zinc-800/50 text-sm">
+            {RECENT_CALLS_MOCK.map((row) => (
+              <li
+                key={row.token}
+                className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-1 text-zinc-300"
+              >
+                <span className="font-medium text-zinc-100">{row.token}</span>
+                <span className="text-zinc-400">→</span>
+                <span className="font-medium text-zinc-200">{row.result}</span>
+                <span className="ml-auto text-zinc-500">{row.when}</span>
+              </li>
+            ))}
+          </ul>
+        </PanelCard>
+      </section>
+
+      <section className="mb-10">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Your Referral Link
         </h2>
@@ -255,7 +337,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mt-12">
+      <section className="mb-12">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Your Referrals
         </h2>
