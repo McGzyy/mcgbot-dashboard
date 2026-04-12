@@ -1,6 +1,5 @@
 'use strict';
 
-const path = require('path');
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 
 const DEFAULT_WIDTH = 960;
@@ -12,29 +11,18 @@ const CANDLE_UP = '#34d399';
 const CANDLE_DOWN = '#f87171';
 const CANDLE_FLAT = '#94a3b8';
 
-const FINANCIAL_BUNDLE = path.join(
-  __dirname,
-  '..',
-  'node_modules',
-  'chartjs-chart-financial',
-  'dist',
-  'chartjs-chart-financial.min.js'
-);
-const DATE_ADAPTER_BUNDLE = path.join(
-  __dirname,
-  '..',
-  'node_modules',
-  'chartjs-adapter-date-fns',
-  'dist',
-  'chartjs-adapter-date-fns.min.js'
-);
-
 /** @type {{ key: string, canvas: InstanceType<typeof ChartJSNodeCanvas> } | null} */
 let rendererCache = null;
 
-function registerFinancialPlugins() {
-  require(DATE_ADAPTER_BUNDLE);
-  require(FINANCIAL_BUNDLE);
+/**
+ * @param {import('chart.js').Chart & { registerables?: import('chart.js').ChartComponentLike[] }} ChartJS
+ */
+function chartCallback(ChartJS) {
+  require('chartjs-adapter-date-fns');
+  require('chartjs-chart-financial');
+  if (ChartJS.registerables) {
+    ChartJS.register(...ChartJS.registerables);
+  }
 }
 
 /**
@@ -51,7 +39,7 @@ function getRenderer(w, h, bg) {
         width: w,
         height: h,
         backgroundColour: bg,
-        chartCallback: registerFinancialPlugins
+        chartCallback
       })
     };
   }

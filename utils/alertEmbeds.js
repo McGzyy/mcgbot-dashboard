@@ -1,5 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const { resolvePublicCallerName } = require('./userProfileService');
+const { formatAgeMinutes } = require('./formatAgeMinutes');
 
 function formatUsd(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return 'N/A';
@@ -14,11 +15,6 @@ function formatPercent(value) {
 function formatValue(value, fallback = 'Unknown') {
   if (value === null || value === undefined || value === '') return fallback;
   return String(value);
-}
-
-function formatAgeMinutes(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return 'N/A';
-  return `${Number(value)} min`;
 }
 
 function formatAgo(isoOrDateLike) {

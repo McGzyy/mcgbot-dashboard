@@ -23,6 +23,7 @@ const {
   getBotStats
 } = require('../utils/callerStatsService');
 const { renderPriceChart, seriesFromTrackedPriceHistory } = require('../utils/renderChart');
+const { formatAgeMinutes } = require('../utils/formatAgeMinutes');
 const { buildOhlcvCandlestickBuffer } = require('../utils/ohlcvCandlestickBuffer');
 const { getCandlestickOverlayProps } = require('../utils/candlestickOverlayFromTracked');
 const { buildOhlcvTimeframeRows } = require('../utils/ohlcvChartControls');
@@ -779,11 +780,10 @@ function createTraderScanEmbed(scan, options = {}) {
 
   const sections = [];
 
-  let lead = `💰 ${formatUsd(scan.marketCap)} MC`;
+  sections.push(`💰 ${formatUsd(scan.marketCap)} MC`);
   if (metaBlock.trim()) {
-    lead += `\n\n${metaBlock.trimEnd()}`;
+    sections.push(metaBlock.trimEnd());
   }
-  sections.push(lead);
 
   sections.push(`🧠 **Signal**\n${signalLines.join('\n')}`);
   sections.push(`📊 **Market Snapshot**\n${snapshotLines.join('\n')}`);
