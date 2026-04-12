@@ -1,9 +1,43 @@
 "use client";
 
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const REF_BASE = "https://mcgbot.xyz/ref";
+
+type ReferralRow = { userId: string; joinedAt: number };
+
+function formatJoinedAt(joinedAt: number, nowMs: number): string {
+  if (!Number.isFinite(joinedAt) || joinedAt <= 0) return "—";
+  const diff = nowMs - joinedAt;
+  const sec = Math.floor(diff / 1000);
+  const min = Math.floor(sec / 60);
+  const hr = Math.floor(min / 60);
+  if (sec < 60) return "just now";
+  if (min < 60) return min === 1 ? "1 min ago" : `${min} min ago`;
+  if (hr < 24) return hr === 1 ? "1 hour ago" : `${hr} hours ago`;
+  const date = new Date(joinedAt);
+  const nowDate = new Date(nowMs);
+  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  if (date.getFullYear() !== nowDate.getFullYear()) {
+    opts.year = "numeric";
+  }
+  return date.toLocaleDateString("en-US", opts);
+}
+
+function parseReferrals(raw: unknown): ReferralRow[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ReferralRow[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const userId = String(r.userId ?? "").trim();
+    const joinedAt = Number(r.joinedAt);
+    if (!userId || !Number.isFinite(joinedAt)) continue;
+    out.push({ userId, joinedAt });
+  }
+  return out;
+}
 
 function StatCard({
   title,
@@ -40,7 +74,17 @@ export default function Home() {
   const [total, setTotal] = useState(0);
   const [today, setToday] = useState(0);
   const [week, setWeek] = useState(0);
+  const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
+
+  const nowMs = Date.now();
+  const displayedReferrals = useMemo(
+    () =>
+      [...referrals]
+        .sort((a, b) => b.joinedAt - a.joinedAt)
+        .slice(0, 20),
+    [referrals]
+  );
 
   useEffect(() => {
     if (!session) return;
@@ -50,6 +94,7 @@ export default function Home() {
       setTotal(0);
       setToday(0);
       setWeek(0);
+      setReferrals([]);
       return;
     }
 
@@ -64,6 +109,7 @@ export default function Home() {
             setTotal(0);
             setToday(0);
             setWeek(0);
+            setReferrals([]);
           }
           return;
         }
@@ -74,12 +120,14 @@ export default function Home() {
           setTotal(typeof o.total === "number" ? o.total : 0);
           setToday(typeof o.today === "number" ? o.today : 0);
           setWeek(typeof o.week === "number" ? o.week : 0);
+          setReferrals(parseReferrals(o.referrals));
         }
       } catch {
         if (!cancelled) {
           setTotal(0);
           setToday(0);
           setWeek(0);
+          setReferrals([]);
         }
       } finally {
         if (!cancelled) setStatsLoading(false);
@@ -207,6 +255,65 @@ export default function Home() {
             >
               {copied ? "Copied!" : "Copy"}
             </button>
+          </div>
+        </section>
+
+        <section className="mt-12">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+            Your Referrals
+          </h2>
+          <div className="w-full overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 backdrop-blur-sm sm:p-5">
+            {statsLoading ? (
+              <div className="flex min-h-[120px] items-center justify-center py-8">
+                <div className="flex flex-col items-center gap-3">
+                  <div
+                    className="h-8 w-48 animate-pulse rounded-md bg-zinc-800/90"
+                    aria-hidden
+                  />
+                  <p className="text-sm text-zinc-500">Loading referrals…</p>
+                </div>
+              </div>
+            ) : displayedReferrals.length === 0 ? (
+              <div className="flex min-h-[120px] items-center justify-center py-10">
+                <p className="text-sm text-zinc-500">No referrals yet</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[280px] border-separate border-spacing-0 text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-800/50">
+                      <th
+                        scope="col"
+                        className="pb-2.5 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                      >
+                        User
+                      </th>
+                      <th
+                        scope="col"
+                        className="pb-2.5 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                      >
+                        Joined
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/40 text-zinc-300">
+                    {displayedReferrals.map((row) => (
+                      <tr
+                        key={`${row.userId}-${row.joinedAt}`}
+                        className="transition-colors duration-150 hover:bg-zinc-800/45"
+                      >
+                        <td className="py-3 pr-4 font-mono text-xs text-zinc-200 sm:text-sm">
+                          {row.userId}
+                        </td>
+                        <td className="py-3 text-zinc-400">
+                          {formatJoinedAt(row.joinedAt, nowMs)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </section>
       </div>
