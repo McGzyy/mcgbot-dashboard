@@ -1,7 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { getUserTier } from "@/lib/getUserTier";
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    const discordId = session?.user?.id?.trim() ?? "";
+
+    const tier = await getUserTier(discordId);
+
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_ANON_KEY;
 
@@ -15,9 +23,18 @@ export async function GET() {
 
     const supabase = createClient(url, key);
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("call_performance")
-      .select("username, ath_multiple, call_time, source")
+      .select("username, ath_multiple, call_time, source, call_ca, message_url");
+
+    const t = tier.toLowerCase().trim();
+    if (t === "free") {
+      query = query.eq("source", "user");
+    } else if (t === "pro") {
+      query = query.in("source", ["user", "bot"]);
+    }
+
+    const { data, error } = await query
       .order("call_time", { ascending: false })
       .limit(20);
 
@@ -39,18 +56,38 @@ export async function GET() {
           ? r.username.trim()
           : "Unknown";
 
+      const rawCa =
+        r.call_ca != null && String(r.call_ca).trim() !== ""
+          ? String(r.call_ca).trim()
+          : null;
+
+      const callLabel = rawCa ?? "a call";
+
+      const link_chart = rawCa
+        ? `https://dexscreener.com/solana/${rawCa}`
+        : null;
+
+      const link_post =
+        typeof r.message_url === "string" && r.message_url.trim() !== ""
+          ? r.message_url.trim()
+          : null;
+
       if (multiple >= 2) {
         return {
           type: "win" as const,
-          text: `${username} hit ${multiple.toFixed(1)}x`,
+          text: `${username} hit ${multiple.toFixed(1)}x on ${callLabel}`,
           time: r.call_time,
+          link_chart,
+          link_post,
         };
       }
 
       return {
         type: "call" as const,
-        text: `New call: ${username}`,
+        text: `New call by ${username}`,
         time: r.call_time,
+        link_chart,
+        link_post,
       };
     });
 

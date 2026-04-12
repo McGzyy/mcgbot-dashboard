@@ -66,3 +66,38 @@ body {
     transform: none;
   }
 }
+
+@keyframes activity-popup-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes activity-popup-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.activity-popup-backdrop {
+  animation: activity-popup-backdrop-in 0.2s ease-out;
+}
+
+.activity-popup-panel {
+  animation: activity-popup-panel-in 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-popup-backdrop,
+  .activity-popup-panel {
+    animation: none;
+  }
+}

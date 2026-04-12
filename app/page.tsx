@@ -1,5 +1,6 @@
 "use client";
 
+import { ActivityPopup } from "./components/ActivityPopup";
 import { signIn, useSession } from "next-auth/react";
 import {
   useCallback,
@@ -41,7 +42,103 @@ type ActivityItem = {
   type: "win" | "call";
   text: string;
   time: unknown;
+  link_chart: string | null;
+  link_post: string | null;
 };
+
+/** Solana-style base58 public key length (typical mint/address in UI text). */
+const CA_IN_TEXT_RE = /[1-9A-HJ-NP-Za-km-z]{32,44}/;
+
+function extractCaFromDexLink(link: string): string | null {
+  const m = link.trim().match(/dexscreener\.com\/solana\/([^/?#]+)/i);
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return m[1];
+  }
+}
+
+function shortenCa(ca: string): string {
+  if (ca.length <= 12) return ca;
+  return `${ca.slice(0, 4)}…${ca.slice(-4)}`;
+}
+
+function resolveCaInActivityText(
+  text: string,
+  dexLink: string
+): { ca: string; chartLink: string } | null {
+  const caFromLink = dexLink ? extractCaFromDexLink(dexLink) : null;
+  if (caFromLink && text.includes(caFromLink)) {
+    return { ca: caFromLink, chartLink: dexLink };
+  }
+
+  const m = text.match(CA_IN_TEXT_RE);
+  if (!m) return null;
+
+  const ca = m[0];
+  const chartLink =
+    dexLink && extractCaFromDexLink(dexLink) === ca
+      ? dexLink
+      : `https://dexscreener.com/solana/${encodeURIComponent(ca)}`;
+
+  return { ca, chartLink };
+}
+
+function renderActivityTextWithCa(
+  item: ActivityItem,
+  emoji: string
+): ReactNode {
+  const target = resolveCaInActivityText(
+    item.text,
+    item.link_chart ?? ""
+  );
+  if (!target) {
+    return (
+      <>
+        <span aria-hidden>{emoji}</span>
+        {item.text}
+      </>
+    );
+  }
+
+  const { ca, chartLink } = target;
+  const idx = item.text.indexOf(ca);
+  if (idx === -1) {
+    return (
+      <>
+        <span aria-hidden>{emoji}</span>
+        {item.text}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span aria-hidden>{emoji}</span>
+      {item.text.slice(0, idx)}
+      <span
+        role="link"
+        tabIndex={0}
+        onClick={(e) => {
+          e.stopPropagation();
+          window.open(chartLink, "_blank", "noopener,noreferrer");
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(chartLink, "_blank", "noopener,noreferrer");
+          }
+        }}
+        className="text-cyan-400 hover:underline cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50"
+      >
+        {shortenCa(ca)}
+      </span>
+      {item.text.slice(idx + ca.length)}
+    </>
+  );
+}
 
 function callTimeMs(t: unknown): number {
   if (typeof t === "number" && Number.isFinite(t)) return t;
@@ -178,6 +275,9 @@ export default function Home() {
   const [callsLoading, setCallsLoading] = useState(true);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(
+    null
+  );
 
   const loadActivity = useCallback(() => {
     fetch("/api/activity")
@@ -194,7 +294,25 @@ export default function Home() {
           if (o.type !== "win" && o.type !== "call") continue;
           const text = typeof o.text === "string" ? o.text.trim() : "";
           if (!text) continue;
-          parsed.push({ type: o.type, text, time: o.time });
+          const link_chart =
+            o.link_chart != null &&
+            typeof o.link_chart === "string" &&
+            o.link_chart.trim() !== ""
+              ? o.link_chart.trim()
+              : null;
+          const link_post =
+            o.link_post != null &&
+            typeof o.link_post === "string" &&
+            o.link_post.trim() !== ""
+              ? o.link_post.trim()
+              : null;
+          parsed.push({
+            type: o.type,
+            text,
+            time: o.time,
+            link_chart,
+            link_post,
+          });
         }
         setActivity(parsed);
       })
@@ -450,18 +568,27 @@ export default function Home() {
                 {activity.map((item, i) => (
                   <li
                     key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
-                    className="dashboard-feed-item flex items-start justify-between gap-3 py-3 first:pt-1"
+                    className="dashboard-feed-item"
                     style={{ animationDelay: `${i * 70}ms` }}
                   >
-                    <span className="text-zinc-200">
-                      <span aria-hidden>
-                        {item.type === "win" ? "🔥 " : "⚡ "}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedActivity(item)}
+                      className="flex w-full items-start justify-between gap-3 rounded-md border-0 bg-transparent py-3 pl-1 pr-1 text-left first:pt-1 sm:pl-2 sm:pr-2 -mx-1 cursor-pointer text-inherit transition-colors duration-150 hover:bg-zinc-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                    >
+                      <span className="min-w-0 text-zinc-200">
+                        {renderActivityTextWithCa(
+                          item,
+                          item.type === "win" ? "🔥 " : "⚡ "
+                        )}
                       </span>
-                      {item.text}
-                    </span>
-                    <span className="shrink-0 text-xs tabular-nums text-zinc-500">
-                      {formatJoinedAt(callTimeMs(item.time), nowMs)}
-                    </span>
+                      <span className="flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-zinc-500">
+                        {formatJoinedAt(callTimeMs(item.time), nowMs)}
+                        <span className="text-zinc-500" aria-hidden>
+                          ↗
+                        </span>
+                      </span>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -635,6 +762,19 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      <ActivityPopup
+        item={
+          selectedActivity
+            ? {
+                text: selectedActivity.text,
+                link_chart: selectedActivity.link_chart,
+                link_post: selectedActivity.link_post,
+              }
+            : null
+        }
+        onClose={() => setSelectedActivity(null)}
+      />
     </div>
   );
 }
