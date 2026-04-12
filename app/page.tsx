@@ -93,7 +93,7 @@ async function fetchNotificationFilter(
 
   try {
     const [prefsRes, followRes] = await Promise.all([
-      fetch("/api/me/preferences"),
+      fetch("/api/preferences"),
       fetch("/api/follow"),
     ]);
 
