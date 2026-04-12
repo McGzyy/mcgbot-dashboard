@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { MainShell } from "./components/MainShell";
 import { Sidebar } from "./components/Sidebar";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -33,7 +34,7 @@ export default function RootLayout({
         <Providers>
           <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 overflow-x-hidden p-6">{children}</main>
+            <MainShell>{children}</MainShell>
           </div>
         </Providers>
       </body>

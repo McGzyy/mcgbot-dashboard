@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import {
   useCallback,
   useEffect,
@@ -42,11 +42,6 @@ type RecentCallRow = {
   token: string;
   multiple: number;
   time: unknown;
-};
-
-type MarketSnapshot = {
-  solPrice: number;
-  solChangePct: number;
 };
 
 function callTimeMs(t: unknown): number {
@@ -182,8 +177,6 @@ export default function Home() {
   const [stats, setStats] = useState<MeStats | null>(null);
   const [recentCalls, setRecentCalls] = useState<RecentCallRow[]>([]);
   const [callsLoading, setCallsLoading] = useState(true);
-  const [market, setMarket] = useState<MarketSnapshot | null>(null);
-  const [marketLoading, setMarketLoading] = useState(true);
 
   const nowMs = Date.now();
   const displayedReferrals = useMemo(
@@ -322,34 +315,6 @@ export default function Home() {
     };
   }, [session?.user?.id]);
 
-  useEffect(() => {
-    if (!session) return;
-
-    let cancelled = false;
-    setMarketLoading(true);
-
-    fetch("/api/market")
-      .then((res) => res.json())
-      .then((data: unknown) => {
-        if (cancelled || !data || typeof data !== "object") return;
-        const o = data as Record<string, unknown>;
-        const solPrice = Number(o.solPrice);
-        const solChangePct = Number(o.solChangePct);
-        if (!Number.isFinite(solPrice) || !Number.isFinite(solChangePct)) return;
-        setMarket({ solPrice, solChangePct });
-      })
-      .catch(() => {
-        if (!cancelled) setMarket(null);
-      })
-      .finally(() => {
-        if (!cancelled) setMarketLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session]);
-
   const referralUrl =
     session?.user?.id != null && session.user.id !== ""
       ? `${REF_BASE}/${session.user.id}`
@@ -412,69 +377,8 @@ export default function Home() {
       "0"
     );
 
-  const solLineClass =
-    market != null && market.solChangePct >= 0
-      ? "text-emerald-400"
-      : market != null
-        ? "text-red-400"
-        : "text-zinc-300";
-
   return (
     <div className="mx-auto max-w-[1200px] px-1 sm:px-0">
-      <div
-        className="sticky top-0 z-50 -mx-1 mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-zinc-800 bg-zinc-900/80 px-4 py-2 text-sm backdrop-blur sm:-mx-0"
-        role="region"
-        aria-label="Market pulse"
-      >
-        {marketLoading ? (
-          <p className="text-zinc-500">Loading market...</p>
-        ) : (
-          <>
-            <p className={`min-w-0 font-medium tabular-nums ${solLineClass}`}>
-              📊 SOL{" "}
-              {market != null ? `$${market.solPrice.toFixed(2)}` : "$—"} (
-              {market != null
-                ? `${market.solChangePct >= 0 ? "+" : ""}${market.solChangePct.toFixed(1)}%`
-                : "—"}
-              )
-            </p>
-            <p className="shrink-0 text-zinc-500">
-              PumpFun Vol: — | Active Traders: —
-            </p>
-          </>
-        )}
-      </div>
-
-      <header className="mb-8 flex flex-col gap-4 border-b border-zinc-800/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl">
-          Dashboard
-        </h1>
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-          {session.user?.image ? (
-            <img
-              src={session.user.image}
-              alt=""
-              className="h-9 w-9 rounded-full border border-zinc-700 object-cover"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-medium text-zinc-400">
-              {(session.user?.name ?? "?").slice(0, 1).toUpperCase()}
-            </div>
-          )}
-          <span className="max-w-[200px] truncate text-sm font-medium text-zinc-300">
-            {session.user?.name ?? "User"}
-          </span>
-          <button
-            type="button"
-            onClick={() => signOut()}
-            className="rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-          >
-            Logout
-          </button>
-        </div>
-      </header>
-
       <section className="mb-8">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Personal Stats
