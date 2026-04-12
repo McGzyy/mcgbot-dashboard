@@ -26,11 +26,6 @@ const HOT_RIGHT_NOW_MOCK = [
   { token: "ABC", tag: "2.8x in last hour" },
 ];
 
-const RECENT_CALLS_MOCK = [
-  { token: "SOLXYZ", result: "2.3x", when: "2h ago" },
-  { token: "ABC", result: "rugged", when: "5h ago" },
-];
-
 const CARD_HOVER =
   "transition-transform duration-200 ease-out motion-safe:hover:scale-[1.01]";
 
@@ -42,6 +37,29 @@ type MeStats = {
   callsToday: number;
   totalCalls: number;
 };
+
+type RecentCallRow = {
+  token: string;
+  multiple: number;
+  time: unknown;
+};
+
+function callTimeMs(t: unknown): number {
+  if (typeof t === "number" && Number.isFinite(t)) return t;
+  const n = Number(t);
+  if (Number.isFinite(n)) return n;
+  if (typeof t === "string") {
+    const p = Date.parse(t);
+    if (Number.isFinite(p)) return p;
+  }
+  return 0;
+}
+
+function multipleClass(multiple: number): string {
+  if (multiple >= 2) return "text-emerald-400";
+  if (multiple < 1) return "text-red-400";
+  return "text-zinc-200";
+}
 
 function formatJoinedAt(joinedAt: number, nowMs: number): string {
   if (!Number.isFinite(joinedAt) || joinedAt <= 0) return "—";
@@ -157,6 +175,8 @@ export default function Home() {
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
   const [stats, setStats] = useState<MeStats | null>(null);
+  const [recentCalls, setRecentCalls] = useState<RecentCallRow[]>([]);
+  const [callsLoading, setCallsLoading] = useState(true);
 
   const nowMs = Date.now();
   const displayedReferrals = useMemo(
@@ -246,6 +266,48 @@ export default function Home() {
             totalCalls: 0,
           });
         }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id?.trim()) {
+      setCallsLoading(false);
+      setRecentCalls([]);
+      return;
+    }
+
+    let cancelled = false;
+    setCallsLoading(true);
+
+    fetch("/api/me/recent-calls")
+      .then((res) => res.json())
+      .then((data: unknown) => {
+        if (cancelled) return;
+        if (Array.isArray(data)) {
+          const parsed: RecentCallRow[] = [];
+          for (const row of data) {
+            if (row == null || typeof row !== "object") continue;
+            const o = row as Record<string, unknown>;
+            const token =
+              typeof o.token === "string" ? o.token : String(o.token ?? "");
+            const multiple = Number(o.multiple);
+            if (!Number.isFinite(multiple)) continue;
+            parsed.push({ token: token || "Unknown", multiple, time: o.time });
+          }
+          setRecentCalls(parsed);
+        } else {
+          setRecentCalls([]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRecentCalls([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCallsLoading(false);
       });
 
     return () => {
@@ -438,19 +500,39 @@ export default function Home() {
 
       <section className="mb-10">
         <PanelCard title="Your Recent Calls">
-          <ul className="mt-4 space-y-0 divide-y divide-zinc-800/50 text-sm">
-            {RECENT_CALLS_MOCK.map((row) => (
-              <li
-                key={row.token}
-                className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-1 text-zinc-300"
-              >
-                <span className="font-medium text-zinc-100">{row.token}</span>
-                <span className="text-zinc-400">→</span>
-                <span className="font-medium text-zinc-200">{row.result}</span>
-                <span className="ml-auto text-zinc-500">{row.when}</span>
-              </li>
-            ))}
-          </ul>
+          {callsLoading ? (
+            <div className="flex min-h-[100px] items-center justify-center py-10">
+              <p className="text-sm text-zinc-500">Loading calls...</p>
+            </div>
+          ) : recentCalls.length === 0 ? (
+            <div className="flex min-h-[100px] items-center justify-center py-10">
+              <p className="text-sm text-zinc-500">No calls yet</p>
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-0 divide-y divide-zinc-800/50 text-sm">
+              {recentCalls.map((call, i) => (
+                <li
+                  key={`${call.token}-${String(call.time)}-${i}`}
+                  className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-1 text-zinc-300"
+                >
+                  <span className="min-w-0 font-medium text-zinc-100">
+                    {call.token}
+                    <span className="text-zinc-400"> → </span>
+                    <span
+                      className={`font-semibold tabular-nums ${multipleClass(
+                        call.multiple
+                      )}`}
+                    >
+                      {call.multiple.toFixed(1)}x
+                    </span>
+                  </span>
+                  <span className="ml-auto shrink-0 text-zinc-500">
+                    {formatJoinedAt(callTimeMs(call.time), nowMs)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </PanelCard>
       </section>
 
