@@ -3,7 +3,9 @@ const { autoCallConfig } = require('../config/autoCallConfig');
 const { scanFilterConfig } = require('../config/scanFilterConfig');
 const { AttachmentBuilder } = require('discord.js');
 const { createAutoCallEmbed } = require('./alertEmbeds');
-const { renderPriceChart, seriesFromTrackedPriceHistory } = require('./renderChart');
+const { buildOhlcvCandlestickBuffer } = require('./ohlcvCandlestickBuffer');
+const { getCandlestickOverlayProps } = require('./candlestickOverlayFromTracked');
+const { buildOhlcvTimeframeRows } = require('./ohlcvChartControls');
 const { loadScannerSettings } = require('./scannerSettingsService');
 const {
   saveTrackedCall,
@@ -166,20 +168,21 @@ async function hydrateAutoCallChartMessage(message, scan, profileName) {
   }
   try {
     let buf = null;
-    const tracked = getTrackedCall(scan.contractAddress);
-    const series = tracked ? seriesFromTrackedPriceHistory(tracked) : null;
 
-    if (series) {
-      try {
-        buf = await renderPriceChart({
-          prices: series.prices,
-          timestamps: series.timestamps,
-          label: scan.ticker || scan.tokenName || 'MC'
-        });
-      } catch (renderErr) {
-        console.error('[AutoCallChart]', scan.contractAddress, renderErr.message);
-        buf = null;
-      }
+    try {
+      const trackedForChart = getTrackedCall(scan.contractAddress);
+      const overlay = getCandlestickOverlayProps(trackedForChart, scan);
+      buf = await buildOhlcvCandlestickBuffer({
+        pairAddress: scan.pairAddress,
+        chain: 'solana',
+        interval: '5m',
+        limit: 96,
+        title: scan.ticker || scan.tokenName || 'OHLC',
+        ...overlay
+      });
+    } catch (ohlcvErr) {
+      console.error('[AutoCallChart]', scan.contractAddress, 'ohlcv', ohlcvErr?.message || ohlcvErr);
+      buf = null;
     }
 
     const embed = createAutoCallEmbed(scan, profileName, {
@@ -193,7 +196,11 @@ async function hydrateAutoCallChartMessage(message, scan, profileName) {
     }
 
     const file = new AttachmentBuilder(buf, { name: 'chart.png' });
-    await message.edit({ embeds: [embed], files: [file] });
+    await message.edit({
+      embeds: [embed],
+      files: [file],
+      components: buildOhlcvTimeframeRows(scan.contractAddress, '5m')
+    });
   } catch (err) {
     console.error('[AutoCallChart]', scan.contractAddress, err.message);
   }

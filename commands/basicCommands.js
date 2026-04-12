@@ -742,20 +742,59 @@ function createTraderScanEmbed(scan, options = {}) {
   const milestoneLine = showTrackedMeta ? formatMilestoneLine(scan.milestoneHit, scan.isNewCall, scan.isNewMilestone) : '';
   const performanceLine = showTrackedMeta ? formatPerformanceLine(scan.performancePercent, scan.isNewCall) : '';
 
-  const fields = [];
+  const tokenNameUpper = formatValue(scan.tokenName, 'UNKNOWN TOKEN').toUpperCase();
+  const tickerUpper = formatValue(scan.ticker, 'UNKNOWN').toUpperCase();
 
-  fields.push({
-    name: '🧾 Contract Address',
-    value: `\`${formatValue(scan.contractAddress, 'Unknown')}\``,
-    inline: false
-  });
+  const metaBlock = [callStatusLine, milestoneLine, performanceLine].filter(Boolean).join('');
 
+  const signalLines = [
+    `**${formatValue(scan.alertType, 'Scan')}**`,
+    `• Momentum: ${getDisplayMomentum(scan)} · Risk: ${formatValue(scan.riskLevel)} · Pressure: ${formatValue(
+      scan.tradePressure,
+      'Unknown'
+    )}`
+  ];
   if (options.chartPending) {
-    fields.push({
-      name: '📊 Chart',
-      value: 'Loading…',
-      inline: false
-    });
+    signalLines.push('📊 Chart: Loading…');
+  }
+
+  const snapshotLines = [
+    `• Liq: ${formatUsd(scan.liquidity)}`,
+    `• 5m vol: ${formatUsd(scan.volume5m)} · 1h vol: ${formatUsd(scan.volume1h)}`,
+    `• Age: ${formatAgeMinutes(scan.ageMinutes)}`
+  ];
+  if (isMeaningfulNumber(scan.holders, { allowZero: false })) {
+    snapshotLines.push(`• Holders: ${scan.holders}`);
+  }
+
+  const tradeLines = [
+    `• 5m B/S: ${formatValue(scan.buySellRatio5m, 'N/A')} · 1h B/S: ${formatValue(scan.buySellRatio1h, 'N/A')}`,
+    `• Quality: ${getTradeQualityLabel(scan)}`
+  ];
+
+  const verdictLines = [
+    `• Score: ${formatValue(scan.entryScore, 'N/A')}/100 · Grade: ${formatValue(scan.grade, 'N/A')}`,
+    `• Status: ${formatValue(scan.status, 'N/A')} · Conviction: ${formatValue(scan.conviction, 'N/A')}`
+  ];
+
+  const sections = [];
+
+  let lead = `💰 ${formatUsd(scan.marketCap)} MC`;
+  if (metaBlock.trim()) {
+    lead += `\n\n${metaBlock.trimEnd()}`;
+  }
+  sections.push(lead);
+
+  sections.push(`🧠 **Signal**\n${signalLines.join('\n')}`);
+  sections.push(`📊 **Market Snapshot**\n${snapshotLines.join('\n')}`);
+  sections.push(`📈 **Trade Strength**\n${tradeLines.join('\n')}`);
+  sections.push(`🎯 **Verdict**\n${verdictLines.join('\n')}`);
+
+  if ((scan.greenFlags && scan.greenFlags.length) || (scan.redFlags && scan.redFlags.length)) {
+    const flagLines = [];
+    if (scan.greenFlags?.length) flagLines.push(`🟢\n${formatReasonList(scan.greenFlags)}`);
+    if (scan.redFlags?.length) flagLines.push(`🔴\n${formatReasonList(scan.redFlags)}`);
+    sections.push(`⚠️ **Flags**\n${flagLines.join('\n\n')}`);
   }
 
   const links = buildLinksLine([
@@ -764,82 +803,14 @@ function createTraderScanEmbed(scan, options = {}) {
     scan.telegram ? `[Telegram](${scan.telegram})` : null
   ]);
 
-  if (links) {
-    fields.push({
-      name: '🔗 Links',
-      value: links,
-      inline: false
-    });
-  }
-
-  if ((scan.greenFlags && scan.greenFlags.length) || (scan.redFlags && scan.redFlags.length)) {
-    fields.push({
-      name: '🚨 Scan Flags',
-      value:
-        `**Green Flags:**\n${formatReasonList(scan.greenFlags)}\n\n` +
-        `**Red Flags:**\n${formatReasonList(scan.redFlags)}`,
-      inline: false
-    });
-  }
-
-  const marketLines = [];
-  addLineIfMeaningful(marketLines, 'Market Cap', scan.marketCap, formatUsd, { type: 'number' });
-  addLineIfMeaningful(marketLines, 'Liquidity', scan.liquidity, formatUsd, { type: 'number' });
-  addLineIfMeaningful(marketLines, 'Vol (5m)', scan.volume5m, formatUsd, { type: 'number' });
-  addLineIfMeaningful(marketLines, 'Vol (1h)', scan.volume1h, formatUsd, { type: 'number' });
-  addLineIfMeaningful(
-    marketLines,
-    'Age',
-    scan.ageMinutes,
-    (v) => `${v} min`,
-    { type: 'number', allowZero: true }
-  );
-  addLineIfMeaningful(
-    marketLines,
-    'Holders',
-    scan.holders,
-    (v) => String(v),
-    { type: 'number', allowZero: false }
-  );
-
-  addFieldIfHasContent(fields, '📊 Market Setup', marketLines, true);
-
-  const tradeLines = [];
-  addLineIfMeaningful(tradeLines, 'Buy/Sell (5m)', scan.buySellRatio5m, (v) => String(v));
-  addLineIfMeaningful(tradeLines, 'Buy/Sell (1h)', scan.buySellRatio1h, (v) => String(v));
-  addLineIfMeaningful(tradeLines, 'Trade Quality', getTradeQualityLabel(scan));
-
-  addFieldIfHasContent(fields, '📈 Trade Strength', tradeLines, true);
-
-  const verdictLines = [
-    `**Entry Score:** ${scan.entryScore}/100`,
-    `**Grade:** ${scan.grade}`,
-    `**Status:** ${scan.status}`,
-    `**Conviction:** ${scan.conviction}`
-  ];
-
-  addFieldIfHasContent(fields, '🎯 Trader Verdict', verdictLines, true);
-
-  const displayMomentum = getDisplayMomentum(scan);
-
-  const descLines = [
-    `**Momentum:** ${displayMomentum}`,
-    `**Risk:** ${formatValue(scan.riskLevel)}`,
-    `**Pressure:** ${formatValue(scan.tradePressure, 'Unknown')}`
-  ];
+  const linkBlock = [`\`${formatValue(scan.contractAddress, 'Unknown')}\``];
+  if (links) linkBlock.push(links);
+  sections.push(`🔗 **Links / Trade**\n${linkBlock.join('\n')}`);
 
   const embed = new EmbedBuilder()
     .setColor(0x00ff99)
-    .setTitle(`🎯 ${scan.tokenName} (${scan.ticker})`)
-    .setDescription(
-      `## ${formatUsd(scan.marketCap)} MC\n` +
-      `${callStatusLine}` +
-      `${milestoneLine}` +
-      `${performanceLine}` +
-      `**${scan.alertType}**` +
-      (descLines.length ? `\n\n${descLines.join('\n')}` : '')
-    )
-    .addFields(fields)
+    .setTitle(`🚀 ${tokenNameUpper} ($${tickerUpper})`)
+    .setDescription(sections.join('\n\n'))
     .setFooter({ text: 'Crypto Scanner Bot • Trader Scan' })
     .setTimestamp();
 

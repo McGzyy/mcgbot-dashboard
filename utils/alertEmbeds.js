@@ -174,6 +174,17 @@ function buildCoinHeader(name, ticker) {
   return `# ${formatValue(name, 'Unknown Token')} ($${formatValue(ticker, 'UNKNOWN')})`;
 }
 
+function formatReasonList(reasons) {
+  if (!reasons || reasons.length === 0) return '—';
+  return reasons.map((reason) => `• ${reason}`).join('\n');
+}
+
+function holdersLine(scan) {
+  const n = Number(scan?.holders);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return `• Holders: ${n}`;
+}
+
 function createAutoCallEmbed(scan, profileName = 'balanced', options = {}) {
   const quickTradeLinks = buildQuickTradeLinksLine(scan.contractAddress, scan.pairAddress);
   const socialLinks = buildSocialLinksLine(scan);
@@ -187,61 +198,59 @@ function createAutoCallEmbed(scan, profileName = 'balanced', options = {}) {
   const callTypeLine = isManual ? '📌 **MANUAL CALL**' : '🚨 **AUTO CALL**';
   const alertLabel = scan.alertType || (isManual ? '👤 Manual Scan' : '📡 Auto Call');
 
-  const descriptionParts = [
-    buildCoinHeader(scan.tokenName, scan.ticker),
-    '',
-    `## ${formatUsd(scan.marketCap)} MC`,
+  const tokenNameUpper = formatValue(scan.tokenName, 'UNKNOWN TOKEN').toUpperCase();
+  const tickerUpper = formatValue(scan.ticker, 'UNKNOWN').toUpperCase();
+
+  const signalLines = [
     callTypeLine,
     `**${alertLabel}**`,
-    '',
-    `**Original Caller:** ${originalCaller}`,
-    `**Profile:** ${getProfileLabel(profileName)}`,
-    `**Momentum:** ${formatValue(scan.momentum)}`,
-    `**Risk:** ${formatValue(scan.riskLevel)}`,
-    `**Pressure:** ${formatValue(scan.tradePressure)}`
+    `Caller: ${originalCaller} · Profile: ${getProfileLabel(profileName)}`,
+    `• Momentum: ${formatValue(scan.momentum)} · Risk: ${formatValue(scan.riskLevel)} · Pressure: ${formatValue(
+      scan.tradePressure
+    )}`
   ];
-
-  const mainFields = [];
-
   if (options.chartPending) {
-    mainFields.push({
-      name: '📊 Chart',
-      value: 'Loading…',
-      inline: false
-    });
+    signalLines.push('📊 Chart: Loading…');
   }
 
-  mainFields.push(
-    {
-      name: 'CA',
-      value: `\`${formatValue(scan.contractAddress, 'Unknown')}\``,
-      inline: false
-    },
-    {
-      name: '📊 Market Setup',
-      value:
-        `**Liquidity:** ${formatUsd(scan.liquidity)}\n` +
-        `**Vol (5m):** ${formatUsd(scan.volume5m)}\n` +
-        `**Vol (1h):** ${formatUsd(scan.volume1h)}\n` +
-        `**Age:** ${formatAgeMinutes(scan.ageMinutes)}`,
-      inline: true
-    },
-    {
-      name: '📈 Trade Strength',
-      value:
-        `**Buy/Sell (5m):** ${formatValue(scan.buySellRatio5m, 'N/A')}\n` +
-        `**Buy/Sell (1h):** ${formatValue(scan.buySellRatio1h, 'N/A')}\n` +
-        `**Trade Quality:** ${formatValue(scan.tradeQuality, 'N/A')}\n` +
-        `**Score:** ${formatValue(scan.entryScore, 'N/A')}/100`,
-      inline: true
-    }
-  );
+  const snapshotLines = [
+    `• Liq: ${formatUsd(scan.liquidity)}`,
+    `• 5m vol: ${formatUsd(scan.volume5m)} · 1h vol: ${formatUsd(scan.volume1h)}`,
+    `• Age: ${formatAgeMinutes(scan.ageMinutes)}`
+  ];
+  const hl = holdersLine(scan);
+  if (hl) snapshotLines.push(hl);
+
+  const tradeLines = [
+    `• 5m B/S: ${formatValue(scan.buySellRatio5m, 'N/A')} · 1h B/S: ${formatValue(scan.buySellRatio1h, 'N/A')}`,
+    `• Quality: ${formatValue(scan.tradeQuality, 'N/A')} · Score: ${formatValue(scan.entryScore, 'N/A')}/100`
+  ];
+
+  const sections = [];
+  sections.push(`💰 ${formatUsd(scan.marketCap)} MC`);
+  sections.push(`🧠 **Signal**\n${signalLines.join('\n')}`);
+  sections.push(`📊 **Market Snapshot**\n${snapshotLines.join('\n')}`);
+  sections.push(`📈 **Trade Strength**\n${tradeLines.join('\n')}`);
+
+  const hasFlags =
+    (Array.isArray(scan.greenFlags) && scan.greenFlags.length > 0) ||
+    (Array.isArray(scan.redFlags) && scan.redFlags.length > 0);
+  if (hasFlags) {
+    const flagLines = [];
+    if (scan.greenFlags?.length) flagLines.push(`🟢\n${formatReasonList(scan.greenFlags)}`);
+    if (scan.redFlags?.length) flagLines.push(`🔴\n${formatReasonList(scan.redFlags)}`);
+    sections.push(`⚠️ **Flags**\n${flagLines.join('\n\n')}`);
+  }
+
+  const linkLines = [`\`${formatValue(scan.contractAddress, 'Unknown')}\``];
+  if (quickTradeLinks) linkLines.push(quickTradeLinks);
+  if (socialLinks) linkLines.push(socialLinks);
+  sections.push(`🔗 **Links / Trade**\n${linkLines.join('\n')}`);
 
   const embed = new EmbedBuilder()
     .setColor(isManual ? 0x3b82f6 : 0x00cc99)
-    .setTitle(' ')
-    .setDescription(descriptionParts.join('\n'))
-    .addFields(mainFields)
+    .setTitle(`🚀 ${tokenNameUpper} ($${tickerUpper})`)
+    .setDescription(sections.join('\n\n'))
     .setFooter({ text: isManual ? 'Crypto Scanner Bot • Manual Call' : 'Crypto Scanner Bot • Auto Call' })
     .setTimestamp();
 
@@ -256,22 +265,6 @@ function createAutoCallEmbed(scan, profileName = 'balanced', options = {}) {
 
   if (options.chartImageUrl) {
     embed.setImage(options.chartImageUrl);
-  }
-
-  if (quickTradeLinks) {
-    embed.addFields({
-      name: '🔗 Trade',
-      value: quickTradeLinks,
-      inline: false
-    });
-  }
-
-  if (socialLinks) {
-    embed.addFields({
-      name: '🔗 Project Links',
-      value: socialLinks,
-      inline: false
-    });
   }
 
   return embed;

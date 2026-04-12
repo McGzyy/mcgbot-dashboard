@@ -1,7 +1,7 @@
 'use strict';
 
-const fs = require('fs');
 const path = require('path');
+const { readJson } = require('./jsonStore');
 
 const HELP_TOPICS_PATH = path.join(__dirname, '..', 'data', 'helpTopics.json');
 const MIN_SCORE = 1;
@@ -13,27 +13,28 @@ const SCORE_PARTIAL_TOKEN = 0.5;
 let topicsCache = null;
 let cacheReady = false;
 
-/** @returns {object[] | null} */
-function loadTopicsArray() {
-  if (cacheReady) return topicsCache;
-
+async function initHelpTopicsFromDisk() {
+  if (cacheReady) return;
   try {
-    const raw = fs.readFileSync(HELP_TOPICS_PATH, 'utf8');
-    const data = JSON.parse(raw);
+    const data = await readJson(HELP_TOPICS_PATH);
     const topics = data?.topics;
     if (!Array.isArray(topics)) {
       topicsCache = null;
-      cacheReady = true;
-      return null;
+    } else {
+      topicsCache = topics;
     }
-    topicsCache = topics;
-    cacheReady = true;
-    return topicsCache;
   } catch {
     topicsCache = null;
-    cacheReady = true;
-    return null;
   }
+  cacheReady = true;
+}
+
+/** @returns {object[] | null} */
+function loadTopicsArray() {
+  if (!cacheReady) {
+    throw new Error('[HelpMatcher] initHelpTopicsFromDisk() must be awaited before use');
+  }
+  return topicsCache;
 }
 
 /**
@@ -260,4 +261,9 @@ function getHelpTopics() {
   return loadTopicsArray();
 }
 
-module.exports = { matchHelpTopic, getHelpTopics, getClosestHelpTopics };
+module.exports = {
+  initHelpTopicsFromDisk,
+  matchHelpTopic,
+  getHelpTopics,
+  getClosestHelpTopics
+};

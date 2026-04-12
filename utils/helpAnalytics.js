@@ -1,7 +1,8 @@
 'use strict';
 
-const fs = require('fs');
 const path = require('path');
+const { readJson, writeJson } = require('./jsonStore');
+const withJsonFile = writeJson.withFileLock;
 
 const ANALYTICS_PATH = path.join(__dirname, '..', 'data', 'helpAnalytics.json');
 
@@ -15,54 +16,47 @@ function defaultData() {
   };
 }
 
-function readAnalytics() {
-  try {
-    if (!fs.existsSync(ANALYTICS_PATH)) {
-      return defaultData();
+function mergeParsed(parsed) {
+  const base = defaultData();
+  if (!parsed || typeof parsed !== 'object') return base;
+  return {
+    ...base,
+    ...parsed,
+    help_topic_requested: {
+      ...base.help_topic_requested,
+      ...(parsed.help_topic_requested && typeof parsed.help_topic_requested === 'object'
+        ? parsed.help_topic_requested
+        : {})
+    },
+    help_topic_clicked: {
+      ...base.help_topic_clicked,
+      ...(parsed.help_topic_clicked && typeof parsed.help_topic_clicked === 'object'
+        ? parsed.help_topic_clicked
+        : {})
     }
-    const raw = fs.readFileSync(ANALYTICS_PATH, 'utf8');
-    const parsed = JSON.parse(raw);
-    const base = defaultData();
-    return {
-      ...base,
-      ...parsed,
-      help_topic_requested: {
-        ...base.help_topic_requested,
-        ...(parsed.help_topic_requested && typeof parsed.help_topic_requested === 'object'
-          ? parsed.help_topic_requested
-          : {})
-      },
-      help_topic_clicked: {
-        ...base.help_topic_clicked,
-        ...(parsed.help_topic_clicked && typeof parsed.help_topic_clicked === 'object'
-          ? parsed.help_topic_clicked
-          : {})
-      }
-    };
-  } catch {
-    return defaultData();
-  }
-}
-
-function writeAnalytics(data) {
-  try {
-    fs.mkdirSync(path.dirname(ANALYTICS_PATH), { recursive: true });
-    fs.writeFileSync(ANALYTICS_PATH, JSON.stringify(data, null, 2), 'utf8');
-  } catch (err) {
-    console.error('[HelpAnalytics] write failed:', err?.message || err);
-  }
+  };
 }
 
 /**
- * Stable key: optional `topic.id`, else trimmed `title`.
- * @param {object|null|undefined} topic
- * @returns {string}
+ * @returns {Promise<object>}
  */
-function getTopicKey(topic) {
-  if (!topic || typeof topic !== 'object') return 'unknown';
-  if (typeof topic.id === 'string' && topic.id.trim()) return topic.id.trim();
-  const t = String(topic.title || '').trim();
-  return t || 'unknown';
+async function readAnalytics() {
+  try {
+    const parsed = await readJson(ANALYTICS_PATH);
+    try {
+      return mergeParsed(/** @type {object} */ (parsed));
+    } catch {
+      return defaultData();
+    }
+  } catch (e) {
+    const code = e && /** @type {{ code?: string }} */ (e).code;
+    if (code === 'ENOENT') return defaultData();
+    if (e instanceof SyntaxError) {
+      console.error('[HelpAnalytics] Invalid JSON in helpAnalytics.json:', e.message);
+      return defaultData();
+    }
+    return defaultData();
+  }
 }
 
 function schedule(fn) {
@@ -74,11 +68,25 @@ function schedule(fn) {
 }
 
 function bumpMapCounter(mapName, topic) {
-  const data = readAnalytics();
-  if (!data[mapName] || typeof data[mapName] !== 'object') data[mapName] = {};
-  const key = getTopicKey(topic);
-  data[mapName][key] = Number(data[mapName][key] || 0) + 1;
-  writeAnalytics(data);
+  withJsonFile(ANALYTICS_PATH, async ({ readParsed, writeParsed }) => {
+    let parsed;
+    try {
+      parsed = await readParsed();
+    } catch (e) {
+      const code = e && /** @type {{ code?: string }} */ (e).code;
+      if (code === 'ENOENT') parsed = {};
+      else parsed = {};
+    }
+    const data = mergeParsed(
+      parsed && typeof parsed === 'object' ? /** @type {object} */ (parsed) : {}
+    );
+    if (!data[mapName] || typeof data[mapName] !== 'object') data[mapName] = {};
+    const key = getTopicKey(topic);
+    data[mapName][key] = Number(data[mapName][key] || 0) + 1;
+    await writeParsed(data);
+  }).catch((err) => {
+    console.error('[HelpAnalytics] write failed:', err?.message || err);
+  });
 }
 
 /** !help <q> matched and topic content is being delivered. */
@@ -94,23 +102,59 @@ function recordHelpTopicClicked(topic) {
 /** !help <q> had no match (before suggestions DM). */
 function recordHelpQuestionNoMatch() {
   schedule(() => {
-    try {
-      const data = readAnalytics();
+    withJsonFile(ANALYTICS_PATH, async ({ readParsed, writeParsed }) => {
+      let parsed;
+      try {
+        parsed = await readParsed();
+      } catch (e) {
+        const code = e && /** @type {{ code?: string }} */ (e).code;
+        if (code === 'ENOENT') parsed = {};
+        else parsed = {};
+      }
+      const data = mergeParsed(
+        parsed && typeof parsed === 'object' ? /** @type {object} */ (parsed) : {}
+      );
       data.help_question_no_match = Number(data.help_question_no_match || 0) + 1;
-      writeAnalytics(data);
-    } catch (_) {}
+      await writeParsed(data);
+    }).catch((err) => {
+      console.error('[HelpAnalytics] write failed:', err?.message || err);
+    });
   });
 }
 
 /** !faq invoked. */
 function recordFaqOpened() {
   schedule(() => {
-    try {
-      const data = readAnalytics();
+    withJsonFile(ANALYTICS_PATH, async ({ readParsed, writeParsed }) => {
+      let parsed;
+      try {
+        parsed = await readParsed();
+      } catch (e) {
+        const code = e && /** @type {{ code?: string }} */ (e).code;
+        if (code === 'ENOENT') parsed = {};
+        else parsed = {};
+      }
+      const data = mergeParsed(
+        parsed && typeof parsed === 'object' ? /** @type {object} */ (parsed) : {}
+      );
       data.faq_opened = Number(data.faq_opened || 0) + 1;
-      writeAnalytics(data);
-    } catch (_) {}
+      await writeParsed(data);
+    }).catch((err) => {
+      console.error('[HelpAnalytics] write failed:', err?.message || err);
+    });
   });
+}
+
+/**
+ * Stable key: optional `topic.id`, else trimmed `title`.
+ * @param {object|null|undefined} topic
+ * @returns {string}
+ */
+function getTopicKey(topic) {
+  if (!topic || typeof topic !== 'object') return 'unknown';
+  if (typeof topic.id === 'string' && topic.id.trim()) return topic.id.trim();
+  const t = String(topic.title || '').trim();
+  return t || 'unknown';
 }
 
 module.exports = {

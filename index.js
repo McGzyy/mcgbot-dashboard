@@ -1,7 +1,7 @@
 require('dotenv').config();
 
-const fs = require('fs');
 const path = require('path');
+const { readJson, writeJson } = require('./utils/jsonStore');
 
 const {
   Client,
@@ -34,6 +34,7 @@ const {
   buildOhlcvCandlestickBufferForTrackedCall
 } = require('./utils/ohlcvCandlestickBuffer');
 const { handleOhlcvTimeframeButton } = require('./utils/ohlcvChartControls');
+const { resolveGuildForTrackedApproval } = require('./utils/resolveGuildForTrackedApproval');
 
 const {
   createAutoCallEmbed,
@@ -132,36 +133,52 @@ const MOD_CHANNEL_NAME = 'mod-chat';
 
 const BOT_SETTINGS_PATH = path.join(__dirname, 'data', 'botSettings.json');
 
-function loadBotSettings() {
+let BOT_SETTINGS = { scannerEnabled: true };
+let SCANNER_ENABLED = true;
+
+async function hydrateBotSettingsFromDisk() {
   try {
-    if (!fs.existsSync(BOT_SETTINGS_PATH)) {
-      const defaults = { scannerEnabled: true };
-      fs.writeFileSync(BOT_SETTINGS_PATH, JSON.stringify(defaults, null, 2), 'utf8');
-      return defaults;
-    }
-
-    const raw = fs.readFileSync(BOT_SETTINGS_PATH, 'utf8');
-    const parsed = JSON.parse(raw);
-
+    const parsed = /** @type {{ scannerEnabled?: boolean }} */ (await readJson(BOT_SETTINGS_PATH));
     return {
       scannerEnabled: parsed.scannerEnabled !== false
     };
   } catch (error) {
-    console.error('[BotSettings] Failed to load settings:', error.message);
+    const code = error && /** @type {{ code?: string }} */ (error).code;
+    if (code === 'ENOENT') {
+      const defaults = { scannerEnabled: true };
+      try {
+        await writeJson(BOT_SETTINGS_PATH, defaults);
+      } catch (e) {
+        console.error(
+          '[BotSettings] Failed to create default settings file:',
+          /** @type {Error} */ (e).message
+        );
+      }
+      return defaults;
+    }
+    if (error instanceof SyntaxError) {
+      console.error('[BotSettings] Invalid JSON in botSettings.json:', error.message);
+      return { scannerEnabled: true };
+    }
+    console.error('[BotSettings] Failed to load settings:', /** @type {Error} */ (error).message);
     return { scannerEnabled: true };
   }
 }
 
+function loadBotSettings() {
+  return { ...BOT_SETTINGS };
+}
+
 function saveBotSettings(settings) {
   try {
-    fs.writeFileSync(BOT_SETTINGS_PATH, JSON.stringify(settings, null, 2), 'utf8');
+    BOT_SETTINGS = { ...settings };
+    writeJson(BOT_SETTINGS_PATH, BOT_SETTINGS).catch((error) => {
+      console.error('[BotSettings] Failed to save settings:', error.message);
+    });
   } catch (error) {
     console.error('[BotSettings] Failed to save settings:', error.message);
   }
 }
-
-let BOT_SETTINGS = loadBotSettings();
-let SCANNER_ENABLED = BOT_SETTINGS.scannerEnabled;
 
 function extractSolanaAddress(text) {
   const match = text.match(/\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/);
@@ -439,6 +456,32 @@ function getBotCallsChannel(guild) {
       ch.isTextBased() &&
       ch.name === 'bot-calls'
   ) || null;
+}
+
+/**
+ * Single-guild bots behave as before. Multi-guild: DISCORD_GUILD_ID, else guild with #bot-calls (stable id order), else stable fallback.
+ * Does not use guilds.cache.first().
+ *
+ * @param {import('discord.js').Client} discordClient
+ */
+function getPrimaryGuildForBotAlerts(discordClient) {
+  if (!discordClient?.guilds?.cache) return null;
+
+  const envId = String(process.env.DISCORD_GUILD_ID ?? '').trim();
+  if (envId) {
+    const g = discordClient.guilds.cache.get(envId);
+    if (g) return g;
+  }
+
+  const values = [...discordClient.guilds.cache.values()];
+  if (values.length === 1) return values[0];
+
+  const withBotCalls = values
+    .filter((g) => getBotCallsChannel(g))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  if (withBotCalls.length) return withBotCalls[0];
+
+  return values.sort((a, b) => a.id.localeCompare(b.id))[0] ?? null;
 }
 
 function getModChannel(guild) {
@@ -1010,29 +1053,8 @@ async function publishApprovedCoinToX(contractAddress) {
   };
 }
 
-async function deleteApprovalMessage(guild, trackedCall) {
-  try {
-    if (!trackedCall?.approvalChannelId || !trackedCall?.approvalMessageId || !guild) return false;
-
-    const channel = guild.channels.cache.get(trackedCall.approvalChannelId);
-    if (!channel || !channel.isTextBased()) return false;
-
-    const message = await channel.messages.fetch(trackedCall.approvalMessageId).catch(() => null);
-    if (!message) return false;
-
-    await message.delete().catch(() => null);
-    return true;
-  } catch (error) {
-    console.error('[ApprovalQueue] Failed to delete approval message:', error.message);
-    return false;
-  }
-}
-
 async function cleanupExpiredApprovals() {
   try {
-    const guild = client.guilds.cache.first();
-    if (!guild) return;
-
     const allCalls = getAllTrackedCalls();
     const now = Date.now();
 
@@ -1045,7 +1067,7 @@ async function cleanupExpiredApprovals() {
 
       if (now >= expiresAt) {
         setApprovalStatus(trackedCall.contractAddress, 'expired');
-        await refreshApprovalMessage(guild, trackedCall.contractAddress, true);
+        await refreshApprovalMessage(trackedCall.contractAddress, true);
 
         console.log(`[ApprovalQueue] Expired approval marked for ${trackedCall.contractAddress}`);
       }
@@ -1055,9 +1077,15 @@ async function cleanupExpiredApprovals() {
   }
 }
 
-async function refreshApprovalMessage(guild, contractAddress, forceLocked = false) {
+async function refreshApprovalMessage(contractAddress, forceLocked = false) {
   const trackedCall = getTrackedCall(contractAddress);
   if (!trackedCall || !trackedCall.approvalChannelId || !trackedCall.approvalMessageId) return;
+
+  const guild = await resolveGuildForTrackedApproval(client, trackedCall);
+  if (!guild) {
+    console.error('[ApprovalQueue] Failed to refresh approval message: could not resolve guild');
+    return;
+  }
 
   try {
     const channel = guild.channels.cache.get(trackedCall.approvalChannelId);
@@ -1066,10 +1094,11 @@ async function refreshApprovalMessage(guild, contractAddress, forceLocked = fals
     const message = await channel.messages.fetch(trackedCall.approvalMessageId).catch(() => null);
     if (!message) return;
 
-    const isLocked = forceLocked || trackedCall.approvalStatus !== 'pending';
+    const latest = getTrackedCall(contractAddress) || trackedCall;
+    const isLocked = forceLocked || latest.approvalStatus !== 'pending';
 
     await message.edit({
-      embeds: [buildApprovalStatusEmbed(trackedCall)],
+      embeds: [buildApprovalStatusEmbed(latest)],
       components: isLocked ? [] : buildApprovalButtons(contractAddress)
     });
   } catch (error) {
@@ -1405,8 +1434,7 @@ async function ensureVerifyXPrompt(guild) {
 client.once('clientReady', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 
-  const guilds = client.guilds.cache;
-  const firstGuild = guilds.first();
+  const firstGuild = getPrimaryGuildForBotAlerts(client);
 
   if (!firstGuild) {
     console.log('❌ No guild found for monitoring alerts.');
@@ -1689,6 +1717,27 @@ if (!trackedCall) {
   return;
 }
 
+const mustMatchApprovalGuild = [
+  'approve_call',
+  'deny_call',
+  'exclude_call',
+  'tag_call',
+  'note_call',
+  'done_call'
+];
+if (
+  mustMatchApprovalGuild.includes(action) &&
+  trackedCall.approvalGuildId &&
+  interaction.guildId &&
+  trackedCall.approvalGuildId !== interaction.guildId
+) {
+  await interaction.reply({
+    content: '❌ This approval request belongs to a different server.',
+    ephemeral: true
+  });
+  return;
+}
+
 if (
   ['approve_call', 'deny_call', 'exclude_call'].includes(action) &&
   trackedCall.approvalStatus !== 'pending'
@@ -1868,6 +1917,18 @@ let updated = null;
       if (!trackedCall) {
         await interaction.reply({
           content: '❌ That tracked call could not be found.',
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (
+        trackedCall.approvalGuildId &&
+        interaction.guildId &&
+        trackedCall.approvalGuildId !== interaction.guildId
+      ) {
+        await interaction.reply({
+          content: '❌ This approval request belongs to a different server.',
           ephemeral: true
         });
         return;
@@ -3250,4 +3311,27 @@ if (lowerContent.startsWith('!truestats')) {
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+(async function startBot() {
+  try {
+    const { initUserProfilesStore } = require('./utils/userProfileService');
+    const { initTrackedDevsStore } = require('./utils/devRegistryService');
+    const { initScannerSettingsStore } = require('./utils/scannerSettingsService');
+    const { initTrackedCallsStore } = require('./utils/trackedCallsService');
+    const { initHelpTopicsFromDisk } = require('./utils/helpMatcher');
+
+    await initUserProfilesStore();
+    await initTrackedDevsStore();
+    await initScannerSettingsStore();
+    await initTrackedCallsStore();
+    await initHelpTopicsFromDisk();
+
+    BOT_SETTINGS = await hydrateBotSettingsFromDisk();
+    SCANNER_ENABLED = BOT_SETTINGS.scannerEnabled !== false;
+  } catch (err) {
+    console.error('[Startup] Failed to initialize JSON data stores:', err);
+    process.exitCode = 1;
+    return;
+  }
+
+  client.login(process.env.DISCORD_TOKEN);
+})();

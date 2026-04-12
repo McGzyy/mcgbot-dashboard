@@ -28,6 +28,7 @@ const { getCandlestickOverlayProps } = require('./candlestickOverlayFromTracked'
 const { persistChartMarkerEvents } = require('./chartEventPersistence');
 const { buildOhlcvTimeframeRows } = require('./ohlcvChartControls');
 const { resolvePublicCallerName } = require('./userProfileService');
+const { resolveGuildForTrackedApproval } = require('./resolveGuildForTrackedApproval');
 const {
   determineLifecycleStatus,
   getLifecycleChangeReason
@@ -576,7 +577,7 @@ return getAllTrackedCalls()
     });
 }
 
-async function pruneApprovalPool(guild) {
+async function pruneApprovalPool(client) {
   const active = getActivePendingApprovals();
 
   if (active.length <= MAX_ACTIVE_APPROVALS) return;
@@ -589,7 +590,15 @@ async function pruneApprovalPool(guild) {
   for (const trackedCall of remove) {
     if (keepSet.has(trackedCall.contractAddress)) continue;
 
-    await deleteApprovalMessage(guild, trackedCall);
+    const pruneGuild = client ? await resolveGuildForTrackedApproval(client, trackedCall) : null;
+    if (pruneGuild) {
+      await deleteApprovalMessage(pruneGuild, trackedCall);
+    } else {
+      console.warn(
+        '[ApprovalQueue] Could not resolve guild for pruned approval; skipping message delete:',
+        trackedCall.contractAddress
+      );
+    }
 
     setApprovalStatus(trackedCall.contractAddress, 'expired');
     clearApprovalRequest(trackedCall.contractAddress);
@@ -628,13 +637,18 @@ async function postApprovalReview(channel, trackedCall, scan = null, triggerX = 
       components: buttons
     });
 
-    setApprovalMessageMeta(trackedCall.contractAddress, sent.id, approvalChannel.id);
+    setApprovalMessageMeta(
+      trackedCall.contractAddress,
+      sent.id,
+      approvalChannel.id,
+      guild.id
+    );
 
     console.log(
       `[ApprovalQueue] Queued ${trackedCall.tokenName || trackedCall.contractAddress} for ${triggerX}x approval`
     );
 
-    await pruneApprovalPool(guild);
+    await pruneApprovalPool(channel.client);
 
     return sent.id;
   } catch (error) {
@@ -729,6 +743,20 @@ function queueDump(channel, coin, scan, key, drawdown) {
 }
 
 /**
+ * Successful monitor tick requires a real scan object with finite marketCap > 0.
+ * Null scan, missing/invalid marketCap, NaN, and mc <= 0 all count as failed scans.
+ *
+ * @param {unknown} scan
+ * @returns {boolean}
+ */
+function isSuccessfulMarketScan(scan) {
+  if (scan === null || scan === undefined) return false;
+  if (typeof scan !== 'object') return false;
+  const mc = Number(/** @type {{ marketCap?: unknown }} */ (scan).marketCap);
+  return Number.isFinite(mc) && mc > 0;
+}
+
+/**
  * =========================
  * MAIN LOOP
  * =========================
@@ -752,39 +780,35 @@ async function checkTrackedCoins(channel) {
 
       const scan = await generateRealScan(coin.contractAddress);
 
-      if (!scan) {
+      if (!isSuccessfulMarketScan(scan)) {
+        const failedScans = Number(coin.failedScans || 0) + 1;
+
+        updateTrackedCallData(coin.contractAddress, {
+          failedScans,
+          lastUpdatedAt: new Date().toISOString()
+        });
+
+        if (failedScans >= 3) {
+          updateTrackedCallData(coin.contractAddress, {
+            lifecycleStatus: 'archived',
+            isActive: false,
+            failedScans,
+            lastUpdatedAt: new Date().toISOString()
+          });
+
+          console.log(
+            `[Monitor] Archived ${coin.tokenName || coin.contractAddress} -> repeated failed scans (${failedScans})`
+          );
+        } else {
+          console.log(
+            `[Monitor] ${coin.tokenName || coin.contractAddress} -> scan failed (${failedScans}/3)`
+          );
+        }
+
         continue;
       }
 
-      if (!scan.marketCap || scan.marketCap <= 0) {
-  const failedScans = Number(coin.failedScans || 0) + 1;
-
-  updateTrackedCallData(coin.contractAddress, {
-    failedScans,
-    lastUpdatedAt: new Date().toISOString()
-  });
-
-  if (failedScans >= 3) {
-    updateTrackedCallData(coin.contractAddress, {
-      lifecycleStatus: 'archived',
-      isActive: false,
-      failedScans,
-      lastUpdatedAt: new Date().toISOString()
-    });
-
-    console.log(
-      `[Monitor] Archived ${coin.tokenName || coin.contractAddress} -> repeated failed scans (${failedScans})`
-    );
-  } else {
-    console.log(
-      `[Monitor] ${coin.tokenName || coin.contractAddress} -> scan failed (${failedScans}/3)`
-    );
-  }
-
-  continue;
-}
-
-      const currentMc = scan.marketCap;
+      const currentMc = Number(/** @type {{ marketCap: number }} */ (scan).marketCap);
       const firstMc = coin.firstCalledMarketCap || currentMc;
       const athMc = Math.max(coin.athMc || firstMc, currentMc);
 

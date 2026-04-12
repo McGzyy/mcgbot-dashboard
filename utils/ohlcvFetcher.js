@@ -29,7 +29,7 @@ const INTERVAL_PRESETS = {
 
 /**
  * Provider contract: given normalized params, return normalized bars or [] on soft failure.
- * @typedef {{ fetch: (params: { network: string, pairAddress: string, timeframe: string, aggregate: number, limit: number }) => Promise<OhlcvBar[]> }} OhlcvProvider
+ * @typedef {{ fetch: (params: { network: string, pairAddress: string, timeframe: string, aggregate: number, limit: number, intervalLabel?: string }) => Promise<OhlcvBar[]> }} OhlcvProvider
  */
 
 const CHAIN_ALIASES = {
@@ -91,6 +91,37 @@ function parseInterval(interval) {
 }
 
 /**
+ * Interval token used in logs (matches request when supported; else default after fetcher fallback).
+ * @param {string} [interval]
+ * @returns {string}
+ */
+function intervalLabelForLog(interval) {
+  const raw = String(interval ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  if (raw && INTERVAL_PRESETS[raw]) return raw;
+  return DEFAULT_OHLCV_INTERVAL;
+}
+
+/**
+ * @param {{ pair?: string, interval?: string, reason: string }} ctx
+ */
+function logOhlcvFailure(ctx) {
+  const pair = ctx.pair != null && String(ctx.pair).trim() ? String(ctx.pair).trim() : '(unknown)';
+  const interval = ctx.interval != null ? String(ctx.interval) : DEFAULT_OHLCV_INTERVAL;
+  console.warn(
+    '[ohlcvFetcher] %s',
+    JSON.stringify({
+      event: 'ohlcv_fetch_issue',
+      pair,
+      interval,
+      reason: String(ctx.reason || 'unknown')
+    })
+  );
+}
+
+/**
  * Milliseconds spanned by one candle for the given interval token (after `parseInterval` rules).
  * @param {string} [interval]
  * @returns {number}
@@ -128,11 +159,19 @@ function normalizeGeckoRow(row) {
 }
 
 /**
- * @param {{ network: string, pairAddress: string, timeframe: string, aggregate: number, limit: number }} p
+ * @param {{
+ *   network: string,
+ *   pairAddress: string,
+ *   timeframe: string,
+ *   aggregate: number,
+ *   limit: number,
+ *   intervalLabel?: string
+ * }} p
  * @returns {Promise<OhlcvBar[]>}
  */
 async function geckoTerminalFetch(p) {
   const pair = String(p.pairAddress || '').trim();
+  const interval = p.intervalLabel != null ? String(p.intervalLabel) : DEFAULT_OHLCV_INTERVAL;
   if (!pair) return [];
 
   const limit = Math.min(Math.max(1, p.limit || 100), MAX_LIMIT);
@@ -151,16 +190,38 @@ async function geckoTerminalFetch(p) {
   });
 
   if (res.status < 200 || res.status >= 300) {
+    logOhlcvFailure({
+      pair,
+      interval,
+      reason: `HTTP ${res.status}`
+    });
     return [];
   }
 
   const list = res.data?.data?.attributes?.ohlcv_list;
-  if (!Array.isArray(list)) return [];
+  if (!Array.isArray(list)) {
+    logOhlcvFailure({
+      pair,
+      interval,
+      reason: 'invalid ohlcv_list shape'
+    });
+    return [];
+  }
 
   const bars = [];
   for (const row of list) {
     const bar = normalizeGeckoRow(row);
     if (bar) bars.push(bar);
+  }
+
+  if (bars.length === 0) {
+    logOhlcvFailure({
+      pair,
+      interval,
+      reason:
+        list.length === 0 ? 'empty ohlcv_list' : 'no valid candles in response'
+    });
+    return [];
   }
 
   bars.sort((a, b) => a.time - b.time);
@@ -196,10 +257,12 @@ function activeProvider() {
  * @returns {Promise<OhlcvBar[]|null>} `null` if required args are missing; `[]` on network/API failure
  */
 async function fetchOhlcv(params = {}) {
-  try {
-    const pairAddress = String(params.pairAddress || '').trim();
-    if (!pairAddress) return null;
+  const pairAddress = String(params.pairAddress || '').trim();
+  const intervalLabel = intervalLabelForLog(params.interval);
 
+  if (!pairAddress) return null;
+
+  try {
     const network = toNetworkId(params.chain);
     const { timeframe, aggregate } = parseInterval(params.interval);
     const limit = Math.min(
@@ -213,11 +276,36 @@ async function fetchOhlcv(params = {}) {
       pairAddress,
       timeframe,
       aggregate,
-      limit
+      limit,
+      intervalLabel
     });
 
-    return Array.isArray(bars) ? bars : [];
-  } catch (_err) {
+    if (!Array.isArray(bars)) {
+      if (provider !== defaultGeckoProvider) {
+        logOhlcvFailure({
+          pair: pairAddress,
+          interval: intervalLabel,
+          reason: 'provider returned non-array'
+        });
+      }
+      return [];
+    }
+
+    if (bars.length === 0 && provider !== defaultGeckoProvider) {
+      logOhlcvFailure({
+        pair: pairAddress,
+        interval: intervalLabel,
+        reason: 'provider returned no bars'
+      });
+    }
+
+    return bars;
+  } catch (err) {
+    logOhlcvFailure({
+      pair: pairAddress || '(unknown)',
+      interval: intervalLabel,
+      reason: err instanceof Error ? err.message : String(err)
+    });
     return [];
   }
 }

@@ -616,7 +616,17 @@ async function renderCandlestickChart(candles, options = {}) {
   try {
     const canvas = getRenderer(width, height, backgroundColour);
     return await canvas.renderToBuffer(configuration, 'image/png');
-  } catch (_err) {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(
+      '[candlestickChart] %s',
+      JSON.stringify({
+        event: 'render_to_buffer_failed',
+        candleCount: normalized.length,
+        overlaysPresent: hasAnyOverlay,
+        error: msg
+      })
+    );
     return null;
   }
 }

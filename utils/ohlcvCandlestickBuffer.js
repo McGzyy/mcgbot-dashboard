@@ -64,6 +64,27 @@ function normalizeOhlcvRange(range) {
 }
 
 /**
+ * @param {{
+ *   pairAddress: string,
+ *   interval: string,
+ *   range: string | null,
+ *   error: string
+ * }} ctx
+ */
+function logOhlcvBufferIssue(ctx) {
+  console.warn(
+    '[ohlcvCandlestickBuffer] %s',
+    JSON.stringify({
+      event: 'ohlcv_chart_pipeline',
+      pairAddress: ctx.pairAddress,
+      interval: ctx.interval,
+      range: ctx.range,
+      error: ctx.error
+    })
+  );
+}
+
+/**
  * Candle count for a time preset at the given interval, capped at the provider max.
  * @param {'24h'|'7d'|'30d'|'all'} rangeKey
  * @param {string} interval — normalized interval token (same rules as fetch)
@@ -118,6 +139,12 @@ async function buildOhlcvCandlestickBuffer(options = {}) {
   const chain = options.chain || 'solana';
   const interval = normalizeOhlcvInterval(options.interval);
   const rangeKey = normalizeOhlcvRange(options.range);
+  const rangeForLog =
+    rangeKey != null
+      ? rangeKey
+      : options.range != null && String(options.range).trim() !== ''
+        ? String(options.range).trim()
+        : null;
   const limit = rangeKey
     ? limitFromOhlcvRange(rangeKey, interval)
     : resolveOhlcvLimit(options.limit);
@@ -158,12 +185,41 @@ async function buildOhlcvCandlestickBuffer(options = {}) {
 
   try {
     const bars = await fetchOhlcv({ chain, pairAddress, interval, limit });
-    if (!Array.isArray(bars) || bars.length < 2) return null;
+    if (!Array.isArray(bars) || bars.length < 2) {
+      logOhlcvBufferIssue({
+        pairAddress,
+        interval,
+        range: rangeForLog,
+        error: !Array.isArray(bars)
+          ? 'fetch returned non-array'
+          : `insufficient bars (${bars.length}); need at least 2`
+      });
+      return null;
+    }
 
     const buf = await renderCandlestickChart(bars, chartOptions);
-    if (!Buffer.isBuffer(buf) || buf.length < 100) return null;
+    if (buf == null || !Buffer.isBuffer(buf) || buf.length < 100) {
+      logOhlcvBufferIssue({
+        pairAddress,
+        interval,
+        range: rangeForLog,
+        error:
+          buf == null
+            ? 'chart render returned null'
+            : !Buffer.isBuffer(buf)
+              ? 'chart render returned non-buffer'
+              : `chart buffer too small (${buf.length} bytes)`
+      });
+      return null;
+    }
     return buf;
-  } catch (_err) {
+  } catch (err) {
+    logOhlcvBufferIssue({
+      pairAddress,
+      interval,
+      range: rangeForLog,
+      error: err instanceof Error ? err.message : String(err)
+    });
     return null;
   }
 }

@@ -1,11 +1,36 @@
-const fs = require('fs');
 const path = require('path');
+const { readJson, writeJson } = require('./jsonStore');
 const {
   upsertUserProfile,
   resolvePublicCallerName
 } = require('../utils/userProfileService');
 
 const trackedCallsFilePath = path.join(__dirname, '../data/trackedCalls.json');
+
+/** @type {unknown[]} */
+let _callsStore = [];
+let _trackedCallsHydrated = false;
+
+async function initTrackedCallsStore() {
+  if (_trackedCallsHydrated) return;
+  _trackedCallsHydrated = true;
+  try {
+    const parsed = await readJson(trackedCallsFilePath);
+    _callsStore = Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    const code = error && /** @type {{ code?: string }} */ (error).code;
+    if (code === 'ENOENT') {
+      await writeJson(trackedCallsFilePath, []);
+      _callsStore = [];
+    } else if (error instanceof SyntaxError) {
+      console.error('[TrackedCalls] Invalid JSON in trackedCalls.json:', error.message);
+      _callsStore = [];
+    } else {
+      console.error('[TrackedCalls] Failed to load tracked calls:', /** @type {Error} */ (error).message);
+      _callsStore = [];
+    }
+  }
+}
 
 /**
  * @param {unknown} arr
@@ -27,28 +52,28 @@ function normalizeChartEventRows(arr) {
 }
 
 function loadTrackedCalls() {
+  if (!_trackedCallsHydrated) {
+    throw new Error('[TrackedCalls] initTrackedCallsStore() must be awaited before use');
+  }
   try {
-    if (!fs.existsSync(trackedCallsFilePath)) {
-      fs.writeFileSync(trackedCallsFilePath, JSON.stringify([], null, 2));
-    }
-
-    const rawData = fs.readFileSync(trackedCallsFilePath, 'utf-8');
-    const calls = JSON.parse(rawData);
-
-    return Array.isArray(calls)
-      ? calls.map(normalizeTrackedCall)
-      : [];
+    return Array.isArray(_callsStore) ? _callsStore.map(normalizeTrackedCall) : [];
   } catch (error) {
-    console.error('[TrackedCalls] Failed to load tracked calls:', error.message);
+    console.error('[TrackedCalls] Failed to load tracked calls:', /** @type {Error} */ (error).message);
     return [];
   }
 }
 
 function saveTrackedCalls(calls) {
+  if (!_trackedCallsHydrated) {
+    throw new Error('[TrackedCalls] initTrackedCallsStore() must be awaited before use');
+  }
   try {
-    fs.writeFileSync(trackedCallsFilePath, JSON.stringify(calls, null, 2));
+    _callsStore = Array.isArray(calls) ? calls : [];
+    writeJson(trackedCallsFilePath, _callsStore).catch((error) => {
+      console.error('[TrackedCalls] Failed to save tracked calls:', /** @type {Error} */ (error).message);
+    });
   } catch (error) {
-    console.error('[TrackedCalls] Failed to save tracked calls:', error.message);
+    console.error('[TrackedCalls] Failed to save tracked calls:', /** @type {Error} */ (error).message);
   }
 }
 
@@ -82,6 +107,7 @@ function normalizeTrackedCall(call = {}) {
 
     approvalMessageId: call.approvalMessageId || null,
     approvalChannelId: call.approvalChannelId || null,
+    approvalGuildId: call.approvalGuildId || null,
     approvalRequestedAt: call.approvalRequestedAt || null,
     approvalExpiresAt: call.approvalExpiresAt || null,
     lastApprovalTriggerX: Number(call.lastApprovalTriggerX || 0),
@@ -457,6 +483,7 @@ function saveTrackedCall(
 
       approvalMessageId: existing.approvalMessageId || null,
       approvalChannelId: existing.approvalChannelId || null,
+      approvalGuildId: existing.approvalGuildId || null,
       approvalRequestedAt: existing.approvalRequestedAt || null,
       approvalExpiresAt: existing.approvalExpiresAt || null,
       lastApprovalTriggerX: Number(existing.lastApprovalTriggerX || 0),
@@ -526,6 +553,7 @@ function saveTrackedCall(
 
     approvalMessageId: null,
     approvalChannelId: null,
+    approvalGuildId: null,
     approvalRequestedAt: null,
     approvalExpiresAt: null,
     lastApprovalTriggerX: 0,
@@ -705,10 +733,16 @@ function markApprovalRequested(contractAddress, triggerX = 0, expiresAt = null) 
   });
 }
 
-function setApprovalMessageMeta(contractAddress, approvalMessageId = null, approvalChannelId = null) {
+function setApprovalMessageMeta(
+  contractAddress,
+  approvalMessageId = null,
+  approvalChannelId = null,
+  approvalGuildId = null
+) {
   return updateTrackedCallData(contractAddress, {
     approvalMessageId: approvalMessageId || null,
-    approvalChannelId: approvalChannelId || null
+    approvalChannelId: approvalChannelId || null,
+    approvalGuildId: approvalGuildId || null
   });
 }
 
@@ -716,6 +750,7 @@ function clearApprovalRequest(contractAddress) {
   return updateTrackedCallData(contractAddress, {
     approvalMessageId: null,
     approvalChannelId: null,
+    approvalGuildId: null,
     approvalRequestedAt: null,
     approvalExpiresAt: null
   });
@@ -895,6 +930,7 @@ function excludeTrackedBotCallsFromStats(resetMeta = {}) {
  */
 
 module.exports = {
+  initTrackedCallsStore,
   loadTrackedCalls,
   saveTrackedCalls,
   getTrackedCall,

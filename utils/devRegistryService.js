@@ -1,37 +1,59 @@
-const fs = require('fs');
 const path = require('path');
+const { readJson, writeJson } = require('./jsonStore');
 
 const trackedDevsFilePath = path.join(__dirname, '../data/trackedDevs.json');
 
 const TRACKED_DEVS_CHANNEL_NAMES = ['tracked-devs'];
 const DEV_FEED_CHANNEL_NAMES = ['dev-feed'];
 
-function ensureTrackedDevsFile() {
+/** @type {unknown[]} */
+let _devsStore = [];
+let _trackedDevsHydrated = false;
+
+async function initTrackedDevsStore() {
+  if (_trackedDevsHydrated) return;
+  _trackedDevsHydrated = true;
   try {
-    if (!fs.existsSync(trackedDevsFilePath)) {
-      fs.writeFileSync(trackedDevsFilePath, JSON.stringify([], null, 2));
-    }
+    const parsed = await readJson(trackedDevsFilePath);
+    _devsStore = Array.isArray(parsed) ? parsed : [];
   } catch (error) {
-    console.error('[DevRegistry] Failed to ensure tracked dev file:', error.message);
+    const code = error && /** @type {{ code?: string }} */ (error).code;
+    if (code === 'ENOENT') {
+      await writeJson(trackedDevsFilePath, []);
+      _devsStore = [];
+    } else if (error instanceof SyntaxError) {
+      console.error('[DevRegistry] Invalid JSON in trackedDevs.json:', error.message);
+      _devsStore = [];
+    } else {
+      console.error('[DevRegistry] Failed to load tracked devs:', /** @type {Error} */ (error).message);
+      _devsStore = [];
+    }
   }
 }
 
 function loadTrackedDevs() {
+  if (!_trackedDevsHydrated) {
+    throw new Error('[DevRegistry] initTrackedDevsStore() must be awaited before use');
+  }
   try {
-    ensureTrackedDevsFile();
-    const rawData = fs.readFileSync(trackedDevsFilePath, 'utf-8');
-    return JSON.parse(rawData);
+    return Array.isArray(_devsStore) ? _devsStore : [];
   } catch (error) {
-    console.error('[DevRegistry] Failed to load tracked devs:', error.message);
+    console.error('[DevRegistry] Failed to load tracked devs:', /** @type {Error} */ (error).message);
     return [];
   }
 }
 
 function saveTrackedDevs(devs) {
+  if (!_trackedDevsHydrated) {
+    throw new Error('[DevRegistry] initTrackedDevsStore() must be awaited before use');
+  }
   try {
-    fs.writeFileSync(trackedDevsFilePath, JSON.stringify(devs, null, 2));
+    _devsStore = Array.isArray(devs) ? devs : [];
+    writeJson(trackedDevsFilePath, _devsStore).catch((error) => {
+      console.error('[DevRegistry] Failed to save tracked devs:', /** @type {Error} */ (error).message);
+    });
   } catch (error) {
-    console.error('[DevRegistry] Failed to save tracked devs:', error.message);
+    console.error('[DevRegistry] Failed to save tracked devs:', /** @type {Error} */ (error).message);
   }
 }
 
@@ -273,6 +295,7 @@ function getDevLeaderboard(limit = 10) {
 }
 
 module.exports = {
+  initTrackedDevsStore,
   isTrackedDevsChannel,
   isDevFeedChannel,
   isLikelySolWallet,

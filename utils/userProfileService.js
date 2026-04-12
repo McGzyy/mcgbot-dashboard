@@ -1,7 +1,11 @@
-const fs = require('fs');
 const path = require('path');
+const { readJson, writeJson } = require('./jsonStore');
 
 const userProfilesFilePath = path.join(__dirname, '../data/userProfiles.json');
+
+/** @type {unknown[]} */
+let _profilesStore = [];
+let _userProfilesHydrated = false;
 
 /**
  * =========================
@@ -9,35 +13,50 @@ const userProfilesFilePath = path.join(__dirname, '../data/userProfiles.json');
  * =========================
  */
 
-function ensureUserProfilesFile() {
+async function initUserProfilesStore() {
+  if (_userProfilesHydrated) return;
+  _userProfilesHydrated = true;
   try {
-    if (!fs.existsSync(userProfilesFilePath)) {
-      fs.writeFileSync(userProfilesFilePath, JSON.stringify([], null, 2));
-    }
+    const parsed = await readJson(userProfilesFilePath);
+    _profilesStore = Array.isArray(parsed) ? parsed : [];
   } catch (error) {
-    console.error('[UserProfiles] Failed to ensure file:', error.message);
+    const code = error && /** @type {{ code?: string }} */ (error).code;
+    if (code === 'ENOENT') {
+      await writeJson(userProfilesFilePath, []);
+      _profilesStore = [];
+    } else if (error instanceof SyntaxError) {
+      console.error('[UserProfiles] Invalid JSON in userProfiles.json:', error.message);
+      _profilesStore = [];
+    } else {
+      console.error('[UserProfiles] Failed to load profiles:', /** @type {Error} */ (error).message);
+      _profilesStore = [];
+    }
   }
 }
 
 function loadUserProfiles() {
+  if (!_userProfilesHydrated) {
+    throw new Error('[UserProfiles] initUserProfilesStore() must be awaited before use');
+  }
   try {
-    ensureUserProfilesFile();
-
-    const rawData = fs.readFileSync(userProfilesFilePath, 'utf-8');
-    const parsed = JSON.parse(rawData);
-
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(_profilesStore) ? _profilesStore : [];
   } catch (error) {
-    console.error('[UserProfiles] Failed to load profiles:', error.message);
+    console.error('[UserProfiles] Failed to load profiles:', /** @type {Error} */ (error).message);
     return [];
   }
 }
 
 function saveUserProfiles(profiles) {
+  if (!_userProfilesHydrated) {
+    throw new Error('[UserProfiles] initUserProfilesStore() must be awaited before use');
+  }
   try {
-    fs.writeFileSync(userProfilesFilePath, JSON.stringify(profiles, null, 2));
+    _profilesStore = Array.isArray(profiles) ? profiles : [];
+    writeJson(userProfilesFilePath, _profilesStore).catch((error) => {
+      console.error('[UserProfiles] Failed to save profiles:', /** @type {Error} */ (error).message);
+    });
   } catch (error) {
-    console.error('[UserProfiles] Failed to save profiles:', error.message);
+    console.error('[UserProfiles] Failed to save profiles:', /** @type {Error} */ (error).message);
   }
 }
 
@@ -709,6 +728,7 @@ function getPublicCallerIdentity({
  */
 
 module.exports = {
+  initUserProfilesStore,
   // basic helpers
   normalizeXHandle,
   isLikelyXHandle,
