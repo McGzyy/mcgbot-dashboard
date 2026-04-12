@@ -339,6 +339,15 @@ export default function Home() {
     null
   );
 
+  useEffect(() => {
+    addNotification({
+      id: "test",
+      text: "Test notification working",
+      type: "win",
+      createdAt: Date.now(),
+    });
+  }, []);
+
   const loadActivity = useCallback(() => {
     fetch("/api/activity")
       .then((res) => res.json())
