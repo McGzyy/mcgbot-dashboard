@@ -44,6 +44,11 @@ type RecentCallRow = {
   time: unknown;
 };
 
+type MarketSnapshot = {
+  solPrice: number;
+  solChangePct: number;
+};
+
 function callTimeMs(t: unknown): number {
   if (typeof t === "number" && Number.isFinite(t)) return t;
   const n = Number(t);
@@ -177,6 +182,8 @@ export default function Home() {
   const [stats, setStats] = useState<MeStats | null>(null);
   const [recentCalls, setRecentCalls] = useState<RecentCallRow[]>([]);
   const [callsLoading, setCallsLoading] = useState(true);
+  const [market, setMarket] = useState<MarketSnapshot | null>(null);
+  const [marketLoading, setMarketLoading] = useState(true);
 
   const nowMs = Date.now();
   const displayedReferrals = useMemo(
@@ -315,6 +322,34 @@ export default function Home() {
     };
   }, [session?.user?.id]);
 
+  useEffect(() => {
+    if (!session) return;
+
+    let cancelled = false;
+    setMarketLoading(true);
+
+    fetch("/api/market")
+      .then((res) => res.json())
+      .then((data: unknown) => {
+        if (cancelled || !data || typeof data !== "object") return;
+        const o = data as Record<string, unknown>;
+        const solPrice = Number(o.solPrice);
+        const solChangePct = Number(o.solChangePct);
+        if (!Number.isFinite(solPrice) || !Number.isFinite(solChangePct)) return;
+        setMarket({ solPrice, solChangePct });
+      })
+      .catch(() => {
+        if (!cancelled) setMarket(null);
+      })
+      .finally(() => {
+        if (!cancelled) setMarketLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
   const referralUrl =
     session?.user?.id != null && session.user.id !== ""
       ? `${REF_BASE}/${session.user.id}`
@@ -377,8 +412,39 @@ export default function Home() {
       "0"
     );
 
+  const solLineClass =
+    market != null && market.solChangePct >= 0
+      ? "text-emerald-400"
+      : market != null
+        ? "text-red-400"
+        : "text-zinc-300";
+
   return (
     <div className="mx-auto max-w-[1200px] px-1 sm:px-0">
+      <div
+        className="sticky top-0 z-50 -mx-1 mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-zinc-800 bg-zinc-900/80 px-4 py-2 text-sm backdrop-blur sm:-mx-0"
+        role="region"
+        aria-label="Market pulse"
+      >
+        {marketLoading ? (
+          <p className="text-zinc-500">Loading market...</p>
+        ) : (
+          <>
+            <p className={`min-w-0 font-medium tabular-nums ${solLineClass}`}>
+              📊 SOL{" "}
+              {market != null ? `$${market.solPrice.toFixed(2)}` : "$—"} (
+              {market != null
+                ? `${market.solChangePct >= 0 ? "+" : ""}${market.solChangePct.toFixed(1)}%`
+                : "—"}
+              )
+            </p>
+            <p className="shrink-0 text-zinc-500">
+              PumpFun Vol: — | Active Traders: —
+            </p>
+          </>
+        )}
+      </div>
+
       <header className="mb-8 flex flex-col gap-4 border-b border-zinc-800/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl">
           Dashboard
