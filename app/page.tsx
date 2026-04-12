@@ -46,7 +46,9 @@ export default function Home() {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0f1117] text-zinc-400">
+      <div className="flex min-h-screen flex-col bg-[#0f1117] text-zinc-400">
+        <div className="h-1 w-full shrink-0 bg-red-500" aria-hidden />
+        <div className="flex flex-1 flex-col items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div
             className="h-9 w-9 animate-spin rounded-full border-2 border-zinc-600 border-t-sky-500"
@@ -54,13 +56,16 @@ export default function Home() {
           />
           <p className="text-sm">Loading dashboard…</p>
         </div>
+        </div>
       </div>
     );
   }
 
   if (!session) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0f1117] px-4">
+      <div className="flex min-h-screen flex-col bg-[#0f1117] px-4">
+        <div className="h-1 w-full shrink-0 bg-red-500" aria-hidden />
+        <div className="flex flex-1 items-center justify-center">
         <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/70 p-10 text-center shadow-xl shadow-black/40 backdrop-blur-sm">
           <h1 className="text-xl font-semibold text-zinc-100">McGBot Dashboard</h1>
           <p className="mt-3 text-sm leading-relaxed text-zinc-400">
@@ -74,12 +79,14 @@ export default function Home() {
             Login with Discord
           </button>
         </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-[#0f1117] text-zinc-100">
+      <div className="h-1 w-full bg-red-500" aria-hidden />
       <div className="mx-auto max-w-[1100px] px-4 py-8 sm:px-6 lg:px-8">
         <header className="mb-10 flex flex-col gap-4 border-b border-zinc-800/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl">
