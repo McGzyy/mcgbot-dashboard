@@ -2,6 +2,8 @@
 
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { ActivityPopup } from "./components/ActivityPopup";
+import { FollowButton } from "./components/FollowButton";
+import { useFollowingIds } from "./hooks/useFollowingIds";
 import { signIn, useSession } from "next-auth/react";
 import {
   useCallback,
@@ -48,6 +50,7 @@ type ActivityItem = {
   link_chart: string | null;
   link_post: string | null;
   multiple: number;
+  discordId: string;
 };
 
 /** Solana-style base58 public key length (typical mint/address in UI text). */
@@ -338,6 +341,7 @@ export default function Home() {
   const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(
     null
   );
+  const { followingIds, setFollowing } = useFollowingIds();
 
   useEffect(() => {
     addNotification({
@@ -377,6 +381,11 @@ export default function Home() {
               : null;
           const multRaw = Number(o.multiple);
           const multiple = Number.isFinite(multRaw) ? multRaw : 0;
+          const discordRaw = o.discordId;
+          const discordId =
+            typeof discordRaw === "string" && discordRaw.trim() !== ""
+              ? discordRaw.trim()
+              : "";
           parsed.push({
             type: o.type,
             text,
@@ -384,6 +393,7 @@ export default function Home() {
             link_chart,
             link_post,
             multiple,
+            discordId,
           });
         }
         setActivity((prev) => {
@@ -651,24 +661,34 @@ export default function Home() {
                     className="dashboard-feed-item"
                     style={{ animationDelay: `${i * 70}ms` }}
                   >
-                    <button
-                      type="button"
-                      onClick={() => setSelectedActivity(item)}
-                      className="flex w-full items-start justify-between gap-3 rounded-md border-0 bg-transparent py-3 pl-1 pr-1 text-left first:pt-1 sm:pl-2 sm:pr-2 -mx-1 cursor-pointer text-inherit transition-colors duration-150 hover:bg-zinc-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
-                    >
-                      <span className="min-w-0 text-zinc-200">
-                        {renderActivityTextWithCa(
-                          item,
-                          item.type === "win" ? "🔥 " : "⚡ "
-                        )}
-                      </span>
-                      <span className="flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-zinc-500">
-                        {formatJoinedAt(callTimeMs(item.time), nowMs)}
-                        <span className="text-zinc-500" aria-hidden>
-                          ↗
+                    <div className="flex items-start gap-2 py-3 pl-1 pr-1 first:pt-1 sm:pl-2 sm:pr-2 -mx-1">
+                      <FollowButton
+                        targetDiscordId={item.discordId}
+                        following={followingIds.has(item.discordId)}
+                        onFollowingChange={(next) =>
+                          setFollowing(item.discordId, next)
+                        }
+                        className="mt-0.5"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSelectedActivity(item)}
+                        className="flex min-w-0 flex-1 items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit transition-colors duration-150 hover:bg-zinc-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                      >
+                        <span className="min-w-0 text-zinc-200">
+                          {renderActivityTextWithCa(
+                            item,
+                            item.type === "win" ? "🔥 " : "⚡ "
+                          )}
                         </span>
-                      </span>
-                    </button>
+                        <span className="flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-zinc-500">
+                          {formatJoinedAt(callTimeMs(item.time), nowMs)}
+                          <span className="text-zinc-500" aria-hidden>
+                            ↗
+                          </span>
+                        </span>
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

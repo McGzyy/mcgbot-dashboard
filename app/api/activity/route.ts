@@ -25,7 +25,9 @@ export async function GET() {
 
     let query = supabase
       .from("call_performance")
-      .select("username, ath_multiple, call_time, source, call_ca, message_url");
+      .select(
+        "username, discord_id, ath_multiple, call_time, source, call_ca, message_url"
+      );
 
     const t = tier.toLowerCase().trim();
     if (t === "free") {
@@ -56,6 +58,12 @@ export async function GET() {
           ? r.username.trim()
           : "Unknown";
 
+      const discordRaw = r.discord_id;
+      const discordId =
+        typeof discordRaw === "string" && discordRaw.trim() !== ""
+          ? discordRaw.trim()
+          : "";
+
       const rawCa =
         r.call_ca != null && String(r.call_ca).trim() !== ""
           ? String(r.call_ca).trim()
@@ -80,6 +88,7 @@ export async function GET() {
           link_chart,
           link_post,
           multiple,
+          discordId,
         };
       }
 
@@ -90,6 +99,7 @@ export async function GET() {
         link_chart,
         link_post,
         multiple,
+        discordId,
       };
     });
 

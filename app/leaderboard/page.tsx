@@ -1,5 +1,7 @@
 "use client";
 
+import { FollowButton } from "@/app/components/FollowButton";
+import { useFollowingIds } from "@/app/hooks/useFollowingIds";
 import { useEffect, useState } from "react";
 
 type TabId = "user" | "bot" | "referrals";
@@ -24,6 +26,7 @@ const TOP_MONTHLY = {
 
 type ApiLeaderRow = {
   rank: number;
+  discordId: string;
   username: string;
   avgX: number;
   totalCalls: number;
@@ -63,6 +66,7 @@ export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState("user");
   const [data, setData] = useState<ApiLeaderRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const { followingIds, setFollowing } = useFollowingIds();
 
   useEffect(() => {
     if (activeTab === "referrals") {
@@ -91,8 +95,10 @@ export default function LeaderboardPage() {
           .map((item) => {
             if (!item || typeof item !== "object") return null;
             const o = item as Record<string, unknown>;
+            const discordId = String(o.discordId ?? o.discord_id ?? "").trim();
             return {
               rank: typeof o.rank === "number" ? o.rank : Number(o.rank) || 0,
+              discordId,
               username: String(o.username ?? ""),
               avgX: typeof o.avgX === "number" ? o.avgX : Number(o.avgX) || 0,
               totalCalls:
@@ -218,14 +224,25 @@ export default function LeaderboardPage() {
                 <tbody className="divide-y divide-zinc-800/40 text-zinc-300">
                   {data.map((row) => (
                     <tr
-                      key={`${activeTab}-${row.rank}-${row.username}`}
+                      key={`${activeTab}-${row.rank}-${row.discordId}`}
                       className="transition-colors duration-150 hover:bg-zinc-800/45"
                     >
                       <td className="py-3 pr-4 tabular-nums text-zinc-400">
                         #{row.rank}
                       </td>
-                      <td className="py-3 pr-4 font-medium text-zinc-200">
-                        {row.username}
+                      <td className="py-3 pr-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-zinc-200">
+                            {row.username}
+                          </span>
+                          <FollowButton
+                            targetDiscordId={row.discordId}
+                            following={followingIds.has(row.discordId)}
+                            onFollowingChange={(next) =>
+                              setFollowing(row.discordId, next)
+                            }
+                          />
+                        </div>
                       </td>
                       <td className="py-3 pr-4 font-semibold tabular-nums text-zinc-100">
                         {formatAvgX(row.avgX)}

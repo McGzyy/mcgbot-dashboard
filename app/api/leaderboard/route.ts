@@ -109,6 +109,7 @@ export async function GET(request: Request) {
     }
 
     const results = Array.from(map.values()).map((user) => ({
+      discordId: user.discord_id,
       username: user.username || user.discord_id,
       avgX: user.sumX / user.totalCalls,
       totalCalls: user.totalCalls,
