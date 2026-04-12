@@ -31,8 +31,13 @@ function parseReferrals(raw: unknown): ReferralRow[] {
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const r = item as Record<string, unknown>;
-    const userId = String(r.userId ?? "").trim();
-    const joinedAt = Number(r.joinedAt);
+    const userId = String(r.userId ?? r.referred_user_id ?? "").trim();
+    const rawJoined = r.joinedAt ?? r.joined_at;
+    let joinedAt = typeof rawJoined === "number" ? rawJoined : Number(rawJoined);
+    if (!Number.isFinite(joinedAt) && typeof rawJoined === "string") {
+      const p = Date.parse(rawJoined);
+      if (Number.isFinite(p)) joinedAt = p;
+    }
     if (!userId || !Number.isFinite(joinedAt)) continue;
     out.push({ userId, joinedAt });
   }
