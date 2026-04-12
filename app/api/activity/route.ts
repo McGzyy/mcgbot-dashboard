@@ -3,12 +3,15 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getUserTier } from "@/lib/getUserTier";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const discordId = session?.user?.id?.trim() ?? "";
+    const userId = session?.user?.id?.trim() ?? "";
 
-    const tier = await getUserTier(discordId);
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get("mode");
+
+    const tier = await getUserTier(userId);
 
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_ANON_KEY;
@@ -34,6 +37,38 @@ export async function GET() {
       query = query.eq("source", "user");
     } else if (t === "pro") {
       query = query.in("source", ["user", "bot"]);
+    }
+
+    if (mode === "following") {
+      if (!userId) {
+        return Response.json([]);
+      }
+
+      const { data: follows, error: followError } = await supabase
+        .from("follows")
+        .select("following_discord_id")
+        .eq("follower_discord_id", userId);
+
+      if (followError) {
+        console.error("[activity API] follows:", followError);
+        return Response.json(
+          { error: "Failed to load follows" },
+          { status: 500 }
+        );
+      }
+
+      const ids = (follows ?? [])
+        .map((f) => {
+          const row = f as { following_discord_id?: string | null };
+          return row.following_discord_id;
+        })
+        .filter((id): id is string => typeof id === "string" && id.trim() !== "");
+
+      if (ids.length === 0) {
+        return Response.json([]);
+      }
+
+      query = query.in("discord_id", ids);
     }
 
     const { data, error } = await query

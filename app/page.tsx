@@ -330,6 +330,7 @@ export default function Home() {
   const { data: session, status } = useSession();
   const { addNotification } = useNotifications();
   const lastSeenActivityKeysRef = useRef(new Set<string>());
+  const activitySourceModeRef = useRef<"all" | "following" | null>(null);
   const [copied, setCopied] = useState(false);
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -342,6 +343,7 @@ export default function Home() {
     null
   );
   const { followingIds, setFollowing } = useFollowingIds();
+  const [feedMode, setFeedMode] = useState<"all" | "following">("all");
 
   useEffect(() => {
     addNotification({
@@ -353,7 +355,7 @@ export default function Home() {
   }, []);
 
   const loadActivity = useCallback(() => {
-    fetch("/api/activity")
+    fetch(`/api/activity?mode=${encodeURIComponent(feedMode)}`)
       .then((res) => res.json())
       .then((data: unknown) => {
         if (!Array.isArray(data)) {
@@ -397,18 +399,29 @@ export default function Home() {
           });
         }
         setActivity((prev) => {
-          processActivityNotifications(
-            prev,
-            parsed,
-            addNotification,
-            lastSeenActivityKeysRef
-          );
+          if (feedMode === "all") {
+            if (activitySourceModeRef.current === "all") {
+              processActivityNotifications(
+                prev,
+                parsed,
+                addNotification,
+                lastSeenActivityKeysRef
+              );
+            } else {
+              for (const item of parsed) {
+                lastSeenActivityKeysRef.current.add(activityItemDedupeKey(item));
+              }
+            }
+            activitySourceModeRef.current = "all";
+          } else {
+            activitySourceModeRef.current = "following";
+          }
           return parsed;
         });
       })
       .catch(() => setActivity([]))
       .finally(() => setLoadingActivity(false));
-  }, [addNotification]);
+  }, [addNotification, feedMode]);
 
   const nowMs = Date.now();
   const displayedReferrals = useMemo(
@@ -645,13 +658,41 @@ export default function Home() {
       <div className="mb-8 grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
           <PanelCard title="Live Activity">
+            <div className="mt-4 flex flex-wrap gap-2">
+              {(
+                [
+                  { id: "all" as const, label: "All" },
+                  { id: "following" as const, label: "Following" },
+                ] as const
+              ).map(({ id, label }) => {
+                const active = feedMode === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setFeedMode(id)}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-zinc-700 text-zinc-50"
+                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
             {loadingActivity ? (
               <div className="flex min-h-[100px] items-center justify-center py-10">
                 <p className="text-sm text-zinc-500">Loading activity...</p>
               </div>
             ) : activity.length === 0 ? (
               <div className="flex min-h-[100px] items-center justify-center py-10">
-                <p className="text-sm text-zinc-500">No activity yet</p>
+                <p className="text-sm text-zinc-500">
+                  {feedMode === "following"
+                    ? "No activity from people you follow"
+                    : "No activity yet"}
+                </p>
               </div>
             ) : (
               <ul className="mt-4 max-h-[300px] space-y-0 divide-y divide-zinc-800/50 overflow-y-auto pr-1 text-sm">
