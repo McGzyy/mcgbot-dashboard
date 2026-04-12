@@ -335,6 +335,15 @@ function mergeRealDataWithCandidate(realData, candidate, contractAddress) {
     }
   }
 
+  const geckoImg =
+    candidate.geckoImageUrl != null ? String(candidate.geckoImageUrl).trim() : '';
+  if (geckoImg) {
+    merged.token = merged.token || {};
+    const existing =
+      merged.token.geckoImageUrl != null ? String(merged.token.geckoImageUrl).trim() : '';
+    if (!existing) merged.token.geckoImageUrl = geckoImg;
+  }
+
   return merged;
 }
 
@@ -435,9 +444,16 @@ function buildScanObject(base) {
 
     ...(toNumber(base.priceUsd) > 0 ? { priceUsd: toNumber(base.priceUsd) } : {}),
 
-    ...(base.tokenImageUrl
-      ? { token: { imageUrl: base.tokenImageUrl } }
-      : {})
+    ...(() => {
+      const t = {};
+      if (base.tokenImageUrl && String(base.tokenImageUrl).trim()) {
+        t.imageUrl = String(base.tokenImageUrl).trim();
+      }
+      if (base.geckoTokenImageUrl && String(base.geckoTokenImageUrl).trim()) {
+        t.geckoImageUrl = String(base.geckoTokenImageUrl).trim();
+      }
+      return Object.keys(t).length ? { token: t } : {};
+    })()
   };
 }
 
@@ -611,6 +627,7 @@ async function generateRealScan(contractAddress, geckoCandidate = null) {
         realData.token?.imageUrl || realData.token?.logoURI,
         ''
       ),
+      geckoTokenImageUrl: cleanString(realData.token?.geckoImageUrl || '', ''),
 
       marketCap,
       liquidity,

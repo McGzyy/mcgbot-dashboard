@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const { resolvePublicCallerName } = require('./userProfileService');
 const { formatAgeMinutes } = require('./formatAgeMinutes');
+const { applyScanThumbnailToEmbed } = require('./embedTokenThumbnail');
 
 function formatUsd(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return 'N/A';
@@ -250,14 +251,7 @@ function createAutoCallEmbed(scan, profileName = 'balanced', options = {}) {
     .setFooter({ text: isManual ? 'Crypto Scanner Bot • Manual Call' : 'Crypto Scanner Bot • Auto Call' })
     .setTimestamp();
 
-  const tokenThumb = scan.token?.imageUrl;
-  if (typeof tokenThumb === 'string' && tokenThumb.trim()) {
-    try {
-      embed.setThumbnail(tokenThumb.trim());
-    } catch (_) {
-      /* ignore invalid thumbnail URL */
-    }
-  }
+  applyScanThumbnailToEmbed(embed, scan);
 
   if (options.chartImageUrl) {
     embed.setImage(options.chartImageUrl);

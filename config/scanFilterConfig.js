@@ -8,7 +8,9 @@ const scanFilterConfig = {
       minVolume1h: 4000,
       minBuySellRatio5m: 1.02, // loosened further
       maxAgeMinutes: 240,
-      minScore: 50
+      minScore: 50,
+      minTxns5m: 6,
+      minTxns1h: 30
     },
 
     aggressive: {
@@ -19,7 +21,9 @@ const scanFilterConfig = {
       minVolume1h: 3000,
       minBuySellRatio5m: 1.00,
       maxAgeMinutes: 300,
-      minScore: 45
+      minScore: 45,
+      minTxns5m: 4,
+      minTxns1h: 20
     },
 
     conservative: {
@@ -30,7 +34,9 @@ const scanFilterConfig = {
       minVolume1h: 6000,
       minBuySellRatio5m: 1.05,
       maxAgeMinutes: 180,
-      minScore: 58
+      minScore: 58,
+      minTxns5m: 8,
+      minTxns1h: 45
     }
   }
 };

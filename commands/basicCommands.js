@@ -24,6 +24,7 @@ const {
 } = require('../utils/callerStatsService');
 const { renderPriceChart, seriesFromTrackedPriceHistory } = require('../utils/renderChart');
 const { formatAgeMinutes } = require('../utils/formatAgeMinutes');
+const { applyScanThumbnailToEmbed } = require('../utils/embedTokenThumbnail');
 const { buildOhlcvCandlestickBuffer } = require('../utils/ohlcvCandlestickBuffer');
 const { getCandlestickOverlayProps } = require('../utils/candlestickOverlayFromTracked');
 const { buildOhlcvTimeframeRows } = require('../utils/ohlcvChartControls');
@@ -350,8 +351,17 @@ function buildScanFlags(data) {
 
 function normalizeRealDataToScan(realData) {
   const score = calculateQuickRealScore(realData);
-  const tokenImageUrl =
+  const dexTokenImageUrl =
     realData.token?.imageUrl || realData.token?.logoURI || null;
+  const geckoTokenImageUrl = realData.token?.geckoImageUrl || null;
+
+  const tokenBlock = {};
+  if (dexTokenImageUrl && String(dexTokenImageUrl).trim()) {
+    tokenBlock.imageUrl = String(dexTokenImageUrl).trim();
+  }
+  if (geckoTokenImageUrl && String(geckoTokenImageUrl).trim()) {
+    tokenBlock.geckoImageUrl = String(geckoTokenImageUrl).trim();
+  }
 
   return {
     tokenName: realData.token?.tokenName || 'Unknown Token',
@@ -396,9 +406,7 @@ function normalizeRealDataToScan(realData) {
     conviction: score >= 80 ? 'High' : score >= 60 ? 'Moderate' : 'Low',
     riskLevel: getRiskLabel(realData),
 
-    ...(tokenImageUrl && String(tokenImageUrl).trim()
-      ? { token: { imageUrl: String(tokenImageUrl).trim() } }
-      : {})
+    ...(Object.keys(tokenBlock).length ? { token: tokenBlock } : {})
   };
 }
 
@@ -814,14 +822,7 @@ function createTraderScanEmbed(scan, options = {}) {
     .setFooter({ text: 'Crypto Scanner Bot • Trader Scan' })
     .setTimestamp();
 
-  const tokenThumb = scan.token?.imageUrl;
-  if (typeof tokenThumb === 'string' && tokenThumb.trim()) {
-    try {
-      embed.setThumbnail(tokenThumb.trim());
-    } catch (_) {
-      /* ignore invalid thumbnail URL */
-    }
-  }
+  applyScanThumbnailToEmbed(embed, scan);
 
   if (options.chartImageUrl) {
     embed.setImage(options.chartImageUrl);

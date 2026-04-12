@@ -38,6 +38,27 @@ function isValid(call) {
   return Number.isFinite(x) && x > 0 && x <= MAX_VALID_X;
 }
 
+function getCallTimestampMs(call) {
+  const raw = call?.firstCalledAt ?? call?.calledAt ?? call?.createdAt;
+  if (raw == null || raw === '') return null;
+  const ms = new Date(raw).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function isWithinTimeframeDays(call, days) {
+  if (!Number.isFinite(days) || days <= 0) return false;
+  const ms = getCallTimestampMs(call);
+  if (ms == null) return false;
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return ms >= cutoff;
+}
+
+function enrichCallWithX(call) {
+  const ath = getAth(call);
+  const x = calculateX(call.firstCalledMarketCap, ath);
+  return { ...call, x, ath };
+}
+
 function isHumanUserCall(call) {
   return (
     call &&
@@ -301,6 +322,123 @@ function getCallerLeaderboard(limit = 10) {
 
 /**
  * =========================
+ * TIMEFRAME STATS (same filters as getCallerLeaderboard / getBotStats)
+ * =========================
+ */
+
+function getBestCallInTimeframe(days) {
+  const calls = getAllTrackedCalls()
+    .filter(isHumanUserCall)
+    .filter(isValid)
+    .filter(call => isWithinTimeframeDays(call, days));
+
+  if (!calls.length) return null;
+
+  let best = null;
+  let bestX = -Infinity;
+
+  for (const call of calls) {
+    const ath = getAth(call);
+    const x = calculateX(call.firstCalledMarketCap, ath);
+    if (x > bestX) {
+      bestX = x;
+      best = call;
+    }
+  }
+
+  return best ? enrichCallWithX(best) : null;
+}
+
+function getTopCallerInTimeframe(days) {
+  const calls = getAllTrackedCalls()
+    .filter(isHumanUserCall)
+    .filter(isValid)
+    .filter(call => isWithinTimeframeDays(call, days));
+
+  const map = new Map();
+
+  for (const call of calls) {
+    const key =
+      call.firstCallerDiscordId ||
+      call.firstCallerId ||
+      normalize(call.firstCallerUsername) ||
+      normalize(call.firstCallerDisplayName) ||
+      normalize(call.firstCallerPublicName);
+
+    if (!key) continue;
+
+    if (!map.has(key)) {
+      map.set(key, {
+        calls: [],
+        totalX: 0,
+        totalAth: 0
+      });
+    }
+
+    const entry = map.get(key);
+    const ath = getAth(call);
+    const x = calculateX(call.firstCalledMarketCap, ath);
+
+    entry.calls.push(call);
+    entry.totalX += x;
+    entry.totalAth += ath;
+  }
+
+  const ranked = [...map.values()]
+    .map(entry => {
+      const totalCalls = entry.calls.length;
+      let bestCall = null;
+
+      for (const c of entry.calls) {
+        const athC = getAth(c);
+        const xC = calculateX(c.firstCalledMarketCap, athC);
+        if (!bestCall || xC > bestCall.x) {
+          bestCall = {
+            tokenName: c.tokenName,
+            ticker: c.ticker,
+            x: xC
+          };
+        }
+      }
+
+      return {
+        username: resolveBestName(entry.calls),
+        totalCalls,
+        avgX: totalCalls ? entry.totalX / totalCalls : 0,
+        avgAth: totalCalls ? entry.totalAth / totalCalls : 0,
+        bestCall
+      };
+    })
+    .sort((a, b) => b.avgX - a.avgX);
+
+  return ranked[0] || null;
+}
+
+function getBestBotCallInTimeframe(days) {
+  const calls = getAllTrackedCalls()
+    .filter(isBotCall)
+    .filter(isValid)
+    .filter(call => isWithinTimeframeDays(call, days));
+
+  if (!calls.length) return null;
+
+  let best = null;
+  let bestX = -Infinity;
+
+  for (const call of calls) {
+    const ath = getAth(call);
+    const x = calculateX(call.firstCalledMarketCap, ath);
+    if (x > bestX) {
+      bestX = x;
+      best = call;
+    }
+  }
+
+  return best ? enrichCallWithX(best) : null;
+}
+
+/**
+ * =========================
  * BOT STATS
  * =========================
  */
@@ -393,5 +531,8 @@ module.exports = {
   getCallerStatsRaw,
   getCallerLeaderboard,
   getBotStats,
-  getBotStatsRaw
+  getBotStatsRaw,
+  getBestCallInTimeframe,
+  getTopCallerInTimeframe,
+  getBestBotCallInTimeframe
 };

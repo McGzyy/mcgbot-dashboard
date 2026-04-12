@@ -340,7 +340,7 @@ const cfg = {
   // EARLY POOL MODE: don't reject for being young; only reject invalid/zero age.
   if (cfg.minAgeMinutes > 0 && (!Number.isFinite(age) || age <= 0)) return 'sanity_too_young';
 
-  // skip migration check
+  if (cfg.requireMigrated && scan.migrated !== true) return 'sanity_not_migrated';
 
   // Early coins (<10m): skip strict volume / trade / buy / holder requirements.
   // Normal coins: apply the configured floors.
@@ -458,8 +458,19 @@ function getGlobalRejectReason(scan, profileName) {
   const minLiquidity = Number(live.minLiquidity ?? filter.minLiquidity ?? 0);
   const minVolume5m = Number(live.minVolume5m ?? filter.minVolume5m ?? 0);
   const minVolume1h = Number(live.minVolume1h ?? filter.minVolume1h ?? 0);
-  const minTxns5m = Number(live.minTxns5m ?? 0);
-  const minTxns1h = Number(live.minTxns1h ?? 0);
+
+  const rawTx5 =
+    live.minTxns5m !== undefined ? live.minTxns5m : filter.minTxns5m;
+  const rawTx1 =
+    live.minTxns1h !== undefined ? live.minTxns1h : filter.minTxns1h;
+  const minTxns5m =
+    rawTx5 === null || rawTx5 === undefined || rawTx5 === ''
+      ? null
+      : Number(rawTx5);
+  const minTxns1h =
+    rawTx1 === null || rawTx1 === undefined || rawTx1 === ''
+      ? null
+      : Number(rawTx1);
 
   if (scan.marketCap < minMarketCap) return 'global_min_mc';
   if (scan.marketCap > filter.maxMarketCap) return 'global_max_mc';
@@ -470,8 +481,22 @@ function getGlobalRejectReason(scan, profileName) {
   if (scan.ageMinutes > filter.maxAgeMinutes) return 'global_age';
   if (scan.entryScore < filter.minScore) return 'global_score';
 
-  if (Number(scan.txns5m || 0) < minTxns5m) return 'global_txns5m';
-  if (Number(scan.txns1h || 0) < minTxns1h) return 'global_txns1h';
+  if (
+    minTxns5m != null &&
+    Number.isFinite(minTxns5m) &&
+    minTxns5m > 0 &&
+    Number(scan.txns5m || 0) < minTxns5m
+  ) {
+    return 'global_txns5m';
+  }
+  if (
+    minTxns1h != null &&
+    Number.isFinite(minTxns1h) &&
+    minTxns1h > 0 &&
+    Number(scan.txns1h || 0) < minTxns1h
+  ) {
+    return 'global_txns1h';
+  }
 
   return null;
 }
@@ -516,6 +541,29 @@ function trackAutoCall(scan) {
     'McGBot',
     'McGBot',
     { callSourceType: 'bot_call' }
+  );
+}
+
+/**
+ * =========================
+ * FALLBACK POST FLOOR (stricter than profile/global pass)
+ * =========================
+ */
+
+const FALLBACK_MIN_LIQUIDITY = 15000;
+const FALLBACK_MIN_VOLUME_5M = 20000;
+const FALLBACK_MIN_AGE_MINUTES = 3;
+
+function meetsFallbackPostRequirements(scan) {
+  if (!scan) return false;
+  const liq = Number(scan.liquidity || 0);
+  const vol5 = Number(scan.volume5m || 0);
+  const age = Number(scan.ageMinutes);
+  return (
+    liq >= FALLBACK_MIN_LIQUIDITY &&
+    vol5 >= FALLBACK_MIN_VOLUME_5M &&
+    Number.isFinite(age) &&
+    age >= FALLBACK_MIN_AGE_MINUTES
   );
 }
 
@@ -677,16 +725,25 @@ if (globalReject) {
 
 if (selected.length === 0 && fallbackCandidates.length > 0) {
   fallbackCandidates.sort((a, b) => b.rankScore - a.rankScore);
-  const pick = fallbackCandidates.find(c => !isRecentTickerDuplicate(c.scan));
-  if (pick) {
-    selected = [pick];
-
-    console.log(
-      `[AutoCall] Fallback selected ${pick.scan.tokenName || pick.scan.contractAddress} ` +
-      `(${pick.fallbackReason})`
-    );
+  const fallbackEligible = fallbackCandidates.filter(c =>
+    meetsFallbackPostRequirements(c.scan)
+  );
+  if (fallbackEligible.length === 0) {
+    rejectCounts.fallback_below_post_gate =
+      (rejectCounts.fallback_below_post_gate || 0) + 1;
   } else {
-    rejectCounts.reject_recent_duplicate = (rejectCounts.reject_recent_duplicate || 0) + 1;
+    const pick = fallbackEligible.find(c => !isRecentTickerDuplicate(c.scan));
+    if (pick) {
+      selected = [pick];
+
+      console.log(
+        `[AutoCall] Fallback selected ${pick.scan.tokenName || pick.scan.contractAddress} ` +
+          `(${pick.fallbackReason})`
+      );
+    } else {
+      rejectCounts.reject_recent_duplicate =
+        (rejectCounts.reject_recent_duplicate || 0) + 1;
+    }
   }
 }
 

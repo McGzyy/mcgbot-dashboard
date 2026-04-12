@@ -58,7 +58,26 @@ function isSolanaNetworkPool(pool) {
  * =========================
  */
 
-function normalizePool(pool) {
+/**
+ * @param {unknown[]} included
+ * @returns {Map<string, string>}
+ */
+function buildTokenImageMapFromIncluded(included) {
+  const map = new Map();
+  if (!Array.isArray(included)) return map;
+  for (const item of included) {
+    if (!item || item.type !== 'token' || !item.id) continue;
+    const img = item.attributes?.image_url;
+    if (typeof img === 'string' && img.trim()) map.set(item.id, img.trim());
+  }
+  return map;
+}
+
+/**
+ * @param {unknown} pool
+ * @param {Map<string, string>} [tokenImageById]
+ */
+function normalizePool(pool, tokenImageById) {
   if (!pool) return null;
 
   const attributes = pool.attributes || {};
@@ -69,6 +88,11 @@ function normalizePool(pool) {
 
   const quoteTokenAddress =
     relationships?.quote_token?.data?.id?.split('_')?.pop() || null;
+
+  const baseTokenRelId = relationships?.base_token?.data?.id || null;
+  const map = tokenImageById instanceof Map ? tokenImageById : new Map();
+  const geckoImageUrl =
+    baseTokenRelId && map.has(baseTokenRelId) ? map.get(baseTokenRelId) : null;
 
   const poolAddress =
     attributes?.address ||
@@ -112,7 +136,9 @@ function normalizePool(pool) {
     priceChange24h: safeNumber(attributes?.price_change_percentage?.h24),
 
     createdAt: attributes?.pool_created_at || null,
-    ageMinutes: getAgeMinutes(attributes?.pool_created_at)
+    ageMinutes: getAgeMinutes(attributes?.pool_created_at),
+
+    ...(geckoImageUrl ? { geckoImageUrl } : {})
   };
 }
 
@@ -132,7 +158,7 @@ function dedupeRawPoolsById(pools) {
 
 async function fetchNewPoolsPage(page) {
   try {
-    const url = `${GECKO_BASE}/networks/solana/new_pools?page=${page}`;
+    const url = `${GECKO_BASE}/networks/solana/new_pools?page=${page}&include=base_token`;
     console.log(`[GeckoTerminal] Fetching NEW pools page ${page}`);
 
     const response = await axios.get(url, {
@@ -142,11 +168,13 @@ async function fetchNewPoolsPage(page) {
 
     let pools = response.data?.data || [];
     if (!Array.isArray(pools)) pools = [];
+    let included = response.data?.included || [];
+    if (!Array.isArray(included)) included = [];
 
-    return pools;
+    return { pools, included };
   } catch (error) {
     console.log(`[GeckoTerminal] NEW pools fetch failed: ${error.message}`);
-    return [];
+    return { pools: [], included: [] };
   }
 }
 
@@ -157,7 +185,9 @@ async function fetchSearchPoolsPage(term, page) {
       : SEARCH_TERMS[0];
 
   try {
-    const url = `${GECKO_BASE}/search/pools?query=${encodeURIComponent(safeTerm)}&page=${page}`;
+    const url = `${GECKO_BASE}/search/pools?query=${encodeURIComponent(
+      safeTerm
+    )}&page=${page}&include=base_token`;
     console.log(`[GeckoTerminal] Fetching SEARCH "${safeTerm}" page ${page}`);
 
     const response = await axios.get(url, {
@@ -167,11 +197,14 @@ async function fetchSearchPoolsPage(term, page) {
 
     let pools = response.data?.data || [];
     if (!Array.isArray(pools)) pools = [];
+    let included = response.data?.included || [];
+    if (!Array.isArray(included)) included = [];
 
-    return pools.filter(isSolanaNetworkPool);
+    const filtered = pools.filter(isSolanaNetworkPool);
+    return { pools: filtered, included };
   } catch (error) {
     console.log(`[GeckoTerminal] SEARCH fetch failed: ${error.message}`);
-    return [];
+    return { pools: [], included: [] };
   }
 }
 
@@ -197,21 +230,30 @@ async function fetchGeckoTerminalCandidatePools() {
   try {
     const term = SEARCH_TERMS[searchTermIndex];
 
-    const [newRaw, searchRaw] = await Promise.all([
+    const [newRes, searchRes] = await Promise.all([
       fetchNewPoolsPage(currentPage),
       fetchSearchPoolsPage(term, currentPage)
     ]);
 
-    const combined = dedupeRawPoolsById([...newRaw, ...searchRaw]);
+    const combined = dedupeRawPoolsById([
+      ...(newRes.pools || []),
+      ...(searchRes.pools || [])
+    ]);
+
+    const includedMerged = [
+      ...(newRes.included || []),
+      ...(searchRes.included || [])
+    ];
+    const tokenImageById = buildTokenImageMapFromIncluded(includedMerged);
 
     advanceRotationAfterCycle();
 
-    const normalized = combined.map(normalizePool).filter(Boolean);
+    const normalized = combined.map(p => normalizePool(p, tokenImageById)).filter(Boolean);
 
     const filtered = normalized.filter(pool => {
       if (!pool.contractAddress) return false;
-      if (pool.liquidity < 3500) return false;
-      if (pool.volume5m < 400 && pool.volume1h < 2500) return false;
+      if (pool.liquidity < 10000) return false;
+      if (pool.volume5m < 10000) return false;
       if (pool.txns5m < 4 && pool.txns1h < 20) return false;
 
       const ratio = pool.sells5m > 0 ? pool.buys5m / pool.sells5m : 99;
@@ -231,6 +273,32 @@ async function fetchGeckoTerminalCandidatePools() {
   }
 }
 
+/**
+ * GeckoTerminal token metadata `image_url` for Solana mint (non-throwing).
+ * @param {string} contractAddress
+ * @returns {Promise<string | null>}
+ */
+async function fetchGeckoSolanaTokenImageUrl(contractAddress) {
+  const ca =
+    contractAddress != null && String(contractAddress).trim()
+      ? String(contractAddress).trim()
+      : '';
+  if (!ca) return null;
+  try {
+    const url = `${GECKO_BASE}/networks/solana/tokens/${encodeURIComponent(ca)}`;
+    const response = await axios.get(url, {
+      headers: { Accept: 'application/json' },
+      timeout: 8000
+    });
+    const img = response.data?.data?.attributes?.image_url;
+    if (typeof img === 'string' && img.trim()) return img.trim();
+  } catch (_) {
+    /* ignore */
+  }
+  return null;
+}
+
 module.exports = {
-  fetchGeckoTerminalCandidatePools
+  fetchGeckoTerminalCandidatePools,
+  fetchGeckoSolanaTokenImageUrl
 };

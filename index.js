@@ -35,6 +35,17 @@ const {
 } = require('./utils/ohlcvCandlestickBuffer');
 const { handleOhlcvTimeframeButton } = require('./utils/ohlcvChartControls');
 const { resolveGuildForTrackedApproval } = require('./utils/resolveGuildForTrackedApproval');
+const { setBotEmbedThumbnailFallbackUrl } = require('./utils/embedTokenThumbnail');
+const {
+  buildCompactCoinApprovalEmbed,
+  buildCompactXVerifyEmbed,
+  applyCompactFinalViewToMessage,
+  finalizeWithCompactEmbed,
+  resolveCoinDeletionKind
+} = require('./utils/approvalMessageLifecycle');
+
+const { recordModAction } = require('./utils/modActionsService');
+const { startAdminReports } = require('./utils/adminReportsService');
 
 const {
   createAutoCallEmbed,
@@ -128,6 +139,20 @@ const DEV_EDIT_SESSION_TTL_MS = 10 * 60 * 1000;
 const xVerificationSessions = new Map();
 const X_VERIFY_SESSION_TTL_MS = 30 * 60 * 1000;
 const X_VERIFY_CHANNEL_NAME = 'verify-x';
+const X_VERIFY_CHANNEL_SLUGS = new Set(['verify-x', 'x-verify']);
+
+function isXVerifyChannelSlug(name) {
+  return X_VERIFY_CHANNEL_SLUGS.has(String(name || ''));
+}
+
+function findXVerifyTextChannel(guild) {
+  if (!guild?.channels?.cache) return null;
+  return (
+    guild.channels.cache.find(
+      ch => ch.isTextBased() && isXVerifyChannelSlug(ch.name)
+    ) || null
+  );
+}
 const X_VERIFIED_ROLE_NAME = 'X Verified';
 const MOD_CHANNEL_NAME = 'mod-chat';
 
@@ -624,16 +649,17 @@ function buildVerifyXChannelButtons() {
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('profile_open_verify_modal')
-        .setLabel('Verify X')
+        .setCustomId('xverify_start')
+        .setLabel('Verify X Account')
         .setStyle(ButtonStyle.Primary)
     )
   ];
 }
 
-function buildVerifyXHandleModal() {
+function buildVerifyXHandleModal(options = {}) {
+  const fromChannel = options.fromChannel === true;
   return new ModalBuilder()
-    .setCustomId('verify_x_handle_modal')
+    .setCustomId(fromChannel ? 'verify_x_handle_modal_channel' : 'verify_x_handle_modal')
     .setTitle('Verify Your X Handle')
     .addComponents(
       new ActionRowBuilder().addComponents(
@@ -1097,10 +1123,20 @@ async function refreshApprovalMessage(contractAddress, forceLocked = false) {
     const latest = getTrackedCall(contractAddress) || trackedCall;
     const isLocked = forceLocked || latest.approvalStatus !== 'pending';
 
-    await message.edit({
-      embeds: [buildApprovalStatusEmbed(latest)],
-      components: isLocked ? [] : buildApprovalButtons(contractAddress)
-    });
+    if (isLocked) {
+      const compactEmbed = buildCompactCoinApprovalEmbed(latest);
+      const delKind = resolveCoinDeletionKind(channel);
+      await applyCompactFinalViewToMessage(
+        message,
+        compactEmbed,
+        delKind === 'premium' ? 'premium' : 'coin'
+      );
+    } else {
+      await message.edit({
+        embeds: [buildApprovalStatusEmbed(latest)],
+        components: buildApprovalButtons(contractAddress)
+      });
+    }
   } catch (error) {
     console.error('[ApprovalQueue] Failed to refresh approval message:', error.message);
   }
@@ -1392,7 +1428,7 @@ async function handleDevSessionReply(message) {
 
 async function handleXVerificationReply(message) {
   const channelName = message.channel?.name || '';
-  if (channelName !== X_VERIFY_CHANNEL_NAME) return false;
+  if (!isXVerifyChannelSlug(channelName)) return false;
 
   if (message.author.bot) return true;
 
@@ -1409,8 +1445,8 @@ async function ensureVerifyXPrompt(guild) {
   try {
     if (!guild) return;
 
-    const verifyChannel = guild.channels.cache.find(ch => ch.name === X_VERIFY_CHANNEL_NAME);
-    if (!verifyChannel || !verifyChannel.isTextBased()) return;
+    const verifyChannel = findXVerifyTextChannel(guild);
+    if (!verifyChannel) return;
 
     const recentMessages = await verifyChannel.messages.fetch({ limit: 10 }).catch(() => null);
     if (!recentMessages) return;
@@ -1433,6 +1469,22 @@ async function ensureVerifyXPrompt(guild) {
 
 client.once('clientReady', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
+
+  setImmediate(() => {
+    try {
+      startAdminReports(client);
+    } catch (e) {
+      console.error('[AdminReports] startAdminReports failed:', e.message || e);
+    }
+  });
+
+  try {
+    setBotEmbedThumbnailFallbackUrl(
+      client.user.displayAvatarURL({ extension: 'png', size: 256 })
+    );
+  } catch (_) {
+    /* optional thumbnail fallback */
+  }
 
   const firstGuild = getPrimaryGuildForBotAlerts(client);
 
@@ -1491,6 +1543,11 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       const parts = interaction.customId.split(':');
+
+      if (interaction.customId === 'xverify_start') {
+        await interaction.showModal(buildVerifyXHandleModal({ fromChannel: true }));
+        return;
+      }
 
       if (interaction.customId === 'profile_open_verify_modal') {
         await interaction.showModal(buildVerifyXHandleModal());
@@ -1595,14 +1652,18 @@ if (xApprovalChannel && (!modChannel || xApprovalChannel.id !== modChannel.id)) 
 
   completeXVerification(userId, handle);
 
+  recordModAction({
+    moderatorId: interaction.user.id,
+    actionType: 'x_verify',
+    dedupeKey: `interaction:${interaction.id}:xverify_accept:${userId}:${handle}`
+  });
+
   const member = await interaction.guild.members.fetch(userId).catch(() => null);
   if (member) {
     await assignXVerifiedRole(member);
   }
 
-  const verifyChannel = interaction.guild.channels.cache.find(
-    ch => ch.name === X_VERIFY_CHANNEL_NAME
-  );
+  const verifyChannel = findXVerifyTextChannel(interaction.guild);
 
   if (verifyChannel) {
     await verifyChannel.send(
@@ -1610,11 +1671,12 @@ if (xApprovalChannel && (!modChannel || xApprovalChannel.id !== modChannel.id)) 
     );
   }
 
-  await interaction.update({
-    content: `✅ Verified **@${handle}**`,
-    embeds: [],
-    components: []
+  const xCompact = buildCompactXVerifyEmbed({
+    resultLabel: 'Approved',
+    moderatorUser: interaction.user,
+    handle
   });
+  await finalizeWithCompactEmbed(interaction, xCompact, 'x_verify');
 
   return;
 }
@@ -1759,13 +1821,25 @@ let updated = null;
           moderatedByUsername: interaction.user.username
         });
 
+        if (updated) {
+          const approvalKind = resolveCoinDeletionKind(interaction.channel);
+          recordModAction({
+            moderatorId: interaction.user.id,
+            actionType: approvalKind === 'premium' ? 'premium' : 'coin',
+            dedupeKey: `interaction:${interaction.id}:approve_call:${contractAddress}`
+          });
+        }
+
         await publishApprovedCoinToX(contractAddress);
 
         const approvedCall = getTrackedCall(contractAddress);
-        await interaction.message.edit({
-          embeds: [buildApprovalStatusEmbed(approvedCall)],
-          components: []
-        });
+        const approveEmbed = buildCompactCoinApprovalEmbed(approvedCall);
+        const coinKind = resolveCoinDeletionKind(interaction.channel);
+        await finalizeWithCompactEmbed(
+          interaction,
+          approveEmbed,
+          coinKind === 'premium' ? 'premium' : 'coin'
+        );
 
         return;
       }
@@ -1776,10 +1850,22 @@ let updated = null;
           moderatedByUsername: interaction.user.username
         });
 
-        await interaction.update({
-          embeds: [buildApprovalStatusEmbed(getTrackedCall(contractAddress))],
-          components: []
-        });
+        if (updated) {
+          recordModAction({
+            moderatorId: interaction.user.id,
+            actionType: 'coin_deny',
+            dedupeKey: `interaction:${interaction.id}:deny_call:${contractAddress}`
+          });
+        }
+
+        const deniedCall = getTrackedCall(contractAddress);
+        const denyEmbed = buildCompactCoinApprovalEmbed(deniedCall);
+        const denyKind = resolveCoinDeletionKind(interaction.channel);
+        await finalizeWithCompactEmbed(
+          interaction,
+          denyEmbed,
+          denyKind === 'premium' ? 'premium' : 'coin'
+        );
 
         return;
       }
@@ -1789,6 +1875,14 @@ let updated = null;
           moderatedById: interaction.user.id,
           moderatedByUsername: interaction.user.username
         });
+
+        if (updated) {
+          recordModAction({
+            moderatorId: interaction.user.id,
+            actionType: 'coin_exclude',
+            dedupeKey: `interaction:${interaction.id}:exclude_call:${contractAddress}`
+          });
+        }
 
         await interaction.update({
           embeds: [buildApprovalStatusEmbed(getTrackedCall(contractAddress))],
@@ -1815,11 +1909,13 @@ let updated = null;
           clearApprovalRequest(contractAddress);
           const finalized = getTrackedCall(contractAddress) || latestTrackedCall;
 
-          await interaction.update({
-            content: '✅ Moderation complete.',
-            embeds: [buildApprovalStatusEmbed(finalized)],
-            components: []
-          });
+          const doneEmbed = buildCompactCoinApprovalEmbed(finalized);
+          const doneKind = resolveCoinDeletionKind(interaction.channel);
+          await finalizeWithCompactEmbed(
+            interaction,
+            doneEmbed,
+            doneKind === 'premium' ? 'premium' : 'coin'
+          );
         } else {
           await interaction.update({
             content: '⚠️ Approve, deny, or exclude this coin before finishing.',
@@ -1835,7 +1931,12 @@ let updated = null;
     if (interaction.isModalSubmit()) {
       const parts = interaction.customId.split(':');
 
-      if (interaction.customId === 'verify_x_handle_modal') {
+      if (
+        interaction.customId === 'verify_x_handle_modal' ||
+        interaction.customId === 'verify_x_handle_modal_channel'
+      ) {
+        const fromVerifyChannel = interaction.customId === 'verify_x_handle_modal_channel';
+
         upsertUserProfile({
           discordUserId: interaction.user.id,
           username: interaction.user.username,
@@ -1861,21 +1962,44 @@ let updated = null;
           code
         });
 
-        await interaction.reply({
-          content: [
-            `🧪 To verify ownership of **@${handle}**:`,
-            '',
-            `**Option 1:** Add this code to your X bio`,
-            `**Option 2:** Post a tweet containing this code`,
-            '',
-            `**Verification Code:** \`${code}\``,
-            '',
-            `When you're done, click **Submit for Review** below.`,
-            `A MOD will review and verify your request.`
-          ].join('\n'),
-          components: buildXVerifySubmitButtons(),
-          ephemeral: true
-        });
+        const instructionContent = [
+          `🧪 To verify ownership of **@${handle}**:`,
+          '',
+          `**Option 1:** Add this code to your X bio`,
+          `**Option 2:** Post a tweet containing this code`,
+          '',
+          `**Verification Code:** \`${code}\``,
+          '',
+          `When you're done, click **Submit for Review** below.`,
+          `A MOD will review and verify your request.`
+        ].join('\n');
+
+        const instructionComponents = buildXVerifySubmitButtons();
+
+        if (fromVerifyChannel) {
+          try {
+            await interaction.user.send({
+              content: instructionContent,
+              components: instructionComponents
+            });
+            await interaction.reply({
+              content: '✅ Check your DMs for verification instructions.',
+              ephemeral: true
+            });
+          } catch (_) {
+            await interaction.reply({
+              content: ['Enable DMs and try again', '', instructionContent].join('\n'),
+              components: instructionComponents,
+              ephemeral: true
+            });
+          }
+        } else {
+          await interaction.reply({
+            content: instructionContent,
+            components: instructionComponents,
+            ephemeral: true
+          });
+        }
 
         return;
       }
@@ -1895,18 +2019,25 @@ let updated = null;
     return;
   }
 
+  recordModAction({
+    moderatorId: interaction.user.id,
+    actionType: 'x_verify_deny',
+    dedupeKey: `interaction:${interaction.id}:xverify_deny_modal:${userId}:${handle}`
+  });
+
   clearXVerifySessionsForUser(userId);
 
-  const verifyChannel = interaction.guild.channels.cache.find(ch => ch.name === X_VERIFY_CHANNEL_NAME);
+  const verifyChannel = findXVerifyTextChannel(interaction.guild);
   if (verifyChannel) {
     await verifyChannel.send(`❌ <@${userId}>, your X verification for **@${handle}** was denied.\n**Reason:** ${reason}`);
   }
 
-  await interaction.update({
-    content: `❌ Denied **@${handle}**\n**Reason:** ${reason}`,
-    embeds: [],
-    components: []
+  const xDenyCompact = buildCompactXVerifyEmbed({
+    resultLabel: 'Denied',
+    moderatorUser: interaction.user,
+    handle
   });
+  await finalizeWithCompactEmbed(interaction, xDenyCompact, 'x_verify');
   return;
 }
 
@@ -2211,14 +2342,18 @@ saveBotSettings(BOT_SETTINGS);
 
         completeXVerification(mentionedUser.id, pendingHandle);
 
+        recordModAction({
+          moderatorId: message.author.id,
+          actionType: 'x_verify',
+          dedupeKey: `message:${message.id}:verifyx:${mentionedUser.id}:${pendingHandle}`
+        });
+
         const member = await message.guild.members.fetch(mentionedUser.id).catch(() => null);
         if (member) {
           await assignXVerifiedRole(member);
         }
 
-        const verifyChannel = message.guild.channels.cache.find(
-          ch => ch.name === X_VERIFY_CHANNEL_NAME
-        );
+        const verifyChannel = findXVerifyTextChannel(message.guild);
 
         if (verifyChannel) {
           await verifyChannel.send(
@@ -3251,6 +3386,12 @@ if (lowerContent.startsWith('!truestats')) {
         addedByUsername: message.author.username,
         nickname,
         note
+      });
+
+      recordModAction({
+        moderatorId: message.author.id,
+        actionType: 'dev',
+        dedupeKey: `message:${message.id}:addTrackedDev:${wallet}`
       });
 
       const embed = createDevAddedEmbed(trackedDev);

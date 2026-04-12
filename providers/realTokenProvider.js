@@ -1,4 +1,5 @@
 const { fetchDexScreenerTokenData } = require('./dexScreenerProvider');
+const { fetchGeckoSolanaTokenImageUrl } = require('./geckoTerminalProvider');
 
 function toNumber(value, fallback = 0) {
   const num = Number(value);
@@ -523,7 +524,14 @@ async function fetchRealTokenData(contractAddress) {
       return null;
     }
 
-    return normalizeDexData(dex, contractAddress);
+    const normalized = normalizeDexData(dex, contractAddress);
+    const dexImg =
+      normalized.token?.logoURI != null && String(normalized.token.logoURI).trim();
+    if (!dexImg) {
+      const geckoImg = await fetchGeckoSolanaTokenImageUrl(contractAddress);
+      if (geckoImg) normalized.token.geckoImageUrl = geckoImg;
+    }
+    return normalized;
   } catch (error) {
     console.error('[RealTokenProvider] Error:', error.message);
     return buildFallbackErrorObject(contractAddress);
