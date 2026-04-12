@@ -13,13 +13,6 @@ const REF_BASE = "https://mcgbot.xyz/ref";
 
 const STREAK_COUNT = 2;
 
-const LIVE_FEED_MOCK = [
-  { text: "🔥 alpha_sniper hit 4.2x", ago: "2m ago" },
-  { text: "⚡ New call: SOLXYZ", ago: "just now" },
-  { text: "📈 trend_hunter 3.1x", ago: "8m ago" },
-  { text: "🚀 New dev detected", ago: "14m ago" },
-];
-
 const HOT_RIGHT_NOW_MOCK = [
   { token: "SOLXYZ", tag: "trending" },
   { token: "DEV123", tag: "active" },
@@ -41,6 +34,12 @@ type MeStats = {
 type RecentCallRow = {
   token: string;
   multiple: number;
+  time: unknown;
+};
+
+type ActivityItem = {
+  type: "win" | "call";
+  text: string;
   time: unknown;
 };
 
@@ -177,6 +176,31 @@ export default function Home() {
   const [stats, setStats] = useState<MeStats | null>(null);
   const [recentCalls, setRecentCalls] = useState<RecentCallRow[]>([]);
   const [callsLoading, setCallsLoading] = useState(true);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [loadingActivity, setLoadingActivity] = useState(true);
+
+  const loadActivity = useCallback(() => {
+    fetch("/api/activity")
+      .then((res) => res.json())
+      .then((data: unknown) => {
+        if (!Array.isArray(data)) {
+          setActivity([]);
+          return;
+        }
+        const parsed: ActivityItem[] = [];
+        for (const row of data) {
+          if (row == null || typeof row !== "object") continue;
+          const o = row as Record<string, unknown>;
+          if (o.type !== "win" && o.type !== "call") continue;
+          const text = typeof o.text === "string" ? o.text.trim() : "";
+          if (!text) continue;
+          parsed.push({ type: o.type, text, time: o.time });
+        }
+        setActivity(parsed);
+      })
+      .catch(() => setActivity([]))
+      .finally(() => setLoadingActivity(false));
+  }, []);
 
   const nowMs = Date.now();
   const displayedReferrals = useMemo(
@@ -315,6 +339,12 @@ export default function Home() {
     };
   }, [session?.user?.id]);
 
+  useEffect(() => {
+    loadActivity();
+    const interval = setInterval(loadActivity, 8000);
+    return () => clearInterval(interval);
+  }, [loadActivity]);
+
   const referralUrl =
     session?.user?.id != null && session.user.id !== ""
       ? `${REF_BASE}/${session.user.id}`
@@ -407,20 +437,35 @@ export default function Home() {
       <div className="mb-8 grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
           <PanelCard title="Live Activity">
-            <ul className="mt-4 max-h-[300px] space-y-0 divide-y divide-zinc-800/50 overflow-y-auto pr-1 text-sm">
-              {LIVE_FEED_MOCK.map((item, i) => (
-                <li
-                  key={i}
-                  className="dashboard-feed-item flex items-start justify-between gap-3 py-3 first:pt-1"
-                  style={{ animationDelay: `${i * 70}ms` }}
-                >
-                  <span className="text-zinc-200">{item.text}</span>
-                  <span className="shrink-0 text-xs tabular-nums text-zinc-500">
-                    {item.ago}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {loadingActivity ? (
+              <div className="flex min-h-[100px] items-center justify-center py-10">
+                <p className="text-sm text-zinc-500">Loading activity...</p>
+              </div>
+            ) : activity.length === 0 ? (
+              <div className="flex min-h-[100px] items-center justify-center py-10">
+                <p className="text-sm text-zinc-500">No activity yet</p>
+              </div>
+            ) : (
+              <ul className="mt-4 max-h-[300px] space-y-0 divide-y divide-zinc-800/50 overflow-y-auto pr-1 text-sm">
+                {activity.map((item, i) => (
+                  <li
+                    key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
+                    className="dashboard-feed-item flex items-start justify-between gap-3 py-3 first:pt-1"
+                    style={{ animationDelay: `${i * 70}ms` }}
+                  >
+                    <span className="text-zinc-200">
+                      <span aria-hidden>
+                        {item.type === "win" ? "🔥 " : "⚡ "}
+                      </span>
+                      {item.text}
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-zinc-500">
+                      {formatJoinedAt(callTimeMs(item.time), nowMs)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </PanelCard>
 
           <PanelCard
