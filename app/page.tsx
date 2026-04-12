@@ -11,11 +11,19 @@ import {
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
+const STREAK_COUNT = 2;
+
 const LIVE_FEED_MOCK = [
-  "🔥 alpha_sniper hit 4.2x",
-  "⚡ New call: SOLXYZ",
-  "📈 trend_hunter 3.1x",
-  "🚀 New dev detected",
+  { text: "🔥 alpha_sniper hit 4.2x", ago: "2m ago" },
+  { text: "⚡ New call: SOLXYZ", ago: "just now" },
+  { text: "📈 trend_hunter 3.1x", ago: "8m ago" },
+  { text: "🚀 New dev detected", ago: "14m ago" },
+];
+
+const HOT_RIGHT_NOW_MOCK = [
+  { token: "SOLXYZ", tag: "trending" },
+  { token: "DEV123", tag: "active" },
+  { token: "ABC", tag: "2.8x in last hour" },
 ];
 
 const RECENT_CALLS_MOCK = [
@@ -23,7 +31,17 @@ const RECENT_CALLS_MOCK = [
   { token: "ABC", result: "rugged", when: "5h ago" },
 ];
 
+const CARD_HOVER =
+  "transition-transform duration-200 ease-out motion-safe:hover:scale-[1.01]";
+
 type ReferralRow = { userId: string; joinedAt: number };
+
+type MeStats = {
+  avgX: number;
+  winRate: number;
+  callsToday: number;
+  totalCalls: number;
+};
 
 function formatJoinedAt(joinedAt: number, nowMs: number): string {
   if (!Number.isFinite(joinedAt) || joinedAt <= 0) return "—";
@@ -66,13 +84,17 @@ function StatCard({
   title,
   value,
   loading,
+  positiveHint,
 }: {
   title: string;
-  value: string | number;
+  value: ReactNode;
   loading?: boolean;
+  positiveHint?: string;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-5 shadow-sm shadow-black/20 backdrop-blur-sm">
+    <div
+      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-5 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
+    >
       <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
         {title}
       </p>
@@ -83,9 +105,16 @@ function StatCard({
           aria-label="Loading"
         />
       ) : (
-        <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-zinc-50">
-          {value}
-        </p>
+        <>
+          <div className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-zinc-50">
+            {value}
+          </div>
+          {positiveHint ? (
+            <p className="mt-1.5 text-xs font-medium text-emerald-400/95">
+              {positiveHint}
+            </p>
+          ) : null}
+        </>
       )}
     </div>
   );
@@ -95,16 +124,26 @@ function PanelCard({
   title,
   children,
   className = "",
+  elevated = false,
+  titleClassName,
 }: {
   title: string;
   children: ReactNode;
   className?: string;
+  elevated?: boolean;
+  titleClassName?: string;
 }) {
+  const surface = elevated
+    ? "border-zinc-700/90 bg-zinc-800/55 shadow-md shadow-black/25"
+    : "border-zinc-800/80 bg-zinc-900/60 shadow-sm shadow-black/20";
+
   return (
     <div
-      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-5 shadow-sm shadow-black/20 backdrop-blur-sm ${className}`}
+      className={`rounded-xl border p-5 backdrop-blur-sm ${surface} ${CARD_HOVER} ${className}`}
     >
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      <h2
+        className={`text-sm font-semibold tracking-wide text-zinc-400 ${titleClassName ?? "uppercase"}`}
+      >
         {title}
       </h2>
       {children}
@@ -117,6 +156,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [stats, setStats] = useState<MeStats | null>(null);
 
   const nowMs = Date.now();
   const displayedReferrals = useMemo(
@@ -168,6 +208,51 @@ export default function Home() {
     };
   }, [session, session?.user?.id]);
 
+  useEffect(() => {
+    if (!session?.user?.id?.trim()) return;
+
+    let cancelled = false;
+    setStats(null);
+
+    fetch("/api/me/stats")
+      .then((res) => res.json())
+      .then((json: unknown) => {
+        if (cancelled) return;
+        if (
+          json &&
+          typeof json === "object" &&
+          !("error" in json) &&
+          typeof (json as MeStats).avgX === "number" &&
+          typeof (json as MeStats).winRate === "number" &&
+          typeof (json as MeStats).callsToday === "number" &&
+          typeof (json as MeStats).totalCalls === "number"
+        ) {
+          setStats(json as MeStats);
+        } else {
+          setStats({
+            avgX: 0,
+            winRate: 0,
+            callsToday: 0,
+            totalCalls: 0,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStats({
+            avgX: 0,
+            winRate: 0,
+            callsToday: 0,
+            totalCalls: 0,
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
   const referralUrl =
     session?.user?.id != null && session.user.id !== ""
       ? `${REF_BASE}/${session.user.id}`
@@ -218,6 +303,18 @@ export default function Home() {
     );
   }
 
+  const streakValue =
+    STREAK_COUNT > 0 ? (
+      <span className="inline-flex items-baseline gap-1">
+        <span className="dashboard-fire-emoji" aria-hidden>
+          🔥
+        </span>
+        <span>{STREAK_COUNT}</span>
+      </span>
+    ) : (
+      "0"
+    );
+
   return (
     <div className="mx-auto max-w-[1200px] px-1 sm:px-0">
       <header className="mb-8 flex flex-col gap-4 border-b border-zinc-800/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
@@ -255,29 +352,71 @@ export default function Home() {
           Personal Stats
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Avg X" value="3.4x" />
-          <StatCard title="Win Rate" value="62%" />
-          <StatCard title="Calls Today" value={5} />
-          <StatCard title="Streak" value="🔥 2" />
+          <StatCard
+            title="Avg X"
+            value={
+              stats === null ? "—" : `${stats.avgX.toFixed(1)}x`
+            }
+          />
+          <StatCard
+            title="Win Rate"
+            value={
+              stats === null ? "—" : `${stats.winRate.toFixed(0)}%`
+            }
+          />
+          <StatCard
+            title="Calls Today"
+            value={stats === null ? "—" : stats.callsToday}
+          />
+          <StatCard title="Streak" value={streakValue} />
         </div>
       </section>
 
       <div className="mb-8 grid gap-6 lg:grid-cols-2 lg:items-start">
-        <PanelCard title="Live Activity">
-          <ul className="mt-4 max-h-[300px] space-y-0 divide-y divide-zinc-800/50 overflow-y-auto pr-1 text-sm text-zinc-300">
-            {LIVE_FEED_MOCK.map((line, i) => (
-              <li key={i} className="py-3 first:pt-1">
-                {line}
-              </li>
-            ))}
-          </ul>
-        </PanelCard>
+        <div className="flex flex-col gap-6">
+          <PanelCard title="Live Activity">
+            <ul className="mt-4 max-h-[300px] space-y-0 divide-y divide-zinc-800/50 overflow-y-auto pr-1 text-sm">
+              {LIVE_FEED_MOCK.map((item, i) => (
+                <li
+                  key={i}
+                  className="dashboard-feed-item flex items-start justify-between gap-3 py-3 first:pt-1"
+                  style={{ animationDelay: `${i * 70}ms` }}
+                >
+                  <span className="text-zinc-200">{item.text}</span>
+                  <span className="shrink-0 text-xs tabular-nums text-zinc-500">
+                    {item.ago}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </PanelCard>
+
+          <PanelCard
+            title="🔥 Hot Right Now"
+            elevated
+            titleClassName="normal-case"
+          >
+            <ul className="mt-4 space-y-2.5">
+              {HOT_RIGHT_NOW_MOCK.map((row) => (
+                <li
+                  key={row.token}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-700/50 bg-zinc-900/40 px-3 py-2.5"
+                >
+                  <span className="font-medium text-zinc-100">{row.token}</span>
+                  <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium leading-tight text-amber-200/95">
+                    {row.tag}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </PanelCard>
+        </div>
 
         <PanelCard title="Quick Actions">
           <div className="mt-4 flex flex-col gap-2">
             <button
               type="button"
-              className="w-full rounded-lg bg-sky-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+              className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-4 text-base font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-sky-400 hover:shadow-cyan-400/45 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
             >
               Submit Call
             </button>
@@ -319,7 +458,9 @@ export default function Home() {
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Your Referral Link
         </h2>
-        <div className="flex flex-col gap-3 rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 sm:flex-row sm:items-stretch sm:gap-3">
+        <div
+          className={`flex flex-col gap-3 rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 sm:flex-row sm:items-stretch sm:gap-3 ${CARD_HOVER}`}
+        >
           <input
             type="text"
             readOnly
@@ -341,7 +482,9 @@ export default function Home() {
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Your Referrals
         </h2>
-        <div className="w-full overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 backdrop-blur-sm sm:p-5">
+        <div
+          className={`w-full overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 backdrop-blur-sm sm:p-5 ${CARD_HOVER}`}
+        >
           {statsLoading ? (
             <div className="flex min-h-[120px] items-center justify-center py-8">
               <div className="flex flex-col items-center gap-3">
