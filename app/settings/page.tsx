@@ -2,7 +2,7 @@
 
 import type { WidgetsEnabled } from "@/app/api/dashboard-settings/route";
 import { signIn, useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const DEFAULT_WIDGETS: WidgetsEnabled = {
   market: true,
@@ -29,6 +29,15 @@ function parseWidgetsEnabled(raw: unknown): WidgetsEnabled {
   for (const key of WIDGET_KEYS) {
     const v = o[key];
     if (typeof v === "boolean") out[key] = v;
+  }
+  return out;
+}
+
+/** Full widgets object for API: every key is a boolean, never undefined. */
+function widgetsPayloadForSave(w: WidgetsEnabled): WidgetsEnabled {
+  const out: WidgetsEnabled = { ...DEFAULT_WIDGETS };
+  for (const key of WIDGET_KEYS) {
+    out[key] = Boolean(w[key]);
   }
   return out;
 }
@@ -111,6 +120,8 @@ export default function SettingsPage() {
     "idle" | "saving" | "saved" | "error"
   >("idle");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const toastHideTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -171,11 +182,24 @@ export default function SettingsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (toastHideTimeoutRef.current !== null) {
+        clearTimeout(toastHideTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleSave = useCallback(async () => {
     setSaveState("saving");
     setSaveMessage(null);
 
     try {
+      const widgets_enabled = widgetsPayloadForSave(widgets);
+      console.log("[settings] POST /api/dashboard-settings", {
+        widgets_enabled,
+      });
+
       const [prefsRes, dashRes] = await Promise.all([
         fetch("/api/preferences", {
           method: "POST",
@@ -190,8 +214,12 @@ export default function SettingsPage() {
         }),
         fetch("/api/dashboard-settings", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ widgets_enabled: widgets }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            widgets_enabled,
+          }),
         }),
       ]);
 
@@ -219,6 +247,14 @@ export default function SettingsPage() {
 
       setSaveState("saved");
       setSaveMessage("Saved.");
+      if (toastHideTimeoutRef.current !== null) {
+        clearTimeout(toastHideTimeoutRef.current);
+      }
+      setShowToast(true);
+      toastHideTimeoutRef.current = window.setTimeout(() => {
+        setShowToast(false);
+        toastHideTimeoutRef.current = null;
+      }, 2000);
       window.setTimeout(() => {
         setSaveState("idle");
         setSaveMessage(null);
@@ -258,6 +294,7 @@ export default function SettingsPage() {
   const isOwnOnly = prefs.own_calls;
 
   return (
+    <>
     <div className="mx-auto max-w-lg">
       <h1 className="text-xl font-semibold tracking-tight text-zinc-50 sm:text-2xl">
         Settings
@@ -465,5 +502,23 @@ export default function SettingsPage() {
         ) : null}
       </div>
     </div>
+
+    {showToast ? (
+      <div
+        className="
+    fixed bottom-6 right-6
+    bg-emerald-500/90 text-white
+    px-4 py-2 rounded-lg
+    shadow-lg
+    text-sm
+    animate-fade-in
+  "
+        role="status"
+        aria-live="polite"
+      >
+        Settings saved ✅
+      </div>
+    ) : null}
+    </>
   );
 }

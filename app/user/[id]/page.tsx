@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 const CARD_HOVER =
-  "transition-transform duration-200 ease-out motion-safe:hover:scale-[1.01]";
+  "transition-[box-shadow,border-color] duration-200 ease-out hover:border-zinc-600/50 hover:shadow-lg hover:shadow-black/35";
 
 type ProfileStats = {
   avgX: number;

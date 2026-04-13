@@ -83,12 +83,6 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id?.trim() ?? "";
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     let body: unknown;
     try {
       body = await request.json();
@@ -100,8 +94,19 @@ export async function POST(request: Request) {
       return Response.json({ error: "Invalid body" }, { status: 400 });
     }
 
-    const o = body as Record<string, unknown>;
-    const widgets_enabled = normalizeWidgets(o.widgets_enabled);
+    const { widgets_enabled: rawWidgets } = body as Record<string, unknown>;
+    const widgets_enabled = normalizeWidgets(rawWidgets);
+
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const discordId =
+      typeof session.user?.id === "string" ? session.user.id.trim() : "";
+    if (!discordId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_ANON_KEY;
@@ -115,23 +120,31 @@ export async function POST(request: Request) {
 
     const supabase = createClient(url, key) as SupabaseClient;
 
-    const { error } = await supabase.from("user_dashboard_settings").upsert(
-      {
-        discord_id: userId,
-        widgets_enabled,
-      },
-      { onConflict: "discord_id" }
-    );
+    const { data: updatedRows, error } = await supabase
+      .from("user_dashboard_settings")
+      .update({ widgets_enabled })
+      .eq("discord_id", discordId)
+      .select("discord_id");
 
     if (error) {
-      console.error("[dashboard-settings] POST upsert:", error);
-      return Response.json(
-        { error: "Failed to save dashboard settings" },
-        { status: 500 }
-      );
+      console.error("[dashboard-settings] POST update:", error);
+      return Response.json({ error: "Failed to save" }, { status: 500 });
     }
 
-    return Response.json({ ok: true, widgets_enabled });
+    if (!updatedRows?.length) {
+      const { error: upsertError } = await supabase
+        .from("user_dashboard_settings")
+        .upsert(
+          { discord_id: discordId, widgets_enabled },
+          { onConflict: "discord_id" }
+        );
+      if (upsertError) {
+        console.error("[dashboard-settings] POST upsert:", upsertError);
+        return Response.json({ error: "Failed to save" }, { status: 500 });
+      }
+    }
+
+    return Response.json({ success: true });
   } catch (e) {
     console.error("[dashboard-settings API] POST:", e);
     return Response.json(

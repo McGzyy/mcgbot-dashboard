@@ -38,7 +38,11 @@ const TRENDING_TOKENS_MOCK = [
 ] as const;
 
 const CARD_HOVER =
-  "transition-transform duration-200 ease-out motion-safe:hover:scale-[1.01]";
+  "transition-[box-shadow,border-color] duration-200 ease-out hover:border-zinc-600/50 hover:shadow-lg hover:shadow-black/35";
+
+/** Row hover for Top Performers list (no scale — translate only). */
+const TOP_PERFORMER_ROW_INTERACTIVE =
+  "cursor-pointer transition-all duration-150 hover:-translate-y-px hover:bg-zinc-800/40 hover:border-amber-400/40 hover:shadow-md";
 
 const PROFILE_LINK_CLASS =
   "text-cyan-400 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50";
@@ -647,8 +651,8 @@ function TopPerformersPanel({
                   key={row.discordId}
                   className={
                     isFirst
-                      ? "rounded-xl border border-amber-500/45 bg-gradient-to-r from-amber-500/10 to-amber-500/[0.02] px-4 py-3 shadow-[0_0_28px_-10px_rgba(245,158,11,0.45)]"
-                      : "rounded-xl border border-zinc-800/90 bg-zinc-900/40 px-4 py-3"
+                      ? `rounded-xl border border-amber-500/45 bg-gradient-to-r from-amber-500/10 to-amber-500/[0.02] px-4 py-3 shadow-[0_0_28px_-10px_rgba(245,158,11,0.45)] ${TOP_PERFORMER_ROW_INTERACTIVE}`
+                      : `rounded-xl border border-zinc-800/90 bg-zinc-900/40 px-4 py-3 ${TOP_PERFORMER_ROW_INTERACTIVE}`
                   }
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
