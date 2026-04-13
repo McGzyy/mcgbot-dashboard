@@ -734,7 +734,8 @@ export default function UserProfilePage() {
               Discord ID · {uid}
             </p>
             {!loading && xHandle ? (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-xs text-zinc-500">X:</span>
                 <a
                   href={`https://x.com/${encodeURIComponent(xHandle)}`}
                   target="_blank"
@@ -744,8 +745,8 @@ export default function UserProfilePage() {
                   @{xHandle}
                 </a>
                 {xVerified ? (
-                  <span className="ml-2 rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-300">
-                    ✓ X Verified
+                  <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-300">
+                    ✓ Verified
                   </span>
                 ) : null}
               </div>
