@@ -341,57 +341,57 @@ export default function UserProfilePage() {
   const [editBannerUrl, setEditBannerUrl] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchProfile = useCallback(async (signal?: AbortSignal) => {
     if (!profileUserId) {
       setLoading(false);
       setError("Invalid profile link.");
       setProfile(null);
-      return;
+      return false;
     }
 
-    let cancelled = false;
     setLoading(true);
     setError(null);
 
     const url = `/api/user/${encodeURIComponent(profileUserId)}`;
-    fetch(url)
-      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
-      .then(({ ok, data }) => {
-        if (cancelled) return;
-        if (!ok) {
-          const msg =
-            data &&
-            typeof data === "object" &&
-            typeof (data as { error?: string }).error === "string"
-              ? (data as { error: string }).error
-              : "Could not load profile.";
-          setError(msg);
-          setProfile(null);
-          return;
-        }
-        const parsed = parseProfile(data);
-        if (!parsed) {
-          setError("Invalid profile response.");
-          setProfile(null);
-          return;
-        }
-        setProfile(parsed);
-        setError(null);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setError("Could not load profile.");
-          setProfile(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const res = await fetch(url, { signal });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg =
+          data &&
+          typeof data === "object" &&
+          typeof (data as { error?: string }).error === "string"
+            ? (data as { error: string }).error
+            : "Could not load profile.";
+        setError(msg);
+        setProfile(null);
+        return false;
+      }
+      const parsed = parseProfile(data);
+      if (!parsed) {
+        setError("Invalid profile response.");
+        setProfile(null);
+        return false;
+      }
+      setProfile(parsed);
+      setError(null);
+      return true;
+    } catch {
+      setError("Could not load profile.");
+      setProfile(null);
+      return false;
+    } finally {
+      setLoading(false);
+    }
   }, [profileUserId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetchProfile(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [fetchProfile]);
 
   useEffect(() => {
     if (!editOpen || !isOwnProfile) return;
@@ -593,9 +593,12 @@ export default function UserProfilePage() {
     setEditSaving(true);
     setEditError(null);
     try {
+      const nextBio = bio.trim() === "" ? null : bio;
+      const nextBannerUrl =
+        editBannerUrl.trim() === "" ? null : editBannerUrl.trim();
       const payload: EditableProfile = {
-        bio: bio.trim() === "" ? null : bio,
-        banner_url: editBannerUrl.trim() === "" ? null : editBannerUrl.trim(),
+        bio: nextBio,
+        banner_url: nextBannerUrl,
       };
       const res = await fetch("/api/profile", {
         method: "POST",
@@ -608,6 +611,11 @@ export default function UserProfilePage() {
         setEditError("Could not save profile.");
         return;
       }
+      setProfile((prev) =>
+        prev ? { ...prev, bio: nextBio, banner_url: nextBannerUrl } : prev
+      );
+      console.log("Profile updated:", nextBio, nextBannerUrl);
+      await fetchProfile();
       setEditOpen(false);
     } catch (e) {
       console.log("[edit profile] save error", e);
