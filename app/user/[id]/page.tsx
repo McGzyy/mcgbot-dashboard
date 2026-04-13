@@ -637,15 +637,17 @@ export default function UserProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-1 sm:px-0">
-      {profile?.banner_url ? (
-        <img
-          src={profile.banner_url}
-          alt="Profile Banner"
-          className="h-32 w-full rounded-xl object-cover"
-        />
-      ) : (
-        <div className="h-32 w-full rounded-xl bg-gradient-to-r from-zinc-800 to-zinc-700" />
-      )}
+      <div className="mb-4 h-24 w-full overflow-hidden rounded-xl">
+        {profile?.banner_url ? (
+          <img
+            src={profile.banner_url}
+            alt="Profile Banner"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full bg-gradient-to-r from-zinc-800 to-zinc-700" />
+        )}
+      </div>
       <header className="border-b border-zinc-800/80 pb-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
           <img

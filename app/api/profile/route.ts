@@ -96,13 +96,30 @@ export async function POST(request: Request) {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const update = parseProfileUpdate(body);
-    if (!update) {
-      return Response.json(
-        { error: "Invalid profile payload" },
-        { status: 400 }
-      );
+    if (!body || typeof body !== "object") {
+      return Response.json({ error: "Invalid profile payload" }, { status: 400 });
     }
+
+    const { bio, banner_url } = body as { bio?: unknown; banner_url?: unknown };
+
+    const bioStr =
+      bio == null ? null : typeof bio === "string" ? bio : String(bio);
+    const bannerStr =
+      banner_url == null
+        ? null
+        : typeof banner_url === "string"
+          ? banner_url
+          : String(banner_url);
+
+    // Basic sanity limits (avoid huge payloads)
+    if (bioStr != null && bioStr.length > 1000) {
+      return Response.json({ error: "Bio is too long" }, { status: 400 });
+    }
+    if (bannerStr != null && bannerStr.length > 2048) {
+      return Response.json({ error: "Banner URL is too long" }, { status: 400 });
+    }
+
+    console.log("Saving profile:", { bio: bioStr, banner_url: bannerStr });
 
     const supabase = supabaseOrError();
     if (supabase instanceof Response) return supabase;
@@ -110,12 +127,12 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from("users")
       .update({
-        bio: update.bio,
-        banner_url: update.banner_url,
+        bio: bioStr,
+        banner_url: bannerStr,
       })
       .eq("discord_id", userId)
       .select("bio, banner_url")
-      .maybeSingle();
+      .single();
 
     if (error) {
       console.error("[profile API] POST:", error);
@@ -127,10 +144,7 @@ export async function POST(request: Request) {
 
     return Response.json({
       ok: true,
-      profile: {
-        bio: (data as any)?.bio ?? null,
-        banner_url: (data as any)?.banner_url ?? null,
-      },
+      profile: data,
     });
   } catch (e) {
     console.error("[profile API] POST:", e);
