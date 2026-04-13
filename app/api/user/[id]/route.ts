@@ -38,7 +38,7 @@ export async function GET(
         .eq("discord_id", discordId),
       supabase
         .from("users")
-        .select("is_top_caller, is_trusted_pro")
+        .select("is_top_caller, is_trusted_pro, bio, banner_url")
         .eq("discord_id", discordId)
         .maybeSingle(),
     ]);
@@ -56,7 +56,12 @@ export async function GET(
     }
 
     const userRow = userRowResult.data as
-      | { is_top_caller?: boolean; is_trusted_pro?: boolean }
+      | {
+          is_top_caller?: boolean;
+          is_trusted_pro?: boolean;
+          bio?: unknown;
+          banner_url?: unknown;
+        }
       | null;
 
     const rows = (Array.isArray(data) ? data : []) as Record<
@@ -72,6 +77,18 @@ export async function GET(
       username,
       isTopCaller: Boolean(userRow?.is_top_caller),
       isTrustedPro: Boolean(userRow?.is_trusted_pro),
+      bio:
+        userRow?.bio == null
+          ? null
+          : typeof userRow.bio === "string"
+            ? userRow.bio
+            : String(userRow.bio),
+      banner_url:
+        userRow?.banner_url == null
+          ? null
+          : typeof userRow.banner_url === "string"
+            ? userRow.banner_url
+            : String(userRow.banner_url),
       stats: {
         avgX: stats.avgX,
         winRate: stats.winRate,

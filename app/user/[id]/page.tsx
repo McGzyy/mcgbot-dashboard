@@ -30,6 +30,8 @@ type ProfilePayload = {
   username: string;
   isTopCaller: boolean;
   isTrustedPro: boolean;
+  bio: string | null;
+  banner_url: string | null;
   stats: ProfileStats;
   recentCalls: RecentCallRow[];
 };
@@ -44,6 +46,13 @@ type TrophyRow = {
 };
 
 type TrophiesByTimeframe = Record<TrophyTimeframe, TrophyRow[]>;
+
+type EditableProfile = {
+  bio: string | null;
+  banner_url: string | null;
+};
+
+const BIO_MAX = 200;
 
 function rankMedal(rank: number): string {
   if (rank === 1) return "🥇";
@@ -286,6 +295,18 @@ function parseProfile(json: unknown): ProfilePayload | null {
     username,
     isTopCaller: Boolean(o.isTopCaller),
     isTrustedPro: Boolean(o.isTrustedPro),
+    bio:
+      o.bio == null
+        ? null
+        : typeof o.bio === "string"
+          ? o.bio
+          : String(o.bio),
+    banner_url:
+      (o.banner_url ?? o.bannerUrl) == null
+        ? null
+        : typeof (o.banner_url ?? o.bannerUrl) === "string"
+          ? String(o.banner_url ?? o.bannerUrl)
+          : String(o.banner_url ?? o.bannerUrl),
     stats,
     recentCalls,
   };
@@ -313,6 +334,12 @@ export default function UserProfilePage() {
   const [trophies, setTrophies] = useState<TrophiesByTimeframe | null>(null);
   const [trophiesLoading, setTrophiesLoading] = useState(true);
   const [badges, setBadges] = useState<string[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editBio, setEditBio] = useState("");
+  const [editBannerUrl, setEditBannerUrl] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profileUserId) {
@@ -365,6 +392,44 @@ export default function UserProfilePage() {
       cancelled = true;
     };
   }, [profileUserId]);
+
+  useEffect(() => {
+    if (!editOpen || !isOwnProfile) return;
+    let cancelled = false;
+    setEditLoading(true);
+    setEditError(null);
+    fetch("/api/profile")
+      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (cancelled) return;
+        if (!ok || !data || typeof data !== "object") {
+          setEditError("Could not load profile.");
+          return;
+        }
+        const o = data as Record<string, unknown>;
+        const bio = o.bio;
+        const banner = o.banner_url ?? o.bannerUrl;
+        setEditBio(
+          typeof bio === "string" ? bio : bio == null ? "" : String(bio)
+        );
+        setEditBannerUrl(
+          typeof banner === "string"
+            ? banner
+            : banner == null
+              ? ""
+              : String(banner)
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setEditError("Could not load profile.");
+      })
+      .finally(() => {
+        if (!cancelled) setEditLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editOpen, isOwnProfile]);
 
   useEffect(() => {
     if (!profileUserId) {
@@ -515,6 +580,43 @@ export default function UserProfilePage() {
   const isTopCaller = badges.includes("top_caller");
   const isTrustedPro = badges.includes("trusted_pro");
 
+  const bannerUrl = profile?.banner_url?.trim() || "";
+  const bioText = profile?.bio?.trim() || "";
+
+  async function saveProfileEdits() {
+    if (editSaving) return;
+    const bio = editBio;
+    if (bio.length > BIO_MAX) {
+      setEditError(`Bio must be ${BIO_MAX} characters or fewer.`);
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const payload: EditableProfile = {
+        bio: bio.trim() === "" ? null : bio,
+        banner_url: editBannerUrl.trim() === "" ? null : editBannerUrl.trim(),
+      };
+      const res = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        console.log("[edit profile] save failed", res.status, txt);
+        setEditError("Could not save profile.");
+        return;
+      }
+      setEditOpen(false);
+    } catch (e) {
+      console.log("[edit profile] save error", e);
+      setEditError("Could not save profile.");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   if (!userId?.trim()) {
     return (
       <div className="mx-auto max-w-3xl px-1 sm:px-0">
@@ -525,6 +627,17 @@ export default function UserProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-1 sm:px-0">
+      <div className="mb-5 overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/60">
+        {bannerUrl ? (
+          <img
+            src={bannerUrl}
+            alt=""
+            className="h-[140px] w-full object-cover"
+          />
+        ) : (
+          <div className="h-[140px] w-full bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900" />
+        )}
+      </div>
       <header className="border-b border-zinc-800/80 pb-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
           <img
@@ -553,7 +666,15 @@ export default function UserProfilePage() {
                   🧠 Trusted Pro
                 </span>
               ) : null}
-              {!isOwnProfile ? (
+              {isOwnProfile ? (
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(true)}
+                  className="shrink-0 rounded-md border border-zinc-700/80 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 sm:ml-auto"
+                >
+                  Edit Profile
+                </button>
+              ) : (
                 <FollowButton
                   targetDiscordId={uid}
                   following={followingState}
@@ -566,8 +687,13 @@ export default function UserProfilePage() {
                   onCountsRefresh={refreshFollowStats}
                   className="px-3 py-1.5 text-xs sm:ml-auto"
                 />
-              ) : null}
+              )}
             </div>
+            {!loading && bioText ? (
+              <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-400">
+                {bioText}
+              </p>
+            ) : null}
             <p className="mt-1.5 truncate text-xs text-zinc-500 tabular-nums">
               Discord ID · {uid}
             </p>
@@ -722,6 +848,104 @@ export default function UserProfilePage() {
           )}
         </PanelCard>
       </section>
+
+      {editOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Edit profile"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setEditOpen(false);
+          }}
+        >
+          <div className="w-full max-w-lg rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">
+                  Edit Profile
+                </h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Update your bio and banner URL.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditOpen(false)}
+                className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+                aria-label="Close"
+              >
+                Esc
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-zinc-400">
+                  Bio
+                </label>
+                <textarea
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
+                  maxLength={BIO_MAX + 50}
+                  rows={4}
+                  disabled={editLoading || editSaving}
+                  className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
+                  placeholder="A short bio…"
+                />
+                <p className="mt-1 text-xs text-zinc-500">
+                  <span
+                    className={
+                      editBio.length > BIO_MAX
+                        ? "text-red-400/90"
+                        : "text-zinc-500"
+                    }
+                  >
+                    {editBio.length}/{BIO_MAX}
+                  </span>
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-zinc-400">
+                  Banner URL
+                </label>
+                <input
+                  type="url"
+                  value={editBannerUrl}
+                  onChange={(e) => setEditBannerUrl(e.target.value)}
+                  disabled={editLoading || editSaving}
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
+                  placeholder="https://…"
+                />
+              </div>
+
+              {editError ? (
+                <p className="text-sm text-red-400/90">{editError}</p>
+              ) : null}
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(false)}
+                  disabled={editSaving}
+                  className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveProfileEdits}
+                  disabled={editLoading || editSaving || editBio.length > BIO_MAX}
+                  className="rounded-md bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-sky-400 disabled:opacity-60"
+                >
+                  {editSaving ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
