@@ -55,14 +55,11 @@ function normalizeWidgets(raw: unknown): WidgetsEnabled {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const rawUserId = session?.user?.id;
-    const userId =
-      typeof rawUserId === "string" ? rawUserId.trim() : "";
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const discordId = session?.user?.id;
+    if (!discordId) {
+      return Response.json({ error: "No user ID" }, { status: 401 });
     }
 
-    const discordId = userId;
     console.log("GET SETTINGS FOR:", discordId);
 
     const supabase = createDashboardAdminClient();
@@ -76,7 +73,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from("user_dashboard_settings")
       .select("widgets_enabled")
-      .eq("discord_id", userId)
+      .eq("discord_id", discordId)
       .maybeSingle();
 
     if (error) {
@@ -123,16 +120,9 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
     console.log("SESSION:", session?.user);
 
-    if (!session) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const discordId =
-      typeof session.user?.id === "string" ? session.user.id.trim() : "";
-    console.log("discordId (session.user.id):", discordId);
-
+    const discordId = session?.user?.id;
     if (!discordId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+      return Response.json({ error: "No user ID" }, { status: 401 });
     }
 
     const supabase = createDashboardAdminClient();
