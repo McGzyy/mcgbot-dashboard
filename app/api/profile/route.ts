@@ -57,7 +57,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("users")
-      .select("bio, banner_url, x_handle, x_verified")
+      .select("bio, banner_url, x_handle, x_verified, profile_visibility")
       .eq("discord_id", userId)
       .maybeSingle();
 
@@ -81,8 +81,18 @@ export async function GET() {
           ? null
           : String(row.x_handle);
     const x_verified = Boolean(row.x_verified);
+    const profile_visibility =
+      row.profile_visibility && typeof row.profile_visibility === "object"
+        ? row.profile_visibility
+        : null;
 
-    return Response.json({ bio, banner_url, x_handle, x_verified });
+    return Response.json({
+      bio,
+      banner_url,
+      x_handle,
+      x_verified,
+      profile_visibility,
+    });
   } catch (e) {
     console.error("[profile API] GET:", e);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
@@ -112,38 +122,55 @@ export async function POST(request: Request) {
       );
     }
 
-    const { bio, banner_url, x_handle } = parsed as {
-      bio?: unknown;
-      banner_url?: unknown;
-      x_handle?: unknown;
-    };
+    const o = parsed as Record<string, unknown>;
+    const has = (k: string) =>
+      Object.prototype.hasOwnProperty.call(o, k);
+
+    const bio = o.bio;
+    const banner_url = o.banner_url;
+    const x_handle = o.x_handle;
+    const profile_visibility = o.profile_visibility;
 
     const bioStr =
-      bio == null ? null : typeof bio === "string" ? bio : String(bio);
+      has("bio")
+        ? bio == null
+          ? null
+          : typeof bio === "string"
+            ? bio
+            : String(bio)
+        : undefined;
     const bannerStr =
-      banner_url == null
-        ? null
-        : typeof banner_url === "string"
-          ? banner_url
-          : String(banner_url);
-    const xHandleRaw =
-      x_handle == null
-        ? null
-        : typeof x_handle === "string"
-          ? x_handle
-          : String(x_handle);
-    const xHandleStr = xHandleRaw
-      ? xHandleRaw.trim().replace(/^@+/, "")
-      : null;
+      has("banner_url")
+        ? banner_url == null
+          ? null
+          : typeof banner_url === "string"
+            ? banner_url
+            : String(banner_url)
+        : undefined;
+    const xHandleStr =
+      has("x_handle")
+        ? x_handle == null
+          ? null
+          : (typeof x_handle === "string" ? x_handle : String(x_handle))
+              .trim()
+              .replace(/^@+/, "") || null
+        : undefined;
+
+    const profileVisibility =
+      has("profile_visibility") && profile_visibility && typeof profile_visibility === "object"
+        ? (profile_visibility as Record<string, unknown>)
+        : has("profile_visibility")
+          ? null
+          : undefined;
 
     // Basic sanity limits (avoid huge payloads)
-    if (bioStr != null && bioStr.length > 1000) {
+    if (bioStr != null && typeof bioStr === "string" && bioStr.length > 1000) {
       return Response.json({ error: "Bio is too long" }, { status: 400 });
     }
-    if (bannerStr != null && bannerStr.length > 2048) {
+    if (bannerStr != null && typeof bannerStr === "string" && bannerStr.length > 2048) {
       return Response.json({ error: "Banner URL is too long" }, { status: 400 });
     }
-    if (xHandleStr != null && xHandleStr.length > 32) {
+    if (xHandleStr != null && typeof xHandleStr === "string" && xHandleStr.length > 32) {
       return Response.json({ error: "X handle is too long" }, { status: 400 });
     }
 
@@ -151,6 +178,7 @@ export async function POST(request: Request) {
       bio: bioStr,
       banner_url: bannerStr,
       x_handle: xHandleStr,
+      profile_visibility: profileVisibility,
     });
 
     const supabase = supabaseOrError();
@@ -172,13 +200,19 @@ export async function POST(request: Request) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
+    const updateFields: Record<string, unknown> = {};
+    if (bioStr !== undefined) updateFields.bio = bioStr;
+    if (bannerStr !== undefined) updateFields.banner_url = bannerStr;
+    if (xHandleStr !== undefined) updateFields.x_handle = xHandleStr;
+    if (profileVisibility !== undefined) updateFields.profile_visibility = profileVisibility;
+
+    if (Object.keys(updateFields).length === 0) {
+      return Response.json({ error: "No changes" }, { status: 400 });
+    }
+
     const { data, error } = await supabase
       .from("users")
-      .update({
-        bio: bioStr,
-        banner_url: bannerStr,
-        x_handle: xHandleStr,
-      })
+      .update(updateFields)
       .eq("discord_id", sessionId)
       .select()
       .single();

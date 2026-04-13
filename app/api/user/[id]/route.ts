@@ -7,6 +7,55 @@ import {
 
 const PROFILE_RECENT_CALLS_LIMIT = 15;
 
+function rowMultiple(row: Record<string, unknown>): number {
+  const m = row.ath_multiple;
+  const n = typeof m === "number" && Number.isFinite(m) ? m : Number(m);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function rowCallTimeMs(row: Record<string, unknown>): number {
+  const t = row.call_time;
+  if (typeof t === "number" && Number.isFinite(t)) return t;
+  if (typeof t === "string") {
+    const parsed = Date.parse(t);
+    if (Number.isFinite(parsed)) return parsed;
+    const n = Number(t);
+    if (Number.isFinite(n)) return n;
+  }
+  const n = Number(t);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function computeKeyStats(rows: Record<string, unknown>[]): {
+  bestMultiple: number | null;
+  medianMultiple: number | null;
+  last10Avg: number | null;
+} {
+  const multiples = rows.map(rowMultiple).filter((n) => Number.isFinite(n));
+  if (multiples.length === 0) {
+    return { bestMultiple: null, medianMultiple: null, last10Avg: null };
+  }
+
+  const bestMultiple = Math.max(...multiples);
+
+  const sorted = [...multiples].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const medianMultiple =
+    sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+
+  const sortedByTimeDesc = [...rows].sort(
+    (a, b) => rowCallTimeMs(b) - rowCallTimeMs(a)
+  );
+  const last10 = sortedByTimeDesc
+    .slice(0, 10)
+    .map(rowMultiple)
+    .filter((n) => Number.isFinite(n));
+  const last10Avg =
+    last10.length > 0 ? last10.reduce((s, n) => s + n, 0) / last10.length : null;
+
+  return { bestMultiple, medianMultiple, last10Avg };
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> }
@@ -34,11 +83,11 @@ export async function GET(
     const [{ data, error }, userRowResult] = await Promise.all([
       supabase
         .from("call_performance")
-        .select("username, call_ca, ath_multiple, call_time")
+        .select("id, username, call_ca, ath_multiple, call_time")
         .eq("discord_id", discordId),
       supabase
         .from("users")
-        .select("id, discord_id, bio, banner_url, x_handle, x_verified, created_at")
+        .select("id, discord_id, bio, banner_url, x_handle, x_verified, created_at, profile_visibility")
         .eq("discord_id", discordId)
         .maybeSingle(),
     ]);
@@ -64,6 +113,7 @@ export async function GET(
           x_handle?: unknown;
           x_verified?: unknown;
           created_at?: unknown;
+          profile_visibility?: unknown;
         }
       | null;
     
@@ -77,6 +127,7 @@ export async function GET(
     const username = pickLatestUsername(rows, discordId);
     const stats = computeCallPerformanceUserStats(rows);
     const recentCalls = recentCallsFromRows(rows, PROFILE_RECENT_CALLS_LIMIT);
+    const keyStats = computeKeyStats(rows);
 
     return Response.json({
       username,
@@ -102,11 +153,16 @@ export async function GET(
             ? userRow.x_handle
             : String(userRow.x_handle),
       x_verified: Boolean(userRow?.x_verified),
+      profile_visibility:
+        userRow?.profile_visibility && typeof userRow.profile_visibility === "object"
+          ? userRow.profile_visibility
+          : null,
       stats: {
         avgX: stats.avgX,
         winRate: stats.winRate,
         totalCalls: stats.totalCalls,
       },
+      keyStats,
       recentCalls,
     });
   } catch (e) {

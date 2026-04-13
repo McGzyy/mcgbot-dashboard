@@ -89,6 +89,32 @@ type PrefsState = {
   sound_enabled: boolean;
 };
 
+type ProfileVisibility = {
+  show_stats: boolean;
+  show_trophies: boolean;
+  show_calls: boolean;
+  show_key_stats: boolean;
+  show_pinned_call: boolean;
+};
+
+const DEFAULT_PROFILE_VISIBILITY: ProfileVisibility = {
+  show_stats: true,
+  show_trophies: true,
+  show_calls: true,
+  show_key_stats: true,
+  show_pinned_call: true,
+};
+
+function parseProfileVisibility(raw: unknown): ProfileVisibility {
+  const out: ProfileVisibility = { ...DEFAULT_PROFILE_VISIBILITY };
+  if (!raw || typeof raw !== "object") return out;
+  const o = raw as Record<string, unknown>;
+  for (const k of Object.keys(out) as (keyof ProfileVisibility)[]) {
+    if (typeof o[k] === "boolean") out[k] = o[k] as boolean;
+  }
+  return out;
+}
+
 function ToggleRow({
   id,
   label,
@@ -155,6 +181,9 @@ export default function SettingsPage() {
     min_multiple: 2,
     sound_enabled: true,
   });
+  const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>(
+    DEFAULT_PROFILE_VISIBILITY
+  );
   const [saveState, setSaveState] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
@@ -174,8 +203,11 @@ export default function SettingsPage() {
       fetch("/api/dashboard-settings").then((res) =>
         res.json().then((data) => ({ ok: res.ok, data }))
       ),
+      fetch("/api/profile").then((res) =>
+        res.json().then((data) => ({ ok: res.ok, data }))
+      ),
     ])
-      .then(([prefsResult, dashResult]) => {
+      .then(([prefsResult, dashResult, profileResult]) => {
         if (cancelled) return;
 
         const { ok: prefsOk, data: prefsData } = prefsResult;
@@ -207,6 +239,17 @@ export default function SettingsPage() {
         ) {
           const row = dashData as Record<string, unknown>;
           setWidgets(parseWidgetsEnabled(row.widgets_enabled));
+        }
+
+        const { ok: profileOk, data: profileData } = profileResult;
+        if (
+          profileOk &&
+          profileData &&
+          typeof profileData === "object" &&
+          !("error" in profileData && (profileData as { error?: unknown }).error)
+        ) {
+          const row = profileData as Record<string, unknown>;
+          setProfileVisibility(parseProfileVisibility(row.profile_visibility));
         }
       })
       .catch(() => {
@@ -260,6 +303,21 @@ export default function SettingsPage() {
         console.warn("Preferences error (non-blocking):", err);
       }
 
+      try {
+        const profRes = await fetch("/api/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ profile_visibility: profileVisibility }),
+        });
+        if (!profRes.ok) {
+          const text = await profRes.text();
+          console.warn("Profile visibility failed (non-blocking):", text);
+        }
+      } catch (err) {
+        console.warn("Profile visibility error (non-blocking):", err);
+      }
+
       const res = await fetch("/api/dashboard-settings", {
         method: "POST",
         headers: {
@@ -299,7 +357,7 @@ export default function SettingsPage() {
       setSaveState("error");
       setSaveMessage(e instanceof Error ? e.message : "Network error.");
     }
-  }, [prefs, widgets]);
+  }, [prefs, widgets, profileVisibility]);
 
   if (status === "loading") {
     return (
@@ -443,6 +501,79 @@ export default function SettingsPage() {
               className="mt-3 w-full max-w-[200px] rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 tabular-nums outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50"
             />
           </div>
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Profile
+        </h2>
+        <div className="mt-4 space-y-3">
+          <ToggleRow
+            id="profile-show-stats"
+            label="Show Stats"
+            description="Show Avg X / Win Rate / Total Calls."
+            checked={profileVisibility.show_stats}
+            onToggle={() =>
+              setProfileVisibility((prev) => ({
+                ...prev,
+                show_stats: !prev.show_stats,
+              }))
+            }
+            disabled={settingsLoading}
+          />
+          <ToggleRow
+            id="profile-show-trophies"
+            label="Show Trophy Case"
+            description="Show daily/weekly/monthly trophies."
+            checked={profileVisibility.show_trophies}
+            onToggle={() =>
+              setProfileVisibility((prev) => ({
+                ...prev,
+                show_trophies: !prev.show_trophies,
+              }))
+            }
+            disabled={settingsLoading}
+          />
+          <ToggleRow
+            id="profile-show-calls"
+            label="Show Recent Calls"
+            description="Show your recent calls list."
+            checked={profileVisibility.show_calls}
+            onToggle={() =>
+              setProfileVisibility((prev) => ({
+                ...prev,
+                show_calls: !prev.show_calls,
+              }))
+            }
+            disabled={settingsLoading}
+          />
+          <ToggleRow
+            id="profile-show-key-stats"
+            label="Show Key Stats"
+            description="Show best/median/last 10 stats."
+            checked={profileVisibility.show_key_stats}
+            onToggle={() =>
+              setProfileVisibility((prev) => ({
+                ...prev,
+                show_key_stats: !prev.show_key_stats,
+              }))
+            }
+            disabled={settingsLoading}
+          />
+          <ToggleRow
+            id="profile-show-pinned-call"
+            label="Show Pinned Call"
+            description="Show your pinned call card."
+            checked={profileVisibility.show_pinned_call}
+            onToggle={() =>
+              setProfileVisibility((prev) => ({
+                ...prev,
+                show_pinned_call: !prev.show_pinned_call,
+              }))
+            }
+            disabled={settingsLoading}
+          />
         </div>
       </section>
 

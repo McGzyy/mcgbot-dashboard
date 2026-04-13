@@ -21,6 +21,7 @@ type ProfileStats = {
 };
 
 type RecentCallRow = {
+  id?: string;
   token: string;
   multiple: number;
   time: unknown;
@@ -34,6 +35,18 @@ type ProfilePayload = {
   banner_url: string | null;
   x_handle?: string | null;
   x_verified?: boolean;
+  keyStats?: {
+    bestMultiple: number | null;
+    medianMultiple: number | null;
+    last10Avg: number | null;
+  };
+  profile_visibility?: {
+    show_stats?: boolean;
+    show_trophies?: boolean;
+    show_calls?: boolean;
+    show_key_stats?: boolean;
+    show_pinned_call?: boolean;
+  } | null;
   stats: ProfileStats;
   recentCalls: RecentCallRow[];
 };
@@ -219,19 +232,19 @@ function StatCard({
 }) {
   return (
     <div
-      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
+      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/80 px-3 py-2.5 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
     >
       <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
         {title}
       </p>
       {loading ? (
         <div
-          className="mt-1.5 h-9 w-20 max-w-full animate-pulse rounded-md bg-zinc-800/90"
+          className="mt-1.5 h-8 w-20 max-w-full animate-pulse rounded-md bg-zinc-800/90"
           aria-busy
           aria-label="Loading"
         />
       ) : (
-        <div className="mt-1.5 text-3xl font-bold tabular-nums tracking-tight text-zinc-50">
+        <div className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-50">
           {value}
         </div>
       )}
@@ -250,7 +263,7 @@ function PanelCard({
 }) {
   return (
     <div
-      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER} ${className}`.trim()}
+      className={`w-full rounded-xl border border-zinc-800/80 bg-zinc-900/80 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER} ${className}`.trim()}
     >
       <h2 className="text-sm font-semibold tracking-wide text-zinc-400 uppercase">
         {title}
@@ -282,11 +295,18 @@ function parseProfile(json: unknown): ProfilePayload | null {
     for (const row of recentRaw) {
       if (!row || typeof row !== "object") continue;
       const r = row as Record<string, unknown>;
+      const id =
+        typeof r.id === "string"
+          ? r.id.trim()
+          : r.id == null
+            ? ""
+            : String(r.id).trim();
       const token =
         typeof r.token === "string" ? r.token : String(r.token ?? "");
       const multiple = Number(r.multiple);
       if (!Number.isFinite(multiple)) continue;
       recentCalls.push({
+        id: id || undefined,
         token: token || "Unknown",
         multiple,
         time: r.time,
@@ -316,6 +336,33 @@ function parseProfile(json: unknown): ProfilePayload | null {
           ? String(o.x_handle ?? o.xHandle)
           : String(o.x_handle ?? o.xHandle),
     x_verified: Boolean(o.x_verified ?? o.xVerified),
+    keyStats:
+      o.keyStats && typeof o.keyStats === "object"
+        ? {
+            bestMultiple:
+              typeof (o.keyStats as any).bestMultiple === "number"
+                ? (o.keyStats as any).bestMultiple
+                : (o.keyStats as any).bestMultiple == null
+                  ? null
+                  : Number((o.keyStats as any).bestMultiple) || null,
+            medianMultiple:
+              typeof (o.keyStats as any).medianMultiple === "number"
+                ? (o.keyStats as any).medianMultiple
+                : (o.keyStats as any).medianMultiple == null
+                  ? null
+                  : Number((o.keyStats as any).medianMultiple) || null,
+            last10Avg:
+              typeof (o.keyStats as any).last10Avg === "number"
+                ? (o.keyStats as any).last10Avg
+                : (o.keyStats as any).last10Avg == null
+                  ? null
+                  : Number((o.keyStats as any).last10Avg) || null,
+          }
+        : undefined,
+    profile_visibility:
+      o.profile_visibility && typeof o.profile_visibility === "object"
+        ? (o.profile_visibility as any)
+        : null,
     stats,
     recentCalls,
   };
@@ -350,6 +397,13 @@ export default function UserProfilePage() {
   const [editBannerUrl, setEditBannerUrl] = useState("");
   const [editXHandle, setEditXHandle] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
+  const [pinnedCall, setPinnedCall] = useState<{
+    id: string;
+    token: string;
+    multiple: number;
+    time: unknown;
+  } | null>(null);
+  const [pinnedLoading, setPinnedLoading] = useState(true);
 
   const fetchProfile = useCallback(async (signal?: AbortSignal) => {
     if (!profileUserId) {
@@ -402,6 +456,52 @@ export default function UserProfilePage() {
       controller.abort();
     };
   }, [fetchProfile]);
+
+  useEffect(() => {
+    if (!profileUserId) {
+      setPinnedCall(null);
+      setPinnedLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setPinnedLoading(true);
+    const url = `/api/user/${encodeURIComponent(profileUserId)}/pinned-call`;
+    fetch(url)
+      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (cancelled) return;
+        if (!ok || !data || typeof data !== "object") {
+          setPinnedCall(null);
+          return;
+        }
+        const pc = (data as any).pinnedCall;
+        if (!pc || typeof pc !== "object") {
+          setPinnedCall(null);
+          return;
+        }
+        const o = pc as Record<string, unknown>;
+        const id = String(o.id ?? "").trim();
+        if (!id) {
+          setPinnedCall(null);
+          return;
+        }
+        setPinnedCall({
+          id,
+          token: String(o.token ?? "Unknown"),
+          multiple: Number(o.multiple ?? 0),
+          time: o.time,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setPinnedCall(null);
+      })
+      .finally(() => {
+        if (!cancelled) setPinnedLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileUserId]);
 
   useEffect(() => {
     if (!editOpen || !isOwnProfile) return;
@@ -602,6 +702,14 @@ export default function UserProfilePage() {
   const xHandle = profile?.x_handle?.trim() || "";
   const xVerified = Boolean(profile?.x_verified);
 
+  const visibility = {
+    show_stats: profile?.profile_visibility?.show_stats ?? true,
+    show_trophies: profile?.profile_visibility?.show_trophies ?? true,
+    show_calls: profile?.profile_visibility?.show_calls ?? true,
+    show_key_stats: profile?.profile_visibility?.show_key_stats ?? true,
+    show_pinned_call: profile?.profile_visibility?.show_pinned_call ?? true,
+  };
+
   async function saveProfileEdits() {
     if (editSaving) return;
     const bio = editBio;
@@ -650,6 +758,41 @@ export default function UserProfilePage() {
       setEditError("Could not save profile.");
     } finally {
       setEditSaving(false);
+    }
+  }
+
+  async function pinCall(callId: string) {
+    if (!isOwnProfile) return;
+    const id = callId.trim();
+    if (!id) return;
+    try {
+      const res = await fetch("/api/profile/pinned-call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pinned_call_id: id }),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        console.log("[pin call] failed", res.status, txt);
+        return;
+      }
+      // refresh pinned call card
+      setPinnedLoading(true);
+      const url = `/api/user/${encodeURIComponent(profileUserId)}/pinned-call`;
+      const data = await fetch(url).then((r) => r.json()).catch(() => null);
+      const pc = data && typeof data === "object" ? (data as any).pinnedCall : null;
+      if (pc && typeof pc === "object") {
+        setPinnedCall({
+          id: String((pc as any).id ?? "").trim(),
+          token: String((pc as any).token ?? "Unknown"),
+          multiple: Number((pc as any).multiple ?? 0),
+          time: (pc as any).time,
+        });
+      } else {
+        setPinnedCall(null);
+      }
+    } finally {
+      setPinnedLoading(false);
     }
   }
 
@@ -779,129 +922,253 @@ export default function UserProfilePage() {
         <p className="mt-8 text-sm text-red-400/90">{error}</p>
       ) : null}
 
-      <section className="mt-10">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Stats
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <StatCard
-            title="Avg X"
-            loading={loading}
-            value={
-              profile ? `${profile.stats.avgX.toFixed(1)}x` : "—"
-            }
-          />
-          <StatCard
-            title="Win Rate"
-            loading={loading}
-            value={
-              profile ? `${profile.stats.winRate.toFixed(0)}%` : "—"
-            }
-          />
-          <StatCard
-            title="Total Calls"
-            loading={loading}
-            value={profile ? profile.stats.totalCalls : "—"}
-          />
-        </div>
-      </section>
+      <div className="mt-10 grid grid-cols-12 gap-4">
+        {visibility.show_stats ? (
+        <section className="col-span-12">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+            Stats
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              title="Avg X"
+              loading={loading}
+              value={profile ? `${profile.stats.avgX.toFixed(1)}x` : "—"}
+            />
+            <StatCard
+              title="Win Rate"
+              loading={loading}
+              value={profile ? `${profile.stats.winRate.toFixed(0)}%` : "—"}
+            />
+            <StatCard
+              title="Total Calls"
+              loading={loading}
+              value={profile ? profile.stats.totalCalls : "—"}
+            />
+          </div>
+        </section>
+        ) : null}
 
-      <section className="mt-8">
-        <PanelCard title="Trophy Case" className="overflow-visible">
-          {trophiesLoading ? (
-            <div className="mt-3 space-y-5" aria-busy aria-label="Loading trophies">
-              {(["Daily", "Weekly", "Monthly"] as const).map((label) => (
-                <div key={label}>
-                  <div className="mb-2 h-3 w-14 animate-pulse rounded bg-zinc-800/90" />
-                  <div className="flex flex-wrap gap-2">
-                    {Array.from({ length: 8 }, (_, j) => (
-                      <div
-                        key={j}
-                        className="h-8 w-8 shrink-0 animate-pulse rounded-md bg-zinc-800/80"
-                      />
-                    ))}
-                  </div>
+        <div className="col-span-12 lg:col-span-8">
+          {visibility.show_trophies ? (
+          <section className="mb-4">
+            <PanelCard title="Trophy Case" className="overflow-visible">
+              {trophiesLoading ? (
+                <div
+                  className="mt-3 space-y-5"
+                  aria-busy
+                  aria-label="Loading trophies"
+                >
+                  {(["Daily", "Weekly", "Monthly"] as const).map((label) => (
+                    <div key={label}>
+                      <div className="mb-2 h-3 w-14 animate-pulse rounded bg-zinc-800/90" />
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: 8 }, (_, j) => (
+                          <div
+                            key={j}
+                            className="h-8 w-8 shrink-0 animate-pulse rounded-md bg-zinc-800/80"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : trophies ? (
-            <div className="mt-3 space-y-5">
-              <TrophyTierRow
-                label="Daily"
-                timeframe="daily"
-                items={trophies.daily}
-                size="sm"
-              />
-              <TrophyTierRow
-                label="Weekly"
-                timeframe="weekly"
-                items={trophies.weekly}
-                size="md"
-              />
-              <TrophyTierRow
-                label="Monthly"
-                timeframe="monthly"
-                items={trophies.monthly}
-                size="lg"
-              />
-            </div>
-          ) : (
-            <p className="mt-2 text-sm text-zinc-500">
-              Trophies are unavailable right now.
-            </p>
-          )}
-        </PanelCard>
-      </section>
+              ) : trophies ? (
+                <div className="mt-3 space-y-5">
+                  <TrophyTierRow
+                    label="Daily"
+                    timeframe="daily"
+                    items={trophies.daily}
+                    size="sm"
+                  />
+                  <TrophyTierRow
+                    label="Weekly"
+                    timeframe="weekly"
+                    items={trophies.weekly}
+                    size="md"
+                  />
+                  <TrophyTierRow
+                    label="Monthly"
+                    timeframe="monthly"
+                    items={trophies.monthly}
+                    size="lg"
+                  />
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-zinc-500">
+                  Trophies are unavailable right now.
+                </p>
+              )}
+            </PanelCard>
+          </section>
+          ) : null}
 
-      <section className="mt-8">
-        <PanelCard title="Recent Calls">
-          {loading ? (
-            <div className="flex min-h-[88px] items-center justify-center py-6">
-              <p className="text-sm text-zinc-500">Loading calls…</p>
-            </div>
-          ) : !profile || profile.recentCalls.length === 0 ? (
-            <div className="flex min-h-[88px] items-center justify-center py-6">
-              <p className="text-sm text-zinc-500">No calls yet</p>
-            </div>
-          ) : (
-            <>
-              <div
-                className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-800/60 pb-2 text-[10px] font-medium uppercase tracking-wide text-zinc-500 sm:gap-x-4"
-                aria-hidden
-              >
-                <span>Token / CA</span>
-                <span className="text-right">Result</span>
-                <span className="text-right">Time</span>
-              </div>
-              <ul className="divide-y divide-zinc-800/50 text-sm">
-                {profile.recentCalls.map((call, i) => (
-                  <li
-                    key={`${call.token}-${String(call.time)}-${i}`}
-                    className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 py-2.5 text-zinc-300 first:pt-2 sm:gap-x-4"
+          {visibility.show_calls ? (
+          <section className="mb-4">
+            <PanelCard title="Recent Calls">
+              {loading ? (
+                <div className="flex min-h-[88px] items-center justify-center py-6">
+                  <p className="text-sm text-zinc-500">Loading calls…</p>
+                </div>
+              ) : !profile || profile.recentCalls.length === 0 ? (
+                <div className="flex min-h-[88px] items-center justify-center py-6">
+                  <p className="text-sm text-zinc-500">No calls yet</p>
+                </div>
+              ) : (
+                <>
+                  <div
+                    className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-800/60 pb-2 text-[10px] font-medium uppercase tracking-wide text-zinc-500 sm:gap-x-4"
+                    aria-hidden
                   >
-                    <span
-                      className="min-w-0 truncate font-mono text-[13px] text-zinc-100"
-                      title={call.token}
+                    <span>Token / CA</span>
+                    <span className="text-right">Result</span>
+                    <span className="text-right">Time</span>
+                  </div>
+                  <ul className="divide-y divide-zinc-800/50 text-sm">
+                    {profile.recentCalls.map((call, i) => (
+                      <li
+                        key={`${call.token}-${String(call.time)}-${i}`}
+                        className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 py-2.5 text-zinc-300 first:pt-2 sm:gap-x-4"
+                      >
+                        <span
+                          className="min-w-0 truncate font-mono text-[13px] text-zinc-100"
+                          title={call.token}
+                        >
+                          {call.token}
+                          {isOwnProfile && call.id ? (
+                            <button
+                              type="button"
+                              onClick={() => pinCall(call.id!)}
+                              className="ml-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200"
+                            >
+                              Pin
+                            </button>
+                          ) : null}
+                        </span>
+                        <span
+                          className={`shrink-0 text-right text-sm font-semibold tabular-nums ${multipleClass(
+                            call.multiple
+                          )}`}
+                        >
+                          {call.multiple.toFixed(1)}x
+                        </span>
+                        <span className="shrink-0 text-right text-sm text-zinc-500">
+                          {formatJoinedAt(callTimeMs(call.time), nowMs)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </PanelCard>
+          </section>
+          ) : null}
+        </div>
+
+        <aside className="col-span-12 lg:col-span-4">
+          <div className="w-full max-w-sm space-y-4 lg:ml-auto">
+            <PanelCard title="Profile Summary">
+              <div className="mt-2 space-y-2 text-sm text-zinc-400">
+                <p className="truncate">
+                  <span className="text-zinc-500">Discord ID:</span>{" "}
+                  <span className="tabular-nums text-zinc-300">{uid}</span>
+                </p>
+                {xHandle ? (
+                  <p className="truncate">
+                    <span className="text-zinc-500">X:</span>{" "}
+                    <a
+                      href={`https://x.com/${encodeURIComponent(xHandle)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:underline"
                     >
-                      {call.token}
-                    </span>
-                    <span
-                      className={`shrink-0 text-right text-sm font-semibold tabular-nums ${multipleClass(
-                        call.multiple
-                      )}`}
-                    >
-                      {call.multiple.toFixed(1)}x
-                    </span>
-                    <span className="shrink-0 text-right text-sm text-zinc-500">
-                      {formatJoinedAt(callTimeMs(call.time), nowMs)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </PanelCard>
-      </section>
+                      @{xHandle}
+                    </a>
+                    {xVerified ? (
+                      <span className="ml-2 rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-300">
+                        ✓ Verified
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
+                {bioText ? (
+                  <p className="whitespace-pre-wrap text-zinc-400">{bioText}</p>
+                ) : null}
+              </div>
+            </PanelCard>
+
+            {visibility.show_pinned_call ? (
+            <PanelCard title="Pinned Call">
+              {pinnedLoading ? (
+                <div className="mt-2 space-y-2" aria-busy>
+                  <div className="h-4 w-40 animate-pulse rounded bg-zinc-800/80" />
+                  <div className="h-8 w-24 animate-pulse rounded bg-zinc-800/80" />
+                </div>
+              ) : pinnedCall ? (
+                <div className="mt-2 space-y-2">
+                  <p
+                    className="truncate font-mono text-[13px] text-zinc-200"
+                    title={pinnedCall.token}
+                  >
+                    {pinnedCall.token}
+                  </p>
+                  <p className="text-3xl font-bold tabular-nums tracking-tight text-emerald-400">
+                    {Number.isFinite(pinnedCall.multiple)
+                      ? `${pinnedCall.multiple.toFixed(1)}x`
+                      : "—"}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {formatJoinedAt(callTimeMs(pinnedCall.time), nowMs)}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-zinc-500">No pinned call</p>
+              )}
+            </PanelCard>
+            ) : null}
+
+            {visibility.show_key_stats ? (
+            <PanelCard title="Key Stats">
+              <div className="mt-2 space-y-2">
+                {(() => {
+                  const best = profile?.keyStats?.bestMultiple ?? null;
+                  const median = profile?.keyStats?.medianMultiple ?? null;
+                  const last10 = profile?.keyStats?.last10Avg ?? null;
+                  const strong = (n: number | null) =>
+                    n != null && Number.isFinite(n) && n >= 2;
+                  const valClass = (n: number | null) =>
+                    `font-bold tabular-nums ${
+                      strong(n) ? "text-emerald-400" : "text-zinc-200"
+                    }`;
+
+                  return (
+                    <>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-sm text-zinc-500">Best Call</span>
+                        <span className={valClass(best)}>
+                          {best == null ? "—" : `${best.toFixed(1)}x`}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-sm text-zinc-500">Median</span>
+                        <span className={valClass(median)}>
+                          {median == null ? "—" : `${median.toFixed(1)}x`}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-sm text-zinc-500">Last 10</span>
+                        <span className={valClass(last10)}>
+                          {last10 == null ? "—" : `${last10.toFixed(1)}x`}
+                        </span>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </PanelCard>
+            ) : null}
+          </div>
+        </aside>
+      </div>
 
       {editOpen ? (
         <div

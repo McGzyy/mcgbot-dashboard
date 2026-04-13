@@ -26,7 +26,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("call_performance")
-      .select("call_ca, ath_multiple, call_time")
+      .select("id, call_ca, ath_multiple, call_time")
       .eq("discord_id", discordId)
       .order("call_time", { ascending: false })
       .limit(10);

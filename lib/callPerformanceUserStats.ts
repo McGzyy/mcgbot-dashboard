@@ -2,6 +2,7 @@ import { rowCallTimeUtcMs } from "@/lib/callPerformanceLeaderboard";
 
 /** Shape returned by `/api/me/recent-calls` and profile `recentCalls`. */
 export type RecentCallDto = {
+  id?: string;
   token: string;
   multiple: number;
   time: unknown;
@@ -37,6 +38,13 @@ export function countCallsInLastMs(
 export function mapCallPerformanceRowToRecentCall(
   row: Record<string, unknown>
 ): RecentCallDto {
+  const idRaw = row.id;
+  const id =
+    typeof idRaw === "string"
+      ? idRaw.trim()
+      : idRaw == null
+        ? ""
+        : String(idRaw).trim();
   const raw = row.call_ca;
   const token =
     typeof raw === "string" && raw.trim() !== ""
@@ -44,6 +52,7 @@ export function mapCallPerformanceRowToRecentCall(
       : String(raw ?? "Unknown") || "Unknown";
   const multiple = Number(row.ath_multiple ?? 0);
   return {
+    id: id || undefined,
     token,
     multiple: Number.isFinite(multiple) ? multiple : 0,
     time: row.call_time,
