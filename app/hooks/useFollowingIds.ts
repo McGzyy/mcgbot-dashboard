@@ -30,8 +30,14 @@ export function useFollowingIds() {
         const next = new Set<string>();
         for (const entry of list) {
           if (!entry || typeof entry !== "object") continue;
-          const id = (entry as Record<string, unknown>).targetId;
-          if (typeof id === "string" && id.trim() !== "") next.add(id.trim());
+          const o = entry as Record<string, unknown>;
+          const id =
+            typeof o.targetUserId === "string"
+              ? o.targetUserId
+              : typeof o.targetId === "string"
+                ? o.targetId
+                : "";
+          if (id.trim() !== "") next.add(id.trim());
         }
         setFollowingIds(next);
       })

@@ -1,12 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-
-type CallRow = {
-  call_ca?: unknown;
-  ath_multiple?: unknown;
-  call_time?: unknown;
-};
+import { mapCallPerformanceRowToRecentCall } from "@/lib/callPerformanceUserStats";
 
 export async function GET() {
   try {
@@ -44,15 +39,12 @@ export async function GET() {
       );
     }
 
-    const rows = (Array.isArray(data) ? data : []) as CallRow[];
+    const rows = (Array.isArray(data) ? data : []) as Record<
+      string,
+      unknown
+    >[];
 
-    return Response.json(
-      rows.map((row) => ({
-        token: row.call_ca || "Unknown",
-        multiple: Number(row.ath_multiple || 0),
-        time: row.call_time,
-      }))
-    );
+    return Response.json(rows.map(mapCallPerformanceRowToRecentCall));
   } catch (e) {
     console.error("[me/recent-calls API] GET:", e);
     return Response.json(

@@ -2,9 +2,14 @@
 
 import { FollowButton } from "@/app/components/FollowButton";
 import { useFollowingIds } from "@/app/hooks/useFollowingIds";
+import {
+  callTimeMs,
+  formatJoinedAt,
+  multipleClass,
+} from "@/lib/callDisplayFormat";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 const CARD_HOVER =
   "transition-[box-shadow,border-color] duration-200 ease-out hover:border-zinc-600/50 hover:shadow-lg hover:shadow-black/35";
@@ -23,43 +28,20 @@ type RecentCallRow = {
 
 type ProfilePayload = {
   username: string;
+  isTopCaller: boolean;
+  isTrustedPro: boolean;
   stats: ProfileStats;
   recentCalls: RecentCallRow[];
 };
 
-function callTimeMs(t: unknown): number {
-  if (typeof t === "number" && Number.isFinite(t)) return t;
-  const n = Number(t);
-  if (Number.isFinite(n)) return n;
-  if (typeof t === "string") {
-    const p = Date.parse(t);
-    if (Number.isFinite(p)) return p;
+function defaultDiscordAvatarUrl(discordId: string): string {
+  try {
+    const id = BigInt(discordId);
+    const idx = Number((id >> BigInt(22)) % BigInt(6));
+    return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
+  } catch {
+    return "https://cdn.discordapp.com/embed/avatars/0.png";
   }
-  return 0;
-}
-
-function formatJoinedAt(joinedAt: number, nowMs: number): string {
-  if (!Number.isFinite(joinedAt) || joinedAt <= 0) return "—";
-  const diff = nowMs - joinedAt;
-  const sec = Math.floor(diff / 1000);
-  const min = Math.floor(sec / 60);
-  const hr = Math.floor(min / 60);
-  if (sec < 60) return "just now";
-  if (min < 60) return min === 1 ? "1 min ago" : `${min} min ago`;
-  if (hr < 24) return hr === 1 ? "1 hour ago" : `${hr} hours ago`;
-  const date = new Date(joinedAt);
-  const nowDate = new Date(nowMs);
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  if (date.getFullYear() !== nowDate.getFullYear()) {
-    opts.year = "numeric";
-  }
-  return date.toLocaleDateString("en-US", opts);
-}
-
-function multipleClass(multiple: number): string {
-  if (multiple >= 2) return "text-emerald-400";
-  if (multiple < 1) return "text-red-400";
-  return "text-zinc-200";
 }
 
 function StatCard({
@@ -145,7 +127,13 @@ function parseProfile(json: unknown): ProfilePayload | null {
       });
     }
   }
-  return { username, stats, recentCalls };
+  return {
+    username,
+    isTopCaller: Boolean(o.isTopCaller),
+    isTrustedPro: Boolean(o.isTrustedPro),
+    stats,
+    recentCalls,
+  };
 }
 
 export default function UserProfilePage() {
@@ -162,6 +150,11 @@ export default function UserProfilePage() {
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [followStats, setFollowStats] = useState<{
+    followers: number;
+    following: number;
+    isFollowing: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (!userId?.trim()) {
@@ -215,7 +208,86 @@ export default function UserProfilePage() {
     };
   }, [userId]);
 
+  useEffect(() => {
+    if (!userId?.trim()) return;
+    let cancelled = false;
+    setFollowStats(null);
+    const q = encodeURIComponent(userId.trim());
+    fetch(`/api/follow?userId=${q}`)
+      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (cancelled) return;
+        if (!ok || !data || typeof data !== "object") return;
+        const d = data as Record<string, unknown>;
+        const followers = d.followers;
+        const following = d.following;
+        if (typeof followers !== "number" || typeof following !== "number") {
+          return;
+        }
+        setFollowStats({
+          followers,
+          following,
+          isFollowing: Boolean(d.isFollowing),
+        });
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (cancelled) return;
+        setFollowStats((prev) =>
+          prev ?? { followers: 0, following: 0, isFollowing: false }
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const refreshFollowStats = useCallback(async () => {
+    const id = userId.trim();
+    if (!id) return;
+    const q = encodeURIComponent(id);
+    try {
+      const res = await fetch(`/api/follow?userId=${q}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || typeof data !== "object") {
+        console.log("[profile] follow stats refresh", res.status);
+        return;
+      }
+      const d = data as Record<string, unknown>;
+      const followers = d.followers;
+      const following = d.following;
+      if (typeof followers !== "number" || typeof following !== "number") {
+        return;
+      }
+      setFollowStats({
+        followers,
+        following,
+        isFollowing: Boolean(d.isFollowing),
+      });
+    } catch (e) {
+      console.log("[profile] follow stats refresh", e);
+    }
+  }, [userId]);
+
   const nowMs = Date.now();
+  const uid = userId.trim();
+  const avatarSrc =
+    isOwnProfile && session?.user?.image
+      ? session.user.image
+      : defaultDiscordAvatarUrl(uid);
+
+  const displayName =
+    isOwnProfile && session?.user?.name?.trim()
+      ? session.user.name.trim()
+      : (profile?.username?.trim() || uid || "Profile");
+
+  const showNameSkeleton =
+    loading && !profile && !(isOwnProfile && session?.user?.name?.trim());
+
+  const followingState =
+    followStats !== null
+      ? followStats.isFollowing
+      : followingIds.has(uid);
 
   if (!userId?.trim()) {
     return (
@@ -227,29 +299,74 @@ export default function UserProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-1 sm:px-0">
-      <header className="flex flex-col gap-3 border-b border-zinc-800/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-50 sm:text-2xl">
-            {loading ? (
-              <span className="inline-block h-8 w-48 animate-pulse rounded-md bg-zinc-800/90" />
-            ) : isOwnProfile && session?.user?.name ? (
-              session.user.name
-            ) : (
-              (profile?.username?.trim() || userId.trim()) || "Profile"
-            )}
-          </h1>
-          {!loading && profile ? (
-            <p className="mt-1 truncate text-xs text-zinc-500 tabular-nums">
-              {userId.trim()}
+      <header className="border-b border-zinc-800/80 pb-8">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+          <img
+            src={avatarSrc}
+            alt=""
+            width={96}
+            height={96}
+            className="h-24 w-24 shrink-0 rounded-full bg-zinc-900 object-cover ring-2 ring-zinc-800/80"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+              <h1 className="text-xl font-semibold tracking-tight text-zinc-50 sm:text-2xl">
+                {showNameSkeleton ? (
+                  <span className="inline-block h-8 w-48 max-w-full animate-pulse rounded-md bg-zinc-800/90" />
+                ) : (
+                  displayName
+                )}
+              </h1>
+              {!loading && profile?.isTopCaller ? (
+                <span className="inline-flex shrink-0 items-center rounded-md border border-orange-500/25 bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-orange-200/95 sm:text-[11px]">
+                  🔥 Top Caller
+                </span>
+              ) : null}
+              {!loading && profile?.isTrustedPro ? (
+                <span className="inline-flex shrink-0 items-center rounded-md border border-sky-500/25 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-sky-200/95 sm:text-[11px]">
+                  🧠 Trusted Pro
+                </span>
+              ) : null}
+              {!isOwnProfile ? (
+                <FollowButton
+                  targetDiscordId={uid}
+                  following={followingState}
+                  onFollowingChange={(next) => {
+                    setFollowing(uid, next);
+                    setFollowStats((prev) =>
+                      prev ? { ...prev, isFollowing: next } : prev
+                    );
+                  }}
+                  onCountsRefresh={refreshFollowStats}
+                  className="px-3 py-1.5 text-xs sm:ml-auto"
+                />
+              ) : null}
+            </div>
+            <p className="mt-1.5 truncate text-xs text-zinc-500 tabular-nums">
+              Discord ID · {uid}
             </p>
-          ) : null}
+            <p className="mt-2 text-xs text-zinc-500">
+              {followStats ? (
+                <>
+                  <span className="tabular-nums text-zinc-400">
+                    {followStats.followers.toLocaleString()}
+                  </span>{" "}
+                  Followers
+                  <span className="mx-2 text-zinc-700">·</span>
+                  <span className="tabular-nums text-zinc-400">
+                    {followStats.following.toLocaleString()}
+                  </span>{" "}
+                  Following
+                </>
+              ) : (
+                <span
+                  className="inline-block h-4 w-44 max-w-full animate-pulse rounded bg-zinc-800/80"
+                  aria-hidden
+                />
+              )}
+            </p>
+          </div>
         </div>
-        <FollowButton
-          targetDiscordId={userId.trim()}
-          following={followingIds.has(userId.trim())}
-          onFollowingChange={(next) => setFollowing(userId.trim(), next)}
-          className="self-start px-3 py-1.5 text-xs sm:self-center"
-        />
       </header>
 
       {error ? (
@@ -294,29 +411,41 @@ export default function UserProfilePage() {
               <p className="text-sm text-zinc-500">No calls yet</p>
             </div>
           ) : (
-            <ul className="mt-2 space-y-0 divide-y divide-zinc-800/50 text-sm">
-              {profile.recentCalls.map((call, i) => (
-                <li
-                  key={`${call.token}-${String(call.time)}-${i}`}
-                  className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-zinc-300 first:pt-1"
-                >
-                  <span className="min-w-0 font-medium text-zinc-100">
-                    {call.token}
-                    <span className="text-zinc-400"> → </span>
+            <>
+              <div
+                className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-800/60 pb-2 text-[10px] font-medium uppercase tracking-wide text-zinc-500 sm:gap-x-4"
+                aria-hidden
+              >
+                <span>Token / CA</span>
+                <span className="text-right">Result</span>
+                <span className="text-right">Time</span>
+              </div>
+              <ul className="divide-y divide-zinc-800/50 text-sm">
+                {profile.recentCalls.map((call, i) => (
+                  <li
+                    key={`${call.token}-${String(call.time)}-${i}`}
+                    className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 py-2.5 text-zinc-300 first:pt-2 sm:gap-x-4"
+                  >
                     <span
-                      className={`font-semibold tabular-nums ${multipleClass(
+                      className="min-w-0 truncate font-mono text-[13px] text-zinc-100"
+                      title={call.token}
+                    >
+                      {call.token}
+                    </span>
+                    <span
+                      className={`shrink-0 text-right text-sm font-semibold tabular-nums ${multipleClass(
                         call.multiple
                       )}`}
                     >
                       {call.multiple.toFixed(1)}x
                     </span>
-                  </span>
-                  <span className="ml-auto shrink-0 text-zinc-500">
-                    {formatJoinedAt(callTimeMs(call.time), nowMs)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+                    <span className="shrink-0 text-right text-sm text-zinc-500">
+                      {formatJoinedAt(callTimeMs(call.time), nowMs)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </PanelCard>
       </section>

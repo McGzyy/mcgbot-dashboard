@@ -1,6 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  computeCallPerformanceUserStats,
+  countCallsInLastMs,
+} from "@/lib/callPerformanceUserStats";
+
+const ROLLING_DAY_MS = 86400000;
 
 export async function GET() {
   try {
@@ -25,7 +31,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("call_performance")
-      .select("*")
+      .select("ath_multiple, call_time")
       .eq("discord_id", discordId);
 
     if (error) {
@@ -33,36 +39,20 @@ export async function GET() {
       return Response.json({ error: "Failed to load stats" }, { status: 500 });
     }
 
-    const rows = Array.isArray(data) ? data : [];
+    const rows = (Array.isArray(data) ? data : []) as Record<
+      string,
+      unknown
+    >[];
 
-    const totalCalls = rows.length;
-
-    const avgX =
-      totalCalls > 0
-        ? rows.reduce(
-            (sum, r) =>
-              sum + Number((r as Record<string, unknown>).ath_multiple || 0),
-            0
-          ) / totalCalls
-        : 0;
-
-    const wins = rows.filter(
-      (r) => Number((r as Record<string, unknown>).ath_multiple) >= 2
-    ).length;
-
-    const winRate = totalCalls > 0 ? (wins / totalCalls) * 100 : 0;
-
+    const { avgX, winRate, totalCalls } =
+      computeCallPerformanceUserStats(rows);
     const now = Date.now();
-    const today = rows.filter((r) => {
-      const ct = (r as Record<string, unknown>).call_time;
-      const t = typeof ct === "number" ? ct : Number(ct);
-      return Number.isFinite(t) && now - t < 86400000;
-    }).length;
+    const callsToday = countCallsInLastMs(rows, ROLLING_DAY_MS, now);
 
     return Response.json({
       avgX,
       winRate,
-      callsToday: today,
+      callsToday,
       totalCalls,
     });
   } catch (e) {

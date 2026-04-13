@@ -2,12 +2,13 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-/** `follows` is not in generated DB types yet; use a loose client for this route. */
+const TABLE = "user_follows";
+
 function supabaseOrError(): SupabaseClient | Response {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
   if (!url || !key) {
-    console.error("Missing Supabase env vars");
+    console.error("[follow API] Missing Supabase env vars");
     return Response.json(
       { error: "Supabase not configured" },
       { status: 500 }
@@ -16,53 +17,115 @@ function supabaseOrError(): SupabaseClient | Response {
   return createClient(url, key) as SupabaseClient;
 }
 
-async function sessionDiscordId(): Promise<string | null> {
+async function sessionUserId(): Promise<string | null> {
   const session = await getServerSession(authOptions);
   const id = session?.user?.id?.trim();
   return id && id.length > 0 ? id : null;
 }
 
-function parseTargetId(body: unknown): string | null {
+function parseTargetUserId(body: unknown): string | null {
   if (!body || typeof body !== "object") return null;
-  const raw = (body as Record<string, unknown>).targetId;
+  const raw = (body as Record<string, unknown>).targetUserId;
   if (typeof raw !== "string") return null;
   const t = raw.trim();
   return t.length > 0 ? t : null;
 }
 
-export async function GET() {
+/**
+ * GET ?userId=… → { followers, following, isFollowing }
+ * GET (no userId, authenticated) → { following: [{ targetUserId }] } for dashboard bootstrap
+ */
+export async function GET(request: Request) {
   try {
-    const discordId = await sessionDiscordId();
-    if (!discordId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const url = new URL(request.url);
+    const userId = url.searchParams.get("userId")?.trim() ?? "";
 
     const supabase = supabaseOrError();
     if (supabase instanceof Response) return supabase;
 
-    const { data, error } = await supabase
-      .from("follows")
-      .select("following_discord_id, created_at")
-      .eq("follower_discord_id", discordId)
-      .order("created_at", { ascending: false });
+    if (!userId) {
+      const selfId = await sessionUserId();
+      if (!selfId) {
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+      }
 
-    if (error) {
-      console.error("[follow API] GET:", error);
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select("following_id, created_at")
+        .eq("follower_id", selfId)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[follow API] GET list:", error);
+        return Response.json(
+          { error: "Failed to load follows" },
+          { status: 500 }
+        );
+      }
+
+      const rows = Array.isArray(data) ? data : [];
+      return Response.json({
+        following: rows.map((r) => {
+          const row = r as Record<string, unknown>;
+          return {
+            targetUserId: String(row.following_id ?? ""),
+            createdAt: row.created_at ?? null,
+          };
+        }),
+      });
+    }
+
+    const selfId = await sessionUserId();
+
+    const { count: followersCount, error: followersErr } = await supabase
+      .from(TABLE)
+      .select("*", { count: "exact", head: true })
+      .eq("following_id", userId);
+
+    if (followersErr) {
+      console.error("[follow API] GET followers count:", followersErr);
       return Response.json(
-        { error: "Failed to load follows" },
+        { error: "Failed to load follower count" },
         { status: 500 }
       );
     }
 
-    const rows = Array.isArray(data) ? data : [];
+    const { count: followingCount, error: followingErr } = await supabase
+      .from(TABLE)
+      .select("*", { count: "exact", head: true })
+      .eq("follower_id", userId);
+
+    if (followingErr) {
+      console.error("[follow API] GET following count:", followingErr);
+      return Response.json(
+        { error: "Failed to load following count" },
+        { status: 500 }
+      );
+    }
+
+    let isFollowing = false;
+    if (selfId && selfId !== userId) {
+      const { data: row, error: followErr } = await supabase
+        .from(TABLE)
+        .select("id")
+        .eq("follower_id", selfId)
+        .eq("following_id", userId)
+        .maybeSingle();
+
+      if (followErr) {
+        console.error("[follow API] GET isFollowing:", followErr);
+        return Response.json(
+          { error: "Failed to load follow state" },
+          { status: 500 }
+        );
+      }
+      isFollowing = row != null;
+    }
+
     return Response.json({
-      following: rows.map((r) => {
-        const row = r as Record<string, unknown>;
-        return {
-          targetId: String(row.following_discord_id ?? ""),
-          createdAt: row.created_at ?? null,
-        };
-      }),
+      followers: followersCount ?? 0,
+      following: followingCount ?? 0,
+      isFollowing,
     });
   } catch (e) {
     console.error("[follow API] GET:", e);
@@ -75,7 +138,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const followerId = await sessionDiscordId();
+    const followerId = await sessionUserId();
     if (!followerId) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -87,15 +150,15 @@ export async function POST(request: Request) {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const targetId = parseTargetId(body);
-    if (!targetId) {
+    const targetUserId = parseTargetUserId(body);
+    if (!targetUserId) {
       return Response.json(
-        { error: "Missing or invalid targetId" },
+        { error: "Missing or invalid targetUserId" },
         { status: 400 }
       );
     }
 
-    if (targetId === followerId) {
+    if (targetUserId === followerId) {
       return Response.json(
         { error: "Cannot follow yourself" },
         { status: 400 }
@@ -105,12 +168,15 @@ export async function POST(request: Request) {
     const supabase = supabaseOrError();
     if (supabase instanceof Response) return supabase;
 
-    const { error } = await supabase.from("follows").insert({
-      follower_discord_id: followerId,
-      following_discord_id: targetId,
+    const { error } = await supabase.from(TABLE).insert({
+      follower_id: followerId,
+      following_id: targetUserId,
     });
 
     if (error) {
+      if (error.code === "23505") {
+        return Response.json({ ok: true, alreadyFollowing: true });
+      }
       console.error("[follow API] POST:", error);
       return Response.json({ error: "Failed to follow" }, { status: 500 });
     }
@@ -127,29 +193,22 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const followerId = await sessionDiscordId();
+    const followerId = await sessionUserId();
     if (!followerId) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let targetId: string | null = null;
-    const url = new URL(request.url);
-    const q = url.searchParams.get("targetId");
-    if (q && q.trim() !== "") {
-      targetId = q.trim();
-    } else {
-      let body: unknown;
-      try {
-        body = await request.json();
-      } catch {
-        body = null;
-      }
-      targetId = parseTargetId(body);
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    if (!targetId) {
+    const targetUserId = parseTargetUserId(body);
+    if (!targetUserId) {
       return Response.json(
-        { error: "Missing or invalid targetId (body or ?targetId=)" },
+        { error: "Missing or invalid targetUserId" },
         { status: 400 }
       );
     }
@@ -158,10 +217,10 @@ export async function DELETE(request: Request) {
     if (supabase instanceof Response) return supabase;
 
     const { error } = await supabase
-      .from("follows")
+      .from(TABLE)
       .delete()
-      .eq("follower_discord_id", followerId)
-      .eq("following_discord_id", targetId);
+      .eq("follower_id", followerId)
+      .eq("following_id", targetUserId);
 
     if (error) {
       console.error("[follow API] DELETE:", error);

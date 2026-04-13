@@ -1,13 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
+import {
+  computeCallPerformanceUserStats,
+  pickLatestUsername,
+  recentCallsFromRows,
+} from "@/lib/callPerformanceUserStats";
 
-type CallRow = Record<string, unknown>;
-
-function rowCallTime(row: CallRow): number {
-  const t = row.call_time;
-  if (typeof t === "number" && Number.isFinite(t)) return t;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : 0;
-}
+const PROFILE_RECENT_CALLS_LIMIT = 15;
 
 export async function GET(
   _request: Request,
@@ -33,10 +31,17 @@ export async function GET(
 
     const supabase = createClient(url, key);
 
-    const { data, error } = await supabase
-      .from("call_performance")
-      .select("*")
-      .eq("discord_id", discordId);
+    const [{ data, error }, userRowResult] = await Promise.all([
+      supabase
+        .from("call_performance")
+        .select("username, call_ca, ath_multiple, call_time")
+        .eq("discord_id", discordId),
+      supabase
+        .from("users")
+        .select("is_top_caller, is_trusted_pro")
+        .eq("discord_id", discordId)
+        .maybeSingle(),
+    ]);
 
     if (error) {
       console.error("[user API] GET:", error);
@@ -46,53 +51,31 @@ export async function GET(
       );
     }
 
-    const rows = (Array.isArray(data) ? data : []) as CallRow[];
-
-    const sortedByTime = [...rows].sort(
-      (a, b) => rowCallTime(b) - rowCallTime(a)
-    );
-
-    let username = "";
-    for (const r of sortedByTime) {
-      const u = r.username;
-      if (typeof u === "string" && u.trim() !== "") {
-        username = u.trim();
-        break;
-      }
+    if (userRowResult.error) {
+      console.error("[user API] GET users row:", userRowResult.error);
     }
-    if (!username) username = discordId;
 
-    const totalCalls = rows.length;
+    const userRow = userRowResult.data as
+      | { is_top_caller?: boolean; is_trusted_pro?: boolean }
+      | null;
 
-    const avgX =
-      totalCalls > 0
-        ? rows.reduce(
-            (sum, r) => sum + Number((r as CallRow).ath_multiple || 0),
-            0
-          ) / totalCalls
-        : 0;
+    const rows = (Array.isArray(data) ? data : []) as Record<
+      string,
+      unknown
+    >[];
 
-    const wins = rows.filter(
-      (r) => Number((r as CallRow).ath_multiple) >= 2
-    ).length;
-
-    const winRate = totalCalls > 0 ? (wins / totalCalls) * 100 : 0;
-
-    const recentCalls = sortedByTime.slice(0, 15).map((row) => {
-      const r = row as CallRow;
-      return {
-        token: r.call_ca || "Unknown",
-        multiple: Number(r.ath_multiple || 0),
-        time: r.call_time,
-      };
-    });
+    const username = pickLatestUsername(rows, discordId);
+    const stats = computeCallPerformanceUserStats(rows);
+    const recentCalls = recentCallsFromRows(rows, PROFILE_RECENT_CALLS_LIMIT);
 
     return Response.json({
       username,
+      isTopCaller: Boolean(userRow?.is_top_caller),
+      isTrustedPro: Boolean(userRow?.is_trusted_pro),
       stats: {
-        avgX,
-        winRate,
-        totalCalls,
+        avgX: stats.avgX,
+        winRate: stats.winRate,
+        totalCalls: stats.totalCalls,
       },
       recentCalls,
     });

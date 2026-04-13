@@ -10,6 +10,7 @@ import { FollowButton } from "./components/FollowButton";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
+import { callTimeMs, formatJoinedAt, multipleClass } from "@/lib/callDisplayFormat";
 import {
   useCallback,
   useEffect,
@@ -216,8 +217,14 @@ async function fetchNotificationFilter(
         if (Array.isArray(list)) {
           for (const entry of list) {
             if (!entry || typeof entry !== "object") continue;
-            const id = (entry as Record<string, unknown>).targetId;
-            if (typeof id === "string" && id.trim() !== "") {
+            const o = entry as Record<string, unknown>;
+            const id =
+              typeof o.targetUserId === "string"
+                ? o.targetUserId
+                : typeof o.targetId === "string"
+                  ? o.targetId
+                  : "";
+            if (id.trim() !== "") {
               followedIds.add(id.trim());
             }
           }
@@ -394,17 +401,6 @@ function renderActivityFeedLine(
   );
 }
 
-function callTimeMs(t: unknown): number {
-  if (typeof t === "number" && Number.isFinite(t)) return t;
-  const n = Number(t);
-  if (Number.isFinite(n)) return n;
-  if (typeof t === "string") {
-    const p = Date.parse(t);
-    if (Number.isFinite(p)) return p;
-  }
-  return 0;
-}
-
 /** Non-win calls at or above this multiple can notify (tune later). */
 const ACTIVITY_BIG_CALL_NOTIFY_MIN = 3;
 
@@ -484,30 +480,6 @@ function processActivityNotifications(
       priority: notificationPriorityFromMultiple(item.multiple),
     });
   }
-}
-
-function multipleClass(multiple: number): string {
-  if (multiple >= 2) return "text-emerald-400";
-  if (multiple < 1) return "text-red-400";
-  return "text-zinc-200";
-}
-
-function formatJoinedAt(joinedAt: number, nowMs: number): string {
-  if (!Number.isFinite(joinedAt) || joinedAt <= 0) return "—";
-  const diff = nowMs - joinedAt;
-  const sec = Math.floor(diff / 1000);
-  const min = Math.floor(sec / 60);
-  const hr = Math.floor(min / 60);
-  if (sec < 60) return "just now";
-  if (min < 60) return min === 1 ? "1 min ago" : `${min} min ago`;
-  if (hr < 24) return hr === 1 ? "1 hour ago" : `${hr} hours ago`;
-  const date = new Date(joinedAt);
-  const nowDate = new Date(nowMs);
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  if (date.getFullYear() !== nowDate.getFullYear()) {
-    opts.year = "numeric";
-  }
-  return date.toLocaleDateString("en-US", opts);
 }
 
 function parseReferrals(raw: unknown): ReferralRow[] {
