@@ -52,13 +52,6 @@ function rankMedal(rank: number): string {
   return "🏅";
 }
 
-function rankLabel(rank: number): string {
-  if (rank === 1) return "1st place";
-  if (rank === 2) return "2nd place";
-  if (rank === 3) return "3rd place";
-  return `Rank ${rank}`;
-}
-
 function formatTrophyPeriodUtc(
   periodStartMs: number,
   timeframe: TrophyTimeframe
@@ -78,6 +71,19 @@ function formatTrophyPeriodUtc(
     day: "numeric",
     timeZone: "UTC",
   });
+}
+
+function trophyTooltipText(
+  timeframeLabel: string,
+  rank: number,
+  periodStartMs: number,
+  timeframe: TrophyTimeframe
+): string {
+  const date = formatTrophyPeriodUtc(periodStartMs, timeframe);
+  const rankPart = `#${rank}`;
+  return date
+    ? `${timeframeLabel} ${rankPart} — ${date}`
+    : `${timeframeLabel} ${rankPart}`;
 }
 
 function parseTrophiesPayload(json: unknown): TrophiesByTimeframe | null {
@@ -139,26 +145,39 @@ function TrophyTierRow({
         : "rounded px-0.5 py-px";
 
   return (
-    <div>
+    <div className="overflow-visible">
       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
         {label}
       </p>
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 sm:gap-x-3">
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 overflow-visible sm:gap-x-3">
         {items.length === 0 ? (
           <span className="text-sm text-zinc-600">None yet</span>
         ) : (
           items.map((t) => {
-            const period = formatTrophyPeriodUtc(t.periodStartMs, timeframe);
-            const labelText = `${rankLabel(t.rank)}${period ? ` · ${period}` : ""}`;
+            const tooltipText = trophyTooltipText(
+              label,
+              t.rank,
+              t.periodStartMs,
+              timeframe
+            );
             return (
               <span
                 key={t.id}
-                role="img"
-                aria-label={labelText}
-                className={`inline-flex cursor-default select-none transition-colors ${sizeClass} ${shellClass}`}
-                title={labelText}
+                className={`group relative inline-flex shrink-0 cursor-default select-none ${shellClass}`}
+                aria-label={tooltipText}
               >
-                {rankMedal(t.rank)}
+                <span
+                  className={`inline-flex items-center justify-center ${sizeClass}`}
+                  aria-hidden
+                >
+                  {rankMedal(t.rank)}
+                </span>
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-200 opacity-0 shadow transition-opacity delay-75 duration-150 group-hover:opacity-100"
+                >
+                  {tooltipText}
+                </span>
               </span>
             );
           })
@@ -212,13 +231,15 @@ function StatCard({
 function PanelCard({
   title,
   children,
+  className = "",
 }: {
   title: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
     <div
-      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
+      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER} ${className}`.trim()}
     >
       <h2 className="text-sm font-semibold tracking-wide text-zinc-400 uppercase">
         {title}
@@ -569,7 +590,7 @@ export default function UserProfilePage() {
       </section>
 
       <section className="mt-8">
-        <PanelCard title="Trophy Case">
+        <PanelCard title="Trophy Case" className="overflow-visible">
           {trophiesLoading ? (
             <div className="mt-3 space-y-5" aria-busy aria-label="Loading trophies">
               {(["Daily", "Weekly", "Monthly"] as const).map((label) => (
