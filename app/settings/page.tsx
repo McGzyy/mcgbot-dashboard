@@ -1,7 +1,37 @@
 "use client";
 
+import type { WidgetsEnabled } from "@/app/api/dashboard-settings/route";
 import { signIn, useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
+
+const DEFAULT_WIDGETS: WidgetsEnabled = {
+  market: true,
+  top_performers: true,
+  rank: true,
+  activity: true,
+  trending: true,
+  notes: false,
+};
+
+const WIDGET_KEYS: (keyof WidgetsEnabled)[] = [
+  "market",
+  "top_performers",
+  "rank",
+  "activity",
+  "trending",
+  "notes",
+];
+
+function parseWidgetsEnabled(raw: unknown): WidgetsEnabled {
+  const out: WidgetsEnabled = { ...DEFAULT_WIDGETS };
+  if (!raw || typeof raw !== "object") return out;
+  const o = raw as Record<string, unknown>;
+  for (const key of WIDGET_KEYS) {
+    const v = o[key];
+    if (typeof v === "boolean") out[key] = v;
+  }
+  return out;
+}
 
 type PrefsState = {
   own_calls: boolean;
@@ -68,7 +98,8 @@ function ToggleRow({
 export default function SettingsPage() {
   const { status } = useSession();
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [prefsLoading, setPrefsLoading] = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [widgets, setWidgets] = useState<WidgetsEnabled>(DEFAULT_WIDGETS);
   const [prefs, setPrefs] = useState<PrefsState>({
     own_calls: false,
     include_following: false,
@@ -83,37 +114,56 @@ export default function SettingsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setPrefsLoading(true);
+    setSettingsLoading(true);
     setLoadError(null);
 
-    fetch("/api/preferences")
-      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
-      .then(({ ok, data }) => {
+    Promise.all([
+      fetch("/api/preferences").then((res) =>
+        res.json().then((data) => ({ ok: res.ok, data }))
+      ),
+      fetch("/api/dashboard-settings").then((res) =>
+        res.json().then((data) => ({ ok: res.ok, data }))
+      ),
+    ])
+      .then(([prefsResult, dashResult]) => {
         if (cancelled) return;
+
+        const { ok: prefsOk, data: prefsData } = prefsResult;
         if (
-          !ok ||
-          !data ||
-          typeof data !== "object" ||
-          ("error" in data && (data as { error?: unknown }).error)
+          !prefsOk ||
+          !prefsData ||
+          typeof prefsData !== "object" ||
+          ("error" in prefsData && (prefsData as { error?: unknown }).error)
         ) {
-          if (!ok) setLoadError("Could not load preferences.");
-          return;
+          if (!prefsOk) setLoadError("Could not load preferences.");
+        } else {
+          const d = prefsData as Record<string, unknown>;
+          const own_calls = !!d.own_calls;
+          setPrefs({
+            own_calls,
+            include_following: own_calls ? false : !!d.include_following,
+            include_global: own_calls ? false : !!d.include_global,
+            min_multiple: Number(d.min_multiple || 2),
+            sound_enabled: !!d.sound_enabled,
+          });
         }
-        const d = data as Record<string, unknown>;
-        const own_calls = !!d.own_calls;
-        setPrefs({
-          own_calls,
-          include_following: own_calls ? false : !!d.include_following,
-          include_global: own_calls ? false : !!d.include_global,
-          min_multiple: Number(d.min_multiple || 2),
-          sound_enabled: !!d.sound_enabled,
-        });
+
+        const { ok: dashOk, data: dashData } = dashResult;
+        if (
+          dashOk &&
+          dashData &&
+          typeof dashData === "object" &&
+          !("error" in dashData && (dashData as { error?: unknown }).error)
+        ) {
+          const row = dashData as Record<string, unknown>;
+          setWidgets(parseWidgetsEnabled(row.widgets_enabled));
+        }
       })
       .catch(() => {
         if (!cancelled) setLoadError("Could not load preferences.");
       })
       .finally(() => {
-        if (!cancelled) setPrefsLoading(false);
+        if (!cancelled) setSettingsLoading(false);
       });
 
     return () => {
@@ -126,19 +176,27 @@ export default function SettingsPage() {
     setSaveMessage(null);
 
     try {
-      const res = await fetch("/api/preferences", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          own_calls: prefs.own_calls,
-          include_following: prefs.include_following,
-          include_global: prefs.include_global,
-          min_multiple: prefs.min_multiple,
-          sound_enabled: prefs.sound_enabled,
+      const [prefsRes, dashRes] = await Promise.all([
+        fetch("/api/preferences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            own_calls: prefs.own_calls,
+            include_following: prefs.include_following,
+            include_global: prefs.include_global,
+            min_multiple: prefs.min_multiple,
+            sound_enabled: prefs.sound_enabled,
+          }),
         }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
+        fetch("/api/dashboard-settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ widgets_enabled: widgets }),
+        }),
+      ]);
+
+      if (!prefsRes.ok) {
+        const j = await prefsRes.json().catch(() => ({}));
         const msg =
           typeof (j as { error?: string }).error === "string"
             ? (j as { error: string }).error
@@ -147,6 +205,18 @@ export default function SettingsPage() {
         setSaveMessage(msg);
         return;
       }
+
+      if (!dashRes.ok) {
+        const j = await dashRes.json().catch(() => ({}));
+        const msg =
+          typeof (j as { error?: string }).error === "string"
+            ? (j as { error: string }).error
+            : "Could not save dashboard widgets.";
+        setSaveState("error");
+        setSaveMessage(msg);
+        return;
+      }
+
       setSaveState("saved");
       setSaveMessage("Saved.");
       window.setTimeout(() => {
@@ -157,7 +227,7 @@ export default function SettingsPage() {
       setSaveState("error");
       setSaveMessage("Network error.");
     }
-  }, [prefs]);
+  }, [prefs, widgets]);
 
   if (status === "loading") {
     return (
@@ -222,7 +292,7 @@ export default function SettingsPage() {
                 return { ...prev, own_calls: false };
               })
             }
-            disabled={prefsLoading}
+            disabled={settingsLoading}
           />
           <ToggleRow
             id="notification-include-following"
@@ -235,7 +305,7 @@ export default function SettingsPage() {
                 include_following: !prev.include_following,
               }))
             }
-            disabled={prefsLoading || isOwnOnly}
+            disabled={settingsLoading || isOwnOnly}
           />
           <ToggleRow
             id="notification-include-global"
@@ -248,7 +318,7 @@ export default function SettingsPage() {
                 include_global: !prev.include_global,
               }))
             }
-            disabled={prefsLoading || isOwnOnly}
+            disabled={settingsLoading || isOwnOnly}
           />
 
           <div className="border-t border-zinc-800/60 pt-6 mt-3">
@@ -263,7 +333,7 @@ export default function SettingsPage() {
                   sound_enabled: !prev.sound_enabled,
                 }))
               }
-              disabled={prefsLoading}
+              disabled={settingsLoading}
             />
           </div>
 
@@ -296,32 +366,104 @@ export default function SettingsPage() {
                   };
                 });
               }}
-              disabled={prefsLoading}
+              disabled={settingsLoading}
               className="mt-3 w-full max-w-[200px] rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 tabular-nums outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50"
             />
           </div>
         </div>
+      </section>
 
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={prefsLoading || saveState === "saving"}
-            className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
-          >
-            {saveState === "saving" ? "Saving…" : "Save"}
-          </button>
-          {saveMessage ? (
-            <span
-              className={`text-sm ${
-                saveState === "error" ? "text-red-400" : "text-emerald-400/90"
-              }`}
-            >
-              {saveMessage}
-            </span>
-          ) : null}
+      <section className="mt-12">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Dashboard Widgets
+        </h2>
+
+        <div className="mt-4 space-y-3">
+          <ToggleRow
+            id="dashboard-widget-market"
+            label="Market"
+            description="Show the market pulse strip in the header."
+            checked={widgets.market}
+            onToggle={() =>
+              setWidgets((prev) => ({ ...prev, market: !prev.market }))
+            }
+            disabled={settingsLoading}
+          />
+          <ToggleRow
+            id="dashboard-widget-top-performers"
+            label="Top Performers"
+            description="Show today's top performers on the home dashboard."
+            checked={widgets.top_performers}
+            onToggle={() =>
+              setWidgets((prev) => ({
+                ...prev,
+                top_performers: !prev.top_performers,
+              }))
+            }
+            disabled={settingsLoading}
+          />
+          <ToggleRow
+            id="dashboard-widget-rank"
+            label="Rank"
+            description="Show your weekly rank card."
+            checked={widgets.rank}
+            onToggle={() =>
+              setWidgets((prev) => ({ ...prev, rank: !prev.rank }))
+            }
+            disabled={settingsLoading}
+          />
+          <ToggleRow
+            id="dashboard-widget-activity"
+            label="Activity Feed"
+            description="Show the live activity feed."
+            checked={widgets.activity}
+            onToggle={() =>
+              setWidgets((prev) => ({ ...prev, activity: !prev.activity }))
+            }
+            disabled={settingsLoading}
+          />
+          <ToggleRow
+            id="dashboard-widget-trending"
+            label="Trending"
+            description="Show the trending tokens panel."
+            checked={widgets.trending}
+            onToggle={() =>
+              setWidgets((prev) => ({ ...prev, trending: !prev.trending }))
+            }
+            disabled={settingsLoading}
+          />
+          <ToggleRow
+            id="dashboard-widget-notes"
+            label="Notes"
+            description="Show the notes panel on the dashboard."
+            checked={widgets.notes}
+            onToggle={() =>
+              setWidgets((prev) => ({ ...prev, notes: !prev.notes }))
+            }
+            disabled={settingsLoading}
+          />
         </div>
       </section>
+
+      <div className="mt-8 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={settingsLoading || saveState === "saving"}
+          className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
+        >
+          {saveState === "saving" ? "Saving…" : "Save"}
+        </button>
+        {saveMessage ? (
+          <span
+            className={`text-sm ${
+              saveState === "error" ? "text-red-400" : "text-emerald-400/90"
+            }`}
+          >
+            {saveMessage}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }

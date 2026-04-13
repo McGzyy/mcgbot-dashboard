@@ -63,6 +63,7 @@ export function TopBar() {
   const activeNotificationCount = notifications.filter((n) => !n.exiting).length;
   const [market, setMarket] = useState<MarketSnapshot | null>(null);
   const [marketLoading, setMarketLoading] = useState(true);
+  const [showMarketWidget, setShowMarketWidget] = useState(true);
   const [open, setOpen] = useState(false);
   const [openNotifications, setOpenNotifications] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -102,6 +103,30 @@ export function TopBar() {
   }, []);
 
   useEffect(() => {
+    if (status !== "authenticated") {
+      setShowMarketWidget(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch("/api/dashboard-settings")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: unknown) => {
+        if (cancelled || !data || typeof data !== "object") return;
+        const raw = (data as Record<string, unknown>).widgets_enabled;
+        if (!raw || typeof raw !== "object") return;
+        const m = (raw as Record<string, unknown>).market;
+        if (typeof m === "boolean") setShowMarketWidget(m);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
+
+  useEffect(() => {
     if (!open && !openNotifications) return;
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
@@ -132,36 +157,40 @@ export function TopBar() {
       className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-zinc-800 bg-zinc-900/80 px-4 py-2 text-sm backdrop-blur sm:px-6"
       role="banner"
     >
-      <div
-        className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1"
-        role="region"
-        aria-label="Market pulse"
-      >
-        {marketLoading ? (
-          <p className="text-zinc-500">Loading market...</p>
-        ) : market != null ? (
-          <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span className={`font-medium tabular-nums ${solLineClass}`}>
-              📊 SOL {formatSolUsd(market.solPrice)} (
-              {formatPctChange(market.change24h)})
-            </span>
-            <span className="text-zinc-600" aria-hidden>
-              |
-            </span>
-            <span className="tabular-nums text-zinc-400">
-              PumpFun Vol: {formatUsdCompact(market.pumpVolume)}
-            </span>
-            <span className="text-zinc-600" aria-hidden>
-              |
-            </span>
-            <span className="tabular-nums text-zinc-400">
-              Traders: {formatCount(market.activeTraders)}
-            </span>
-          </p>
-        ) : (
-          <p className="text-zinc-500">Market unavailable</p>
-        )}
-      </div>
+      {showMarketWidget ? (
+        <div
+          className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1"
+          role="region"
+          aria-label="Market pulse"
+        >
+          {marketLoading ? (
+            <p className="text-zinc-500">Loading market...</p>
+          ) : market != null ? (
+            <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span className={`font-medium tabular-nums ${solLineClass}`}>
+                📊 SOL {formatSolUsd(market.solPrice)} (
+                {formatPctChange(market.change24h)})
+              </span>
+              <span className="text-zinc-600" aria-hidden>
+                |
+              </span>
+              <span className="tabular-nums text-zinc-400">
+                PumpFun Vol: {formatUsdCompact(market.pumpVolume)}
+              </span>
+              <span className="text-zinc-600" aria-hidden>
+                |
+              </span>
+              <span className="tabular-nums text-zinc-400">
+                Traders: {formatCount(market.activeTraders)}
+              </span>
+            </p>
+          ) : (
+            <p className="text-zinc-500">Market unavailable</p>
+          )}
+        </div>
+      ) : (
+        <div className="min-w-0 flex-1" aria-hidden />
+      )}
 
       <div className="flex shrink-0 items-center gap-3">
         {status === "loading" ? (

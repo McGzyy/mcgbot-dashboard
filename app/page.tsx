@@ -1,5 +1,6 @@
 "use client";
 
+import type { WidgetsEnabled } from "@/app/api/dashboard-settings/route";
 import {
   useNotifications,
   type NotificationPriority,
@@ -518,6 +519,297 @@ function PanelCard({
   );
 }
 
+function widgetEnabled(
+  widgets: WidgetsEnabled | null,
+  key: keyof WidgetsEnabled
+): boolean {
+  if (widgets === null) return true;
+  return Boolean(widgets[key]);
+}
+
+/** Market strip is rendered in `TopBar`; `widgetEnabled` for `market` is applied there. */
+function MarketPanel() {
+  return null;
+}
+
+function NotesPanel() {
+  return (
+    <section className="mb-8">
+      <PanelCard title="Notes" titleClassName="normal-case">
+        <p className="mt-4 text-sm text-zinc-500">No notes yet.</p>
+      </PanelCard>
+    </section>
+  );
+}
+
+function TrendingPanel() {
+  return (
+    <PanelCard title="📈 Trending" titleClassName="normal-case">
+      <ul className="mt-3 divide-y divide-zinc-800/80 text-[13px] leading-snug">
+        {TRENDING_TOKENS_MOCK.map((row) => (
+          <li key={row.symbol}>
+            <button
+              type="button"
+              onClick={() =>
+                window.open(
+                  `https://dexscreener.com/solana/${encodeURIComponent(row.mint)}`,
+                  "_blank",
+                  "noopener,noreferrer"
+                )
+              }
+              className="flex w-full items-center justify-between gap-3 py-2 text-left transition-colors hover:bg-zinc-800/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+            >
+              <span className="min-w-0 truncate font-medium text-zinc-100">
+                {row.symbol}
+              </span>
+              <span className="shrink-0 tabular-nums text-xs font-semibold text-emerald-400/90">
+                {row.stat.toFixed(1)}x
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </PanelCard>
+  );
+}
+
+function RankPanel({
+  yourRankLoading,
+  yourWeekRank,
+  rankDeltaPlaceholder,
+}: {
+  yourRankLoading: boolean;
+  yourWeekRank: number | null;
+  rankDeltaPlaceholder: number;
+}) {
+  return (
+    <section className="mb-8">
+      <PanelCard title="Your Rank" titleClassName="normal-case">
+        {yourRankLoading ? (
+          <div className="mt-4 flex min-h-[56px] items-center">
+            <p className="text-sm text-zinc-500">Loading rank…</p>
+          </div>
+        ) : yourWeekRank === null ? (
+          <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+            No rank this week yet — user calls in the last 7 days earn a spot on
+            the leaderboard.
+          </p>
+        ) : (
+          <div className="mt-4">
+            <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-sm text-zinc-300">
+              <span>You are</span>
+              <span className="font-bold tabular-nums text-zinc-50">
+                #{yourWeekRank}
+              </span>
+              <span>this week</span>
+              <span
+                className="text-base font-light leading-none text-emerald-500/75"
+                title="Rank vs prior day (placeholder)"
+                aria-hidden
+              >
+                ↑
+              </span>
+            </p>
+            <p className="mt-2 text-xs text-emerald-500/65">
+              +{rankDeltaPlaceholder} from yesterday
+            </p>
+          </div>
+        )}
+      </PanelCard>
+    </section>
+  );
+}
+
+function TopPerformersPanel({
+  topPerformersLoading,
+  topPerformersToday,
+}: {
+  topPerformersLoading: boolean;
+  topPerformersToday: TopPerformerTodayRow[];
+}) {
+  return (
+    <section className="mb-8">
+      <PanelCard title="🔥 Top Performers Today" titleClassName="normal-case">
+        {topPerformersLoading ? (
+          <div className="mt-4 flex min-h-[72px] items-center justify-center">
+            <p className="text-sm text-zinc-500">Loading…</p>
+          </div>
+        ) : topPerformersToday.length === 0 ? (
+          <p className="mt-4 text-sm text-zinc-500">
+            No calls in the last 24 hours yet.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {topPerformersToday.map((row, i) => {
+              const isFirst = i === 0;
+              return (
+                <li
+                  key={row.discordId}
+                  className={
+                    isFirst
+                      ? "rounded-xl border border-amber-500/45 bg-gradient-to-r from-amber-500/10 to-amber-500/[0.02] px-4 py-3 shadow-[0_0_28px_-10px_rgba(245,158,11,0.45)]"
+                      : "rounded-xl border border-zinc-800/90 bg-zinc-900/40 px-4 py-3"
+                  }
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${
+                          isFirst
+                            ? "bg-amber-500/25 text-amber-200"
+                            : "bg-zinc-800 text-zinc-400"
+                        }`}
+                      >
+                        #{i + 1}
+                      </span>
+                      <Link
+                        href={`/user/${encodeURIComponent(row.discordId)}`}
+                        className={`min-w-0 truncate font-medium transition-colors hover:text-cyan-400 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 ${
+                          isFirst ? "text-amber-100" : "text-zinc-100"
+                        }`}
+                      >
+                        {row.username}
+                      </Link>
+                    </div>
+                    <div className="shrink-0 text-right text-sm">
+                      <p className="tabular-nums">
+                        <span
+                          className={`font-semibold ${
+                            isFirst ? "text-amber-100" : "text-emerald-400/95"
+                          }`}
+                        >
+                          {row.avgX.toFixed(1)}x
+                        </span>
+                        <span className="text-zinc-500"> avg</span>
+                      </p>
+                      <p className="mt-0.5 text-xs tabular-nums text-zinc-500">
+                        Best {row.bestMultiple.toFixed(1)}x
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </PanelCard>
+    </section>
+  );
+}
+
+type ActivityFeedPanelProps = {
+  feedMode: "all" | "following";
+  setFeedMode: (m: "all" | "following") => void;
+  loadingActivity: boolean;
+  activity: ActivityItem[];
+  followingIds: Set<string>;
+  setFollowing: (id: string, next: boolean) => void;
+  nowMs: number;
+  setSelectedActivity: (item: ActivityItem | null) => void;
+};
+
+function ActivityFeedPanel({
+  feedMode,
+  setFeedMode,
+  loadingActivity,
+  activity,
+  followingIds,
+  setFollowing,
+  nowMs,
+  setSelectedActivity,
+}: ActivityFeedPanelProps) {
+  return (
+    <PanelCard title="Live Activity">
+      <div className="mt-4 flex flex-wrap gap-2">
+        {(
+          [
+            { id: "all" as const, label: "All" },
+            { id: "following" as const, label: "Following" },
+          ] as const
+        ).map(({ id, label }) => {
+          const active = feedMode === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setFeedMode(id)}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                active
+                  ? "bg-zinc-700 text-zinc-50"
+                  : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      {loadingActivity ? (
+        <div className="flex min-h-[100px] items-center justify-center py-10">
+          <p className="text-sm text-zinc-500">Loading activity...</p>
+        </div>
+      ) : activity.length === 0 ? (
+        <div className="flex min-h-[100px] items-center justify-center py-10">
+          <p className="text-sm text-zinc-500">
+            {feedMode === "following"
+              ? "No activity from people you follow"
+              : "No activity yet"}
+          </p>
+        </div>
+      ) : (
+        <ul className="mt-4 max-h-[300px] overflow-y-auto pr-1 text-sm">
+          {activity.map((item, i) => (
+            <li
+              key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
+              className="dashboard-feed-item border-b border-zinc-800 last:border-b-0"
+              style={{ animationDelay: `${i * 70}ms` }}
+            >
+              <div className="-mx-1 flex items-start gap-2 rounded-md py-2.5 pl-1 pr-1 transition-colors duration-150 hover:bg-zinc-800/30 sm:pl-2 sm:pr-2">
+                <FollowButton
+                  targetDiscordId={item.discordId}
+                  following={followingIds.has(item.discordId)}
+                  onFollowingChange={(next) => setFollowing(item.discordId, next)}
+                  className="mt-0.5"
+                />
+                <span
+                  className="mt-0.5 flex w-8 shrink-0 justify-center text-base leading-none opacity-[0.88]"
+                  aria-hidden
+                >
+                  {item.type === "win" ? "🔥" : "⚡"}
+                </span>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedActivity(item)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedActivity(item);
+                    }
+                  }}
+                  className="flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                >
+                  <span className="min-w-0 text-zinc-200">
+                    {renderActivityFeedLine(item)}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <span className="text-xs tabular-nums text-zinc-500">
+                      {formatJoinedAt(callTimeMs(item.time), nowMs)}
+                    </span>
+                    <span className="text-xs text-zinc-500" aria-hidden>
+                      ↗
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </PanelCard>
+  );
+}
+
 export default function Home() {
   const { data: session, status } = useSession();
   const { addNotification } = useNotifications();
@@ -545,6 +837,36 @@ export default function Home() {
 
   /** Placeholder until day-over-day rank is stored. */
   const PLACEHOLDER_RANK_DELTA = 2;
+
+  const [widgets, setWidgets] = useState<WidgetsEnabled | null>(null);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+
+    let cancelled = false;
+
+    fetch("/api/dashboard-settings")
+      .then((res) => res.json())
+      .then((data: unknown) => {
+        if (cancelled) return;
+        if (
+          data &&
+          typeof data === "object" &&
+          "widgets_enabled" in data &&
+          (data as { widgets_enabled: unknown }).widgets_enabled != null &&
+          typeof (data as { widgets_enabled: unknown }).widgets_enabled ===
+            "object"
+        ) {
+          setWidgets(
+            (data as { widgets_enabled: WidgetsEnabled }).widgets_enabled
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   const loadActivity = useCallback(() => {
     void (async () => {
@@ -965,200 +1287,37 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mb-8">
-        <PanelCard title="Your Rank" titleClassName="normal-case">
-          {yourRankLoading ? (
-            <div className="mt-4 flex min-h-[56px] items-center">
-              <p className="text-sm text-zinc-500">Loading rank…</p>
-            </div>
-          ) : yourWeekRank === null ? (
-            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
-              No rank this week yet — user calls in the last 7 days earn a spot
-              on the leaderboard.
-            </p>
-          ) : (
-            <div className="mt-4">
-              <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-sm text-zinc-300">
-                <span>You are</span>
-                <span className="font-bold tabular-nums text-zinc-50">
-                  #{yourWeekRank}
-                </span>
-                <span>this week</span>
-                <span
-                  className="text-base font-light leading-none text-emerald-500/75"
-                  title="Rank vs prior day (placeholder)"
-                  aria-hidden
-                >
-                  ↑
-                </span>
-              </p>
-              <p className="mt-2 text-xs text-emerald-500/65">
-                +{PLACEHOLDER_RANK_DELTA} from yesterday
-              </p>
-            </div>
-          )}
-        </PanelCard>
-      </section>
+      {widgetEnabled(widgets, "market") && <MarketPanel />}
 
-      <section className="mb-8">
-        <PanelCard title="🔥 Top Performers Today" titleClassName="normal-case">
-          {topPerformersLoading ? (
-            <div className="mt-4 flex min-h-[72px] items-center justify-center">
-              <p className="text-sm text-zinc-500">Loading…</p>
-            </div>
-          ) : topPerformersToday.length === 0 ? (
-            <p className="mt-4 text-sm text-zinc-500">
-              No calls in the last 24 hours yet.
-            </p>
-          ) : (
-            <ul className="mt-4 space-y-2">
-              {topPerformersToday.map((row, i) => {
-                const isFirst = i === 0;
-                return (
-                  <li
-                    key={row.discordId}
-                    className={
-                      isFirst
-                        ? "rounded-xl border border-amber-500/45 bg-gradient-to-r from-amber-500/10 to-amber-500/[0.02] px-4 py-3 shadow-[0_0_28px_-10px_rgba(245,158,11,0.45)]"
-                        : "rounded-xl border border-zinc-800/90 bg-zinc-900/40 px-4 py-3"
-                    }
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${
-                            isFirst
-                              ? "bg-amber-500/25 text-amber-200"
-                              : "bg-zinc-800 text-zinc-400"
-                          }`}
-                        >
-                          #{i + 1}
-                        </span>
-                        <Link
-                          href={`/user/${encodeURIComponent(row.discordId)}`}
-                          className={`min-w-0 truncate font-medium transition-colors hover:text-cyan-400 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 ${
-                            isFirst ? "text-amber-100" : "text-zinc-100"
-                          }`}
-                        >
-                          {row.username}
-                        </Link>
-                      </div>
-                      <div className="shrink-0 text-right text-sm">
-                        <p className="tabular-nums">
-                          <span
-                            className={`font-semibold ${
-                              isFirst ? "text-amber-100" : "text-emerald-400/95"
-                            }`}
-                          >
-                            {row.avgX.toFixed(1)}x
-                          </span>
-                          <span className="text-zinc-500"> avg</span>
-                        </p>
-                        <p className="mt-0.5 text-xs tabular-nums text-zinc-500">
-                          Best {row.bestMultiple.toFixed(1)}x
-                        </p>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </PanelCard>
-      </section>
+      {widgetEnabled(widgets, "rank") && (
+        <RankPanel
+          yourRankLoading={yourRankLoading}
+          yourWeekRank={yourWeekRank}
+          rankDeltaPlaceholder={PLACEHOLDER_RANK_DELTA}
+        />
+      )}
+
+      {widgetEnabled(widgets, "top_performers") && (
+        <TopPerformersPanel
+          topPerformersLoading={topPerformersLoading}
+          topPerformersToday={topPerformersToday}
+        />
+      )}
 
       <div className="mb-8 grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
-          <PanelCard title="Live Activity">
-            <div className="mt-4 flex flex-wrap gap-2">
-              {(
-                [
-                  { id: "all" as const, label: "All" },
-                  { id: "following" as const, label: "Following" },
-                ] as const
-              ).map(({ id, label }) => {
-                const active = feedMode === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setFeedMode(id)}
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                      active
-                        ? "bg-zinc-700 text-zinc-50"
-                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-            {loadingActivity ? (
-              <div className="flex min-h-[100px] items-center justify-center py-10">
-                <p className="text-sm text-zinc-500">Loading activity...</p>
-              </div>
-            ) : activity.length === 0 ? (
-              <div className="flex min-h-[100px] items-center justify-center py-10">
-                <p className="text-sm text-zinc-500">
-                  {feedMode === "following"
-                    ? "No activity from people you follow"
-                    : "No activity yet"}
-                </p>
-              </div>
-            ) : (
-              <ul className="mt-4 max-h-[300px] overflow-y-auto pr-1 text-sm">
-                {activity.map((item, i) => (
-                  <li
-                    key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
-                    className="dashboard-feed-item border-b border-zinc-800 last:border-b-0"
-                    style={{ animationDelay: `${i * 70}ms` }}
-                  >
-                    <div className="-mx-1 flex items-start gap-2 rounded-md py-2.5 pl-1 pr-1 transition-colors duration-150 hover:bg-zinc-800/30 sm:pl-2 sm:pr-2">
-                      <FollowButton
-                        targetDiscordId={item.discordId}
-                        following={followingIds.has(item.discordId)}
-                        onFollowingChange={(next) =>
-                          setFollowing(item.discordId, next)
-                        }
-                        className="mt-0.5"
-                      />
-                      <span
-                        className="mt-0.5 flex w-8 shrink-0 justify-center text-base leading-none opacity-[0.88]"
-                        aria-hidden
-                      >
-                        {item.type === "win" ? "🔥" : "⚡"}
-                      </span>
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setSelectedActivity(item)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setSelectedActivity(item);
-                          }
-                        }}
-                        className="flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
-                      >
-                        <span className="min-w-0 text-zinc-200">
-                          {renderActivityFeedLine(item)}
-                        </span>
-                        <span className="flex shrink-0 items-center gap-1.5">
-                          <span className="text-xs tabular-nums text-zinc-500">
-                            {formatJoinedAt(callTimeMs(item.time), nowMs)}
-                          </span>
-                          <span className="text-xs text-zinc-500" aria-hidden>
-                            ↗
-                          </span>
-                        </span>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </PanelCard>
+          {widgetEnabled(widgets, "activity") && (
+            <ActivityFeedPanel
+              feedMode={feedMode}
+              setFeedMode={setFeedMode}
+              loadingActivity={loadingActivity}
+              activity={activity}
+              followingIds={followingIds}
+              setFollowing={setFollowing}
+              nowMs={nowMs}
+              setSelectedActivity={setSelectedActivity}
+            />
+          )}
 
           <PanelCard
             title="🔥 Hot Right Now"
@@ -1180,32 +1339,9 @@ export default function Home() {
             </ul>
           </PanelCard>
 
-          <PanelCard title="📈 Trending" titleClassName="normal-case">
-            <ul className="mt-3 divide-y divide-zinc-800/80 text-[13px] leading-snug">
-              {TRENDING_TOKENS_MOCK.map((row) => (
-                <li key={row.symbol}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      window.open(
-                        `https://dexscreener.com/solana/${encodeURIComponent(row.mint)}`,
-                        "_blank",
-                        "noopener,noreferrer"
-                      )
-                    }
-                    className="flex w-full items-center justify-between gap-3 py-2 text-left transition-colors hover:bg-zinc-800/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
-                  >
-                    <span className="min-w-0 truncate font-medium text-zinc-100">
-                      {row.symbol}
-                    </span>
-                    <span className="shrink-0 tabular-nums text-xs font-semibold text-emerald-400/90">
-                      {row.stat.toFixed(1)}x
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </PanelCard>
+          {widgetEnabled(widgets, "trending") && <TrendingPanel />}
+
+          {widgetEnabled(widgets, "notes") && <NotesPanel />}
         </div>
 
         <PanelCard title="Quick Actions">

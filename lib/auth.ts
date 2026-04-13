@@ -47,6 +47,20 @@ export const authOptions: NextAuthOptions = {
           );
           return true;
         }
+
+        const { error: dashboardSettingsError } = await supabase
+          .from("user_dashboard_settings")
+          .upsert(
+            { discord_id: user.id },
+            { onConflict: "discord_id" }
+          );
+
+        if (dashboardSettingsError) {
+          console.error(
+            "[auth signIn] user_dashboard_settings upsert:",
+            dashboardSettingsError.message || dashboardSettingsError
+          );
+        }
       }
 
       const { error: prefsError } = await supabase
