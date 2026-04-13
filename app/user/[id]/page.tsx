@@ -583,6 +583,8 @@ export default function UserProfilePage() {
   const bannerUrl = profile?.banner_url?.trim() || "";
   const bioText = profile?.bio?.trim() || "";
 
+  console.log("Banner URL:", profile?.banner_url);
+
   async function saveProfileEdits() {
     if (editSaving) return;
     const bio = editBio;
@@ -635,17 +637,15 @@ export default function UserProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-1 sm:px-0">
-      <div className="mb-5 overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/60">
-        {bannerUrl ? (
-          <img
-            src={bannerUrl}
-            alt=""
-            className="h-[140px] w-full object-cover"
-          />
-        ) : (
-          <div className="h-[140px] w-full bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900" />
-        )}
-      </div>
+      {profile?.banner_url ? (
+        <img
+          src={profile.banner_url}
+          alt="Profile Banner"
+          className="h-32 w-full rounded-xl object-cover"
+        />
+      ) : (
+        <div className="h-32 w-full rounded-xl bg-gradient-to-r from-zinc-800 to-zinc-700" />
+      )}
       <header className="border-b border-zinc-800/80 pb-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
           <img
