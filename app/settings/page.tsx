@@ -186,12 +186,19 @@ export default function SettingsPage() {
     setSaveMessage(null);
 
     try {
-      console.log("SENDING WIDGETS:", widgets);
+      const dashboardPayload = { widgets_enabled: widgets };
+      const dashboardBody = JSON.stringify(dashboardPayload);
+      console.log(
+        "[settings] POST /api/dashboard-settings — shape:",
+        dashboardPayload
+      );
+      console.log("[settings] POST /api/dashboard-settings — raw JSON:", dashboardBody);
 
       const [prefsRes, dashRes] = await Promise.all([
         fetch("/api/preferences", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
           body: JSON.stringify({
             own_calls: prefs.own_calls,
             include_following: prefs.include_following,
@@ -205,11 +212,16 @@ export default function SettingsPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            widgets_enabled: widgets,
-          }),
+          credentials: "same-origin",
+          body: dashboardBody,
         }),
       ]);
+
+      console.log(
+        "[settings] dashboard-settings response:",
+        dashRes.status,
+        dashRes.ok ? "ok" : "not ok"
+      );
 
       if (!prefsRes.ok) {
         const j = await prefsRes.json().catch(() => ({}));
@@ -223,15 +235,32 @@ export default function SettingsPage() {
       }
 
       if (!dashRes.ok) {
-        const j = await dashRes.json().catch(() => ({}));
+        const errText = await dashRes.text().catch(() => "");
+        console.error(
+          "[settings] dashboard-settings error body (status",
+          dashRes.status,
+          "):",
+          errText
+        );
+        let j: Record<string, unknown> = {};
+        try {
+          j = errText ? (JSON.parse(errText) as Record<string, unknown>) : {};
+        } catch {
+          /* use empty */
+        }
         const msg =
-          typeof (j as { error?: string }).error === "string"
-            ? (j as { error: string }).error
+          typeof j.error === "string"
+            ? j.error
             : "Could not save dashboard widgets.";
         setSaveState("error");
         setSaveMessage(msg);
         return;
       }
+
+      const dashOkJson = await dashRes.json().catch(() => ({}));
+      console.log("[settings] dashboard-settings success JSON:", dashOkJson);
+
+      console.log("Saved widgets:", widgets);
 
       setSaveState("saved");
       setSaveMessage("Saved.");
