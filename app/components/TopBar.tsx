@@ -288,7 +288,7 @@ export function TopBar() {
                       {(session.user?.name ?? "?").slice(0, 1).toUpperCase()}
                     </div>
                   )}
-                  <span className="max-w-[140px] truncate text-left text-sm font-medium text-zinc-300 sm:max-w-[200px]">
+                  <span className="max-w-[140px] truncate text-left text-sm font-medium text-zinc-100 sm:max-w-[200px]">
                     {session.user?.name ?? "User"}
                   </span>
                 </button>

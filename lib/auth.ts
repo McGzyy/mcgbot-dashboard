@@ -79,15 +79,39 @@ export const authOptions: NextAuthOptions = {
 
       return true;
     },
-    async jwt({ token, account, profile }) {
-      if (profile) {
-        token.discord_id = profile.id;
+    async jwt({ token, user, profile }) {
+      if (user) {
+        token.discord_id = user.id;
+        if (user.name) token.name = user.name;
+        if (user.image) token.picture = user.image;
+      }
+      if (profile && typeof profile === "object") {
+        const p = profile as {
+          id?: string;
+          global_name?: string | null;
+          username?: string | null;
+        };
+        if (typeof p.id === "string") token.discord_id = p.id;
+        if (!token.name) {
+          const display =
+            (typeof p.global_name === "string" && p.global_name) ||
+            (typeof p.username === "string" && p.username) ||
+            "";
+          if (display) token.name = display;
+        }
       }
       return token;
     },
 
     async session({ session, token }) {
-      session.user.id = token.discord_id as string;
+      const id = (token.discord_id as string | undefined) ?? token.sub ?? "";
+      session.user.id = id;
+      if (typeof token.name === "string" && token.name) {
+        session.user.name = token.name;
+      }
+      if (typeof token.picture === "string" && token.picture) {
+        session.user.image = token.picture;
+      }
       return session;
     },
   },

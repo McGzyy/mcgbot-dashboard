@@ -59,8 +59,9 @@ function viewerDisplayName(
   return apiUsername.trim();
 }
 
+/** Medal colors use **list index** (0 = #1 gold); `isCurrentUser` overrides all. */
 function topPerformerVisuals(
-  rank: number,
+  listIndex: number,
   isCurrentUser: boolean
 ): {
   row: string;
@@ -77,27 +78,27 @@ function topPerformerVisuals(
       avgStrong: "font-semibold text-emerald-400",
     };
   }
-  if (rank === 1) {
+  if (listIndex === 0) {
     return {
-      row: "rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-3",
+      row: "rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3",
       badge: "bg-yellow-500/15 text-yellow-400",
       nameLink:
         "min-w-0 truncate font-medium text-yellow-400 transition-colors hover:text-yellow-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40",
       avgStrong: "font-semibold text-yellow-400",
     };
   }
-  if (rank === 2) {
+  if (listIndex === 1) {
     return {
-      row: "rounded-xl border border-zinc-600/50 bg-zinc-500/10 px-4 py-3",
+      row: "rounded-xl border border-zinc-400/30 bg-zinc-500/10 px-4 py-3",
       badge: "bg-zinc-500/15 text-zinc-300",
       nameLink:
         "min-w-0 truncate font-medium text-zinc-300 transition-colors hover:text-zinc-200 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40",
       avgStrong: "font-semibold text-zinc-300",
     };
   }
-  if (rank === 3) {
+  if (listIndex === 2) {
     return {
-      row: "rounded-xl border border-amber-700/40 bg-amber-500/10 px-4 py-3",
+      row: "rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3",
       badge: "bg-amber-500/15 text-amber-600",
       nameLink:
         "min-w-0 truncate font-medium text-amber-600 transition-colors hover:text-amber-500 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40",
@@ -540,20 +541,20 @@ function StatCard({
 }) {
   return (
     <div
-      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-5 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
+      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
     >
       <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
         {title}
       </p>
       {loading ? (
         <div
-          className="mt-2 h-9 w-20 max-w-full animate-pulse rounded-md bg-zinc-800/90"
+          className="mt-1.5 h-9 w-20 max-w-full animate-pulse rounded-md bg-zinc-800/90"
           aria-busy
           aria-label="Loading"
         />
       ) : (
         <>
-          <div className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-zinc-50">
+          <div className="mt-1.5 text-3xl font-bold tabular-nums tracking-tight text-zinc-50">
             {value}
           </div>
           {positiveHint ? (
@@ -573,7 +574,7 @@ function PanelCard({
   className = "",
   elevated = false,
   titleClassName,
-  paddingClassName = "p-5",
+  paddingClassName = "px-4 py-3",
 }: {
   title: string;
   children: ReactNode;
@@ -618,7 +619,7 @@ function NotesPanel() {
   return (
     <section className="mb-8">
       <PanelCard title="Notes" titleClassName="normal-case">
-        <p className="mt-4 text-sm text-zinc-500">No notes yet.</p>
+        <p className="mt-2 text-sm text-zinc-500">No notes yet.</p>
       </PanelCard>
     </section>
   );
@@ -627,7 +628,7 @@ function NotesPanel() {
 function TrendingPanel() {
   return (
     <PanelCard title="📈 Trending" titleClassName="normal-case">
-      <ul className="mt-3 divide-y divide-zinc-800/80 text-[13px] leading-snug">
+      <ul className="mt-2 divide-y divide-zinc-800/80 text-[13px] leading-snug">
         {TRENDING_TOKENS_MOCK.map((row) => (
           <li key={row.symbol}>
             <button
@@ -667,59 +668,62 @@ function RankPanel({
   const [rankTimeframe, setRankTimeframe] = useState<"1D" | "1W" | "1M">("1D");
 
   return (
-    <section className="mb-8 w-full max-w-md">
-      <PanelCard title="Your Rank" titleClassName="normal-case">
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(["1D", "1W", "1M"] as const).map((id) => {
-            const active = rankTimeframe === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setRankTimeframe(id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
-                  active
-                    ? "bg-zinc-700 text-zinc-50"
-                    : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-                }`}
-              >
-                {id}
-              </button>
-            );
-          })}
+    <PanelCard
+      title="Your Rank"
+      titleClassName="normal-case"
+      className="flex h-full max-w-sm flex-col"
+    >
+      {/* TODO: wire timeframe logic to backend stats */}
+      <div className="mt-2 flex flex-wrap gap-2">
+        {(["1D", "1W", "1M"] as const).map((id) => {
+          const active = rankTimeframe === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setRankTimeframe(id)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+                active
+                  ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
+                  : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              }`}
+            >
+              {id}
+            </button>
+          );
+        })}
+      </div>
+      {yourRankLoading ? (
+        <div className="mt-3 flex min-h-[52px] items-center">
+          <p className="text-sm text-zinc-500">Loading rank…</p>
         </div>
-        {yourRankLoading ? (
-          <div className="mt-4 flex min-h-[56px] items-center">
-            <p className="text-sm text-zinc-500">Loading rank…</p>
-          </div>
-        ) : yourWeekRank === null ? (
-          <p className="mt-4 text-sm leading-relaxed text-zinc-400">
-            No rank this week yet — user calls in the last 7 days earn a spot on
-            the leaderboard.
+      ) : yourWeekRank === null ? (
+        <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+          No rank this week yet — user calls in the last 7 days earn a spot on
+          the leaderboard.
+        </p>
+      ) : (
+        <div className="mt-3">
+          <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-sm text-zinc-300">
+            <span>You are</span>
+            <span className="font-bold tabular-nums text-zinc-50">
+              #{yourWeekRank}
+            </span>
+            <span>this week</span>
+            <span
+              className="text-base font-light leading-none text-emerald-500/75"
+              title="Rank vs prior day (placeholder)"
+              aria-hidden
+            >
+              ↑
+            </span>
           </p>
-        ) : (
-          <div className="mt-4">
-            <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-sm text-zinc-300">
-              <span>You are</span>
-              <span className="font-bold tabular-nums text-zinc-50">
-                #{yourWeekRank}
-              </span>
-              <span>this week</span>
-              <span
-                className="text-base font-light leading-none text-emerald-500/75"
-                title="Rank vs prior day (placeholder)"
-                aria-hidden
-              >
-                ↑
-              </span>
-            </p>
-            <p className="mt-2 text-xs text-emerald-500/65">
-              +{rankDeltaPlaceholder} from yesterday
-            </p>
-          </div>
-        )}
-      </PanelCard>
-    </section>
+          <p className="mt-1.5 text-xs text-emerald-500/65">
+            +{rankDeltaPlaceholder} from yesterday
+          </p>
+        </div>
+      )}
+    </PanelCard>
   );
 }
 
@@ -738,21 +742,20 @@ function TopPerformersPanel({
     <section className="mb-8">
       <PanelCard title="🔥 Top Performers Today" titleClassName="normal-case">
         {topPerformersLoading ? (
-          <div className="mt-4 flex min-h-[72px] items-center justify-center">
+          <div className="mt-3 flex min-h-[64px] items-center justify-center">
             <p className="text-sm text-zinc-500">Loading…</p>
           </div>
         ) : topPerformersToday.length === 0 ? (
-          <p className="mt-4 text-sm text-zinc-500">
+          <p className="mt-3 text-sm text-zinc-500">
             No calls in the last 24 hours yet.
           </p>
         ) : (
-          <ul className="mt-4 space-y-2">
+          <ul className="mt-3 space-y-2">
             {topPerformersToday.map((row, i) => {
-              const rank =
-                typeof row.rank === "number" && row.rank > 0 ? row.rank : i + 1;
+              const listPosition = i + 1;
               const isSelf =
                 !!viewerId && row.discordId.trim() === viewerId.trim();
-              const v = topPerformerVisuals(rank, isSelf);
+              const v = topPerformerVisuals(i, isSelf);
               const label = viewerDisplayName(
                 row.discordId,
                 row.username,
@@ -764,12 +767,12 @@ function TopPerformersPanel({
                   key={row.discordId}
                   className={`${v.row} ${TOP_PERFORMER_ROW_INTERACTIVE}`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${v.badge}`}
                       >
-                        #{rank}
+                        #{listPosition}
                       </span>
                       <Link
                         href={`/user/${encodeURIComponent(row.discordId)}`}
@@ -838,7 +841,7 @@ function ActivityFeedPanel({
 }: ActivityFeedPanelProps) {
   return (
     <PanelCard title="Live Activity">
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         {(
           [
             { id: "all" as const, label: "All" },
@@ -863,11 +866,11 @@ function ActivityFeedPanel({
         })}
       </div>
       {loadingActivity ? (
-        <div className="flex min-h-[100px] items-center justify-center py-10">
+        <div className="flex min-h-[88px] items-center justify-center py-6">
           <p className="text-sm text-zinc-500">Loading activity...</p>
         </div>
       ) : activity.length === 0 ? (
-        <div className="flex min-h-[100px] items-center justify-center py-10">
+        <div className="flex min-h-[88px] items-center justify-center py-6">
           <p className="text-sm text-zinc-500">
             {feedMode === "following"
               ? "No activity from people you follow"
@@ -875,14 +878,14 @@ function ActivityFeedPanel({
           </p>
         </div>
       ) : (
-        <ul className="mt-4 max-h-[300px] overflow-y-auto pr-1 text-sm">
+        <ul className="mt-2 max-h-[300px] overflow-y-auto pr-1 text-sm">
           {activity.map((item, i) => (
             <li
               key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
               className="dashboard-feed-item border-b border-zinc-800 last:border-b-0"
               style={{ animationDelay: `${i * 70}ms` }}
             >
-              <div className="-mx-1 flex items-start gap-2 rounded-md py-2.5 pl-1 pr-1 transition-colors duration-150 hover:bg-zinc-800/30 sm:pl-2 sm:pr-2">
+              <div className="-mx-1 flex items-start gap-2 rounded-md py-2 pl-1 pr-1 transition-colors duration-150 hover:bg-zinc-800/30 sm:pl-2 sm:pr-2">
                 <FollowButton
                   targetDiscordId={item.discordId}
                   following={followingIds.has(item.discordId)}
@@ -1378,18 +1381,21 @@ export default function Home() {
       "0"
     );
 
-  // TODO: add widget toggle control
-  // TODO: drag and drop layout
+  // TODO: add badges next to usernames
+  // TODO: allow widget resizing / layout control
   // TODO: move referral link under banner
-  // TODO: integrate badge system
+
+  const showRankWidget = widgetEnabled(widgets, "rank");
 
   return (
     <div className="mx-auto max-w-[1200px] px-1 sm:px-0">
       <section className="mb-8">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Personal Stats
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div
+          className={`grid gap-3 sm:grid-cols-2 ${showRankWidget ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}
+        >
           <StatCard
             title="Avg X"
             value={
@@ -1407,18 +1413,19 @@ export default function Home() {
             value={stats === null ? "—" : stats.callsToday}
           />
           <StatCard title="Streak" value={streakValue} />
+          {showRankWidget ? (
+            <div className="w-full max-w-sm justify-self-start">
+              <RankPanel
+                yourRankLoading={yourRankLoading}
+                yourWeekRank={yourWeekRank}
+                rankDeltaPlaceholder={PLACEHOLDER_RANK_DELTA}
+              />
+            </div>
+          ) : null}
         </div>
       </section>
 
       {widgetEnabled(widgets, "market") && <MarketPanel />}
-
-      {widgetEnabled(widgets, "rank") && (
-        <RankPanel
-          yourRankLoading={yourRankLoading}
-          yourWeekRank={yourWeekRank}
-          rankDeltaPlaceholder={PLACEHOLDER_RANK_DELTA}
-        />
-      )}
 
       {widgetEnabled(widgets, "top_performers") && (
         <TopPerformersPanel
@@ -1429,8 +1436,8 @@ export default function Home() {
         />
       )}
 
-      <div className="mb-8 grid gap-6 lg:grid-cols-2 lg:items-start">
-        <div className="flex flex-col gap-6">
+      <div className="mb-8 grid gap-4 lg:grid-cols-2 lg:items-start">
+        <div className="flex flex-col gap-4">
           {widgetEnabled(widgets, "activity") && (
             <ActivityFeedPanel
               feedMode={feedMode}
@@ -1451,11 +1458,11 @@ export default function Home() {
             elevated
             titleClassName="normal-case"
           >
-            <ul className="mt-4 space-y-2.5">
+            <ul className="mt-2 space-y-2">
               {HOT_RIGHT_NOW_MOCK.map((row) => (
                 <li
                   key={row.token}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-700/50 bg-zinc-900/40 px-3 py-2.5"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-700/50 bg-zinc-900/40 px-3 py-2"
                 >
                   <span className="font-medium text-zinc-100">{row.token}</span>
                   <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium leading-tight text-amber-200/95">
@@ -1472,7 +1479,7 @@ export default function Home() {
         </div>
 
         <PanelCard title="Quick Actions">
-          <div className="mt-4 flex flex-col gap-2">
+          <div className="mt-2 flex flex-col gap-2">
             <button
               type="button"
               className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-4 text-base font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-sky-400 hover:shadow-cyan-400/45 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
@@ -1495,8 +1502,9 @@ export default function Home() {
         </PanelCard>
       </div>
 
-      <section className="mb-10">
-        <PanelCard title="Your Recent Calls" paddingClassName="px-5 py-3">
+      <div className="w-full max-w-2xl">
+      <section className="mb-8">
+        <PanelCard title="Your Recent Calls">
           <p className="mt-2 text-sm text-zinc-500">
             <Link
               href={`/user/${encodeURIComponent(session.user.id)}`}
@@ -1541,8 +1549,8 @@ export default function Home() {
         </PanelCard>
       </section>
 
-      <section className="mb-10">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      <section className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Your Referral Link
         </h2>
         <div
@@ -1565,8 +1573,8 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mb-12">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      <section className="mb-10">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Your Referrals
         </h2>
         <div
@@ -1630,6 +1638,7 @@ export default function Home() {
           )}
         </div>
       </section>
+      </div>
 
       <ActivityPopup
         item={

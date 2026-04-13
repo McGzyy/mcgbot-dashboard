@@ -3,6 +3,7 @@
 import { FollowButton } from "@/app/components/FollowButton";
 import { useFollowingIds } from "@/app/hooks/useFollowingIds";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useEffect, useState, type ReactNode } from "react";
 
 const CARD_HOVER =
@@ -72,19 +73,19 @@ function StatCard({
 }) {
   return (
     <div
-      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-5 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
+      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
     >
       <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
         {title}
       </p>
       {loading ? (
         <div
-          className="mt-2 h-9 w-20 max-w-full animate-pulse rounded-md bg-zinc-800/90"
+          className="mt-1.5 h-9 w-20 max-w-full animate-pulse rounded-md bg-zinc-800/90"
           aria-busy
           aria-label="Loading"
         />
       ) : (
-        <div className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-zinc-50">
+        <div className="mt-1.5 text-3xl font-bold tabular-nums tracking-tight text-zinc-50">
           {value}
         </div>
       )}
@@ -101,7 +102,7 @@ function PanelCard({
 }) {
   return (
     <div
-      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-5 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
+      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
     >
       <h2 className="text-sm font-semibold tracking-wide text-zinc-400 uppercase">
         {title}
@@ -152,6 +153,10 @@ export default function UserProfilePage() {
   const raw = params?.id;
   const userId =
     typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
+  const { data: session } = useSession();
+  const isOwnProfile =
+    !!session?.user?.id?.trim() &&
+    session.user.id.trim() === userId.trim();
 
   const { followingIds, setFollowing } = useFollowingIds();
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
@@ -222,17 +227,19 @@ export default function UserProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-1 sm:px-0">
-      <header className="flex flex-col gap-4 border-b border-zinc-800/80 pb-8 sm:flex-row sm:items-center sm:justify-between">
+      <header className="flex flex-col gap-3 border-b border-zinc-800/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight text-zinc-50 sm:text-2xl">
             {loading ? (
               <span className="inline-block h-8 w-48 animate-pulse rounded-md bg-zinc-800/90" />
+            ) : isOwnProfile && session?.user?.name ? (
+              session.user.name
             ) : (
-              (profile?.username?.trim() || userId) ?? "Profile"
+              (profile?.username?.trim() || userId.trim()) || "Profile"
             )}
           </h1>
           {!loading && profile ? (
-            <p className="mt-1 truncate font-mono text-xs text-zinc-500">
+            <p className="mt-1 truncate text-xs text-zinc-500 tabular-nums">
               {userId.trim()}
             </p>
           ) : null}
@@ -276,22 +283,22 @@ export default function UserProfilePage() {
         </div>
       </section>
 
-      <section className="mt-10">
+      <section className="mt-8">
         <PanelCard title="Recent Calls">
           {loading ? (
-            <div className="flex min-h-[100px] items-center justify-center py-10">
+            <div className="flex min-h-[88px] items-center justify-center py-6">
               <p className="text-sm text-zinc-500">Loading calls…</p>
             </div>
           ) : !profile || profile.recentCalls.length === 0 ? (
-            <div className="flex min-h-[100px] items-center justify-center py-10">
+            <div className="flex min-h-[88px] items-center justify-center py-6">
               <p className="text-sm text-zinc-500">No calls yet</p>
             </div>
           ) : (
-            <ul className="mt-4 space-y-0 divide-y divide-zinc-800/50 text-sm">
+            <ul className="mt-2 space-y-0 divide-y divide-zinc-800/50 text-sm">
               {profile.recentCalls.map((call, i) => (
                 <li
                   key={`${call.token}-${String(call.time)}-${i}`}
-                  className="flex flex-wrap items-center justify-between gap-2 py-3 text-zinc-300 first:pt-1"
+                  className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-zinc-300 first:pt-1"
                 >
                   <span className="min-w-0 font-medium text-zinc-100">
                     {call.token}
