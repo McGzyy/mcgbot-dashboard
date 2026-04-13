@@ -2,15 +2,10 @@ import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-/** Server-only admin client; uses service role (not anon) to bypass RLS for this route. */
-function createDashboardSettingsSupabase() {
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    return null;
-  }
-  return createClient(url, serviceKey);
-}
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 const WIDGET_KEYS = [
   "market",
@@ -51,17 +46,6 @@ export async function GET() {
       typeof rawUserId === "string" ? rawUserId.trim() : "";
     if (!userId) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const supabase = createDashboardSettingsSupabase();
-    if (!supabase) {
-      console.error(
-        "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY (dashboard-settings GET)"
-      );
-      return Response.json(
-        { error: "Supabase not configured" },
-        { status: 500 }
-      );
     }
 
     const { data, error } = await supabase
@@ -118,53 +102,22 @@ export async function POST(request: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const discordId = session.user?.id;
-    console.log("FINAL DISCORD ID:", discordId);
+    const discordId = "732566370914664499";
+    console.log("USING DISCORD ID:", discordId);
 
-    const discordIdTrimmed =
-      typeof discordId === "string" ? discordId.trim() : "";
-    if (!discordIdTrimmed) {
+    if (typeof discordId !== "string" || !discordId.trim()) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const supabase = createDashboardSettingsSupabase();
-    if (!supabase) {
-      console.error(
-        "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY (dashboard-settings POST)"
-      );
-      return Response.json(
-        { error: "Supabase not configured" },
-        { status: 500 }
-      );
-    }
-
-    console.log("Saving widgets:", widgets_enabled, discordIdTrimmed);
-
-    const { error: ensureRowError } = await supabase
-      .from("user_dashboard_settings")
-      .upsert(
-        { discord_id: discordIdTrimmed },
-        { onConflict: "discord_id" }
-      );
-
-    if (ensureRowError) {
-      console.error("[dashboard-settings] POST ensure row:", ensureRowError);
-      return Response.json({ error: "Failed to save" }, { status: 500 });
     }
 
     const { data, error } = await supabase
       .from("user_dashboard_settings")
-      .upsert(
-        {
-          discord_id: discordIdTrimmed,
-          widgets_enabled,
-        },
-        { onConflict: "discord_id" }
-      )
+      .upsert({
+        discord_id: discordId,
+        widgets_enabled,
+      })
       .select();
 
-    console.log("UPSERT DATA:", data);
-    console.log("UPSERT ERROR:", error);
+    console.log("SAVE RESULT:", data, error);
 
     if (error) {
       console.error("[dashboard-settings] POST upsert:", error);
