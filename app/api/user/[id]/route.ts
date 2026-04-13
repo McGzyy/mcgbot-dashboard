@@ -38,7 +38,7 @@ export async function GET(
         .eq("discord_id", discordId),
       supabase
         .from("users")
-        .select("is_top_caller, is_trusted_pro, bio, banner_url")
+        .select("id, discord_id, bio, banner_url, tier, created_at")
         .eq("discord_id", discordId)
         .maybeSingle(),
     ]);
@@ -57,12 +57,16 @@ export async function GET(
 
     const userRow = userRowResult.data as
       | {
-          is_top_caller?: boolean;
-          is_trusted_pro?: boolean;
+          id?: unknown;
+          discord_id?: unknown;
           bio?: unknown;
           banner_url?: unknown;
+          tier?: unknown;
+          created_at?: unknown;
         }
       | null;
+    
+    console.log("USER FETCH RESULT:", userRowResult.data, userRowResult.error);
 
     const rows = (Array.isArray(data) ? data : []) as Record<
       string,
@@ -75,8 +79,9 @@ export async function GET(
 
     return Response.json({
       username,
-      isTopCaller: Boolean(userRow?.is_top_caller),
-      isTrustedPro: Boolean(userRow?.is_trusted_pro),
+      // Badges are now fetched from `user_badges` on the client; keep fields for compatibility.
+      isTopCaller: false,
+      isTrustedPro: false,
       bio:
         userRow?.bio == null
           ? null
