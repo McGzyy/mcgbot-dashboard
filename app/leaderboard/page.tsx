@@ -1,6 +1,7 @@
 "use client";
 
 import { FollowButton } from "@/app/components/FollowButton";
+import { UserBadgeIcons } from "@/app/components/UserBadgeIcons";
 import { useFollowingIds } from "@/app/hooks/useFollowingIds";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -72,6 +73,9 @@ export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState("user");
   const [data, setData] = useState<ApiLeaderRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [badgesByUser, setBadgesByUser] = useState<Record<string, string[]>>(
+    {}
+  );
   const { followingIds, setFollowing } = useFollowingIds();
   const viewerId = session?.user?.id?.trim() ?? "";
   const viewerName = session?.user?.name ?? null;
@@ -129,6 +133,31 @@ export default function LeaderboardPage() {
       cancelled = true;
     };
   }, [activeTab]);
+
+  useEffect(() => {
+    if (data.length === 0) {
+      setBadgesByUser({});
+      return;
+    }
+    let cancelled = false;
+    const userIds = Array.from(
+      new Set(data.map((r) => r.discordId.trim()).filter(Boolean))
+    );
+    fetch("/api/badges", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userIds }),
+    })
+      .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
+      .then(({ ok, json }) => {
+        if (cancelled || !ok || !json || typeof json !== "object") return;
+        setBadgesByUser(json as Record<string, string[]>);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [data]);
 
   const scoreColumnLabel = activeTab === "user" ? "Wins" : "Calls";
   const showApiTable = activeTab !== "referrals";
@@ -250,6 +279,10 @@ export default function LeaderboardPage() {
                               ? viewerName
                               : row.username}
                           </Link>
+                          <UserBadgeIcons
+                            badges={badgesByUser[row.discordId.trim()] ?? []}
+                            className="-ml-1"
+                          />
                           <FollowButton
                             targetDiscordId={row.discordId}
                             following={followingIds.has(row.discordId)}

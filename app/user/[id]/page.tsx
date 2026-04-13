@@ -312,6 +312,7 @@ export default function UserProfilePage() {
   } | null>(null);
   const [trophies, setTrophies] = useState<TrophiesByTimeframe | null>(null);
   const [trophiesLoading, setTrophiesLoading] = useState(true);
+  const [badges, setBadges] = useState<string[]>([]);
 
   useEffect(() => {
     if (!profileUserId) {
@@ -360,6 +361,38 @@ export default function UserProfilePage() {
         if (!cancelled) setLoading(false);
       });
 
+    return () => {
+      cancelled = true;
+    };
+  }, [profileUserId]);
+
+  useEffect(() => {
+    if (!profileUserId) {
+      setBadges([]);
+      return;
+    }
+    let cancelled = false;
+    const url = `/api/user/${encodeURIComponent(profileUserId)}/badges`;
+    fetch(url)
+      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (cancelled) return;
+        if (!ok) {
+          setBadges([]);
+          return;
+        }
+        if (Array.isArray(data)) {
+          const next = data
+            .map((b) => (typeof b === "string" ? b.trim() : String(b ?? "").trim()))
+            .filter(Boolean);
+          setBadges(next);
+        } else {
+          setBadges([]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setBadges([]);
+      });
     return () => {
       cancelled = true;
     };
@@ -479,6 +512,9 @@ export default function UserProfilePage() {
       ? followStats.isFollowing
       : followingIds.has(uid);
 
+  const isTopCaller = badges.includes("top_caller");
+  const isTrustedPro = badges.includes("trusted_pro");
+
   if (!userId?.trim()) {
     return (
       <div className="mx-auto max-w-3xl px-1 sm:px-0">
@@ -507,13 +543,13 @@ export default function UserProfilePage() {
                   displayName
                 )}
               </h1>
-              {!loading && profile?.isTopCaller ? (
-                <span className="inline-flex shrink-0 items-center rounded-md border border-orange-500/25 bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-orange-200/95 sm:text-[11px]">
+              {!loading && isTopCaller ? (
+                <span className="inline-flex shrink-0 items-center rounded-full bg-zinc-800 px-2 py-1 text-xs font-medium leading-none text-zinc-300">
                   🔥 Top Caller
                 </span>
               ) : null}
-              {!loading && profile?.isTrustedPro ? (
-                <span className="inline-flex shrink-0 items-center rounded-md border border-sky-500/25 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-sky-200/95 sm:text-[11px]">
+              {!loading && isTrustedPro ? (
+                <span className="inline-flex shrink-0 items-center rounded-full bg-zinc-800 px-2 py-1 text-xs font-medium leading-none text-zinc-300">
                   🧠 Trusted Pro
                 </span>
               ) : null}

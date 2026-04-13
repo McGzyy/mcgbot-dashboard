@@ -7,6 +7,7 @@ import {
 } from "@/app/contexts/NotificationsContext";
 import { ActivityPopup } from "./components/ActivityPopup";
 import { FollowButton } from "./components/FollowButton";
+import { UserBadgeIcons } from "./components/UserBadgeIcons";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
@@ -318,7 +319,8 @@ function renderTextSegmentWithCa(text: string, dexLink: string): ReactNode {
 function renderActivityFeedLine(
   item: ActivityItem,
   viewerId?: string,
-  viewerName?: string | null
+  viewerName?: string | null,
+  badges: string[] = []
 ): ReactNode {
   const dex = item.link_chart ?? "";
   const apiName = item.username.trim();
@@ -343,6 +345,7 @@ function renderActivityFeedLine(
           >
             {name}
           </Link>
+          <UserBadgeIcons badges={badges} className="ml-1" />
         </>
       );
     }
@@ -359,6 +362,7 @@ function renderActivityFeedLine(
         >
           {name}
         </Link>
+        <UserBadgeIcons badges={badges} className="ml-1" />
         {renderTextSegmentWithCa(afterName, dex)}
       </>
     );
@@ -735,11 +739,13 @@ function TopPerformersPanel({
   topPerformersToday,
   viewerId,
   viewerName,
+  badgesByUser,
 }: {
   topPerformersLoading: boolean;
   topPerformersToday: TopPerformerTodayRow[];
   viewerId?: string;
   viewerName?: string | null;
+  badgesByUser?: Record<string, string[]>;
 }) {
   return (
     <section className="mb-8">
@@ -783,6 +789,9 @@ function TopPerformersPanel({
                       >
                         {label}
                       </Link>
+                      <UserBadgeIcons
+                        badges={(badgesByUser ?? {})[row.discordId.trim()] ?? []}
+                      />
                     </div>
                     <div className="shrink-0 text-right text-sm">
                       <p className="tabular-nums">
@@ -830,6 +839,7 @@ type ActivityFeedPanelProps = {
   setFollowing: (id: string, next: boolean) => void;
   nowMs: number;
   setSelectedActivity: (item: ActivityItem | null) => void;
+  badgesByUser?: Record<string, string[]>;
   viewerId?: string;
   viewerName?: string | null;
 };
@@ -843,6 +853,7 @@ function ActivityFeedPanel({
   setFollowing,
   nowMs,
   setSelectedActivity,
+  badgesByUser,
   viewerId,
   viewerName,
 }: ActivityFeedPanelProps) {
@@ -918,7 +929,12 @@ function ActivityFeedPanel({
                   className="flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
                 >
                   <span className="min-w-0 text-zinc-200">
-                    {renderActivityFeedLine(item, viewerId, viewerName)}
+                    {renderActivityFeedLine(
+                      item,
+                      viewerId,
+                      viewerName,
+                      (badgesByUser ?? {})[item.discordId.trim()] ?? []
+                    )}
                   </span>
                   <span className="flex shrink-0 items-center gap-1.5">
                     <span className="text-xs tabular-nums text-zinc-500">
@@ -951,6 +967,9 @@ export default function Home() {
   const [callsLoading, setCallsLoading] = useState(true);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
+  const [badgesByUser, setBadgesByUser] = useState<Record<string, string[]>>(
+    {}
+  );
   const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(
     null
   );
@@ -1276,6 +1295,40 @@ export default function Home() {
   }, [session?.user?.id]);
 
   useEffect(() => {
+    const ids = new Set<string>();
+    const selfId = session?.user?.id?.trim() ?? "";
+    if (selfId) ids.add(selfId);
+    for (const r of topPerformersToday) {
+      const id = r.discordId?.trim();
+      if (id) ids.add(id);
+    }
+    for (const a of activity) {
+      const id = a.discordId?.trim();
+      if (id) ids.add(id);
+    }
+    const userIds = Array.from(ids);
+    if (userIds.length === 0) {
+      setBadgesByUser({});
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/badges", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userIds }),
+    })
+      .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
+      .then(({ ok, json }) => {
+        if (cancelled || !ok || !json || typeof json !== "object") return;
+        setBadgesByUser(json as Record<string, string[]>);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id, topPerformersToday, activity]);
+
+  useEffect(() => {
     if (!session?.user?.id?.trim()) {
       setYourWeekRank(null);
       setYourRankLoading(false);
@@ -1437,6 +1490,7 @@ export default function Home() {
           topPerformersToday={topPerformersToday}
           viewerId={session.user.id}
           viewerName={session.user.name}
+          badgesByUser={badgesByUser}
         />
       )}
 
@@ -1452,6 +1506,7 @@ export default function Home() {
               setFollowing={setFollowing}
               nowMs={nowMs}
               setSelectedActivity={setSelectedActivity}
+              badgesByUser={badgesByUser}
               viewerId={session.user.id}
               viewerName={session.user.name}
             />
@@ -1524,6 +1579,10 @@ export default function Home() {
             >
               {session.user.name ?? "Your profile"}
             </Link>
+            <UserBadgeIcons
+              badges={badgesByUser[session.user.id.trim()] ?? []}
+              className="ml-1"
+            />
           </p>
           {callsLoading ? (
             <div className="flex min-h-[88px] items-center justify-center py-6">
