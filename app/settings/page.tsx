@@ -33,15 +33,6 @@ function parseWidgetsEnabled(raw: unknown): WidgetsEnabled {
   return out;
 }
 
-/** Full widgets object for API: every key is a boolean, never undefined. */
-function widgetsPayloadForSave(w: WidgetsEnabled): WidgetsEnabled {
-  const out: WidgetsEnabled = { ...DEFAULT_WIDGETS };
-  for (const key of WIDGET_KEYS) {
-    out[key] = Boolean(w[key]);
-  }
-  return out;
-}
-
 type PrefsState = {
   own_calls: boolean;
   include_following: boolean;
@@ -195,10 +186,7 @@ export default function SettingsPage() {
     setSaveMessage(null);
 
     try {
-      const widgets_enabled = widgetsPayloadForSave(widgets);
-      console.log("[settings] POST /api/dashboard-settings", {
-        widgets_enabled,
-      });
+      console.log("SENDING WIDGETS:", widgets);
 
       const [prefsRes, dashRes] = await Promise.all([
         fetch("/api/preferences", {
@@ -218,7 +206,7 @@ export default function SettingsPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            widgets_enabled,
+            widgets_enabled: widgets,
           }),
         }),
       ]);
