@@ -98,18 +98,21 @@ export async function POST(request: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let body: unknown;
+    let parsed: unknown;
     try {
-      body = await request.json();
+      parsed = await request.json();
     } catch {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    if (!body || typeof body !== "object") {
-      return Response.json({ error: "Invalid profile payload" }, { status: 400 });
+    if (!parsed || typeof parsed !== "object") {
+      return Response.json(
+        { error: "Invalid profile payload" },
+        { status: 400 }
+      );
     }
 
-    const { bio, banner_url, x_handle } = body as {
+    const { bio, banner_url, x_handle } = parsed as {
       bio?: unknown;
       banner_url?: unknown;
       x_handle?: unknown;

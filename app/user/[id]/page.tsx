@@ -599,6 +599,9 @@ export default function UserProfilePage() {
 
   console.log("Banner URL:", profile?.banner_url);
 
+  const xHandle = profile?.x_handle?.trim() || "";
+  const xVerified = Boolean(profile?.x_verified);
+
   async function saveProfileEdits() {
     if (editSaving) return;
     const bio = editBio;
@@ -730,6 +733,23 @@ export default function UserProfilePage() {
             <p className="mt-1.5 truncate text-xs text-zinc-500 tabular-nums">
               Discord ID · {uid}
             </p>
+            {!loading && xHandle ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <a
+                  href={`https://x.com/${encodeURIComponent(xHandle)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-400 hover:underline"
+                >
+                  @{xHandle}
+                </a>
+                {xVerified ? (
+                  <span className="ml-2 rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-300">
+                    ✓ X Verified
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
             <p className="mt-2 text-xs text-zinc-500">
               {followStats ? (
                 <>
