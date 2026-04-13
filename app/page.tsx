@@ -29,6 +29,13 @@ const HOT_RIGHT_NOW_MOCK = [
   { token: "ABC", tag: "2.8x in last hour" },
 ];
 
+/** Mock trending rows; `mint` is a placeholder Solana mint for Dexscreener charts. */
+const TRENDING_TOKENS_MOCK = [
+  { symbol: "SOLXYZ", stat: 2.4, mint: "So11111111111111111111111111111111111111112" },
+  { symbol: "ABC", stat: 1.8, mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" },
+  { symbol: "DEV123", stat: 3.1, mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" },
+] as const;
+
 const CARD_HOVER =
   "transition-transform duration-200 ease-out motion-safe:hover:scale-[1.01]";
 
@@ -48,6 +55,14 @@ type RecentCallRow = {
   token: string;
   multiple: number;
   time: unknown;
+};
+
+type TopPerformerTodayRow = {
+  rank: number;
+  discordId: string;
+  username: string;
+  avgX: number;
+  bestMultiple: number;
 };
 
 type ActivityItem = {
@@ -221,7 +236,7 @@ function renderTextSegmentWithCa(text: string, dexLink: string): ReactNode {
   );
 }
 
-function renderActivityFeedLine(item: ActivityItem, emoji: string): ReactNode {
+function renderActivityFeedLine(item: ActivityItem): ReactNode {
   const dex = item.link_chart ?? "";
   const name = item.username.trim();
   const id = item.discordId.trim();
@@ -231,7 +246,6 @@ function renderActivityFeedLine(item: ActivityItem, emoji: string): ReactNode {
     if (item.text.startsWith(prefix)) {
       return (
         <>
-          <span aria-hidden>{emoji}</span>
           {prefix}
           <Link
             href={`/user/${encodeURIComponent(id)}`}
@@ -249,7 +263,6 @@ function renderActivityFeedLine(item: ActivityItem, emoji: string): ReactNode {
     const afterName = item.text.slice(name.length);
     return (
       <>
-        <span aria-hidden>{emoji}</span>
         <Link
           href={`/user/${encodeURIComponent(id)}`}
           className={PROFILE_LINK_CLASS}
@@ -264,28 +277,17 @@ function renderActivityFeedLine(item: ActivityItem, emoji: string): ReactNode {
 
   const target = resolveCaInActivityText(item.text, dex);
   if (!target) {
-    return (
-      <>
-        <span aria-hidden>{emoji}</span>
-        {item.text}
-      </>
-    );
+    return <>{item.text}</>;
   }
 
   const { ca, chartLink } = target;
   const idx = item.text.indexOf(ca);
   if (idx === -1) {
-    return (
-      <>
-        <span aria-hidden>{emoji}</span>
-        {item.text}
-      </>
-    );
+    return <>{item.text}</>;
   }
 
   return (
     <>
-      <span aria-hidden>{emoji}</span>
       {item.text.slice(0, idx)}
       <span
         role="link"
@@ -534,6 +536,15 @@ export default function Home() {
   );
   const { followingIds, setFollowing } = useFollowingIds();
   const [feedMode, setFeedMode] = useState<"all" | "following">("all");
+  const [topPerformersToday, setTopPerformersToday] = useState<
+    TopPerformerTodayRow[]
+  >([]);
+  const [topPerformersLoading, setTopPerformersLoading] = useState(true);
+  const [yourWeekRank, setYourWeekRank] = useState<number | null>(null);
+  const [yourRankLoading, setYourRankLoading] = useState(true);
+
+  /** Placeholder until day-over-day rank is stored. */
+  const PLACEHOLDER_RANK_DELTA = 2;
 
   const loadActivity = useCallback(() => {
     void (async () => {
@@ -762,6 +773,104 @@ export default function Home() {
   }, [session?.user?.id]);
 
   useEffect(() => {
+    if (!session?.user?.id?.trim()) {
+      setTopPerformersToday([]);
+      setTopPerformersLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setTopPerformersLoading(true);
+
+    fetch("/api/leaderboard?type=user&period=today")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: unknown) => {
+        if (cancelled || !Array.isArray(json)) {
+          if (!cancelled) setTopPerformersToday([]);
+          return;
+        }
+        const parsed: TopPerformerTodayRow[] = [];
+        for (const item of json) {
+          if (!item || typeof item !== "object") continue;
+          const o = item as Record<string, unknown>;
+          const discordId = String(o.discordId ?? o.discord_id ?? "").trim();
+          const username = String(o.username ?? "").trim();
+          if (!discordId || !username) continue;
+          const rank =
+            typeof o.rank === "number" ? o.rank : Number(o.rank) || 0;
+          const avgX =
+            typeof o.avgX === "number" ? o.avgX : Number(o.avgX) || 0;
+          const bestMultiple =
+            typeof o.bestMultiple === "number"
+              ? o.bestMultiple
+              : Number(o.bestMultiple) || 0;
+          if (!Number.isFinite(avgX)) continue;
+          parsed.push({
+            rank,
+            discordId,
+            username,
+            avgX,
+            bestMultiple: Number.isFinite(bestMultiple) ? bestMultiple : avgX,
+          });
+        }
+        if (!cancelled) setTopPerformersToday(parsed.slice(0, 3));
+      })
+      .catch(() => {
+        if (!cancelled) setTopPerformersToday([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTopPerformersLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id?.trim()) {
+      setYourWeekRank(null);
+      setYourRankLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setYourRankLoading(true);
+
+    fetch("/api/me/leaderboard-rank")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: unknown) => {
+        if (cancelled || !json || typeof json !== "object") {
+          if (!cancelled) setYourWeekRank(null);
+          return;
+        }
+        const o = json as Record<string, unknown>;
+        const rankRaw = o.rank;
+        const rank =
+          rankRaw === null || rankRaw === undefined
+            ? null
+            : typeof rankRaw === "number"
+              ? rankRaw
+              : Number(rankRaw);
+        if (!cancelled) {
+          setYourWeekRank(
+            rank !== null && Number.isFinite(rank) && rank > 0 ? rank : null
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setYourWeekRank(null);
+      })
+      .finally(() => {
+        if (!cancelled) setYourRankLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
     loadActivity();
     const interval = setInterval(loadActivity, 8000);
     return () => clearInterval(interval);
@@ -856,6 +965,108 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="mb-8">
+        <PanelCard title="Your Rank" titleClassName="normal-case">
+          {yourRankLoading ? (
+            <div className="mt-4 flex min-h-[56px] items-center">
+              <p className="text-sm text-zinc-500">Loading rank…</p>
+            </div>
+          ) : yourWeekRank === null ? (
+            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+              No rank this week yet — user calls in the last 7 days earn a spot
+              on the leaderboard.
+            </p>
+          ) : (
+            <div className="mt-4">
+              <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-sm text-zinc-300">
+                <span>You are</span>
+                <span className="font-bold tabular-nums text-zinc-50">
+                  #{yourWeekRank}
+                </span>
+                <span>this week</span>
+                <span
+                  className="text-base font-light leading-none text-emerald-500/75"
+                  title="Rank vs prior day (placeholder)"
+                  aria-hidden
+                >
+                  ↑
+                </span>
+              </p>
+              <p className="mt-2 text-xs text-emerald-500/65">
+                +{PLACEHOLDER_RANK_DELTA} from yesterday
+              </p>
+            </div>
+          )}
+        </PanelCard>
+      </section>
+
+      <section className="mb-8">
+        <PanelCard title="🔥 Top Performers Today" titleClassName="normal-case">
+          {topPerformersLoading ? (
+            <div className="mt-4 flex min-h-[72px] items-center justify-center">
+              <p className="text-sm text-zinc-500">Loading…</p>
+            </div>
+          ) : topPerformersToday.length === 0 ? (
+            <p className="mt-4 text-sm text-zinc-500">
+              No calls in the last 24 hours yet.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {topPerformersToday.map((row, i) => {
+                const isFirst = i === 0;
+                return (
+                  <li
+                    key={row.discordId}
+                    className={
+                      isFirst
+                        ? "rounded-xl border border-amber-500/45 bg-gradient-to-r from-amber-500/10 to-amber-500/[0.02] px-4 py-3 shadow-[0_0_28px_-10px_rgba(245,158,11,0.45)]"
+                        : "rounded-xl border border-zinc-800/90 bg-zinc-900/40 px-4 py-3"
+                    }
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${
+                            isFirst
+                              ? "bg-amber-500/25 text-amber-200"
+                              : "bg-zinc-800 text-zinc-400"
+                          }`}
+                        >
+                          #{i + 1}
+                        </span>
+                        <Link
+                          href={`/user/${encodeURIComponent(row.discordId)}`}
+                          className={`min-w-0 truncate font-medium transition-colors hover:text-cyan-400 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 ${
+                            isFirst ? "text-amber-100" : "text-zinc-100"
+                          }`}
+                        >
+                          {row.username}
+                        </Link>
+                      </div>
+                      <div className="shrink-0 text-right text-sm">
+                        <p className="tabular-nums">
+                          <span
+                            className={`font-semibold ${
+                              isFirst ? "text-amber-100" : "text-emerald-400/95"
+                            }`}
+                          >
+                            {row.avgX.toFixed(1)}x
+                          </span>
+                          <span className="text-zinc-500"> avg</span>
+                        </p>
+                        <p className="mt-0.5 text-xs tabular-nums text-zinc-500">
+                          Best {row.bestMultiple.toFixed(1)}x
+                        </p>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </PanelCard>
+      </section>
+
       <div className="mb-8 grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
           <PanelCard title="Live Activity">
@@ -896,14 +1107,14 @@ export default function Home() {
                 </p>
               </div>
             ) : (
-              <ul className="mt-4 max-h-[300px] space-y-0 divide-y divide-zinc-800/50 overflow-y-auto pr-1 text-sm">
+              <ul className="mt-4 max-h-[300px] overflow-y-auto pr-1 text-sm">
                 {activity.map((item, i) => (
                   <li
                     key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
-                    className="dashboard-feed-item"
+                    className="dashboard-feed-item border-b border-zinc-800 last:border-b-0"
                     style={{ animationDelay: `${i * 70}ms` }}
                   >
-                    <div className="flex items-start gap-2 py-3 pl-1 pr-1 first:pt-1 sm:pl-2 sm:pr-2 -mx-1">
+                    <div className="-mx-1 flex items-start gap-2 rounded-md py-2.5 pl-1 pr-1 transition-colors duration-150 hover:bg-zinc-800/30 sm:pl-2 sm:pr-2">
                       <FollowButton
                         targetDiscordId={item.discordId}
                         following={followingIds.has(item.discordId)}
@@ -912,6 +1123,12 @@ export default function Home() {
                         }
                         className="mt-0.5"
                       />
+                      <span
+                        className="mt-0.5 flex w-8 shrink-0 justify-center text-base leading-none opacity-[0.88]"
+                        aria-hidden
+                      >
+                        {item.type === "win" ? "🔥" : "⚡"}
+                      </span>
                       <div
                         role="button"
                         tabIndex={0}
@@ -922,17 +1139,16 @@ export default function Home() {
                             setSelectedActivity(item);
                           }
                         }}
-                        className="flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit transition-colors duration-150 hover:bg-zinc-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                        className="flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
                       >
                         <span className="min-w-0 text-zinc-200">
-                          {renderActivityFeedLine(
-                            item,
-                            item.type === "win" ? "🔥 " : "⚡ "
-                          )}
+                          {renderActivityFeedLine(item)}
                         </span>
-                        <span className="flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-zinc-500">
-                          {formatJoinedAt(callTimeMs(item.time), nowMs)}
-                          <span className="text-zinc-500" aria-hidden>
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          <span className="text-xs tabular-nums text-zinc-500">
+                            {formatJoinedAt(callTimeMs(item.time), nowMs)}
+                          </span>
+                          <span className="text-xs text-zinc-500" aria-hidden>
                             ↗
                           </span>
                         </span>
@@ -959,6 +1175,33 @@ export default function Home() {
                   <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium leading-tight text-amber-200/95">
                     {row.tag}
                   </span>
+                </li>
+              ))}
+            </ul>
+          </PanelCard>
+
+          <PanelCard title="📈 Trending" titleClassName="normal-case">
+            <ul className="mt-3 divide-y divide-zinc-800/80 text-[13px] leading-snug">
+              {TRENDING_TOKENS_MOCK.map((row) => (
+                <li key={row.symbol}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      window.open(
+                        `https://dexscreener.com/solana/${encodeURIComponent(row.mint)}`,
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                    className="flex w-full items-center justify-between gap-3 py-2 text-left transition-colors hover:bg-zinc-800/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                  >
+                    <span className="min-w-0 truncate font-medium text-zinc-100">
+                      {row.symbol}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-xs font-semibold text-emerald-400/90">
+                      {row.stat.toFixed(1)}x
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>

@@ -1,15 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasAccess } from "@/lib/hasAccess";
 
 type Agg = {
   discord_id: string;
-  username: string;
   totalCalls: number;
   sumX: number;
-  wins: number;
-  maxMultiple: number;
 };
 
 function rowCallTime(row: Record<string, unknown>): number {
@@ -19,27 +15,13 @@ function rowCallTime(row: Record<string, unknown>): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export async function GET(request: Request) {
+/** Rolling 7-day window, same aggregation as leaderboard (user source, avgX sort). */
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const userId = session?.user?.id;
-
-    if (!session?.user?.id) {
+    const selfId = session?.user?.id?.trim() ?? "";
+    if (!selfId) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    let type = searchParams.get("type") || "user";
-    const period = searchParams.get("period");
-
-    if (type === "bot") {
-      const allowed = userId
-        ? await hasAccess(userId, "view_bot_calls")
-        : false;
-
-      if (!allowed) {
-        type = "user";
-      }
     }
 
     const url = process.env.SUPABASE_URL;
@@ -58,30 +40,23 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from("call_performance")
       .select("*")
-      .eq("source", type);
+      .eq("source", "user");
 
     if (error) {
-      console.error("Supabase error:", error);
+      console.error("[me/leaderboard-rank] GET:", error);
       return Response.json(
-        { error: "Failed to load leaderboard" },
+        { error: "Failed to load rank" },
         { status: 500 }
       );
     }
 
     const now = Date.now();
+    const weekMs = 7 * 86_400_000;
     let rows = Array.isArray(data) ? data : [];
-
-    if (period === "today") {
-      rows = rows.filter((row) => {
-        const t = rowCallTime(row as Record<string, unknown>);
-        return t > 0 && now - t < 86_400_000;
-      });
-    } else if (period === "week") {
-      rows = rows.filter((row) => {
-        const t = rowCallTime(row as Record<string, unknown>);
-        return t > 0 && now - t < 7 * 86_400_000;
-      });
-    }
+    rows = rows.filter((row) => {
+      const t = rowCallTime(row as Record<string, unknown>);
+      return t > 0 && now - t < weekMs;
+    });
 
     const sorted = [...rows].sort(
       (a, b) =>
@@ -109,42 +84,32 @@ export async function GET(request: Request) {
       if (!user) {
         user = {
           discord_id: discordId,
-          username: "",
           totalCalls: 0,
           sumX: 0,
-          wins: 0,
-          maxMultiple: mult,
         };
         map.set(discordId, user);
       }
 
       user.totalCalls += 1;
       user.sumX += mult;
-      if (mult >= 2) user.wins += 1;
-      if (mult > user.maxMultiple) user.maxMultiple = mult;
-      user.username =
-        typeof r.username === "string" ? r.username.trim() : "";
     }
 
-    const results = Array.from(map.values()).map((user) => ({
-      discordId: user.discord_id,
-      username: user.username || user.discord_id,
-      avgX: user.sumX / user.totalCalls,
-      totalCalls: user.totalCalls,
-      wins: user.wins,
-      bestMultiple: user.maxMultiple,
+    const results = Array.from(map.values()).map((u) => ({
+      discordId: u.discord_id,
+      avgX: u.sumX / u.totalCalls,
     }));
 
     results.sort((a, b) => b.avgX - a.avgX);
 
-    const ranked = results.slice(0, 10).map((u, i) => ({
-      rank: i + 1,
-      ...u,
-    }));
+    const idx = results.findIndex((r) => r.discordId === selfId);
+    const rank = idx === -1 ? null : idx + 1;
 
-    return Response.json(ranked);
+    return Response.json({
+      rank,
+      totalRanked: results.length,
+    });
   } catch (e) {
-    console.error("[leaderboard API] GET:", e);
+    console.error("[me/leaderboard-rank API] GET:", e);
     return Response.json(
       { error: "Internal Server Error" },
       { status: 500 }

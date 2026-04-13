@@ -7,8 +7,42 @@ import { useEffect, useRef, useState } from "react";
 
 type MarketSnapshot = {
   solPrice: number;
-  solChangePct: number;
+  change24h: number;
+  pumpVolume: number;
+  activeTraders: number;
 };
+
+function formatSolUsd(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  return `$${n.toFixed(2)}`;
+}
+
+function formatPctChange(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${n.toFixed(1)}%`;
+}
+
+/** USD with $ and K / M suffix (e.g. $2.4M). */
+function formatUsdCompact(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return "—";
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    const s = v >= 10 ? v.toFixed(0) : v.toFixed(1);
+    return `$${s.replace(/\.0$/, "")}M`;
+  }
+  if (n >= 1_000) {
+    const v = n / 1_000;
+    const s = v >= 10 ? v.toFixed(0) : v.toFixed(1);
+    return `$${s.replace(/\.0$/, "")}K`;
+  }
+  return `$${Math.round(n)}`;
+}
+
+function formatCount(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  return Math.round(n).toLocaleString("en-US");
+}
 
 function formatTimeAgo(createdAt: number, nowMs: number): string {
   if (!Number.isFinite(createdAt) || createdAt <= 0) return "—";
@@ -44,9 +78,16 @@ export function TopBar() {
         if (cancelled || !data || typeof data !== "object") return;
         const o = data as Record<string, unknown>;
         const solPrice = Number(o.solPrice);
-        const solChangePct = Number(o.solChangePct);
-        if (!Number.isFinite(solPrice) || !Number.isFinite(solChangePct)) return;
-        setMarket({ solPrice, solChangePct });
+        const change24h = Number(o.change24h);
+        const pumpVolume = Number(o.pumpVolume);
+        const activeTraders = Number(o.activeTraders);
+        if (!Number.isFinite(solPrice) || solPrice <= 0) return;
+        setMarket({
+          solPrice,
+          change24h: Number.isFinite(change24h) ? change24h : 0,
+          pumpVolume: Number.isFinite(pumpVolume) ? pumpVolume : 0,
+          activeTraders: Number.isFinite(activeTraders) ? activeTraders : 0,
+        });
       })
       .catch(() => {
         if (!cancelled) setMarket(null);
@@ -80,7 +121,7 @@ export function TopBar() {
   }, [open, openNotifications]);
 
   const solLineClass =
-    market != null && market.solChangePct >= 0
+    market != null && market.change24h >= 0
       ? "text-emerald-400"
       : market != null
         ? "text-red-400"
@@ -98,20 +139,27 @@ export function TopBar() {
       >
         {marketLoading ? (
           <p className="text-zinc-500">Loading market...</p>
+        ) : market != null ? (
+          <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <span className={`font-medium tabular-nums ${solLineClass}`}>
+              📊 SOL {formatSolUsd(market.solPrice)} (
+              {formatPctChange(market.change24h)})
+            </span>
+            <span className="text-zinc-600" aria-hidden>
+              |
+            </span>
+            <span className="tabular-nums text-zinc-400">
+              PumpFun Vol: {formatUsdCompact(market.pumpVolume)}
+            </span>
+            <span className="text-zinc-600" aria-hidden>
+              |
+            </span>
+            <span className="tabular-nums text-zinc-400">
+              Traders: {formatCount(market.activeTraders)}
+            </span>
+          </p>
         ) : (
-          <>
-            <p className={`min-w-0 font-medium tabular-nums ${solLineClass}`}>
-              📊 SOL{" "}
-              {market != null ? `$${market.solPrice.toFixed(2)}` : "$—"} (
-              {market != null
-                ? `${market.solChangePct >= 0 ? "+" : ""}${market.solChangePct.toFixed(1)}%`
-                : "—"}
-              )
-            </p>
-            <p className="shrink-0 text-zinc-500">
-              PumpFun Vol: — | Active Traders: —
-            </p>
-          </>
+          <p className="text-zinc-500">Market unavailable</p>
         )}
       </div>
 
