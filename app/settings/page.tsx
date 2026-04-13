@@ -186,32 +186,30 @@ export default function SettingsPage() {
     setSaveMessage(null);
 
     try {
-      const prefsRes = await fetch("/api/preferences", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          own_calls: prefs.own_calls,
-          include_following: prefs.include_following,
-          include_global: prefs.include_global,
-          min_multiple: prefs.min_multiple,
-          sound_enabled: prefs.sound_enabled,
-        }),
-      });
+      const preferences = {
+        own_calls: prefs.own_calls,
+        include_following: prefs.include_following,
+        include_global: prefs.include_global,
+        min_multiple: prefs.min_multiple,
+        sound_enabled: prefs.sound_enabled,
+      };
 
-      if (!prefsRes.ok) {
-        const text = await prefsRes.text();
-        console.error("[settings] preferences save failed:", text);
-        let msg = "Failed to save preferences";
-        try {
-          const j = text ? (JSON.parse(text) as { error?: string }) : {};
-          if (typeof j.error === "string") msg = j.error;
-        } catch {
-          /* keep default */
+      try {
+        const prefRes = await fetch("/api/preferences", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "same-origin",
+          body: JSON.stringify(preferences),
+        });
+
+        if (!prefRes.ok) {
+          const text = await prefRes.text();
+          console.warn("Preferences failed (non-blocking):", text);
         }
-        setSaveState("error");
-        setSaveMessage(msg);
-        return;
+      } catch (err) {
+        console.warn("Preferences error (non-blocking):", err);
       }
 
       const res = await fetch("/api/dashboard-settings", {
