@@ -3,6 +3,7 @@
 import { FollowButton } from "@/app/components/FollowButton";
 import { useFollowingIds } from "@/app/hooks/useFollowingIds";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 const PROFILE_LINK_CLASS =
@@ -67,10 +68,13 @@ function PerformerCard({
 }
 
 export default function LeaderboardPage() {
+  const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState("user");
   const [data, setData] = useState<ApiLeaderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const { followingIds, setFollowing } = useFollowingIds();
+  const viewerId = session?.user?.id?.trim() ?? "";
+  const viewerName = session?.user?.name ?? null;
 
   useEffect(() => {
     if (activeTab === "referrals") {
@@ -240,7 +244,11 @@ export default function LeaderboardPage() {
                             href={`/user/${encodeURIComponent(row.discordId)}`}
                             className={PROFILE_LINK_CLASS}
                           >
-                            {row.username}
+                            {viewerId &&
+                            row.discordId.trim() === viewerId &&
+                            viewerName
+                              ? viewerName
+                              : row.username}
                           </Link>
                           <FollowButton
                             targetDiscordId={row.discordId}

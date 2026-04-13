@@ -38,14 +38,79 @@ const TRENDING_TOKENS_MOCK = [
 ] as const;
 
 const CARD_HOVER =
-  "transition-[box-shadow,border-color] duration-200 ease-out hover:border-zinc-600/50 hover:shadow-lg hover:shadow-black/35";
+  "transition-[box-shadow,border-color,ring-color] duration-200 ease-out hover:border-zinc-600/50 hover:shadow-lg hover:shadow-black/35 hover:ring-1 hover:ring-zinc-500/15";
 
-/** Row hover for Top Performers list (no scale — translate only). */
+/** Row hover for Top Performers — border + shadow only (no scale / translate). */
 const TOP_PERFORMER_ROW_INTERACTIVE =
-  "cursor-pointer transition-all duration-150 hover:-translate-y-px hover:bg-zinc-800/40 hover:border-amber-400/40 hover:shadow-md";
+  "cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-zinc-500/40 hover:shadow-md hover:shadow-black/25";
 
 const PROFILE_LINK_CLASS =
   "text-cyan-400 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50";
+
+function viewerDisplayName(
+  discordId: string,
+  apiUsername: string,
+  viewerId: string | undefined,
+  viewerName: string | null | undefined
+): string {
+  const d = discordId.trim();
+  const v = viewerId?.trim() ?? "";
+  if (v && d === v && viewerName) return viewerName;
+  return apiUsername.trim();
+}
+
+function topPerformerVisuals(
+  rank: number,
+  isCurrentUser: boolean
+): {
+  row: string;
+  badge: string;
+  nameLink: string;
+  avgStrong: string;
+} {
+  if (isCurrentUser) {
+    return {
+      row: "rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3",
+      badge: "bg-emerald-500/15 text-emerald-400",
+      nameLink:
+        "min-w-0 truncate font-medium text-emerald-400 transition-colors hover:text-emerald-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
+      avgStrong: "font-semibold text-emerald-400",
+    };
+  }
+  if (rank === 1) {
+    return {
+      row: "rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-3",
+      badge: "bg-yellow-500/15 text-yellow-400",
+      nameLink:
+        "min-w-0 truncate font-medium text-yellow-400 transition-colors hover:text-yellow-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40",
+      avgStrong: "font-semibold text-yellow-400",
+    };
+  }
+  if (rank === 2) {
+    return {
+      row: "rounded-xl border border-zinc-600/50 bg-zinc-500/10 px-4 py-3",
+      badge: "bg-zinc-500/15 text-zinc-300",
+      nameLink:
+        "min-w-0 truncate font-medium text-zinc-300 transition-colors hover:text-zinc-200 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40",
+      avgStrong: "font-semibold text-zinc-300",
+    };
+  }
+  if (rank === 3) {
+    return {
+      row: "rounded-xl border border-amber-700/40 bg-amber-500/10 px-4 py-3",
+      badge: "bg-amber-500/15 text-amber-600",
+      nameLink:
+        "min-w-0 truncate font-medium text-amber-600 transition-colors hover:text-amber-500 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40",
+      avgStrong: "font-semibold text-amber-600",
+    };
+  }
+  return {
+    row: "rounded-xl border border-zinc-800/90 bg-zinc-900/40 px-4 py-3",
+    badge: "bg-zinc-800 text-zinc-400",
+    nameLink: `${PROFILE_LINK_CLASS} min-w-0 truncate font-medium`,
+    avgStrong: "font-semibold text-emerald-400/95",
+  };
+}
 
 type ReferralRow = { userId: string; joinedAt: number };
 
@@ -241,9 +306,19 @@ function renderTextSegmentWithCa(text: string, dexLink: string): ReactNode {
   );
 }
 
-function renderActivityFeedLine(item: ActivityItem): ReactNode {
+function renderActivityFeedLine(
+  item: ActivityItem,
+  viewerId?: string,
+  viewerName?: string | null
+): ReactNode {
   const dex = item.link_chart ?? "";
-  const name = item.username.trim();
+  const apiName = item.username.trim();
+  const name = viewerDisplayName(
+    item.discordId,
+    item.username,
+    viewerId,
+    viewerName
+  );
   const id = item.discordId.trim();
 
   if (name && id && item.type === "call") {
@@ -264,8 +339,8 @@ function renderActivityFeedLine(item: ActivityItem): ReactNode {
     }
   }
 
-  if (name && id && item.type === "win" && item.text.startsWith(name)) {
-    const afterName = item.text.slice(name.length);
+  if (apiName && id && item.type === "win" && item.text.startsWith(apiName)) {
+    const afterName = item.text.slice(apiName.length);
     return (
       <>
         <Link
@@ -498,12 +573,15 @@ function PanelCard({
   className = "",
   elevated = false,
   titleClassName,
+  paddingClassName = "p-5",
 }: {
   title: string;
   children: ReactNode;
   className?: string;
   elevated?: boolean;
   titleClassName?: string;
+  /** e.g. `px-5 py-3` for tighter vertical rhythm */
+  paddingClassName?: string;
 }) {
   const surface = elevated
     ? "border-zinc-700/90 bg-zinc-800/55 shadow-md shadow-black/25"
@@ -511,7 +589,7 @@ function PanelCard({
 
   return (
     <div
-      className={`rounded-xl border p-5 backdrop-blur-sm ${surface} ${CARD_HOVER} ${className}`}
+      className={`rounded-xl border ${paddingClassName} backdrop-blur-sm ${surface} ${CARD_HOVER} ${className}`}
     >
       <h2
         className={`text-sm font-semibold tracking-wide text-zinc-400 ${titleClassName ?? "uppercase"}`}
@@ -586,9 +664,30 @@ function RankPanel({
   yourWeekRank: number | null;
   rankDeltaPlaceholder: number;
 }) {
+  const [rankTimeframe, setRankTimeframe] = useState<"1D" | "1W" | "1M">("1D");
+
   return (
-    <section className="mb-8">
+    <section className="mb-8 w-full max-w-md">
       <PanelCard title="Your Rank" titleClassName="normal-case">
+        <div className="mt-3 flex flex-wrap gap-2">
+          {(["1D", "1W", "1M"] as const).map((id) => {
+            const active = rankTimeframe === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setRankTimeframe(id)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+                  active
+                    ? "bg-zinc-700 text-zinc-50"
+                    : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                }`}
+              >
+                {id}
+              </button>
+            );
+          })}
+        </div>
         {yourRankLoading ? (
           <div className="mt-4 flex min-h-[56px] items-center">
             <p className="text-sm text-zinc-500">Loading rank…</p>
@@ -627,9 +726,13 @@ function RankPanel({
 function TopPerformersPanel({
   topPerformersLoading,
   topPerformersToday,
+  viewerId,
+  viewerName,
 }: {
   topPerformersLoading: boolean;
   topPerformersToday: TopPerformerTodayRow[];
+  viewerId?: string;
+  viewerName?: string | null;
 }) {
   return (
     <section className="mb-8">
@@ -645,48 +748,55 @@ function TopPerformersPanel({
         ) : (
           <ul className="mt-4 space-y-2">
             {topPerformersToday.map((row, i) => {
-              const isFirst = i === 0;
+              const rank =
+                typeof row.rank === "number" && row.rank > 0 ? row.rank : i + 1;
+              const isSelf =
+                !!viewerId && row.discordId.trim() === viewerId.trim();
+              const v = topPerformerVisuals(rank, isSelf);
+              const label = viewerDisplayName(
+                row.discordId,
+                row.username,
+                viewerId,
+                viewerName
+              );
               return (
                 <li
                   key={row.discordId}
-                  className={
-                    isFirst
-                      ? `rounded-xl border border-amber-500/45 bg-gradient-to-r from-amber-500/10 to-amber-500/[0.02] px-4 py-3 shadow-[0_0_28px_-10px_rgba(245,158,11,0.45)] ${TOP_PERFORMER_ROW_INTERACTIVE}`
-                      : `rounded-xl border border-zinc-800/90 bg-zinc-900/40 px-4 py-3 ${TOP_PERFORMER_ROW_INTERACTIVE}`
-                  }
+                  className={`${v.row} ${TOP_PERFORMER_ROW_INTERACTIVE}`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${
-                          isFirst
-                            ? "bg-amber-500/25 text-amber-200"
-                            : "bg-zinc-800 text-zinc-400"
-                        }`}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${v.badge}`}
                       >
-                        #{i + 1}
+                        #{rank}
                       </span>
                       <Link
                         href={`/user/${encodeURIComponent(row.discordId)}`}
-                        className={`min-w-0 truncate font-medium transition-colors hover:text-cyan-400 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 ${
-                          isFirst ? "text-amber-100" : "text-zinc-100"
-                        }`}
+                        className={v.nameLink}
                       >
-                        {row.username}
+                        {label}
                       </Link>
                     </div>
                     <div className="shrink-0 text-right text-sm">
                       <p className="tabular-nums">
-                        <span
-                          className={`font-semibold ${
-                            isFirst ? "text-amber-100" : "text-emerald-400/95"
-                          }`}
-                        >
+                        <span className={v.avgStrong}>
                           {row.avgX.toFixed(1)}x
                         </span>
-                        <span className="text-zinc-500"> avg</span>
+                        <span
+                          className={
+                            isSelf ? "text-emerald-500/70" : "text-zinc-500"
+                          }
+                        >
+                          {" "}
+                          avg
+                        </span>
                       </p>
-                      <p className="mt-0.5 text-xs tabular-nums text-zinc-500">
+                      <p
+                        className={`mt-0.5 text-xs tabular-nums ${
+                          isSelf ? "text-emerald-500/60" : "text-zinc-500"
+                        }`}
+                      >
                         Best {row.bestMultiple.toFixed(1)}x
                       </p>
                     </div>
@@ -710,6 +820,8 @@ type ActivityFeedPanelProps = {
   setFollowing: (id: string, next: boolean) => void;
   nowMs: number;
   setSelectedActivity: (item: ActivityItem | null) => void;
+  viewerId?: string;
+  viewerName?: string | null;
 };
 
 function ActivityFeedPanel({
@@ -721,6 +833,8 @@ function ActivityFeedPanel({
   setFollowing,
   nowMs,
   setSelectedActivity,
+  viewerId,
+  viewerName,
 }: ActivityFeedPanelProps) {
   return (
     <PanelCard title="Live Activity">
@@ -794,7 +908,7 @@ function ActivityFeedPanel({
                   className="flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
                 >
                   <span className="min-w-0 text-zinc-200">
-                    {renderActivityFeedLine(item)}
+                    {renderActivityFeedLine(item, viewerId, viewerName)}
                   </span>
                   <span className="flex shrink-0 items-center gap-1.5">
                     <span className="text-xs tabular-nums text-zinc-500">
@@ -1264,6 +1378,11 @@ export default function Home() {
       "0"
     );
 
+  // TODO: add widget toggle control
+  // TODO: drag and drop layout
+  // TODO: move referral link under banner
+  // TODO: integrate badge system
+
   return (
     <div className="mx-auto max-w-[1200px] px-1 sm:px-0">
       <section className="mb-8">
@@ -1305,6 +1424,8 @@ export default function Home() {
         <TopPerformersPanel
           topPerformersLoading={topPerformersLoading}
           topPerformersToday={topPerformersToday}
+          viewerId={session.user.id}
+          viewerName={session.user.name}
         />
       )}
 
@@ -1320,6 +1441,8 @@ export default function Home() {
               setFollowing={setFollowing}
               nowMs={nowMs}
               setSelectedActivity={setSelectedActivity}
+              viewerId={session.user.id}
+              viewerName={session.user.name}
             />
           )}
 
@@ -1373,21 +1496,29 @@ export default function Home() {
       </div>
 
       <section className="mb-10">
-        <PanelCard title="Your Recent Calls">
+        <PanelCard title="Your Recent Calls" paddingClassName="px-5 py-3">
+          <p className="mt-2 text-sm text-zinc-500">
+            <Link
+              href={`/user/${encodeURIComponent(session.user.id)}`}
+              className={PROFILE_LINK_CLASS}
+            >
+              {session.user.name ?? "Your profile"}
+            </Link>
+          </p>
           {callsLoading ? (
-            <div className="flex min-h-[100px] items-center justify-center py-10">
+            <div className="flex min-h-[88px] items-center justify-center py-6">
               <p className="text-sm text-zinc-500">Loading calls...</p>
             </div>
           ) : recentCalls.length === 0 ? (
-            <div className="flex min-h-[100px] items-center justify-center py-10">
+            <div className="flex min-h-[88px] items-center justify-center py-6">
               <p className="text-sm text-zinc-500">No calls yet</p>
             </div>
           ) : (
-            <ul className="mt-4 space-y-0 divide-y divide-zinc-800/50 text-sm">
+            <ul className="mt-3 space-y-0 divide-y divide-zinc-800/50 text-sm">
               {recentCalls.map((call, i) => (
                 <li
                   key={`${call.token}-${String(call.time)}-${i}`}
-                  className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-1 text-zinc-300"
+                  className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-1.5 text-zinc-300"
                 >
                   <span className="min-w-0 font-medium text-zinc-100">
                     {call.token}
@@ -1415,7 +1546,7 @@ export default function Home() {
           Your Referral Link
         </h2>
         <div
-          className={`flex flex-col gap-3 rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 sm:flex-row sm:items-stretch sm:gap-3 ${CARD_HOVER}`}
+          className={`flex flex-col gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 sm:flex-row sm:items-stretch sm:gap-3 ${CARD_HOVER}`}
         >
           <input
             type="text"
@@ -1439,11 +1570,11 @@ export default function Home() {
           Your Referrals
         </h2>
         <div
-          className={`w-full overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 shadow-sm shadow-black/20 backdrop-blur-sm sm:p-5 ${CARD_HOVER}`}
+          className={`w-full overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm sm:px-5 ${CARD_HOVER}`}
         >
           {statsLoading ? (
-            <div className="flex min-h-[120px] items-center justify-center py-8">
-              <div className="flex flex-col items-center gap-3">
+            <div className="flex min-h-[100px] items-center justify-center py-6">
+              <div className="flex flex-col items-center gap-2">
                 <div
                   className="h-8 w-48 animate-pulse rounded-md bg-zinc-800/90"
                   aria-hidden
@@ -1452,7 +1583,7 @@ export default function Home() {
               </div>
             </div>
           ) : displayedReferrals.length === 0 ? (
-            <div className="flex min-h-[120px] items-center justify-center py-10">
+            <div className="flex min-h-[100px] items-center justify-center py-6">
               <p className="text-sm text-zinc-500">No referrals yet</p>
             </div>
           ) : (
@@ -1462,13 +1593,13 @@ export default function Home() {
                   <tr className="border-b border-zinc-800/50">
                     <th
                       scope="col"
-                      className="pb-2.5 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                      className="pb-2 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
                     >
                       User
                     </th>
                     <th
                       scope="col"
-                      className="pb-2.5 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                      className="pb-2 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
                     >
                       Joined
                     </th>
@@ -1480,10 +1611,15 @@ export default function Home() {
                       key={`${row.userId}-${row.joinedAt}`}
                       className="transition-colors duration-150 hover:bg-zinc-800/45"
                     >
-                      <td className="py-3 pr-4 font-mono text-xs text-zinc-200 sm:text-sm">
-                        {row.userId}
+                      <td className="py-2 pr-4 font-mono text-xs sm:text-sm">
+                        <Link
+                          href={`/user/${encodeURIComponent(row.userId)}`}
+                          className={PROFILE_LINK_CLASS}
+                        >
+                          {row.userId}
+                        </Link>
                       </td>
-                      <td className="py-3 text-zinc-400">
+                      <td className="py-2 text-zinc-400">
                         {formatJoinedAt(row.joinedAt, nowMs)}
                       </td>
                     </tr>

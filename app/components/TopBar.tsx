@@ -265,50 +265,46 @@ export function TopBar() {
             </div>
             {session ? (
               <div className="relative" ref={menuRef}>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpen((o) => !o);
-                      setOpenNotifications(false);
-                    }}
-                    className="shrink-0 rounded-full border border-transparent transition hover:ring-2 hover:ring-zinc-600 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                    aria-expanded={open}
-                    aria-haspopup="menu"
-                    aria-label="Open account menu"
-                  >
-                    {session.user?.image ? (
-                      <img
-                        src={session.user.image}
-                        alt=""
-                        className="h-9 w-9 rounded-full border border-zinc-700 object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-medium text-zinc-400">
-                        {(session.user?.name ?? "?")
-                          .slice(0, 1)
-                          .toUpperCase()}
-                      </div>
-                    )}
-                  </button>
-                  <span className="max-w-[140px] truncate text-sm font-medium text-zinc-300 sm:max-w-[200px]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen((o) => !o);
+                    setOpenNotifications(false);
+                  }}
+                  className="flex max-w-full items-center gap-2 rounded-lg border border-transparent py-1 pl-1 pr-2 transition hover:bg-zinc-800/60 hover:ring-2 hover:ring-zinc-600/80 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                  aria-expanded={open}
+                  aria-haspopup="menu"
+                  aria-label="Open account menu"
+                >
+                  {session.user?.image ? (
+                    <img
+                      src={session.user.image}
+                      alt=""
+                      className="h-9 w-9 shrink-0 rounded-full border border-zinc-700 object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-medium text-zinc-400">
+                      {(session.user?.name ?? "?").slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="max-w-[140px] truncate text-left text-sm font-medium text-zinc-300 sm:max-w-[200px]">
                     {session.user?.name ?? "User"}
                   </span>
-                </div>
+                </button>
                 {open ? (
                   <div
                     className="absolute right-0 top-full z-50 mt-2 min-w-[180px] rounded-lg border border-zinc-800 bg-zinc-900 py-1 shadow-lg"
                     role="menu"
                   >
-                    <button
-                      type="button"
+                    <Link
+                      href={`/user/${encodeURIComponent(session.user.id)}`}
                       role="menuitem"
                       onClick={() => setOpen(false)}
-                      className="w-full px-4 py-2.5 text-left text-sm text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
+                      className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-zinc-800"
                     >
                       Profile
-                    </button>
+                    </Link>
                     <Link
                       href="/settings"
                       role="menuitem"
