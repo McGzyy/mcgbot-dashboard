@@ -7,6 +7,7 @@ const DEFAULTS = {
   include_following: true,
   include_global: false,
   min_multiple: 2,
+  sound_enabled: true,
 };
 
 export async function GET() {
@@ -31,7 +32,9 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("user_preferences")
-      .select("own_calls, include_following, include_global, min_multiple")
+      .select(
+        "own_calls, include_following, include_global, min_multiple, sound_enabled"
+      )
       .eq("discord_id", userId)
       .maybeSingle();
 
@@ -66,6 +69,10 @@ export async function GET() {
           ? row.include_global
           : DEFAULTS.include_global,
       min_multiple,
+      sound_enabled:
+        typeof row.sound_enabled === "boolean"
+          ? row.sound_enabled
+          : DEFAULTS.sound_enabled,
     });
   } catch (e) {
     console.error("[me/preferences API] GET:", e);

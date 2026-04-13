@@ -8,6 +8,7 @@ type PrefsState = {
   include_following: boolean;
   include_global: boolean;
   min_multiple: number;
+  sound_enabled: boolean;
 };
 
 function ToggleRow({
@@ -73,6 +74,7 @@ export default function SettingsPage() {
     include_following: false,
     include_global: false,
     min_multiple: 2,
+    sound_enabled: true,
   });
   const [saveState, setSaveState] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -104,6 +106,7 @@ export default function SettingsPage() {
           include_following: own_calls ? false : !!d.include_following,
           include_global: own_calls ? false : !!d.include_global,
           min_multiple: Number(d.min_multiple || 2),
+          sound_enabled: !!d.sound_enabled,
         });
       })
       .catch(() => {
@@ -131,6 +134,7 @@ export default function SettingsPage() {
           include_following: prefs.include_following,
           include_global: prefs.include_global,
           min_multiple: prefs.min_multiple,
+          sound_enabled: prefs.sound_enabled,
         }),
       });
       if (!res.ok) {
@@ -246,6 +250,22 @@ export default function SettingsPage() {
             }
             disabled={prefsLoading || isOwnOnly}
           />
+
+          <div className="border-t border-zinc-800/60 pt-6 mt-3">
+            <ToggleRow
+              id="notification-sound-enabled"
+              label="Notification Sound"
+              description="Play a sound when notifications appear."
+              checked={prefs.sound_enabled}
+              onToggle={() =>
+                setPrefs((prev) => ({
+                  ...prev,
+                  sound_enabled: !prev.sound_enabled,
+                }))
+              }
+              disabled={prefsLoading}
+            />
+          </div>
 
           <div className="rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
             <label

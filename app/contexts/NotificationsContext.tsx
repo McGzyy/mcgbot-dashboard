@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import {
   createContext,
   useCallback,
@@ -26,6 +27,8 @@ export type DashboardNotification = {
 const MAX_VISIBLE = 4;
 const FADE_OUT_MS = 200;
 
+let lastSoundTime = 0;
+
 type NotificationsContextValue = {
   notifications: DashboardNotification[];
   addNotification: (notif: DashboardNotification) => void;
@@ -44,10 +47,47 @@ export function useNotifications(): NotificationsContextValue {
 }
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
+  const { status: sessionStatus } = useSession();
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [notifications, setNotifications] = useState<DashboardNotification[]>(
     []
   );
   const fadeScheduledRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (sessionStatus !== "authenticated") {
+      setSoundEnabled(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSoundPref = () => {
+      fetch("/api/preferences")
+        .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+          if (cancelled) return;
+          if (
+            !ok ||
+            !data ||
+            typeof data !== "object" ||
+            ("error" in data && (data as { error?: unknown }).error)
+          ) {
+            return;
+          }
+          const d = data as Record<string, unknown>;
+          setSoundEnabled(!!d.sound_enabled);
+        })
+        .catch(() => {});
+    };
+
+    loadSoundPref();
+    window.addEventListener("focus", loadSoundPref);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", loadSoundPref);
+    };
+  }, [sessionStatus]);
 
   useEffect(() => {
     for (const n of notifications) {
@@ -61,8 +101,21 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, [notifications]);
 
-  const addNotification = useCallback((notif: DashboardNotification) => {
-    setNotifications((prev) => {
+  const addNotification = useCallback(
+    (notif: DashboardNotification) => {
+      if (sessionStatus === "authenticated" && soundEnabled) {
+        const now = Date.now();
+
+        if (now - lastSoundTime > 500) {
+          const audio = new Audio("/sounds/ping.mp3");
+          audio.volume = 0.3;
+          void audio.play().catch(() => {});
+
+          lastSoundTime = now;
+        }
+      }
+
+      setNotifications((prev) => {
       const fading = prev.filter((n) => n.exiting);
       const active = prev.filter((n) => !n.exiting);
       const next: DashboardNotification[] = [
@@ -81,7 +134,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
       return [...head, ...fading];
     });
-  }, []);
+    },
+    [sessionStatus, soundEnabled]
+  );
 
   const removeNotification = useCallback((id: string) => {
     setNotifications((prev) => {
