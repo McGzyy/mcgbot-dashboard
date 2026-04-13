@@ -38,7 +38,7 @@ export async function GET(
         .eq("discord_id", discordId),
       supabase
         .from("users")
-        .select("id, discord_id, bio, banner_url, tier, created_at")
+        .select("id, discord_id, bio, banner_url, x_handle, x_verified, created_at")
         .eq("discord_id", discordId)
         .maybeSingle(),
     ]);
@@ -61,7 +61,8 @@ export async function GET(
           discord_id?: unknown;
           bio?: unknown;
           banner_url?: unknown;
-          tier?: unknown;
+          x_handle?: unknown;
+          x_verified?: unknown;
           created_at?: unknown;
         }
       | null;
@@ -94,6 +95,13 @@ export async function GET(
           : typeof userRow.banner_url === "string"
             ? userRow.banner_url
             : String(userRow.banner_url),
+      x_handle:
+        userRow?.x_handle == null
+          ? null
+          : typeof userRow.x_handle === "string"
+            ? userRow.x_handle
+            : String(userRow.x_handle),
+      x_verified: Boolean(userRow?.x_verified),
       stats: {
         avgX: stats.avgX,
         winRate: stats.winRate,

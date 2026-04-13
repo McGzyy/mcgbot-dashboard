@@ -32,6 +32,8 @@ type ProfilePayload = {
   isTrustedPro: boolean;
   bio: string | null;
   banner_url: string | null;
+  x_handle?: string | null;
+  x_verified?: boolean;
   stats: ProfileStats;
   recentCalls: RecentCallRow[];
 };
@@ -307,6 +309,13 @@ function parseProfile(json: unknown): ProfilePayload | null {
         : typeof (o.banner_url ?? o.bannerUrl) === "string"
           ? String(o.banner_url ?? o.bannerUrl)
           : String(o.banner_url ?? o.bannerUrl),
+    x_handle:
+      (o.x_handle ?? o.xHandle) == null
+        ? null
+        : typeof (o.x_handle ?? o.xHandle) === "string"
+          ? String(o.x_handle ?? o.xHandle)
+          : String(o.x_handle ?? o.xHandle),
+    x_verified: Boolean(o.x_verified ?? o.xVerified),
     stats,
     recentCalls,
   };
@@ -339,6 +348,7 @@ export default function UserProfilePage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editBio, setEditBio] = useState("");
   const [editBannerUrl, setEditBannerUrl] = useState("");
+  const [editXHandle, setEditXHandle] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async (signal?: AbortSignal) => {
@@ -409,6 +419,7 @@ export default function UserProfilePage() {
         const o = data as Record<string, unknown>;
         const bio = o.bio;
         const banner = o.banner_url ?? o.bannerUrl;
+        const xh = o.x_handle ?? o.xHandle;
         setEditBio(
           typeof bio === "string" ? bio : bio == null ? "" : String(bio)
         );
@@ -418,6 +429,9 @@ export default function UserProfilePage() {
             : banner == null
               ? ""
               : String(banner)
+        );
+        setEditXHandle(
+          typeof xh === "string" ? xh.replace(/^@+/, "") : xh == null ? "" : String(xh)
         );
       })
       .catch(() => {
@@ -598,6 +612,8 @@ export default function UserProfilePage() {
       const nextBio = bio.trim() === "" ? null : bio;
       const nextBannerUrl =
         editBannerUrl.trim() === "" ? null : editBannerUrl.trim();
+      const nextXHandle =
+        editXHandle.trim() === "" ? null : editXHandle.trim().replace(/^@+/, "");
       const payload: EditableProfile = {
         bio: nextBio,
         banner_url: nextBannerUrl,
@@ -605,7 +621,7 @@ export default function UserProfilePage() {
       const res = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, x_handle: nextXHandle }),
       });
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
@@ -614,7 +630,14 @@ export default function UserProfilePage() {
         return;
       }
       setProfile((prev) =>
-        prev ? { ...prev, bio: nextBio, banner_url: nextBannerUrl } : prev
+        prev
+          ? {
+              ...prev,
+              bio: nextBio,
+              banner_url: nextBannerUrl,
+              x_handle: nextXHandle,
+            }
+          : prev
       );
       console.log("Profile updated:", nextBio, nextBannerUrl);
       await fetchProfile();
@@ -927,6 +950,20 @@ export default function UserProfilePage() {
                   disabled={editLoading || editSaving}
                   className="mt-1 w-full rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
                   placeholder="https://…"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-zinc-400">
+                  X (Twitter) Handle
+                </label>
+                <input
+                  type="text"
+                  value={editXHandle}
+                  onChange={(e) => setEditXHandle(e.target.value)}
+                  disabled={editLoading || editSaving}
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
+                  placeholder="mcgzyy"
                 />
               </div>
 

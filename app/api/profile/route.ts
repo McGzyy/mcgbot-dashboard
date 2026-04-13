@@ -57,7 +57,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("users")
-      .select("bio, banner_url")
+      .select("bio, banner_url, x_handle, x_verified")
       .eq("discord_id", userId)
       .maybeSingle();
 
@@ -74,8 +74,15 @@ export async function GET() {
         : row.banner_url == null
           ? null
           : String(row.banner_url);
+    const x_handle =
+      typeof row.x_handle === "string"
+        ? row.x_handle
+        : row.x_handle == null
+          ? null
+          : String(row.x_handle);
+    const x_verified = Boolean(row.x_verified);
 
-    return Response.json({ bio, banner_url });
+    return Response.json({ bio, banner_url, x_handle, x_verified });
   } catch (e) {
     console.error("[profile API] GET:", e);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
@@ -102,7 +109,11 @@ export async function POST(request: Request) {
       return Response.json({ error: "Invalid profile payload" }, { status: 400 });
     }
 
-    const { bio, banner_url } = body as { bio?: unknown; banner_url?: unknown };
+    const { bio, banner_url, x_handle } = body as {
+      bio?: unknown;
+      banner_url?: unknown;
+      x_handle?: unknown;
+    };
 
     const bioStr =
       bio == null ? null : typeof bio === "string" ? bio : String(bio);
@@ -112,6 +123,15 @@ export async function POST(request: Request) {
         : typeof banner_url === "string"
           ? banner_url
           : String(banner_url);
+    const xHandleRaw =
+      x_handle == null
+        ? null
+        : typeof x_handle === "string"
+          ? x_handle
+          : String(x_handle);
+    const xHandleStr = xHandleRaw
+      ? xHandleRaw.trim().replace(/^@+/, "")
+      : null;
 
     // Basic sanity limits (avoid huge payloads)
     if (bioStr != null && bioStr.length > 1000) {
@@ -120,8 +140,15 @@ export async function POST(request: Request) {
     if (bannerStr != null && bannerStr.length > 2048) {
       return Response.json({ error: "Banner URL is too long" }, { status: 400 });
     }
+    if (xHandleStr != null && xHandleStr.length > 32) {
+      return Response.json({ error: "X handle is too long" }, { status: 400 });
+    }
 
-    console.log("Saving profile:", { bio: bioStr, banner_url: bannerStr });
+    console.log("Saving profile:", {
+      bio: bioStr,
+      banner_url: bannerStr,
+      x_handle: xHandleStr,
+    });
 
     const supabase = supabaseOrError();
     if (supabase instanceof Response) return supabase;
@@ -147,6 +174,7 @@ export async function POST(request: Request) {
       .update({
         bio: bioStr,
         banner_url: bannerStr,
+        x_handle: xHandleStr,
       })
       .eq("discord_id", sessionId)
       .select()
