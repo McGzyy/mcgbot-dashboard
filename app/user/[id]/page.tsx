@@ -34,6 +34,140 @@ type ProfilePayload = {
   recentCalls: RecentCallRow[];
 };
 
+type TrophyTimeframe = "daily" | "weekly" | "monthly";
+
+type TrophyRow = {
+  id: string;
+  rank: number;
+  periodStartMs: number;
+  createdAt: string | null;
+};
+
+type TrophiesByTimeframe = Record<TrophyTimeframe, TrophyRow[]>;
+
+function rankMedal(rank: number): string {
+  if (rank === 1) return "🥇";
+  if (rank === 2) return "🥈";
+  if (rank === 3) return "🥉";
+  return "🏅";
+}
+
+function rankLabel(rank: number): string {
+  if (rank === 1) return "1st place";
+  if (rank === 2) return "2nd place";
+  if (rank === 3) return "3rd place";
+  return `Rank ${rank}`;
+}
+
+function formatTrophyPeriodUtc(
+  periodStartMs: number,
+  timeframe: TrophyTimeframe
+): string {
+  if (!Number.isFinite(periodStartMs) || periodStartMs <= 0) return "";
+  const d = new Date(periodStartMs);
+  if (timeframe === "monthly") {
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function parseTrophiesPayload(json: unknown): TrophiesByTimeframe | null {
+  if (!json || typeof json !== "object" || "error" in json) return null;
+  const o = json as Record<string, unknown>;
+  const out: TrophiesByTimeframe = { daily: [], weekly: [], monthly: [] };
+  for (const tf of ["daily", "weekly", "monthly"] as const) {
+    const raw = o[tf];
+    if (!Array.isArray(raw)) continue;
+    for (const item of raw) {
+      if (!item || typeof item !== "object") continue;
+      const r = item as Record<string, unknown>;
+      const id = typeof r.id === "string" ? r.id : String(r.id ?? "");
+      const rank = typeof r.rank === "number" ? r.rank : Number(r.rank);
+      const periodRaw = r.periodStartMs ?? r.period_start_ms;
+      const periodStartMs =
+        typeof periodRaw === "number" ? periodRaw : Number(periodRaw);
+      const ca = r.createdAt ?? r.created_at;
+      const createdAt =
+        ca == null
+          ? null
+          : typeof ca === "string"
+            ? ca
+            : String(ca);
+      if (!id || !Number.isFinite(rank) || rank < 1 || rank > 3) continue;
+      out[tf].push({
+        id,
+        rank,
+        periodStartMs: Number.isFinite(periodStartMs) ? periodStartMs : 0,
+        createdAt,
+      });
+    }
+  }
+  return out;
+}
+
+function TrophyTierRow({
+  label,
+  timeframe,
+  items,
+  size,
+}: {
+  label: string;
+  timeframe: TrophyTimeframe;
+  items: TrophyRow[];
+  size: "sm" | "md" | "lg";
+}) {
+  const sizeClass =
+    size === "sm"
+      ? "text-sm leading-none"
+      : size === "md"
+        ? "text-lg leading-none"
+        : "text-2xl leading-none";
+  const shellClass =
+    size === "lg"
+      ? "rounded-lg bg-gradient-to-b from-zinc-800/80 to-zinc-900/80 px-2.5 py-2 ring-1 ring-amber-500/25 shadow-md shadow-black/30"
+      : size === "md"
+        ? "rounded-md px-1.5 py-1 ring-1 ring-zinc-700/45"
+        : "rounded px-0.5 py-px";
+
+  return (
+    <div>
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 sm:gap-x-3">
+        {items.length === 0 ? (
+          <span className="text-sm text-zinc-600">None yet</span>
+        ) : (
+          items.map((t) => {
+            const period = formatTrophyPeriodUtc(t.periodStartMs, timeframe);
+            const labelText = `${rankLabel(t.rank)}${period ? ` · ${period}` : ""}`;
+            return (
+              <span
+                key={t.id}
+                role="img"
+                aria-label={labelText}
+                className={`inline-flex cursor-default select-none transition-colors ${sizeClass} ${shellClass}`}
+                title={labelText}
+              >
+                {rankMedal(t.rank)}
+              </span>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 function defaultDiscordAvatarUrl(discordId: string): string {
   try {
     const id = BigInt(discordId);
@@ -155,6 +289,8 @@ export default function UserProfilePage() {
     following: number;
     isFollowing: boolean;
   } | null>(null);
+  const [trophies, setTrophies] = useState<TrophiesByTimeframe | null>(null);
+  const [trophiesLoading, setTrophiesLoading] = useState(true);
 
   useEffect(() => {
     if (!userId?.trim()) {
@@ -237,6 +373,38 @@ export default function UserProfilePage() {
           prev ?? { followers: 0, following: 0, isFollowing: false }
         );
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId?.trim()) {
+      setTrophiesLoading(false);
+      setTrophies(null);
+      return;
+    }
+
+    let cancelled = false;
+    setTrophiesLoading(true);
+    const url = `/api/user/${encodeURIComponent(userId.trim())}/trophies`;
+    fetch(url)
+      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (cancelled) return;
+        if (!ok) {
+          setTrophies(null);
+          return;
+        }
+        setTrophies(parseTrophiesPayload(data));
+      })
+      .catch(() => {
+        if (!cancelled) setTrophies(null);
+      })
+      .finally(() => {
+        if (!cancelled) setTrophiesLoading(false);
+      });
+
     return () => {
       cancelled = true;
     };
@@ -398,6 +566,53 @@ export default function UserProfilePage() {
             value={profile ? profile.stats.totalCalls : "—"}
           />
         </div>
+      </section>
+
+      <section className="mt-8">
+        <PanelCard title="Trophy Case">
+          {trophiesLoading ? (
+            <div className="mt-3 space-y-5" aria-busy aria-label="Loading trophies">
+              {(["Daily", "Weekly", "Monthly"] as const).map((label) => (
+                <div key={label}>
+                  <div className="mb-2 h-3 w-14 animate-pulse rounded bg-zinc-800/90" />
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from({ length: 8 }, (_, j) => (
+                      <div
+                        key={j}
+                        className="h-8 w-8 shrink-0 animate-pulse rounded-md bg-zinc-800/80"
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : trophies ? (
+            <div className="mt-3 space-y-5">
+              <TrophyTierRow
+                label="Daily"
+                timeframe="daily"
+                items={trophies.daily}
+                size="sm"
+              />
+              <TrophyTierRow
+                label="Weekly"
+                timeframe="weekly"
+                items={trophies.weekly}
+                size="md"
+              />
+              <TrophyTierRow
+                label="Monthly"
+                timeframe="monthly"
+                items={trophies.monthly}
+                size="lg"
+              />
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-zinc-500">
+              Trophies are unavailable right now.
+            </p>
+          )}
+        </PanelCard>
       </section>
 
       <section className="mt-8">

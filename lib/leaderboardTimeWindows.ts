@@ -38,3 +38,18 @@ export function startOfCalendarDayUtcMs(nowMs: number = Date.now()): number {
 export function rollingSevenDaysStartUtcMs(nowMs: number = Date.now()): number {
   return nowMs - 7 * 24 * 60 * 60 * 1000;
 }
+
+/** UTC start of the trophy period (same cutoffs as daily / weekly / monthly leaderboards). */
+export function periodStartMsForTrophyTimeframe(
+  timeframe: "daily" | "weekly" | "monthly",
+  nowMs: number = Date.now()
+): number {
+  switch (timeframe) {
+    case "daily":
+      return startOfCalendarDayUtcMs(nowMs);
+    case "weekly":
+      return startOfWeekMondayUtcMs(nowMs);
+    case "monthly":
+      return startOfCalendarMonthUtcMs(nowMs);
+  }
+}
