@@ -79,28 +79,15 @@ export const authOptions: NextAuthOptions = {
 
       return true;
     },
-    async jwt({ token, profile }) {
-      const discordId =
-        profile &&
-        typeof profile === "object" &&
-        "id" in profile &&
-        typeof (profile as { id: unknown }).id === "string"
-          ? (profile as { id: string }).id
-          : undefined;
-      if (discordId) {
-        token.discordId = discordId;
+    async jwt({ token, account, profile }) {
+      if (profile) {
+        token.discord_id = profile.id;
       }
       return token;
     },
+
     async session({ session, token }) {
-      const id =
-        (typeof token.discordId === "string" && token.discordId) ||
-        (typeof token.sub === "string" && token.sub) ||
-        "";
-      if (session.user && id) {
-        session.user.id = id;
-        session.user.discordId = id;
-      }
+      session.user.id = token.discord_id as string;
       return session;
     },
   },

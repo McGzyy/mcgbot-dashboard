@@ -46,7 +46,7 @@ function normalizeWidgets(raw: unknown): WidgetsEnabled {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const rawUserId = session?.user?.id || session?.user?.discordId;
+    const rawUserId = session?.user?.id;
     const userId =
       typeof rawUserId === "string" ? rawUserId.trim() : "";
     if (!userId) {
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const discordId = session.user?.id || session.user?.discordId;
+    const discordId = session.user?.id;
     console.log("FINAL DISCORD ID:", discordId);
 
     const discordIdTrimmed =
