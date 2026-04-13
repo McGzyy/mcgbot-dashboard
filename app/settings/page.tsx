@@ -1,12 +1,7 @@
 "use client";
 
 import { signIn, useSession } from "next-auth/react";
-import {
-  useCallback,
-  useEffect,
-  useState,
-  type ChangeEventHandler,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type PrefsState = {
   own_calls: boolean;
@@ -20,32 +15,51 @@ function ToggleRow({
   label,
   description,
   checked,
-  onChange,
+  onToggle,
   disabled,
 }: {
   id: string;
   label: string;
   description?: string;
   checked: boolean;
-  onChange: ChangeEventHandler<HTMLInputElement>;
+  onToggle: () => void;
   disabled?: boolean;
 }) {
   return (
     <div className="flex items-start justify-between gap-4 rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
-      <label htmlFor={id} className="min-w-0 cursor-pointer select-none">
+      <label
+        htmlFor={id}
+        className={`min-w-0 select-none ${
+          disabled ? "cursor-not-allowed" : "cursor-pointer"
+        }`}
+      >
         <p className="text-sm font-medium text-zinc-100">{label}</p>
         {description ? (
           <p className="mt-0.5 text-xs text-zinc-500">{description}</p>
         ) : null}
       </label>
-      <input
+      <button
         id={id}
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
         disabled={disabled}
-        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-zinc-600 bg-zinc-950 text-emerald-600 focus:ring-2 focus:ring-sky-500/40 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
-      />
+        {...(disabled ? {} : { onClick: onToggle })}
+        className={`mt-0.5 flex h-6 w-12 shrink-0 items-center rounded-full transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 ${
+          checked ? "bg-emerald-500" : "bg-zinc-700"
+        } ${
+          disabled
+            ? "cursor-not-allowed opacity-50"
+            : "cursor-pointer"
+        }`}
+      >
+        <div
+          className={`pointer-events-none h-5 w-5 transform rounded-full bg-white shadow transition-all duration-200 ease-out ${
+            checked ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
     </div>
   );
 }
@@ -84,10 +98,11 @@ export default function SettingsPage() {
           return;
         }
         const d = data as Record<string, unknown>;
+        const own_calls = !!d.own_calls;
         setPrefs({
-          own_calls: !!d.own_calls,
-          include_following: !!d.include_following,
-          include_global: !!d.include_global,
+          own_calls,
+          include_following: own_calls ? false : !!d.include_following,
+          include_global: own_calls ? false : !!d.include_global,
           min_multiple: Number(d.min_multiple || 2),
         });
       })
@@ -166,6 +181,8 @@ export default function SettingsPage() {
     );
   }
 
+  const isOwnOnly = prefs.own_calls;
+
   return (
     <div className="mx-auto max-w-lg">
       <h1 className="text-xl font-semibold tracking-tight text-zinc-50 sm:text-2xl">
@@ -187,11 +204,19 @@ export default function SettingsPage() {
             label="My Calls Only"
             description="Notify when activity is from your Discord account."
             checked={prefs.own_calls}
-            onChange={() =>
-              setPrefs((prev) => ({
-                ...prev,
-                own_calls: !prev.own_calls,
-              }))
+            onToggle={() =>
+              setPrefs((prev) => {
+                const turningOn = !prev.own_calls;
+                if (turningOn) {
+                  return {
+                    ...prev,
+                    own_calls: true,
+                    include_following: false,
+                    include_global: false,
+                  };
+                }
+                return { ...prev, own_calls: false };
+              })
             }
             disabled={prefsLoading}
           />
@@ -200,26 +225,26 @@ export default function SettingsPage() {
             label="Include Following"
             description="Notify for people you follow."
             checked={prefs.include_following}
-            onChange={() =>
+            onToggle={() =>
               setPrefs((prev) => ({
                 ...prev,
                 include_following: !prev.include_following,
               }))
             }
-            disabled={prefsLoading}
+            disabled={prefsLoading || isOwnOnly}
           />
           <ToggleRow
             id="notification-include-global"
             label="Include Global"
             description="Notify for all activity in the feed (within other limits)."
             checked={prefs.include_global}
-            onChange={() =>
+            onToggle={() =>
               setPrefs((prev) => ({
                 ...prev,
                 include_global: !prev.include_global,
               }))
             }
-            disabled={prefsLoading}
+            disabled={prefsLoading || isOwnOnly}
           />
 
           <div className="rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
