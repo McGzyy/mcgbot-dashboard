@@ -296,10 +296,10 @@ export default function UserProfilePage() {
   const raw = params?.id;
   const userId =
     typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
+  const profileUserId = userId.trim();
   const { data: session } = useSession();
   const isOwnProfile =
-    !!session?.user?.id?.trim() &&
-    session.user.id.trim() === userId.trim();
+    !!session?.user?.id?.trim() && session.user.id.trim() === profileUserId;
 
   const { followingIds, setFollowing } = useFollowingIds();
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
@@ -314,7 +314,7 @@ export default function UserProfilePage() {
   const [trophiesLoading, setTrophiesLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId?.trim()) {
+    if (!profileUserId) {
       setLoading(false);
       setError("Invalid profile link.");
       setProfile(null);
@@ -325,7 +325,7 @@ export default function UserProfilePage() {
     setLoading(true);
     setError(null);
 
-    const url = `/api/user/${encodeURIComponent(userId.trim())}`;
+    const url = `/api/user/${encodeURIComponent(profileUserId)}`;
     fetch(url)
       .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
@@ -363,13 +363,13 @@ export default function UserProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [profileUserId]);
 
   useEffect(() => {
-    if (!userId?.trim()) return;
+    if (!profileUserId) return;
     let cancelled = false;
     setFollowStats(null);
-    const q = encodeURIComponent(userId.trim());
+    const q = encodeURIComponent(profileUserId);
     fetch(`/api/follow?userId=${q}`)
       .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
@@ -397,10 +397,10 @@ export default function UserProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [profileUserId]);
 
   useEffect(() => {
-    if (!userId?.trim()) {
+    if (!profileUserId) {
       setTrophiesLoading(false);
       setTrophies(null);
       return;
@@ -408,11 +408,12 @@ export default function UserProfilePage() {
 
     let cancelled = false;
     setTrophiesLoading(true);
-    const url = `/api/user/${encodeURIComponent(userId.trim())}/trophies`;
+    const url = `/api/user/${encodeURIComponent(profileUserId)}/trophies`;
     fetch(url)
       .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
         if (cancelled) return;
+        console.log("TROPHIES:", data, ok ? null : new Error("HTTP error"));
         if (!ok) {
           setTrophies(null);
           return;
@@ -429,10 +430,10 @@ export default function UserProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [profileUserId]);
 
   const refreshFollowStats = useCallback(async () => {
-    const id = userId.trim();
+    const id = profileUserId;
     if (!id) return;
     const q = encodeURIComponent(id);
     try {
@@ -456,10 +457,10 @@ export default function UserProfilePage() {
     } catch (e) {
       console.log("[profile] follow stats refresh", e);
     }
-  }, [userId]);
+  }, [profileUserId]);
 
   const nowMs = Date.now();
-  const uid = userId.trim();
+  const uid = profileUserId;
   const avatarSrc =
     isOwnProfile && session?.user?.image
       ? session.user.image

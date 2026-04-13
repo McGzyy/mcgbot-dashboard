@@ -18,8 +18,8 @@ export async function GET(
 ) {
   try {
     const { id: rawId } = await context.params;
-    const discordId = decodeURIComponent(String(rawId ?? "")).trim();
-    if (!discordId || discordId.length > 64) {
+    const profileUserId = decodeURIComponent(String(rawId ?? "")).trim();
+    if (!profileUserId || profileUserId.length > 64) {
       return Response.json({ error: "Invalid user id" }, { status: 400 });
     }
 
@@ -40,11 +40,13 @@ export async function GET(
       TIMEFRAMES.map(async (timeframe) => {
         const { data, error } = await supabase
           .from("user_trophies")
-          .select("id, rank, period_start_ms, created_at")
-          .eq("user_id", discordId)
+          .select("*")
+          .eq("user_id", profileUserId)
           .eq("timeframe", timeframe)
           .order("created_at", { ascending: false })
           .limit(TROPHY_DISPLAY_LIMIT);
+
+        console.log("TROPHIES:", data, error);
 
         if (error) {
           return { timeframe, error, rows: [] as TrophyRowDto[] };
