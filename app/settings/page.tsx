@@ -186,81 +186,53 @@ export default function SettingsPage() {
     setSaveMessage(null);
 
     try {
-      const dashboardPayload = { widgets_enabled: widgets };
-      const dashboardBody = JSON.stringify(dashboardPayload);
-      console.log(
-        "[settings] POST /api/dashboard-settings — shape:",
-        dashboardPayload
-      );
-      console.log("[settings] POST /api/dashboard-settings — raw JSON:", dashboardBody);
-
-      const [prefsRes, dashRes] = await Promise.all([
-        fetch("/api/preferences", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({
-            own_calls: prefs.own_calls,
-            include_following: prefs.include_following,
-            include_global: prefs.include_global,
-            min_multiple: prefs.min_multiple,
-            sound_enabled: prefs.sound_enabled,
-          }),
+      const prefsRes = await fetch("/api/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          own_calls: prefs.own_calls,
+          include_following: prefs.include_following,
+          include_global: prefs.include_global,
+          min_multiple: prefs.min_multiple,
+          sound_enabled: prefs.sound_enabled,
         }),
-        fetch("/api/dashboard-settings", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "same-origin",
-          body: dashboardBody,
-        }),
-      ]);
-
-      console.log(
-        "[settings] dashboard-settings response:",
-        dashRes.status,
-        dashRes.ok ? "ok" : "not ok"
-      );
+      });
 
       if (!prefsRes.ok) {
-        const j = await prefsRes.json().catch(() => ({}));
-        const msg =
-          typeof (j as { error?: string }).error === "string"
-            ? (j as { error: string }).error
-            : "Save failed";
-        setSaveState("error");
-        setSaveMessage(msg);
-        return;
-      }
-
-      if (!dashRes.ok) {
-        const errText = await dashRes.text().catch(() => "");
-        console.error(
-          "[settings] dashboard-settings error body (status",
-          dashRes.status,
-          "):",
-          errText
-        );
-        let j: Record<string, unknown> = {};
+        const text = await prefsRes.text();
+        console.error("[settings] preferences save failed:", text);
+        let msg = "Failed to save preferences";
         try {
-          j = errText ? (JSON.parse(errText) as Record<string, unknown>) : {};
+          const j = text ? (JSON.parse(text) as { error?: string }) : {};
+          if (typeof j.error === "string") msg = j.error;
         } catch {
-          /* use empty */
+          /* keep default */
         }
-        const msg =
-          typeof j.error === "string"
-            ? j.error
-            : "Could not save dashboard widgets.";
         setSaveState("error");
         setSaveMessage(msg);
         return;
       }
 
-      const dashOkJson = await dashRes.json().catch(() => ({}));
-      console.log("[settings] dashboard-settings success JSON:", dashOkJson);
+      const res = await fetch("/api/dashboard-settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          widgets_enabled: widgets,
+        }),
+      });
 
-      console.log("Saved widgets:", widgets);
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Save failed:", text);
+        throw new Error("Failed to save");
+      }
+
+      const data = await res.json();
+      console.log("Save success:", data);
 
       setSaveState("saved");
       setSaveMessage("Saved.");
@@ -276,9 +248,10 @@ export default function SettingsPage() {
         setSaveState("idle");
         setSaveMessage(null);
       }, 2500);
-    } catch {
+    } catch (e) {
+      console.error("[settings] save error:", e);
       setSaveState("error");
-      setSaveMessage("Network error.");
+      setSaveMessage(e instanceof Error ? e.message : "Network error.");
     }
   }, [prefs, widgets]);
 

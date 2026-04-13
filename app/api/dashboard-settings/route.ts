@@ -100,7 +100,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    console.log("POST /api/dashboard-settings HIT");
+    const hasUrl = !!process.env.SUPABASE_URL?.trim();
+    const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    console.log("[dashboard-settings] POST env check:", {
+      hasSupabaseUrl: hasUrl,
+      hasSupabaseServiceRoleKey: hasServiceKey,
+    });
 
     let body: unknown;
     try {
@@ -108,25 +113,29 @@ export async function POST(request: Request) {
     } catch {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
-    console.log("BODY:", body);
-
-    if (!body || typeof body !== "object") {
-      return Response.json({ error: "Invalid body" }, { status: 400 });
-    }
-
-    const { widgets_enabled: rawWidgets } = body as Record<string, unknown>;
-    const widgets_enabled = normalizeWidgets(rawWidgets);
 
     const session = await getServerSession(authOptions);
-    console.log("SESSION:", session?.user);
-
-    const discordId = session?.user?.id;
-    if (!discordId) {
-      return Response.json({ error: "No user ID" }, { status: 401 });
+    if (!session?.user?.id) {
+      return Response.json({ error: "No session user id" }, { status: 401 });
     }
+
+    const discordId = session.user.id;
+    const rawWidgets =
+      body && typeof body === "object"
+        ? (body as Record<string, unknown>).widgets_enabled
+        : undefined;
+    const widgets_enabled = normalizeWidgets(rawWidgets);
+
+    console.log("[dashboard-settings] POST:", {
+      discordId,
+      widgets_enabled,
+    });
 
     const supabase = createDashboardAdminClient();
     if (!supabase) {
+      console.error(
+        "[dashboard-settings] POST: Supabase admin client unavailable (missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)"
+      );
       return Response.json(
         { error: "Supabase not configured" },
         { status: 500 }
@@ -142,29 +151,37 @@ export async function POST(request: Request) {
         },
         { onConflict: "discord_id" }
       )
-      .select();
-
-    console.log("UPSERT RESULT:", data, error);
+      .select("id, discord_id, widgets_enabled, created_at")
+      .maybeSingle();
 
     if (error) {
-      console.error("[dashboard-settings] POST upsert:", error);
-      return Response.json({ error: "Failed to save" }, { status: 500 });
+      console.error("[dashboard-settings] POST upsert error:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
+      return Response.json({ error: error.message }, { status: 500 });
     }
 
-    const { data: verifyData } = await supabase
-      .from("user_dashboard_settings")
-      .select("*")
-      .eq("discord_id", discordId)
-      .single();
+    if (!data) {
+      console.error(
+        "[dashboard-settings] POST: upsert returned no row (unexpected)"
+      );
+      return Response.json(
+        { error: "Save did not return a row" },
+        { status: 500 }
+      );
+    }
 
-    console.log("AFTER SAVE DB STATE:", verifyData);
+    console.log("[dashboard-settings] POST upsert ok:", {
+      discordId: data.discord_id,
+      widgets_enabled: data.widgets_enabled,
+    });
 
-    return Response.json({ success: true });
-  } catch (e) {
-    console.error("[dashboard-settings API] POST:", e);
-    return Response.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    return Response.json({ success: true, data });
+  } catch (err) {
+    console.error("[dashboard-settings] POST exception:", err);
+    return Response.json({ error: "Server error" }, { status: 500 });
   }
 }
