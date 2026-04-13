@@ -26,6 +26,7 @@ function formatTimeAgo(createdAt: number, nowMs: number): string {
 export function TopBar() {
   const { data: session, status } = useSession();
   const { notifications } = useNotifications();
+  const activeNotificationCount = notifications.filter((n) => !n.exiting).length;
   const [market, setMarket] = useState<MarketSnapshot | null>(null);
   const [marketLoading, setMarketLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -145,9 +146,11 @@ export function TopBar() {
                   <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
                   <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
                 </svg>
-                {notifications.length > 0 ? (
+                {activeNotificationCount > 0 ? (
                   <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold leading-none text-zinc-950">
-                    {notifications.length > 99 ? "99+" : notifications.length}
+                    {activeNotificationCount > 99
+                      ? "99+"
+                      : activeNotificationCount}
                   </span>
                 ) : null}
               </button>
@@ -164,7 +167,14 @@ export function TopBar() {
                   ) : (
                     <ul className="divide-y divide-zinc-800">
                       {notifications.map((n) => (
-                        <li key={n.id} className="px-4 py-3">
+                        <li
+                          key={n.id}
+                          className={`px-4 py-3 transition-all duration-200 ease-out motion-reduce:transition-none ${
+                            n.exiting
+                              ? "translate-x-5 opacity-0 motion-reduce:translate-x-0"
+                              : "translate-x-0 opacity-100"
+                          }`}
+                        >
                           <p className="text-sm text-zinc-100">{n.text}</p>
                           <p className="mt-1 text-xs text-zinc-500">
                             {formatTimeAgo(n.createdAt, Date.now())}

@@ -1,60 +1,110 @@
 "use client";
 
 import { useNotifications } from "@/app/contexts/NotificationsContext";
-import type { DashboardNotification } from "@/app/contexts/NotificationsContext";
-import { useEffect } from "react";
+import type {
+  DashboardNotification,
+  NotificationPriority,
+} from "@/app/contexts/NotificationsContext";
+import { useEffect, useState } from "react";
 
-const TOAST_DISMISS_MS = 5500;
-const HIGH_MULTIPLE_MIN = 5;
+function toastDismissMs(priority: NotificationPriority): number {
+  if (priority === "high") return 8000;
+  if (priority === "medium") return 6000;
+  return 4000;
+}
 
-function toastSurfaceClass(n: Pick<DashboardNotification, "type" | "multiple">): string {
-  const m = n.multiple;
-  const highMultiple =
-    typeof m === "number" && Number.isFinite(m) && m >= HIGH_MULTIPLE_MIN;
+function priorityAccentClass(priority: NotificationPriority): string {
+  if (priority === "high") return "bg-emerald-500";
+  if (priority === "medium") return "bg-cyan-500";
+  return "bg-zinc-600";
+}
 
-  if (n.type === "win") {
+function prioritySurfaceClass(priority: NotificationPriority): string {
+  if (priority === "high") {
     return [
-      "border border-emerald-500/30",
-      highMultiple ? "notification-toast-glow-win-strong" : "notification-toast-glow-win",
+      "border border-emerald-500",
+      "shadow-[0_8px_32px_-8px_rgba(16,185,129,0.3)]",
     ].join(" ");
   }
-
-  const base = "border border-cyan-500/20";
-  return highMultiple
-    ? `${base} notification-toast-glow-call-strong`
-    : `${base} shadow-lg`;
+  if (priority === "medium") {
+    return "border border-cyan-500/30 shadow-lg";
+  }
+  return "border border-zinc-700 shadow-lg";
 }
 
 function ToastItem({
   id,
   text,
   type,
-  multiple,
+  priority,
+  exiting,
   onDismiss,
 }: {
   id: string;
   text: string;
   type: "win" | "call";
-  multiple?: number;
+  priority: DashboardNotification["priority"];
+  exiting?: boolean;
   onDismiss: (id: string) => void;
 }) {
+  const [entered, setEntered] = useState(false);
+
   useEffect(() => {
-    const t = window.setTimeout(() => onDismiss(id), TOAST_DISMISS_MS);
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setEntered(true);
+      return;
+    }
+    const raf = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  useEffect(() => {
+    if (exiting) return;
+    const ms = toastDismissMs(priority);
+    const t = window.setTimeout(() => onDismiss(id), ms);
     return () => window.clearTimeout(t);
-  }, [id, onDismiss]);
+  }, [id, onDismiss, exiting, priority]);
 
   const icon = type === "win" ? "🔥" : "⚡";
-  const surface = toastSurfaceClass({ type, multiple });
+  const surface = prioritySurfaceClass(priority);
+  const accent = priorityAccentClass(priority);
+  const scaleInner =
+    priority === "high" && !exiting
+      ? "motion-safe:origin-right motion-safe:scale-105"
+      : "";
+
+  const motionShell = [
+    "transition-all duration-200 ease-out",
+    "motion-reduce:transition-none motion-reduce:duration-0",
+    exiting
+      ? "pointer-events-none translate-x-5 translate-y-0 opacity-0 motion-reduce:translate-x-0"
+      : entered
+        ? "translate-x-0 translate-y-0 opacity-100"
+        : "-translate-y-2.5 translate-x-0 opacity-0 motion-reduce:translate-y-0 motion-reduce:opacity-100",
+  ].join(" ");
 
   return (
-    <div
-      role="status"
-      className={`notification-toast flex max-w-sm items-start gap-3 rounded-lg bg-zinc-900 px-4 py-3 ${surface}`}
-    >
-      <span className="shrink-0 text-lg leading-none" aria-hidden>
-        {icon}
-      </span>
-      <p className="text-sm leading-snug text-zinc-100">{text}</p>
+    <div className={motionShell}>
+      <div className={scaleInner}>
+        <div
+          role="status"
+          className={`flex max-w-sm overflow-hidden rounded-lg bg-zinc-900 ${surface}`}
+        >
+          <div
+            className={`w-1 shrink-0 self-stretch rounded-l-lg ${accent}`}
+            aria-hidden
+          />
+          <div className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3">
+            <span className="shrink-0 text-lg leading-none" aria-hidden>
+              {icon}
+            </span>
+            <p className="text-sm leading-snug text-zinc-100">{text}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -64,7 +114,7 @@ export function NotificationToasts() {
 
   return (
     <div
-      className="pointer-events-none fixed right-4 top-4 z-50 flex flex-col gap-2"
+      className="pointer-events-none fixed right-4 top-4 z-50 flex flex-col gap-3"
       aria-live="polite"
       aria-relevant="additions"
     >
@@ -74,7 +124,8 @@ export function NotificationToasts() {
             id={n.id}
             text={n.text}
             type={n.type}
-            multiple={n.multiple}
+            priority={n.priority}
+            exiting={n.exiting}
             onDismiss={removeNotification}
           />
         </div>

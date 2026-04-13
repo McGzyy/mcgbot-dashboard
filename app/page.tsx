@@ -1,6 +1,9 @@
 "use client";
 
-import { useNotifications } from "@/app/contexts/NotificationsContext";
+import {
+  useNotifications,
+  type NotificationPriority,
+} from "@/app/contexts/NotificationsContext";
 import { ActivityPopup } from "./components/ActivityPopup";
 import { FollowButton } from "./components/FollowButton";
 import { useFollowingIds } from "./hooks/useFollowingIds";
@@ -261,6 +264,14 @@ function activityItemNotifiable(item: ActivityItem): boolean {
   );
 }
 
+function notificationPriorityFromMultiple(
+  multiple: number
+): NotificationPriority {
+  if (multiple >= 5) return "high";
+  if (multiple >= 3) return "medium";
+  return "low";
+}
+
 function processActivityNotifications(
   prev: ActivityItem[],
   next: ActivityItem[],
@@ -269,7 +280,7 @@ function processActivityNotifications(
     text: string;
     type: "win" | "call";
     createdAt: number;
-    multiple?: number;
+    priority: NotificationPriority;
   }) => void,
   lastSeenKeys: MutableRefObject<Set<string>>,
   filter: NotificationFilter | null
@@ -313,7 +324,7 @@ function processActivityNotifications(
       text: item.text,
       type: item.type,
       createdAt: Date.now(),
-      multiple: item.multiple,
+      priority: notificationPriorityFromMultiple(item.multiple),
     });
   }
 }
@@ -457,6 +468,7 @@ export default function Home() {
       text: "Test notification working",
       type: "win",
       createdAt: Date.now(),
+      priority: "low",
     });
   }, []);
 
