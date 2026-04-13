@@ -28,6 +28,9 @@ const WIDGET_KEYS = [
   "activity",
   "trending",
   "notes",
+  "recent_calls",
+  "referral_link",
+  "referrals",
 ] as const;
 
 export type WidgetsEnabled = Record<(typeof WIDGET_KEYS)[number], boolean>;
@@ -39,6 +42,9 @@ const DEFAULT_WIDGETS: WidgetsEnabled = {
   activity: true,
   trending: true,
   notes: false,
+  recent_calls: true,
+  referral_link: true,
+  referrals: true,
 };
 
 function normalizeWidgets(raw: unknown): WidgetsEnabled {

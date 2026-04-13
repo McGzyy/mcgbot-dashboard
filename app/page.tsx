@@ -59,9 +59,13 @@ function viewerDisplayName(
   return apiUsername.trim();
 }
 
-/** Medal colors use **list index** (0 = #1 gold); `isCurrentUser` overrides all. */
+/**
+ * Top Performers row styles: strict render **index** in API order (slice top 3).
+ * Index 0 = #1 gold, 1 = silver, 2 = bronze. Current user always emerald first.
+ * Do not pass a re-sorted index or rank from the API — only `.map((_, index))`.
+ */
 function topPerformerVisuals(
-  listIndex: number,
+  index: number,
   isCurrentUser: boolean
 ): {
   row: string;
@@ -77,8 +81,7 @@ function topPerformerVisuals(
         "min-w-0 truncate font-medium text-emerald-400 transition-colors hover:text-emerald-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
       avgStrong: "font-semibold text-emerald-400",
     };
-  }
-  if (listIndex === 0) {
+  } else if (index === 0) {
     return {
       row: "rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3",
       badge: "bg-yellow-500/15 text-yellow-400",
@@ -86,8 +89,7 @@ function topPerformerVisuals(
         "min-w-0 truncate font-medium text-yellow-400 transition-colors hover:text-yellow-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40",
       avgStrong: "font-semibold text-yellow-400",
     };
-  }
-  if (listIndex === 1) {
+  } else if (index === 1) {
     return {
       row: "rounded-xl border border-zinc-400/30 bg-zinc-500/10 px-4 py-3",
       badge: "bg-zinc-500/15 text-zinc-300",
@@ -95,8 +97,7 @@ function topPerformerVisuals(
         "min-w-0 truncate font-medium text-zinc-300 transition-colors hover:text-zinc-200 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40",
       avgStrong: "font-semibold text-zinc-300",
     };
-  }
-  if (listIndex === 2) {
+  } else if (index === 2) {
     return {
       row: "rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3",
       badge: "bg-amber-500/15 text-amber-600",
@@ -659,13 +660,32 @@ function TrendingPanel() {
 function RankPanel({
   yourRankLoading,
   yourWeekRank,
-  rankDeltaPlaceholder,
 }: {
   yourRankLoading: boolean;
   yourWeekRank: number | null;
-  rankDeltaPlaceholder: number;
 }) {
-  const [rankTimeframe, setRankTimeframe] = useState<"1D" | "1W" | "1M">("1D");
+  const [timeframe, setTimeframe] = useState("1D");
+
+  const rankPeriodLabel =
+    timeframe === "1D"
+      ? "today"
+      : timeframe === "1W"
+        ? "this week"
+        : "this month";
+
+  const comparisonText =
+    timeframe === "1D"
+      ? "+2 from yesterday"
+      : timeframe === "1W"
+        ? "+5 from last week"
+        : "+12 from last month";
+
+  const emptyRankHint =
+    timeframe === "1D"
+      ? "No rank today yet — keep calling to climb the daily board."
+      : timeframe === "1W"
+        ? "No rank this week yet — user calls in the last 7 days earn a spot on the leaderboard."
+        : "No rank this month yet — sustained activity over the month counts toward placement.";
 
   return (
     <PanelCard
@@ -673,35 +693,48 @@ function RankPanel({
       titleClassName="normal-case"
       className="flex h-full max-w-sm flex-col"
     >
-      {/* TODO: wire timeframe logic to backend stats */}
+      {/* TODO: connect timeframe to real backend stats */}
       <div className="mt-2 flex flex-wrap gap-2">
-        {(["1D", "1W", "1M"] as const).map((id) => {
-          const active = rankTimeframe === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setRankTimeframe(id)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
-                active
-                  ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
-                  : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-              }`}
-            >
-              {id}
-            </button>
-          );
-        })}
+        <button
+          type="button"
+          onClick={() => setTimeframe("1D")}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+            timeframe === "1D"
+              ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
+              : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          }`}
+        >
+          1D
+        </button>
+        <button
+          type="button"
+          onClick={() => setTimeframe("1W")}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+            timeframe === "1W"
+              ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
+              : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          }`}
+        >
+          1W
+        </button>
+        <button
+          type="button"
+          onClick={() => setTimeframe("1M")}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+            timeframe === "1M"
+              ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
+              : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          }`}
+        >
+          1M
+        </button>
       </div>
       {yourRankLoading ? (
         <div className="mt-3 flex min-h-[52px] items-center">
           <p className="text-sm text-zinc-500">Loading rank…</p>
         </div>
       ) : yourWeekRank === null ? (
-        <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-          No rank this week yet — user calls in the last 7 days earn a spot on
-          the leaderboard.
-        </p>
+        <p className="mt-3 text-sm leading-relaxed text-zinc-400">{emptyRankHint}</p>
       ) : (
         <div className="mt-3">
           <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-sm text-zinc-300">
@@ -709,18 +742,16 @@ function RankPanel({
             <span className="font-bold tabular-nums text-zinc-50">
               #{yourWeekRank}
             </span>
-            <span>this week</span>
+            <span>{rankPeriodLabel}</span>
             <span
               className="text-base font-light leading-none text-emerald-500/75"
-              title="Rank vs prior day (placeholder)"
+              title="Rank change (placeholder)"
               aria-hidden
             >
               ↑
             </span>
           </p>
-          <p className="mt-1.5 text-xs text-emerald-500/65">
-            +{rankDeltaPlaceholder} from yesterday
-          </p>
+          <p className="mt-1.5 text-xs text-emerald-500/65">{comparisonText}</p>
         </div>
       )}
     </PanelCard>
@@ -751,11 +782,11 @@ function TopPerformersPanel({
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {topPerformersToday.map((row, i) => {
-              const listPosition = i + 1;
-              const isSelf =
+            {topPerformersToday.map((row, index) => {
+              const listPosition = index + 1;
+              const isCurrentUser =
                 !!viewerId && row.discordId.trim() === viewerId.trim();
-              const v = topPerformerVisuals(i, isSelf);
+              const v = topPerformerVisuals(index, isCurrentUser);
               const label = viewerDisplayName(
                 row.discordId,
                 row.username,
@@ -788,7 +819,9 @@ function TopPerformersPanel({
                         </span>
                         <span
                           className={
-                            isSelf ? "text-emerald-500/70" : "text-zinc-500"
+                            isCurrentUser
+                              ? "text-emerald-500/70"
+                              : "text-zinc-500"
                           }
                         >
                           {" "}
@@ -797,7 +830,9 @@ function TopPerformersPanel({
                       </p>
                       <p
                         className={`mt-0.5 text-xs tabular-nums ${
-                          isSelf ? "text-emerald-500/60" : "text-zinc-500"
+                          isCurrentUser
+                            ? "text-emerald-500/60"
+                            : "text-zinc-500"
                         }`}
                       >
                         Best {row.bestMultiple.toFixed(1)}x
@@ -955,9 +990,6 @@ export default function Home() {
   const [topPerformersLoading, setTopPerformersLoading] = useState(true);
   const [yourWeekRank, setYourWeekRank] = useState<number | null>(null);
   const [yourRankLoading, setYourRankLoading] = useState(true);
-
-  /** Placeholder until day-over-day rank is stored. */
-  const PLACEHOLDER_RANK_DELTA = 2;
 
   const [widgets, setWidgets] = useState<WidgetsEnabled | null>(null);
 
@@ -1256,6 +1288,7 @@ export default function Home() {
             bestMultiple: Number.isFinite(bestMultiple) ? bestMultiple : avgX,
           });
         }
+        // Top 3 in API order only — no client sort; row colors use `.map` index, not `row.rank`.
         if (!cancelled) setTopPerformersToday(parsed.slice(0, 3));
       })
       .catch(() => {
@@ -1418,7 +1451,6 @@ export default function Home() {
               <RankPanel
                 yourRankLoading={yourRankLoading}
                 yourWeekRank={yourWeekRank}
-                rankDeltaPlaceholder={PLACEHOLDER_RANK_DELTA}
               />
             </div>
           ) : null}
@@ -1502,7 +1534,11 @@ export default function Home() {
         </PanelCard>
       </div>
 
+      {(widgetEnabled(widgets, "recent_calls") ||
+        widgetEnabled(widgets, "referral_link") ||
+        widgetEnabled(widgets, "referrals")) && (
       <div className="w-full max-w-2xl">
+      {widgetEnabled(widgets, "recent_calls") && (
       <section className="mb-8">
         <PanelCard title="Your Recent Calls">
           <p className="mt-2 text-sm text-zinc-500">
@@ -1548,7 +1584,9 @@ export default function Home() {
           )}
         </PanelCard>
       </section>
+      )}
 
+      {widgetEnabled(widgets, "referral_link") && (
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Your Referral Link
@@ -1572,7 +1610,9 @@ export default function Home() {
           </button>
         </div>
       </section>
+      )}
 
+      {widgetEnabled(widgets, "referrals") && (
       <section className="mb-10">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Your Referrals
@@ -1638,7 +1678,9 @@ export default function Home() {
           )}
         </div>
       </section>
+      )}
       </div>
+      )}
 
       <ActivityPopup
         item={

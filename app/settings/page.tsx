@@ -11,6 +11,9 @@ const DEFAULT_WIDGETS: WidgetsEnabled = {
   activity: true,
   trending: true,
   notes: false,
+  recent_calls: true,
+  referral_link: true,
+  referrals: true,
 };
 
 const WIDGET_KEYS: (keyof WidgetsEnabled)[] = [
@@ -20,6 +23,35 @@ const WIDGET_KEYS: (keyof WidgetsEnabled)[] = [
   "activity",
   "trending",
   "notes",
+  "recent_calls",
+  "referral_link",
+  "referrals",
+];
+
+const SECONDARY_DASHBOARD_WIDGET_TOGGLES: {
+  key: keyof WidgetsEnabled;
+  label: string;
+  description: string;
+  id: string;
+}[] = [
+  {
+    key: "recent_calls",
+    label: "Recent Calls",
+    description: "Show your recent calls list on the home dashboard.",
+    id: "dashboard-widget-recent-calls",
+  },
+  {
+    key: "referral_link",
+    label: "Referral Link",
+    description: "Show your referral link panel on the dashboard.",
+    id: "dashboard-widget-referral-link",
+  },
+  {
+    key: "referrals",
+    label: "Referrals",
+    description: "Show your referrals table on the dashboard.",
+    id: "dashboard-widget-referrals",
+  },
 ];
 
 function parseWidgetsEnabled(raw: unknown): WidgetsEnabled {
@@ -467,6 +499,24 @@ export default function SettingsPage() {
             }
             disabled={settingsLoading}
           />
+          {SECONDARY_DASHBOARD_WIDGET_TOGGLES.map(
+            ({ key, label, description, id }) => (
+              <ToggleRow
+                key={key}
+                id={id}
+                label={label}
+                description={description}
+                checked={widgets[key]}
+                onToggle={() =>
+                  setWidgets((prev) => ({
+                    ...prev,
+                    [key]: !prev[key],
+                  }))
+                }
+                disabled={settingsLoading}
+              />
+            )
+          )}
         </div>
       </section>
 

@@ -8,6 +8,21 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.DISCORD_CLIENT_ID!,
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
       authorization: { params: { scope: "identify email" } },
+      profile(profile) {
+        const p = profile as {
+          id: string;
+          global_name?: string | null;
+          username?: string | null;
+          avatar?: string | null;
+        };
+        return {
+          id: p.id,
+          name: p.global_name || p.username,
+          image: p.avatar
+            ? `https://cdn.discordapp.com/avatars/${p.id}/${p.avatar}.png`
+            : null,
+        };
+      },
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
