@@ -1485,6 +1485,7 @@ export default function Home() {
             />
           )}
 
+          {widgetEnabled(widgets, "hot_now") && (
           <PanelCard
             title="🔥 Hot Right Now"
             elevated
@@ -1504,12 +1505,14 @@ export default function Home() {
               ))}
             </ul>
           </PanelCard>
+          )}
 
           {widgetEnabled(widgets, "trending") && <TrendingPanel />}
 
           {widgetEnabled(widgets, "notes") && <NotesPanel />}
         </div>
 
+        {widgetEnabled(widgets, "quick_actions") && (
         <PanelCard title="Quick Actions">
           <div className="mt-2 flex flex-col gap-2">
             <button
@@ -1532,6 +1535,7 @@ export default function Home() {
             </button>
           </div>
         </PanelCard>
+        )}
       </div>
 
       {(widgetEnabled(widgets, "recent_calls") ||

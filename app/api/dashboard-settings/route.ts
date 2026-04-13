@@ -31,6 +31,8 @@ const WIDGET_KEYS = [
   "recent_calls",
   "referral_link",
   "referrals",
+  "hot_now",
+  "quick_actions",
 ] as const;
 
 export type WidgetsEnabled = Record<(typeof WIDGET_KEYS)[number], boolean>;
@@ -45,6 +47,8 @@ const DEFAULT_WIDGETS: WidgetsEnabled = {
   recent_calls: true,
   referral_link: true,
   referrals: true,
+  hot_now: true,
+  quick_actions: true,
 };
 
 function normalizeWidgets(raw: unknown): WidgetsEnabled {

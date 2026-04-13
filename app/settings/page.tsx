@@ -14,6 +14,8 @@ const DEFAULT_WIDGETS: WidgetsEnabled = {
   recent_calls: true,
   referral_link: true,
   referrals: true,
+  hot_now: true,
+  quick_actions: true,
 };
 
 const WIDGET_KEYS: (keyof WidgetsEnabled)[] = [
@@ -26,6 +28,8 @@ const WIDGET_KEYS: (keyof WidgetsEnabled)[] = [
   "recent_calls",
   "referral_link",
   "referrals",
+  "hot_now",
+  "quick_actions",
 ];
 
 const SECONDARY_DASHBOARD_WIDGET_TOGGLES: {
@@ -34,6 +38,18 @@ const SECONDARY_DASHBOARD_WIDGET_TOGGLES: {
   description: string;
   id: string;
 }[] = [
+  {
+    key: "hot_now",
+    label: "Hot Right Now",
+    description: "Show trending tokens panel.",
+    id: "dashboard-widget-hot-now",
+  },
+  {
+    key: "quick_actions",
+    label: "Quick Actions",
+    description: "Show quick action buttons.",
+    id: "dashboard-widget-quick-actions",
+  },
   {
     key: "recent_calls",
     label: "Recent Calls",
