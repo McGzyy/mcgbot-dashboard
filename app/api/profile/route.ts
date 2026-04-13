@@ -84,8 +84,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const userId = await sessionUserId();
-    if (!userId) {
+    const session = await getServerSession(authOptions);
+    const sessionId = session?.user?.id?.trim() ?? "";
+    console.log("SESSION USER:", sessionId);
+    if (!sessionId) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -124,22 +126,36 @@ export async function POST(request: Request) {
     const supabase = supabaseOrError();
     if (supabase instanceof Response) return supabase;
 
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("discord_id", sessionId)
+      .single();
+
+    console.log("FOUND USER:", user);
+
+    if (userError) {
+      console.log("UPDATE RESULT:", null, userError);
+      return Response.json({ error: userError.message }, { status: 500 });
+    }
+    if (!user) {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+
     const { data, error } = await supabase
       .from("users")
       .update({
         bio: bioStr,
         banner_url: bannerStr,
       })
-      .eq("discord_id", userId)
-      .select("bio, banner_url")
+      .eq("discord_id", sessionId)
+      .select()
       .single();
 
+    console.log("UPDATE RESULT:", data, error);
+
     if (error) {
-      console.error("[profile API] POST:", error);
-      return Response.json(
-        { error: "Failed to update profile" },
-        { status: 500 }
-      );
+      return Response.json({ error: error.message }, { status: 500 });
     }
 
     return Response.json({
