@@ -1,11 +1,24 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 
 export function useFollowingIds() {
+  const { data: session, status } = useSession();
+  const sessionUserId = session?.user?.id?.trim() ?? "";
+
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    if (status === "unauthenticated" || !sessionUserId) {
+      setFollowingIds(new Set());
+      return;
+    }
+
+    if (status !== "authenticated") {
+      return;
+    }
+
     let cancelled = false;
 
     fetch("/api/follow")
@@ -27,7 +40,7 @@ export function useFollowingIds() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [status, sessionUserId]);
 
   const setFollowing = useCallback((targetId: string, value: boolean) => {
     setFollowingIds((prev) => {

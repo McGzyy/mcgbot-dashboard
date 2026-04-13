@@ -2,7 +2,11 @@
 
 import { FollowButton } from "@/app/components/FollowButton";
 import { useFollowingIds } from "@/app/hooks/useFollowingIds";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+
+const PROFILE_LINK_CLASS =
+  "font-medium text-zinc-200 transition-colors hover:text-cyan-400 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50";
 
 type TabId = "user" | "bot" | "referrals";
 
@@ -232,9 +236,12 @@ export default function LeaderboardPage() {
                       </td>
                       <td className="py-3 pr-4">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-zinc-200">
+                          <Link
+                            href={`/user/${encodeURIComponent(row.discordId)}`}
+                            className={PROFILE_LINK_CLASS}
+                          >
                             {row.username}
-                          </span>
+                          </Link>
                           <FollowButton
                             targetDiscordId={row.discordId}
                             following={followingIds.has(row.discordId)}

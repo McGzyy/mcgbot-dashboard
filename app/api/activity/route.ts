@@ -119,6 +119,7 @@ export async function GET(request: Request) {
         return {
           type: "win" as const,
           text: `${username} hit ${multiple.toFixed(1)}x on ${callLabel}`,
+          username,
           time: r.call_time,
           link_chart,
           link_post,
@@ -130,6 +131,7 @@ export async function GET(request: Request) {
       return {
         type: "call" as const,
         text: `New call by ${username}`,
+        username,
         time: r.call_time,
         link_chart,
         link_post,

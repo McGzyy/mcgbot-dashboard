@@ -7,6 +7,7 @@ import {
 import { ActivityPopup } from "./components/ActivityPopup";
 import { FollowButton } from "./components/FollowButton";
 import { useFollowingIds } from "./hooks/useFollowingIds";
+import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import {
   useCallback,
@@ -31,6 +32,9 @@ const HOT_RIGHT_NOW_MOCK = [
 const CARD_HOVER =
   "transition-transform duration-200 ease-out motion-safe:hover:scale-[1.01]";
 
+const PROFILE_LINK_CLASS =
+  "text-cyan-400 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50";
+
 type ReferralRow = { userId: string; joinedAt: number };
 
 type MeStats = {
@@ -49,6 +53,7 @@ type RecentCallRow = {
 type ActivityItem = {
   type: "win" | "call";
   text: string;
+  username: string;
   time: unknown;
   link_chart: string | null;
   link_post: string | null;
@@ -182,14 +187,82 @@ function resolveCaInActivityText(
   return { ca, chartLink };
 }
 
-function renderActivityTextWithCa(
-  item: ActivityItem,
-  emoji: string
-): ReactNode {
-  const target = resolveCaInActivityText(
-    item.text,
-    item.link_chart ?? ""
+function renderTextSegmentWithCa(text: string, dexLink: string): ReactNode {
+  const target = resolveCaInActivityText(text, dexLink);
+  if (!target) return text;
+
+  const { ca, chartLink } = target;
+  const idx = text.indexOf(ca);
+  if (idx === -1) return text;
+
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span
+        role="link"
+        tabIndex={0}
+        onClick={(e) => {
+          e.stopPropagation();
+          window.open(chartLink, "_blank", "noopener,noreferrer");
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(chartLink, "_blank", "noopener,noreferrer");
+          }
+        }}
+        className="text-cyan-400 hover:underline cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50"
+      >
+        {shortenCa(ca)}
+      </span>
+      {text.slice(idx + ca.length)}
+    </>
   );
+}
+
+function renderActivityFeedLine(item: ActivityItem, emoji: string): ReactNode {
+  const dex = item.link_chart ?? "";
+  const name = item.username.trim();
+  const id = item.discordId.trim();
+
+  if (name && id && item.type === "call") {
+    const prefix = "New call by ";
+    if (item.text.startsWith(prefix)) {
+      return (
+        <>
+          <span aria-hidden>{emoji}</span>
+          {prefix}
+          <Link
+            href={`/user/${encodeURIComponent(id)}`}
+            className={PROFILE_LINK_CLASS}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {name}
+          </Link>
+        </>
+      );
+    }
+  }
+
+  if (name && id && item.type === "win" && item.text.startsWith(name)) {
+    const afterName = item.text.slice(name.length);
+    return (
+      <>
+        <span aria-hidden>{emoji}</span>
+        <Link
+          href={`/user/${encodeURIComponent(id)}`}
+          className={PROFILE_LINK_CLASS}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {name}
+        </Link>
+        {renderTextSegmentWithCa(afterName, dex)}
+      </>
+    );
+  }
+
+  const target = resolveCaInActivityText(item.text, dex);
   if (!target) {
     return (
       <>
@@ -462,16 +535,6 @@ export default function Home() {
   const { followingIds, setFollowing } = useFollowingIds();
   const [feedMode, setFeedMode] = useState<"all" | "following">("all");
 
-  useEffect(() => {
-    addNotification({
-      id: "test",
-      text: "Test notification working",
-      type: "win",
-      createdAt: Date.now(),
-      priority: "low",
-    });
-  }, []);
-
   const loadActivity = useCallback(() => {
     void (async () => {
       try {
@@ -509,9 +572,15 @@ export default function Home() {
             typeof discordRaw === "string" && discordRaw.trim() !== ""
               ? discordRaw.trim()
               : "";
+          const usernameRaw = o.username;
+          const username =
+            typeof usernameRaw === "string" && usernameRaw.trim() !== ""
+              ? usernameRaw.trim()
+              : "";
           parsed.push({
             type: o.type,
             text,
+            username,
             time: o.time,
             link_chart,
             link_post,
@@ -843,13 +912,20 @@ export default function Home() {
                         }
                         className="mt-0.5"
                       />
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setSelectedActivity(item)}
-                        className="flex min-w-0 flex-1 items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit transition-colors duration-150 hover:bg-zinc-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelectedActivity(item);
+                          }
+                        }}
+                        className="flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit transition-colors duration-150 hover:bg-zinc-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
                       >
                         <span className="min-w-0 text-zinc-200">
-                          {renderActivityTextWithCa(
+                          {renderActivityFeedLine(
                             item,
                             item.type === "win" ? "🔥 " : "⚡ "
                           )}
@@ -860,7 +936,7 @@ export default function Home() {
                             ↗
                           </span>
                         </span>
-                      </button>
+                      </div>
                     </div>
                   </li>
                 ))}
