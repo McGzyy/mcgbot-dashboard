@@ -24,18 +24,19 @@ export async function processCall(
   contractAddress: string,
   userId?: string
 ): Promise<ProcessCallResult> {
-  console.log("Submitting call:", contractAddress);
+  console.log("STEP 1: Starting call", contractAddress);
 
   const client = await getDiscordClient();
   if (!client) {
     throw new Error("Discord client is not available");
   }
+  console.log("STEP 2: Got Discord client");
 
   const channel = client.channels.cache.find(
     (c: any) => c.name === "token-calls"
   ) as any;
 
-  console.log("Channel found:", !!channel);
+  console.log("STEP 3: Channel found:", channel?.name);
 
   if (!channel) {
     throw new Error("Channel not found: token-calls");
@@ -60,14 +61,14 @@ export async function processCall(
     },
   };
 
+  console.log("STEP 4: Calling handleCallCommand");
   try {
     await handleCallCommand(fakeMessage, contractAddress, "dashboard");
+    console.log("STEP 5: handleCallCommand completed");
   } catch (err) {
-    console.error("Call failed:", err);
+    console.error("STEP 5 ERROR:", err);
     throw err;
   }
-
-  console.log("Call command executed");
 
   return {
     success: true,
