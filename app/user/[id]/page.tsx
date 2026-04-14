@@ -526,11 +526,13 @@ export default function UserProfilePage() {
     let cancelled = false;
     setEditLoading(true);
     setEditError(null);
-    fetch("/api/profile")
+    fetch("/api/profile", { credentials: "same-origin" })
       .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
         if (cancelled) return;
-        if (!ok || !data || typeof data !== "object") {
+        if (!data) return;
+        console.log("Loaded profile:", data);
+        if (!ok || typeof data !== "object") {
           setEditError("Could not load profile.");
           return;
         }
@@ -1327,7 +1329,7 @@ export default function UserProfilePage() {
                   onChange={(e) => setEditXHandle(e.target.value)}
                   disabled={editLoading || editSaving}
                   className="mt-1 w-full rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
-                  placeholder="mcgzyy"
+                  placeholder="your_handle"
                 />
               </div>
 
