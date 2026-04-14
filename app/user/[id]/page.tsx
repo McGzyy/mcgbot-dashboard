@@ -89,6 +89,42 @@ function formatDateJoined(createdAt: unknown): string | null {
   })}`;
 }
 
+function computeKeyStats(calls: { multiple: number }[]) {
+  if (!calls || calls.length === 0) {
+    return {
+      best: null,
+      median: null,
+      last10Avg: null,
+    };
+  }
+
+  const multiples = calls.map(c => c.multiple).filter(n => typeof n === "number");
+
+  if (multiples.length === 0) {
+    return { best: null, median: null, last10Avg: null };
+  }
+
+  // Best
+  const best = Math.max(...multiples);
+
+  // Median
+  const sorted = [...multiples].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median =
+    sorted.length % 2 === 0
+      ? (sorted[mid - 1] + sorted[mid]) / 2
+      : sorted[mid];
+
+  // Last 10 Avg (use first 10 calls)
+  const last10 = multiples.slice(0, 10);
+  const last10Avg =
+    last10.length > 0
+      ? last10.reduce((a, b) => a + b, 0) / last10.length
+      : null;
+
+  return { best, median, last10Avg };
+}
+
 function rankMedal(rank: number): string {
   if (rank === 1) return "🥇";
   if (rank === 2) return "🥈";
@@ -744,6 +780,7 @@ export default function UserProfilePage() {
   const joinedText = !loading
     ? formatDateJoined(profile?.created_at)
     : null;
+  const stats = computeKeyStats(profile?.recentCalls || []);
 
   console.log("Banner URL:", profile?.banner_url);
 
@@ -1196,6 +1233,27 @@ export default function UserProfilePage() {
                     ) : null}
                   </p>
                 ) : null}
+              </div>
+
+              <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                <div>
+                  <p className="text-zinc-500">Best</p>
+                  <p className="font-medium">
+                    {stats.best ? `${stats.best.toFixed(1)}x` : "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-500">Median</p>
+                  <p className="font-medium">
+                    {stats.median ? `${stats.median.toFixed(1)}x` : "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-500">Last 10</p>
+                  <p className="font-medium">
+                    {stats.last10Avg ? `${stats.last10Avg.toFixed(1)}x` : "-"}
+                  </p>
+                </div>
               </div>
               <p className="mt-3 text-xs text-zinc-500">
                 Discord ID · {uid}
