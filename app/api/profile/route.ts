@@ -94,20 +94,27 @@ export async function POST(request: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { bio, banner_url, x_handle, profile_visibility } = await request.json();
+    const { bio, banner_url, x_handle } = await request.json();
+
+    const discordId = session.user.id;
+
+    console.log("Saving profile for:", discordId);
+    console.log("Payload:", { bio, banner_url, x_handle });
 
     const supabase = supabaseOrError();
     if (supabase instanceof Response) return supabase;
 
     const { data, error } = await supabase
       .from("users")
-      .update({
-        bio,
-        banner_url,
-        x_handle,
-        profile_visibility,
-      })
-      .eq("discord_id", session.user.id)
+      .upsert(
+        {
+          discord_id: discordId,
+          bio,
+          banner_url,
+          x_handle,
+        },
+        { onConflict: "discord_id" }
+      )
       .select()
       .single();
 
