@@ -56,6 +56,32 @@ function computeKeyStats(rows: Record<string, unknown>[]): {
   return { bestMultiple, medianMultiple, last10Avg };
 }
 
+function computeCallDistribution(rows: Record<string, unknown>[]): {
+  under1: number;
+  oneToTwo: number;
+  twoToFive: number;
+  fivePlus: number;
+  total: number;
+} {
+  let under1 = 0;
+  let oneToTwo = 0;
+  let twoToFive = 0;
+  let fivePlus = 0;
+  let total = 0;
+
+  for (const r of rows) {
+    const m = rowMultiple(r);
+    if (!Number.isFinite(m)) continue;
+    total += 1;
+    if (m < 1) under1 += 1;
+    else if (m < 2) oneToTwo += 1;
+    else if (m < 5) twoToFive += 1;
+    else fivePlus += 1;
+  }
+
+  return { under1, oneToTwo, twoToFive, fivePlus, total };
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> }
@@ -128,6 +154,7 @@ export async function GET(
     const stats = computeCallPerformanceUserStats(rows);
     const recentCalls = recentCallsFromRows(rows, PROFILE_RECENT_CALLS_LIMIT);
     const keyStats = computeKeyStats(rows);
+    const callDistribution = computeCallDistribution(rows);
 
     return Response.json({
       username,
@@ -163,6 +190,7 @@ export async function GET(
         totalCalls: stats.totalCalls,
       },
       keyStats,
+      callDistribution,
       recentCalls,
     });
   } catch (e) {

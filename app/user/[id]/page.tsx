@@ -35,6 +35,13 @@ type ProfilePayload = {
   banner_url: string | null;
   x_handle?: string | null;
   x_verified?: boolean;
+  callDistribution?: {
+    under1: number;
+    oneToTwo: number;
+    twoToFive: number;
+    fivePlus: number;
+    total: number;
+  };
   keyStats?: {
     bestMultiple: number | null;
     medianMultiple: number | null;
@@ -46,6 +53,7 @@ type ProfilePayload = {
     show_calls?: boolean;
     show_key_stats?: boolean;
     show_pinned_call?: boolean;
+    show_distribution?: boolean;
   } | null;
   stats: ProfileStats;
   recentCalls: RecentCallRow[];
@@ -336,6 +344,16 @@ function parseProfile(json: unknown): ProfilePayload | null {
           ? String(o.x_handle ?? o.xHandle)
           : String(o.x_handle ?? o.xHandle),
     x_verified: Boolean(o.x_verified ?? o.xVerified),
+    callDistribution:
+      o.callDistribution && typeof o.callDistribution === "object"
+        ? {
+            under1: Number((o.callDistribution as any).under1) || 0,
+            oneToTwo: Number((o.callDistribution as any).oneToTwo) || 0,
+            twoToFive: Number((o.callDistribution as any).twoToFive) || 0,
+            fivePlus: Number((o.callDistribution as any).fivePlus) || 0,
+            total: Number((o.callDistribution as any).total) || 0,
+          }
+        : undefined,
     keyStats:
       o.keyStats && typeof o.keyStats === "object"
         ? {
@@ -708,6 +726,7 @@ export default function UserProfilePage() {
     show_calls: profile?.profile_visibility?.show_calls ?? true,
     show_key_stats: profile?.profile_visibility?.show_key_stats ?? true,
     show_pinned_call: profile?.profile_visibility?.show_pinned_call ?? true,
+    show_distribution: profile?.profile_visibility?.show_distribution ?? true,
   };
 
   async function saveProfileEdits() {
@@ -998,6 +1017,63 @@ export default function UserProfilePage() {
                   Trophies are unavailable right now.
                 </p>
               )}
+            </PanelCard>
+          </section>
+          ) : null}
+
+          {visibility.show_distribution ? (
+          <section className="mb-4">
+            <PanelCard title="Call Distribution">
+              {(() => {
+                const dist = profile?.callDistribution;
+                const total = dist?.total ?? 0;
+                const rows = [
+                  { label: "<1x", count: dist?.under1 ?? 0 },
+                  { label: "1–2x", count: dist?.oneToTwo ?? 0 },
+                  { label: "2–5x", count: dist?.twoToFive ?? 0 },
+                  { label: "5x+", count: dist?.fivePlus ?? 0 },
+                ] as const;
+
+                if (loading) {
+                  return (
+                    <div className="mt-3 space-y-3" aria-busy>
+                      {rows.map((r) => (
+                        <div key={r.label} className="flex items-center gap-2">
+                          <div className="h-3 w-12 animate-pulse rounded bg-zinc-800/80" />
+                          <div className="h-2 flex-1 animate-pulse rounded bg-zinc-800/80" />
+                          <div className="h-3 w-16 animate-pulse rounded bg-zinc-800/80" />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="mt-3 space-y-2.5">
+                    {rows.map((r) => {
+                      const pct =
+                        total > 0 ? Math.round((r.count / total) * 100) : 0;
+                      return (
+                        <div key={r.label} className="flex items-center gap-2">
+                          <span className="w-12 text-xs text-zinc-400">
+                            {r.label}
+                          </span>
+                          <div className="h-2 flex-1 rounded bg-zinc-800">
+                            <div
+                              className="h-2 rounded bg-cyan-400"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="w-16 text-right text-xs text-zinc-500 tabular-nums">
+                            {r.count}
+                            {total > 0 ? ` (${pct}%)` : ""}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </PanelCard>
           </section>
           ) : null}

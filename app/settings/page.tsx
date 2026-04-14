@@ -95,6 +95,7 @@ type ProfileVisibility = {
   show_calls: boolean;
   show_key_stats: boolean;
   show_pinned_call: boolean;
+  show_distribution: boolean;
 };
 
 const DEFAULT_PROFILE_VISIBILITY: ProfileVisibility = {
@@ -103,6 +104,7 @@ const DEFAULT_PROFILE_VISIBILITY: ProfileVisibility = {
   show_calls: true,
   show_key_stats: true,
   show_pinned_call: true,
+  show_distribution: true,
 };
 
 function parseProfileVisibility(raw: unknown): ProfileVisibility {
@@ -570,6 +572,19 @@ export default function SettingsPage() {
               setProfileVisibility((prev) => ({
                 ...prev,
                 show_pinned_call: !prev.show_pinned_call,
+              }))
+            }
+            disabled={settingsLoading}
+          />
+          <ToggleRow
+            id="profile-show-distribution"
+            label="Call Distribution"
+            description="Show call performance breakdown."
+            checked={profileVisibility.show_distribution}
+            onToggle={() =>
+              setProfileVisibility((prev) => ({
+                ...prev,
+                show_distribution: !prev.show_distribution,
               }))
             }
             disabled={settingsLoading}
