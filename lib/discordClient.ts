@@ -13,7 +13,7 @@ type DiscordClientLike = {
 
 let _clientPromise: Promise<DiscordClientLike | null> | null = null;
 
-async function getDiscordClient(): Promise<DiscordClientLike | null> {
+export async function getDiscordClient(): Promise<DiscordClientLike | null> {
   const token = process.env.DISCORD_TOKEN;
   if (!token) return null;
 

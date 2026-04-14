@@ -1,5 +1,5 @@
 import { createRequire } from "module";
-import { postBotCallMessage } from "./discordClient";
+import { getDiscordClient } from "./discordClient";
 
 type ProcessCallResult = {
   success: true;
@@ -11,46 +11,48 @@ const require = createRequire(import.meta.url);
 
 // Imported from existing bot command implementation (CommonJS).
 const {
-  runQuickCa,
-  normalizeRealDataToScan,
-  applyTrackedCallState,
+  handleCallCommand,
 }: {
-  runQuickCa: (contractAddress: string) => Promise<unknown>;
-  normalizeRealDataToScan: (realData: unknown) => any;
-  applyTrackedCallState: (
+  handleCallCommand: (
+    message: any,
     contractAddress: string,
-    message: unknown,
-    marketCap: number,
-    liveScanData: unknown,
-    options?: { callSourceType?: string }
-  ) => Promise<{ trackedCall: unknown }>;
+    source?: string
+  ) => Promise<unknown>;
 } = require("../commands/basicCommands.js");
 
 export async function processCall(
   contractAddress: string,
   _userId?: string
 ): Promise<ProcessCallResult> {
-  const realData = await runQuickCa(contractAddress);
-  const scan = normalizeRealDataToScan(realData);
+  const client = await getDiscordClient();
+  if (!client) {
+    throw new Error("Discord client is not available");
+  }
 
-  const { trackedCall } = await applyTrackedCallState(
-    contractAddress,
-    null,
-    scan.marketCap || 0,
-    scan,
-    { callSourceType: "user_call" }
+  const channel = client.channels?.cache?.find?.(
+    (c: any) => c?.name === "bot-calls"
   );
 
-  try {
-    await postBotCallMessage(contractAddress);
-  } catch {
-    // Best-effort: call processing should succeed even if Discord send fails.
+  if (!channel || !channel.isTextBased?.()) {
+    throw new Error('Discord channel "bot-calls" not found');
   }
+
+  const fakeMessage = {
+    author: { id: "dashboard_user" },
+    member: null,
+    channel,
+    guild: (channel as any).guild,
+    reply: async (payload: any) => {
+      return await (channel as any).send(payload);
+    },
+  };
+
+  await handleCallCommand(fakeMessage, contractAddress, "dashboard");
 
   return {
     success: true,
-    scan,
-    trackedCall,
+    scan: null,
+    trackedCall: null,
   };
 }
 
