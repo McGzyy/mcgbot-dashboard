@@ -32,6 +32,7 @@ type ProfilePayload = {
   isTopCaller: boolean;
   isTrustedPro: boolean;
   bio: string | null;
+  created_at?: unknown;
   banner_url: string | null;
   x_handle?: string | null;
   x_verified?: boolean;
@@ -76,6 +77,17 @@ type EditableProfile = {
 };
 
 const BIO_MAX = 200;
+
+function formatDateJoined(createdAt: unknown): string | null {
+  if (!createdAt) return null;
+  const d = new Date(String(createdAt));
+  if (isNaN(d.getTime())) return null;
+
+  return `Joined ${d.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  })}`;
+}
 
 function rankMedal(rank: number): string {
   if (rank === 1) return "🥇";
@@ -331,6 +343,7 @@ function parseProfile(json: unknown): ProfilePayload | null {
         : typeof o.bio === "string"
           ? o.bio
           : String(o.bio),
+    created_at: (o.created_at ?? o.createdAt) as unknown,
     banner_url:
       (o.banner_url ?? o.bannerUrl) == null
         ? null
@@ -727,6 +740,9 @@ export default function UserProfilePage() {
 
   const bannerUrl = profile?.banner_url?.trim() || "";
   const bioText = profile?.bio?.trim() || "";
+  const joinedText = !loading
+    ? formatDateJoined(profile?.created_at)
+    : null;
 
   console.log("Banner URL:", profile?.banner_url);
 
@@ -894,10 +910,23 @@ export default function UserProfilePage() {
                 />
               )}
             </div>
-            {!loading && bioText ? (
-              <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-400">
-                {bioText}
-              </p>
+            {!loading && (bioText || joinedText) ? (
+              <>
+                {bioText ? (
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-400">
+                    {bioText}
+                  </p>
+                ) : null}
+                {joinedText ? (
+                  <p
+                    className={`${
+                      bioText ? "mt-1" : "mt-2"
+                    } text-sm text-zinc-500`}
+                  >
+                    {joinedText}
+                  </p>
+                ) : null}
+              </>
             ) : null}
             <p className="mt-1.5 truncate text-xs text-zinc-500 tabular-nums">
               Discord ID · {uid}
@@ -1172,9 +1201,6 @@ export default function UserProfilePage() {
                       </span>
                     ) : null}
                   </p>
-                ) : null}
-                {bioText ? (
-                  <p className="whitespace-pre-wrap text-zinc-400">{bioText}</p>
                 ) : null}
               </div>
             </PanelCard>
