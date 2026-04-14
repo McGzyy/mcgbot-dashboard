@@ -954,6 +954,59 @@ function ActivityFeedPanel({
   );
 }
 
+type FollowingFeedItem = {
+  user: string;
+  action: "called" | "hit 2x" | "hit 3x";
+  token: string;
+  multiple: number;
+  time: string;
+};
+
+const FOLLOWING_FEED_MOCK: FollowingFeedItem[] = [
+  { user: "McGzyy", action: "called", token: "ABC", multiple: 2.4, time: "2m ago" },
+  { user: "Luna", action: "hit 2x", token: "SOLXYZ", multiple: 2.1, time: "8m ago" },
+  { user: "Dex", action: "called", token: "DEV123", multiple: 1.3, time: "14m ago" },
+  { user: "Nova", action: "hit 3x", token: "PEPE2", multiple: 3.2, time: "22m ago" },
+  { user: "Artemis", action: "called", token: "WIF", multiple: 1.9, time: "35m ago" },
+  { user: "Kairo", action: "hit 2x", token: "BOME", multiple: 2.6, time: "49m ago" },
+  { user: "Vega", action: "called", token: "JUP", multiple: 1.1, time: "1h ago" },
+];
+
+function FollowingFeedPanel() {
+  return (
+    <PanelCard title="Following Feed">
+      <ul className="mt-2 max-h-[300px] overflow-y-auto pr-1 text-sm">
+        {FOLLOWING_FEED_MOCK.slice(0, 10).map((item, i) => (
+          <li
+            key={`${item.user}-${item.token}-${item.time}-${i}`}
+            className="border-b border-zinc-800 last:border-b-0"
+          >
+            <div className="-mx-1 flex items-start justify-between gap-3 rounded-md py-2 pl-1 pr-1 transition-colors duration-150 hover:bg-zinc-800/30 sm:pl-2 sm:pr-2">
+              <div className="min-w-0">
+                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span className="min-w-0 truncate font-medium text-zinc-100">
+                    {item.user}
+                  </span>
+                  <span className="text-zinc-500">{item.action}</span>
+                  <span className="font-medium text-zinc-200">{item.token}</span>
+                </p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {item.time}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="font-semibold tabular-nums text-zinc-100">
+                  {Number.isFinite(item.multiple) ? `${item.multiple.toFixed(1)}x` : "-"}
+                </p>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </PanelCard>
+  );
+}
+
 export default function Home() {
   const { data: session, status } = useSession();
   const { addNotification } = useNotifications();
@@ -1496,21 +1549,7 @@ export default function Home() {
 
       <div className="mb-8 grid gap-4 lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-4">
-          {widgetEnabled(widgets, "activity") && (
-            <ActivityFeedPanel
-              feedMode={feedMode}
-              setFeedMode={setFeedMode}
-              loadingActivity={loadingActivity}
-              activity={activity}
-              followingIds={followingIds}
-              setFollowing={setFollowing}
-              nowMs={nowMs}
-              setSelectedActivity={setSelectedActivity}
-              badgesByUser={badgesByUser}
-              viewerId={session.user.id}
-              viewerName={session.user.name}
-            />
-          )}
+          {widgetEnabled(widgets, "activity") && <FollowingFeedPanel />}
 
           {widgetEnabled(widgets, "hot_now") && (
           <PanelCard

@@ -139,6 +139,30 @@ function getRecentForm(calls: { multiple: number }[]) {
   });
 }
 
+function computeAlphaScore({
+  avg,
+  median,
+  last10,
+  winRate,
+}: {
+  avg: number | null;
+  median: number | null;
+  last10: number | null;
+  winRate: number | null;
+}) {
+  if (!avg || !median || !last10 || !winRate) return null;
+
+  const winRateNormalized = winRate / 100;
+
+  const score =
+    median * 0.4 +
+    last10 * 0.3 +
+    avg * 0.2 +
+    winRateNormalized * 0.1;
+
+  return score;
+}
+
 function rankMedal(rank: number): string {
   if (rank === 1) return "🥇";
   if (rank === 2) return "🥈";
@@ -797,6 +821,18 @@ export default function UserProfilePage() {
   const hitRates = computeHitRates(profile?.recentCalls || []);
   const bestCall = computeBestCall(profile?.recentCalls || []);
   const recentForm = getRecentForm(profile?.recentCalls || []);
+  const avgMultiple = profile?.stats?.avgX ?? null;
+  const winRate = profile?.stats?.winRate ?? null;
+  const stats = {
+    median: profile?.keyStats?.medianMultiple ?? null,
+    last10Avg: profile?.keyStats?.last10Avg ?? null,
+  };
+  const alphaScore = computeAlphaScore({
+    avg: avgMultiple,
+    median: stats.median,
+    last10: stats.last10Avg,
+    winRate: winRate,
+  });
 
   console.log("Banner URL:", profile?.banner_url);
 
@@ -1239,6 +1275,17 @@ export default function UserProfilePage() {
 
         <aside className="col-span-12 lg:col-span-4">
           <div className="w-full max-w-sm space-y-4 lg:ml-auto">
+            <PanelCard title="Alpha Score">
+              <div className="flex flex-col gap-1">
+                <p className="text-3xl font-semibold">
+                  {alphaScore ? alphaScore.toFixed(2) : "-"}
+                </p>
+                <p className="text-xs text-zinc-500">
+                  Composite performance score
+                </p>
+              </div>
+            </PanelCard>
+
             <PanelCard title="Profile Summary">
               <div className="mt-2 space-y-2 text-sm text-zinc-400">
                 {xHandle ? (
