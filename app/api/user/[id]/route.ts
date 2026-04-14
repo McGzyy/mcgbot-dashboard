@@ -169,6 +169,7 @@ export async function GET(
       // Badges are now fetched from `user_badges` on the client; keep fields for compatibility.
       isTopCaller: false,
       isTrustedPro: false,
+      created_at: userRow?.created_at ?? null,
       bio:
         userRow?.bio == null
           ? null

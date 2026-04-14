@@ -343,7 +343,7 @@ function parseProfile(json: unknown): ProfilePayload | null {
         : typeof o.bio === "string"
           ? o.bio
           : String(o.bio),
-    created_at: (o.created_at ?? o.createdAt) as unknown,
+    created_at: o.created_at ?? o.createdAt ?? null,
     banner_url:
       (o.banner_url ?? o.bannerUrl) == null
         ? null
@@ -469,6 +469,7 @@ export default function UserProfilePage() {
         return false;
       }
       setProfile(parsed);
+      console.log("PROFILE DATA:", profile);
       setError(null);
       return true;
     } catch {
