@@ -742,83 +742,50 @@ export default function UserProfilePage() {
     show_distribution: profile?.profile_visibility?.show_distribution ?? true,
   };
 
-  async function saveProfileEdits() {
+  const handleSave = async () => {
     if (editSaving) return;
-    const bio = editBio;
-    if (bio.length > BIO_MAX) {
-      setEditError(`Bio must be ${BIO_MAX} characters or fewer.`);
+    if (editBio.length > BIO_MAX) {
+      alert(`Bio must be ${BIO_MAX} characters or fewer.`);
       return;
     }
     setEditSaving(true);
-    setEditError(null);
     try {
-      const nextBio = bio.trim() === "" ? null : bio;
-      const nextBannerUrl =
+      const bio = editBio.trim() === "" ? null : editBio;
+      const banner_url =
         editBannerUrl.trim() === "" ? null : editBannerUrl.trim();
-      const nextXHandle =
-        editXHandle.trim() === "" ? null : editXHandle.trim().replace(/^@+/, "");
+      const xHandle =
+        editXHandle.trim() === ""
+          ? null
+          : editXHandle.trim().replace(/^@+/, "");
+
       const res = await fetch("/api/profile", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bio: nextBio,
-          banner_url: nextBannerUrl,
-          x_handle: nextXHandle,
-          profile_visibility: profile?.profile_visibility ?? {},
+          bio,
+          banner_url,
+          x_handle: xHandle,
         }),
       });
-      const data = (await res.json()) as {
-        success?: boolean;
-        profile?: Record<string, unknown>;
-        error?: string;
-      };
-      console.log("Save response:", data);
+
+      const data = await res.json();
+
       if (!res.ok) {
-        throw new Error(data.error || "Failed to save profile");
+        console.error("Save failed:", data);
+        alert("Failed to save profile");
+        return;
       }
-      if (data.profile && typeof data.profile === "object") {
-        const p = data.profile;
-        setProfile((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            bio:
-              p.bio == null
-                ? null
-                : typeof p.bio === "string"
-                  ? p.bio
-                  : String(p.bio),
-            banner_url:
-              p.banner_url == null
-                ? null
-                : typeof p.banner_url === "string"
-                  ? p.banner_url
-                  : String(p.banner_url),
-            x_handle:
-              p.x_handle == null
-                ? null
-                : typeof p.x_handle === "string"
-                  ? p.x_handle
-                  : String(p.x_handle),
-            x_verified: Boolean(p.x_verified),
-            profile_visibility:
-              p.profile_visibility &&
-              typeof p.profile_visibility === "object"
-                ? (p.profile_visibility as ProfilePayload["profile_visibility"])
-                : prev.profile_visibility,
-          };
-        });
-      }
-      await fetchProfile();
+
       setEditOpen(false);
-    } catch (e) {
-      console.log("[edit profile] save error", e);
-      setEditError("Could not save profile.");
+      window.location.reload();
+    } catch (err) {
+      console.error("Save error:", err);
+      alert("Something went wrong");
     } finally {
       setEditSaving(false);
     }
-  }
+  };
 
   async function pinCall(callId: string) {
     if (!isOwnProfile) return;
@@ -1382,7 +1349,7 @@ export default function UserProfilePage() {
                 </button>
                 <button
                   type="button"
-                  onClick={saveProfileEdits}
+                  onClick={handleSave}
                   disabled={editLoading || editSaving || editBio.length > BIO_MAX}
                   className="rounded-md bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-sky-400 disabled:opacity-60"
                 >
