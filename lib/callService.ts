@@ -1,4 +1,5 @@
 import { createRequire } from "module";
+import { postBotCallMessage } from "./discordClient";
 
 type ProcessCallResult = {
   success: true;
@@ -39,6 +40,12 @@ export async function processCall(
     scan,
     { callSourceType: "user_call" }
   );
+
+  try {
+    await postBotCallMessage(contractAddress);
+  } catch {
+    // Best-effort: call processing should succeed even if Discord send fails.
+  }
 
   return {
     success: true,

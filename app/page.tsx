@@ -1478,20 +1478,16 @@ export default function Home() {
     setSubmitCallSubmitting(true);
     setSubmitCallFeedback(null);
     try {
-      const data = await submitCall(ca);
-      const status =
-        data && typeof data === "object" && "status" in data
-          ? String((data as any).status)
-          : "success";
-      const mapped =
-        status === "already_exists" || status === "already_called"
-          ? "already_exists"
-          : "success";
-      setSubmitCallFeedback(mapped);
-      if (mapped === "success") {
-        setSubmitCallOpen(false);
-        setSubmitCallValue("");
-      }
+      await submitCall(ca);
+      alert("Call submitted");
+      setSubmitCallOpen(false);
+      setSubmitCallValue("");
+    } catch (err) {
+      const msg =
+        err && typeof err === "object" && "message" in err
+          ? String((err as any).message)
+          : "Failed";
+      alert(msg || "Failed");
     } finally {
       setSubmitCallSubmitting(false);
     }
