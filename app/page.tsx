@@ -1007,6 +1007,24 @@ function FollowingFeedPanel() {
   );
 }
 
+async function submitCall(ca: string) {
+  const res = await fetch("/api/call", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ ca }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to submit call");
+  }
+
+  return data;
+}
+
 export default function Home() {
   const { data: session, status } = useSession();
   const { addNotification } = useNotifications();
@@ -1036,6 +1054,12 @@ export default function Home() {
   const [yourRankLoading, setYourRankLoading] = useState(true);
 
   const [widgets, setWidgets] = useState<WidgetsEnabled | null>(null);
+  const [submitCallOpen, setSubmitCallOpen] = useState(false);
+  const [submitCallValue, setSubmitCallValue] = useState("");
+  const [submitCallSubmitting, setSubmitCallSubmitting] = useState(false);
+  const [submitCallFeedback, setSubmitCallFeedback] = useState<
+    "success" | "already_exists" | null
+  >(null);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -1446,6 +1470,33 @@ export default function Home() {
     }
   }, [referralUrl]);
 
+  const handleSubmitCall = useCallback(async () => {
+    if (submitCallSubmitting) return;
+    const ca = submitCallValue.trim();
+    if (!ca) return;
+
+    setSubmitCallSubmitting(true);
+    setSubmitCallFeedback(null);
+    try {
+      const data = await submitCall(ca);
+      const status =
+        data && typeof data === "object" && "status" in data
+          ? String((data as any).status)
+          : "success";
+      const mapped =
+        status === "already_exists" || status === "already_called"
+          ? "already_exists"
+          : "success";
+      setSubmitCallFeedback(mapped);
+      if (mapped === "success") {
+        setSubmitCallOpen(false);
+        setSubmitCallValue("");
+      }
+    } finally {
+      setSubmitCallSubmitting(false);
+    }
+  }, [submitCallSubmitting, submitCallValue]);
+
   if (status === "loading") {
     return (
       <div className="flex min-h-[calc(100vh-3rem)] flex-col items-center justify-center text-zinc-400">
@@ -1583,6 +1634,10 @@ export default function Home() {
           <div className="mt-2 flex flex-col gap-2">
             <button
               type="button"
+              onClick={() => {
+                setSubmitCallFeedback(null);
+                setSubmitCallOpen(true);
+              }}
               className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-4 text-base font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-sky-400 hover:shadow-cyan-400/45 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
             >
               Submit Call
@@ -1768,6 +1823,80 @@ export default function Home() {
         }
         onClose={() => setSelectedActivity(null)}
       />
+
+      {submitCallOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Submit call"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setSubmitCallOpen(false);
+          }}
+        >
+          <div className="w-full max-w-md rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">
+                  Submit Call
+                </h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Paste a contract address to submit a new call.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSubmitCallOpen(false)}
+                className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+                aria-label="Close"
+                disabled={submitCallSubmitting}
+              >
+                Esc
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <input
+                type="text"
+                value={submitCallValue}
+                onChange={(e) => setSubmitCallValue(e.target.value)}
+                placeholder="Enter contract address"
+                disabled={submitCallSubmitting}
+                className="w-full rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
+              />
+
+              {submitCallFeedback ? (
+                <p className="text-sm">
+                  {submitCallFeedback === "success" ? (
+                    <span className="text-emerald-400">Call submitted</span>
+                  ) : (
+                    <span className="text-zinc-400">Already called</span>
+                  )}
+                </p>
+              ) : null}
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setSubmitCallOpen(false)}
+                  disabled={submitCallSubmitting}
+                  className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitCall}
+                  disabled={submitCallSubmitting || submitCallValue.trim() === ""}
+                  className="rounded-md bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-sky-400 disabled:opacity-60"
+                >
+                  {submitCallSubmitting ? "Submitting…" : "Submit"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
