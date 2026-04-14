@@ -929,9 +929,6 @@ export default function UserProfilePage() {
                 ) : null}
               </>
             ) : null}
-            <p className="mt-1.5 truncate text-xs text-zinc-500 tabular-nums">
-              Discord ID · {uid}
-            </p>
             {!loading && xHandle ? (
               <div className="mt-1 flex items-center gap-2">
                 <span className="text-xs text-zinc-500">X:</span>
@@ -1181,10 +1178,6 @@ export default function UserProfilePage() {
           <div className="w-full max-w-sm space-y-4 lg:ml-auto">
             <PanelCard title="Profile Summary">
               <div className="mt-2 space-y-2 text-sm text-zinc-400">
-                <p className="truncate">
-                  <span className="text-zinc-500">Discord ID:</span>{" "}
-                  <span className="tabular-nums text-zinc-300">{uid}</span>
-                </p>
                 {xHandle ? (
                   <p className="truncate">
                     <span className="text-zinc-500">X:</span>{" "}
@@ -1204,6 +1197,9 @@ export default function UserProfilePage() {
                   </p>
                 ) : null}
               </div>
+              <p className="mt-3 text-xs text-zinc-500">
+                Discord ID · {uid}
+              </p>
             </PanelCard>
 
             {visibility.show_pinned_call ? (
