@@ -94,10 +94,12 @@ export async function GET(
     }
 
     const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!url || !key) {
-      console.error("Missing Supabase env vars");
+      console.error(
+        "[user API] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+      );
       return Response.json(
         { error: "Supabase not configured" },
         { status: 500 }

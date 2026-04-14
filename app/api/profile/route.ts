@@ -96,7 +96,7 @@ export async function POST(request: Request) {
 
     const { bio, banner_url, x_handle } = await request.json();
 
-    const discordId = session.user.id;
+    const discordId = session.user.id.trim();
 
     console.log("Saving profile for:", discordId);
     console.log("Payload:", { bio, banner_url, x_handle });
