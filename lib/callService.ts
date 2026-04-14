@@ -22,7 +22,7 @@ const {
 
 export async function processCall(
   contractAddress: string,
-  _userId?: string
+  userId?: string
 ): Promise<ProcessCallResult> {
   console.log("Submitting call:", contractAddress);
 
@@ -33,7 +33,7 @@ export async function processCall(
 
   const channel = client.channels.cache.find(
     (c: any) => c.name === "token-calls"
-  );
+  ) as any;
 
   console.log("Channel found:", !!channel);
 
@@ -48,12 +48,15 @@ export async function processCall(
   }
 
   const fakeMessage = {
-    author: { id: "dashboard_user" },
+    id: "dashboard-call",
+    author: {
+      id: userId || "dashboard_user",
+    },
     member: null,
     channel,
-    guild: (channel as any).guild,
+    guild: channel.guild,
     reply: async (payload: any) => {
-      return await (channel as any).send(payload);
+      return await channel.send(payload);
     },
   };
 
