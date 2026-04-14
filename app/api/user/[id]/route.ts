@@ -93,6 +93,10 @@ export async function GET(
       return Response.json({ error: "Invalid user id" }, { status: 400 });
     }
 
+    console.log("READ PROJECT URL:", process.env.SUPABASE_URL);
+    console.log("READ USING SERVICE KEY:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+    console.log("DISCORD ID USED:", discordId);
+
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -119,6 +123,8 @@ export async function GET(
         .eq("discord_id", discordId)
         .maybeSingle(),
     ]);
+
+    console.log("USER FETCH RESULT:", data, error);
 
     if (error) {
       console.error("[user API] GET:", error);

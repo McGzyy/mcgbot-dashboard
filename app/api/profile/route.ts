@@ -98,6 +98,9 @@ export async function POST(request: Request) {
 
     const discordId = session.user.id.trim();
 
+    console.log("WRITE PROJECT URL:", process.env.SUPABASE_URL);
+    console.log("WRITE USING SERVICE KEY:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+    console.log("DISCORD ID USED:", discordId);
     console.log("Saving profile for:", discordId);
     console.log("Payload:", { bio, banner_url, x_handle });
 
