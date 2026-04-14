@@ -24,17 +24,27 @@ export async function processCall(
   contractAddress: string,
   _userId?: string
 ): Promise<ProcessCallResult> {
+  console.log("Submitting call:", contractAddress);
+
   const client = await getDiscordClient();
   if (!client) {
     throw new Error("Discord client is not available");
   }
 
-  const channel = client.channels?.cache?.find?.(
-    (c: any) => c?.name === "bot-calls"
+  const channel = client.channels.cache.find(
+    (c: any) => c.name === "token-calls"
   );
 
-  if (!channel || !channel.isTextBased?.()) {
-    throw new Error('Discord channel "bot-calls" not found');
+  console.log("Channel found:", !!channel);
+
+  if (!channel) {
+    throw new Error("Channel not found: token-calls");
+  }
+
+  console.log("Using channel:", (channel as any)?.name);
+
+  if (!channel.isTextBased?.()) {
+    throw new Error('Discord channel "token-calls" is not text-based');
   }
 
   const fakeMessage = {
@@ -47,7 +57,14 @@ export async function processCall(
     },
   };
 
-  await handleCallCommand(fakeMessage, contractAddress, "dashboard");
+  try {
+    await handleCallCommand(fakeMessage, contractAddress, "dashboard");
+  } catch (err) {
+    console.error("Call failed:", err);
+    throw err;
+  }
+
+  console.log("Call command executed");
 
   return {
     success: true,
