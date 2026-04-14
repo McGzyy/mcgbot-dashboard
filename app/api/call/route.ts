@@ -9,29 +9,45 @@ function parseCa(raw: unknown): string | null {
 }
 
 export async function POST(request: Request) {
-  let body: unknown = null;
+  console.log("API CALL HIT");
+
   try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    let body: unknown = null;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const ca =
+      body && typeof body === "object" && "ca" in body
+        ? parseCa((body as Record<string, unknown>).ca)
+        : null;
+
+    console.log("CA RECEIVED:", ca);
+
+    if (!ca) {
+      return Response.json(
+        { error: "Invalid contract address (ca)" },
+        { status: 400 }
+      );
+    }
+
+    console.log("Calling processCall");
+    // Lazy-load call engine to avoid bundling Discord deps.
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const req = (0, eval)("require") as NodeRequire;
+    const { processCall } = req("../../../lib/callService") as typeof import("../../../lib/callService");
+    await processCall(ca);
+    console.log("processCall completed");
+
+    return Response.json({
+      success: true,
+      message: "Call received",
+    });
+  } catch (err) {
+    console.error("API ERROR:", err);
+    return Response.json({ error: "Call failed" }, { status: 500 });
   }
-
-  const ca =
-    body && typeof body === "object" && "ca" in body
-      ? parseCa((body as Record<string, unknown>).ca)
-      : null;
-
-  if (!ca) {
-    return Response.json(
-      { error: "Invalid contract address (ca)" },
-      { status: 400 }
-    );
-  }
-
-  // TODO: Connect to real call submission logic (bot / backend) later.
-  return Response.json({
-    success: true,
-    message: "Call received",
-  });
 }
 
