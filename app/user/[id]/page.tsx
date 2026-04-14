@@ -89,40 +89,26 @@ function formatDateJoined(createdAt: unknown): string | null {
   })}`;
 }
 
-function computeKeyStats(calls: { multiple: number }[]) {
+function computeHitRates(calls: { multiple: number }[]) {
   if (!calls || calls.length === 0) {
-    return {
-      best: null,
-      median: null,
-      last10Avg: null,
-    };
+    return { rate2x: null, rate3x: null };
   }
 
   const multiples = calls.map(c => c.multiple).filter(n => typeof n === "number");
 
   if (multiples.length === 0) {
-    return { best: null, median: null, last10Avg: null };
+    return { rate2x: null, rate3x: null };
   }
 
-  // Best
-  const best = Math.max(...multiples);
+  const total = multiples.length;
 
-  // Median
-  const sorted = [...multiples].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  const median =
-    sorted.length % 2 === 0
-      ? (sorted[mid - 1] + sorted[mid]) / 2
-      : sorted[mid];
+  const hit2x = multiples.filter(m => m >= 2).length;
+  const hit3x = multiples.filter(m => m >= 3).length;
 
-  // Last 10 Avg (use first 10 calls)
-  const last10 = multiples.slice(0, 10);
-  const last10Avg =
-    last10.length > 0
-      ? last10.reduce((a, b) => a + b, 0) / last10.length
-      : null;
-
-  return { best, median, last10Avg };
+  return {
+    rate2x: (hit2x / total) * 100,
+    rate3x: (hit3x / total) * 100,
+  };
 }
 
 function rankMedal(rank: number): string {
@@ -780,7 +766,7 @@ export default function UserProfilePage() {
   const joinedText = !loading
     ? formatDateJoined(profile?.created_at)
     : null;
-  const stats = computeKeyStats(profile?.recentCalls || []);
+  const hitRates = computeHitRates(profile?.recentCalls || []);
 
   console.log("Banner URL:", profile?.banner_url);
 
@@ -1018,7 +1004,7 @@ export default function UserProfilePage() {
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
             Stats
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <StatCard
               title="Avg X"
               loading={loading}
@@ -1033,6 +1019,16 @@ export default function UserProfilePage() {
               title="Total Calls"
               loading={loading}
               value={profile ? profile.stats.totalCalls : "—"}
+            />
+            <StatCard
+              title="2x Rate"
+              loading={loading}
+              value={hitRates.rate2x ? `${Math.round(hitRates.rate2x)}%` : "-"}
+            />
+            <StatCard
+              title="3x+ Rate"
+              loading={loading}
+              value={hitRates.rate3x ? `${Math.round(hitRates.rate3x)}%` : "-"}
             />
           </div>
         </section>
@@ -1234,27 +1230,6 @@ export default function UserProfilePage() {
                   </p>
                 ) : null}
               </div>
-
-              <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-                <div>
-                  <p className="text-zinc-500">Best</p>
-                  <p className="font-medium">
-                    {stats.best ? `${stats.best.toFixed(1)}x` : "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-zinc-500">Median</p>
-                  <p className="font-medium">
-                    {stats.median ? `${stats.median.toFixed(1)}x` : "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-zinc-500">Last 10</p>
-                  <p className="font-medium">
-                    {stats.last10Avg ? `${stats.last10Avg.toFixed(1)}x` : "-"}
-                  </p>
-                </div>
-              </div>
               <p className="mt-3 text-xs text-zinc-500">
                 Discord ID · {uid}
               </p>
@@ -1290,46 +1265,6 @@ export default function UserProfilePage() {
             </PanelCard>
             ) : null}
 
-            {visibility.show_key_stats ? (
-            <PanelCard title="Key Stats">
-              <div className="mt-2 space-y-2">
-                {(() => {
-                  const best = profile?.keyStats?.bestMultiple ?? null;
-                  const median = profile?.keyStats?.medianMultiple ?? null;
-                  const last10 = profile?.keyStats?.last10Avg ?? null;
-                  const strong = (n: number | null) =>
-                    n != null && Number.isFinite(n) && n >= 2;
-                  const valClass = (n: number | null) =>
-                    `font-bold tabular-nums ${
-                      strong(n) ? "text-emerald-400" : "text-zinc-200"
-                    }`;
-
-                  return (
-                    <>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-sm text-zinc-500">Best Call</span>
-                        <span className={valClass(best)}>
-                          {best == null ? "—" : `${best.toFixed(1)}x`}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-sm text-zinc-500">Median</span>
-                        <span className={valClass(median)}>
-                          {median == null ? "—" : `${median.toFixed(1)}x`}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-sm text-zinc-500">Last 10</span>
-                        <span className={valClass(last10)}>
-                          {last10 == null ? "—" : `${last10.toFixed(1)}x`}
-                        </span>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </PanelCard>
-            ) : null}
           </div>
         </aside>
       </div>
