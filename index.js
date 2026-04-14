@@ -4273,7 +4273,7 @@ if (lowerContent.startsWith('!truestats')) {
 })();
 
 const PORT = process.env.PORT || 3001;
-console.log("Server binding to 0.0.0.0:", PORT);
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Internal API running on port ${PORT}`);
+  console.log("Server binding to 0.0.0.0:", PORT);
 });
