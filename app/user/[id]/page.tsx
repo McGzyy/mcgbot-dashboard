@@ -526,40 +526,51 @@ export default function UserProfilePage() {
     let cancelled = false;
     setEditLoading(true);
     setEditError(null);
-    fetch("/api/profile", { credentials: "same-origin" })
-      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
-      .then(({ ok, data }) => {
-        if (cancelled) return;
-        if (!data) return;
-        console.log("Loaded profile:", data);
-        if (!ok || typeof data !== "object") {
-          setEditError("Could not load profile.");
+    (async () => {
+      try {
+        const res = await fetch("/api/profile", { credentials: "same-origin" });
+        if (!res.ok) {
+          console.error("Profile fetch failed:", await res.text());
+          if (!cancelled) {
+            setEditBio("");
+            setEditBannerUrl("");
+            setEditXHandle("");
+          }
           return;
         }
+
+        const data = (await res.json().catch(() => null)) as unknown;
+        console.log("Loaded profile:", data);
+
+        if (!data || typeof data !== "object") return;
         const o = data as Record<string, unknown>;
         const bio = o.bio;
         const banner = o.banner_url ?? o.bannerUrl;
         const xh = o.x_handle ?? o.xHandle;
-        setEditBio(
-          typeof bio === "string" ? bio : bio == null ? "" : String(bio)
-        );
+
+        if (cancelled) return;
+        setEditBio(typeof bio === "string" ? bio : bio == null ? "" : String(bio));
         setEditBannerUrl(
-          typeof banner === "string"
-            ? banner
-            : banner == null
-              ? ""
-              : String(banner)
+          typeof banner === "string" ? banner : banner == null ? "" : String(banner)
         );
         setEditXHandle(
-          typeof xh === "string" ? xh.replace(/^@+/, "") : xh == null ? "" : String(xh)
+          typeof xh === "string"
+            ? xh.replace(/^@+/, "")
+            : xh == null
+              ? ""
+              : String(xh)
         );
-      })
-      .catch(() => {
-        if (!cancelled) setEditError("Could not load profile.");
-      })
-      .finally(() => {
+      } catch (err) {
+        console.error("Profile fetch failed:", err);
+        if (!cancelled) {
+          setEditBio("");
+          setEditBannerUrl("");
+          setEditXHandle("");
+        }
+      } finally {
         if (!cancelled) setEditLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -1265,7 +1276,7 @@ export default function UserProfilePage() {
                   Edit Profile
                 </h3>
                 <p className="mt-1 text-xs text-zinc-500">
-                  Update your bio and banner URL.
+                  Customize your profile. Add a bio, banner, and social links.
                 </p>
               </div>
               <button
@@ -1329,13 +1340,9 @@ export default function UserProfilePage() {
                   onChange={(e) => setEditXHandle(e.target.value)}
                   disabled={editLoading || editSaving}
                   className="mt-1 w-full rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
-                  placeholder="your_handle"
+                  placeholder="Enter your X handle (e.g. mcgzyy)"
                 />
               </div>
-
-              {editError ? (
-                <p className="text-sm text-red-400/90">{editError}</p>
-              ) : null}
 
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button

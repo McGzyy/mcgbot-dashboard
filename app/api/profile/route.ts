@@ -66,33 +66,21 @@ export async function GET() {
       return Response.json({ error: "Failed to load profile" }, { status: 500 });
     }
 
-    const row = (data && typeof data === "object") ? (data as Record<string, unknown>) : {};
-    const bio = typeof row.bio === "string" ? row.bio : row.bio == null ? null : String(row.bio);
-    const banner_url =
-      typeof row.banner_url === "string"
-        ? row.banner_url
-        : row.banner_url == null
-          ? null
-          : String(row.banner_url);
-    const x_handle =
-      typeof row.x_handle === "string"
-        ? row.x_handle
-        : row.x_handle == null
-          ? null
-          : String(row.x_handle);
-    const x_verified = Boolean(row.x_verified);
-    const profile_visibility =
-      row.profile_visibility && typeof row.profile_visibility === "object"
-        ? row.profile_visibility
-        : null;
+    console.log("[PROFILE GET]", data);
+    const row = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
 
-    return Response.json({
-      bio,
-      banner_url,
-      x_handle,
-      x_verified,
-      profile_visibility,
-    });
+    const bio =
+      row && typeof row.bio === "string" ? row.bio : "";
+    const banner_url =
+      row && typeof row.banner_url === "string" ? row.banner_url : "";
+    const x_handle =
+      row && typeof row.x_handle === "string" ? row.x_handle : "";
+    const profile_visibility =
+      row && row.profile_visibility && typeof row.profile_visibility === "object"
+        ? row.profile_visibility
+        : {};
+
+    return Response.json({ bio, banner_url, x_handle, profile_visibility });
   } catch (e) {
     console.error("[profile API] GET:", e);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
