@@ -89,6 +89,22 @@ function formatDateJoined(createdAt: unknown): string | null {
   })}`;
 }
 
+function computeBestCall(calls: { multiple: number; token?: string }[]) {
+  if (!calls || calls.length === 0) return { best: null, token: null };
+  let best: number | null = null;
+  let token: string | null = null;
+  for (const c of calls) {
+    if (!c || typeof c.multiple !== "number" || !Number.isFinite(c.multiple)) {
+      continue;
+    }
+    if (best == null || c.multiple > best) {
+      best = c.multiple;
+      token = typeof c.token === "string" && c.token.trim() ? c.token.trim() : null;
+    }
+  }
+  return { best, token };
+}
+
 function computeHitRates(calls: { multiple: number }[]) {
   if (!calls || calls.length === 0) {
     return { rate2x: null, rate3x: null };
@@ -767,6 +783,7 @@ export default function UserProfilePage() {
     ? formatDateJoined(profile?.created_at)
     : null;
   const hitRates = computeHitRates(profile?.recentCalls || []);
+  const bestCall = computeBestCall(profile?.recentCalls || []);
 
   console.log("Banner URL:", profile?.banner_url);
 
@@ -1233,6 +1250,26 @@ export default function UserProfilePage() {
               <p className="mt-3 text-xs text-zinc-500">
                 Discord ID · {uid}
               </p>
+            </PanelCard>
+
+            <PanelCard title="Best Call">
+              <div className="flex flex-col gap-2">
+                {bestCall.token ? (
+                  <p
+                    className="truncate text-sm text-zinc-300"
+                    title={bestCall.token}
+                  >
+                    {bestCall.token}
+                  </p>
+                ) : null}
+                <p className="text-3xl font-semibold text-emerald-400">
+                  {bestCall.best ? `${bestCall.best.toFixed(1)}x` : "-"}
+                </p>
+
+                <p className="text-xs text-zinc-500">
+                  Highest recorded multiple
+                </p>
+              </div>
             </PanelCard>
 
             {visibility.show_pinned_call ? (
