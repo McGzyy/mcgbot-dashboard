@@ -4,9 +4,9 @@ import { authOptions } from "@/lib/auth";
 
 function supabaseOrError(): SupabaseClient | Response {
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
-    console.error("[profile API] Missing Supabase env vars");
+    console.error("[profile API] Missing Supabase URL or service role key");
     return Response.json({ error: "Supabase not configured" }, { status: 500 });
   }
   return createClient(url, key) as SupabaseClient;
@@ -103,6 +103,8 @@ export async function POST(request: Request) {
 
     const supabase = supabaseOrError();
     if (supabase instanceof Response) return supabase;
+
+    console.log("Using service role for profile save");
 
     const { data, error } = await supabase
       .from("users")
