@@ -2,6 +2,14 @@ require('dotenv').config();
 
 const path = require('path');
 const { readJson, writeJson } = require('./utils/jsonStore');
+const express = require("express");
+const app = express();
+
+app.use(express.json());
+
+app.get("/ping", (req, res) => {
+  res.send("pong");
+});
 
 const {
   Client,
@@ -138,6 +146,47 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent
   ]
+});
+
+app.post("/internal/call", async (req, res) => {
+  try {
+    console.log("BOT RECEIVED CALL", req.body);
+    const auth = req.headers.authorization;
+    if (auth !== `Bearer ${process.env.BOT_API_KEY}`) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { ca } = req.body;
+    if (!ca) {
+      return res.status(400).json({ error: "Missing CA" });
+    }
+
+    // Pick your target channel
+    const channel = client.channels.cache.find(
+      (c) => c.name === "token-calls"
+    );
+
+    if (!channel) {
+      return res.status(500).json({ error: "Channel not found" });
+    }
+
+    const fakeMessage = {
+      author: { id: "dashboard_user" },
+      member: null,
+      channel,
+      guild: channel.guild,
+      reply: async (payload) => {
+        return await channel.send(payload);
+      },
+    };
+
+    await handleCallCommand(fakeMessage, ca, "dashboard");
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("INTERNAL CALL ERROR:", err);
+    return res.status(500).json({ error: "Internal error" });
+  }
 });
 
 const devEditSessions = new Map();
@@ -4222,3 +4271,9 @@ if (lowerContent.startsWith('!truestats')) {
 
   client.login(process.env.DISCORD_TOKEN);
 })();
+
+const PORT = process.env.PORT || 3001;
+console.log("Server binding to 0.0.0.0:", PORT);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Internal API running on port ${PORT}`);
+});
