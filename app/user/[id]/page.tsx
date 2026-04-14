@@ -127,6 +127,18 @@ function computeHitRates(calls: { multiple: number }[]) {
   };
 }
 
+function getRecentForm(calls: { multiple: number }[]) {
+  if (!calls || calls.length === 0) return [];
+
+  return calls.slice(0, 5).map(c => {
+    const m = c.multiple;
+
+    if (m >= 2) return "green";
+    if (m >= 1) return "neutral";
+    return "red";
+  });
+}
+
 function rankMedal(rank: number): string {
   if (rank === 1) return "🥇";
   if (rank === 2) return "🥈";
@@ -784,6 +796,7 @@ export default function UserProfilePage() {
     : null;
   const hitRates = computeHitRates(profile?.recentCalls || []);
   const bestCall = computeBestCall(profile?.recentCalls || []);
+  const recentForm = getRecentForm(profile?.recentCalls || []);
 
   console.log("Banner URL:", profile?.banner_url);
 
@@ -1269,6 +1282,27 @@ export default function UserProfilePage() {
                 <p className="text-xs text-zinc-500">
                   Highest recorded multiple
                 </p>
+              </div>
+            </PanelCard>
+
+            <PanelCard title="Recent Form">
+              <div className="flex gap-2">
+                {recentForm.length > 0 ? (
+                  recentForm.map((f, i) => (
+                    <span
+                      key={i}
+                      className={`h-3 w-3 rounded-full ${
+                        f === "green"
+                          ? "bg-emerald-400"
+                          : f === "neutral"
+                            ? "bg-zinc-500"
+                            : "bg-red-400"
+                      }`}
+                    />
+                  ))
+                ) : (
+                  <span className="text-sm text-zinc-500">No recent calls</span>
+                )}
               </div>
             </PanelCard>
 
