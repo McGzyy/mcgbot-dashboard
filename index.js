@@ -1,6 +1,22 @@
-require('dotenv').config();
+const fs = require("fs");
+const path = require("path");
 
-const path = require('path');
+const envLocalPath = path.join(__dirname, ".env.local");
+const envPath = path.join(__dirname, ".env");
+
+if (fs.existsSync(envLocalPath)) {
+  require("dotenv").config({ path: envLocalPath });
+  console.log("Loaded .env.local");
+} else if (fs.existsSync(envPath)) {
+  require("dotenv").config({ path: envPath });
+  console.log("Loaded .env");
+} else {
+  console.warn("No env file found");
+}
+
+console.log("SUPABASE_URL:", process.env.SUPABASE_URL);
+console.log("SUPABASE_ANON_KEY exists:", !!process.env.SUPABASE_ANON_KEY);
+
 const { readJson, writeJson } = require('./utils/jsonStore');
 const express = require("express");
 const app = express();
