@@ -26,12 +26,6 @@ const REF_BASE = "https://mcgbot.xyz/ref";
 
 const STREAK_COUNT = 2;
 
-const HOT_RIGHT_NOW_MOCK = [
-  { token: "SOLXYZ", tag: "trending" },
-  { token: "DEV123", tag: "active" },
-  { token: "ABC", tag: "2.8x in last hour" },
-];
-
 /** Mock trending rows; `mint` is a placeholder Solana mint for Dexscreener charts. */
 const TRENDING_TOKENS_MOCK = [
   { symbol: "SOLXYZ", stat: 2.4, mint: "So11111111111111111111111111111111111111112" },
@@ -903,47 +897,57 @@ function ActivityFeedPanel({
               className="dashboard-feed-item border-b border-zinc-800 last:border-b-0"
               style={{ animationDelay: `${i * 70}ms` }}
             >
-              <div className="-mx-1 flex items-start gap-2 rounded-md py-2 pl-1 pr-1 transition-colors duration-150 hover:bg-zinc-800/30 sm:pl-2 sm:pr-2">
-                <FollowButton
-                  targetDiscordId={item.discordId}
-                  following={followingIds.has(item.discordId)}
-                  onFollowingChange={(next) => setFollowing(item.discordId, next)}
-                  className="mt-0.5"
-                />
-                <span
-                  className="mt-0.5 flex w-8 shrink-0 justify-center text-base leading-none opacity-[0.88]"
-                  aria-hidden
-                >
-                  {item.type === "win" ? "🔥" : "⚡"}
-                </span>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedActivity(item)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setSelectedActivity(item);
-                    }
-                  }}
-                  className="flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
-                >
-                  <span className="min-w-0 text-zinc-200">
-                    {renderActivityFeedLine(
-                      item,
-                      viewerId,
-                      viewerName,
-                      (badgesByUser ?? {})[item.discordId.trim()] ?? []
-                    )}
-                  </span>
-                  <span className="flex shrink-0 items-center gap-1.5">
-                    <span className="text-xs tabular-nums text-zinc-500">
-                      {formatJoinedAt(callTimeMs(item.time), nowMs)}
+              <div className="relative">
+                <div className="absolute bottom-1 left-0 top-1 w-[2px] rounded-full bg-cyan-400/40" />
+                <div className="pl-3">
+                  <div className="flex items-start gap-2 rounded-lg px-3 py-2 transition-all duration-150 hover:bg-zinc-800/40">
+                    <FollowButton
+                      targetDiscordId={item.discordId}
+                      following={followingIds.has(item.discordId)}
+                      onFollowingChange={(next) => setFollowing(item.discordId, next)}
+                      className="mt-0.5"
+                    />
+                    <span
+                      className="mt-0.5 flex w-8 shrink-0 justify-center text-base leading-none opacity-[0.88]"
+                      aria-hidden
+                    >
+                      {item.type === "win" ? "🔥" : "⚡"}
                     </span>
-                    <span className="text-xs text-zinc-500" aria-hidden>
-                      ↗
-                    </span>
-                  </span>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedActivity(item)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedActivity(item);
+                        }
+                      }}
+                      className="flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                    >
+                      <span className="min-w-0 text-zinc-200">
+                        {renderActivityFeedLine(
+                          item,
+                          viewerId,
+                          viewerName,
+                          (badgesByUser ?? {})[item.discordId.trim()] ?? []
+                        )}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {Number.isFinite(item.multiple) && item.multiple > 0 ? (
+                          <span className="text-emerald-400 font-semibold tabular-nums">
+                            {item.multiple.toFixed(1)}x
+                          </span>
+                        ) : null}
+                        <span className="text-xs tabular-nums text-zinc-500">
+                          {formatJoinedAt(callTimeMs(item.time), nowMs)}
+                        </span>
+                        <span className="text-xs text-zinc-500" aria-hidden>
+                          ↗
+                        </span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </li>
@@ -1551,9 +1555,7 @@ export default function Home() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Personal Stats
         </h2>
-        <div
-          className={`grid gap-3 sm:grid-cols-2 ${showRankWidget ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}
-        >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Avg X"
             value={
@@ -1571,240 +1573,262 @@ export default function Home() {
             value={stats === null ? "—" : stats.callsToday}
           />
           <StatCard title="Streak" value={streakValue} />
+        </div>
+      </section>
+
+      {widgetEnabled(widgets, "market") && <MarketPanel />}
+
+      <div className="mb-4 grid gap-3 lg:grid-cols-3">
+        <div className="lg:col-span-2 flex flex-col gap-3">
+          {widgetEnabled(widgets, "activity") && (
+            <div className="min-h-[420px]">
+              <ActivityFeedPanel
+                feedMode={feedMode}
+                setFeedMode={setFeedMode}
+                loadingActivity={loadingActivity}
+                activity={activity}
+                followingIds={followingIds}
+                setFollowing={setFollowing}
+                nowMs={nowMs}
+                setSelectedActivity={setSelectedActivity}
+                badgesByUser={badgesByUser}
+                viewerId={session.user.id}
+                viewerName={session.user.name}
+              />
+            </div>
+          )}
+
+          {widgetEnabled(widgets, "top_performers") && (
+            <TopPerformersPanel
+              topPerformersLoading={topPerformersLoading}
+              topPerformersToday={topPerformersToday}
+              viewerId={session.user.id}
+              viewerName={session.user.name}
+              badgesByUser={badgesByUser}
+            />
+          )}
+
+          {widgetEnabled(widgets, "trending") && <TrendingPanel />}
+        </div>
+
+        <div className="flex flex-col gap-3">
           {showRankWidget ? (
-            <div className="w-full max-w-sm justify-self-start">
+            <div className="w-full max-w-sm justify-self-start lg:max-w-none">
               <RankPanel
                 yourRankLoading={yourRankLoading}
                 yourWeekRank={yourWeekRank}
               />
             </div>
           ) : null}
-        </div>
-      </section>
 
-      {widgetEnabled(widgets, "market") && <MarketPanel />}
-
-      {widgetEnabled(widgets, "top_performers") && (
-        <TopPerformersPanel
-          topPerformersLoading={topPerformersLoading}
-          topPerformersToday={topPerformersToday}
-          viewerId={session.user.id}
-          viewerName={session.user.name}
-          badgesByUser={badgesByUser}
-        />
-      )}
-
-      <div className="mb-8 grid gap-4 lg:grid-cols-2 lg:items-start">
-        <div className="flex flex-col gap-4">
-          {widgetEnabled(widgets, "activity") && <FollowingFeedPanel />}
-
-          {widgetEnabled(widgets, "hot_now") && (
-          <PanelCard
-            title="🔥 Hot Right Now"
-            elevated
-            titleClassName="normal-case"
-          >
-            <ul className="mt-2 space-y-2">
-              {HOT_RIGHT_NOW_MOCK.map((row) => (
-                <li
-                  key={row.token}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-700/50 bg-zinc-900/40 px-3 py-2"
+          {widgetEnabled(widgets, "quick_actions") && (
+            <PanelCard title="Quick Actions">
+              <div className="mt-2 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmitCallFeedback(null);
+                    setSubmitCallOpen(true);
+                  }}
+                  className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-3 text-base font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-sky-400 hover:shadow-cyan-400/45 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
                 >
-                  <span className="font-medium text-zinc-100">{row.token}</span>
-                  <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium leading-tight text-amber-200/95">
-                    {row.tag}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </PanelCard>
+                  Submit Call
+                </button>
+                <button
+                  type="button"
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-800/80 px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+                >
+                  Copy CA
+                </button>
+                <button
+                  type="button"
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-800/80 px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+                >
+                  Open Chart
+                </button>
+              </div>
+            </PanelCard>
           )}
 
-          {widgetEnabled(widgets, "trending") && <TrendingPanel />}
-
-          {widgetEnabled(widgets, "notes") && <NotesPanel />}
+          {widgetEnabled(widgets, "hot_now") && (
+            <PanelCard
+              title="📈 Trending Tokens"
+              titleClassName="normal-case"
+            >
+              <ul className="mt-2 space-y-2">
+                {TRENDING_TOKENS_MOCK.map((row) => (
+                  <li
+                    key={row.symbol}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-800/50 bg-transparent px-3 py-2"
+                  >
+                    <span className="font-medium text-zinc-100">{row.symbol}</span>
+                    <span className="rounded-full border border-amber-500/35 bg-amber-500/5 px-2.5 py-0.5 text-[11px] font-medium leading-tight text-amber-200/95">
+                      {Number.isFinite(row.stat) ? `${row.stat}x` : "—"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </PanelCard>
+          )}
         </div>
-
-        {widgetEnabled(widgets, "quick_actions") && (
-        <PanelCard title="Quick Actions">
-          <div className="mt-2 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setSubmitCallFeedback(null);
-                setSubmitCallOpen(true);
-              }}
-              className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-4 text-base font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-sky-400 hover:shadow-cyan-400/45 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
-            >
-              Submit Call
-            </button>
-            <button
-              type="button"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
-            >
-              Copy CA
-            </button>
-            <button
-              type="button"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
-            >
-              Open Chart
-            </button>
-          </div>
-        </PanelCard>
-        )}
       </div>
 
       {(widgetEnabled(widgets, "recent_calls") ||
         widgetEnabled(widgets, "referral_link") ||
         widgetEnabled(widgets, "referrals")) && (
-      <div className="w-full max-w-2xl">
-      {widgetEnabled(widgets, "recent_calls") && (
-      <section className="mb-8">
-        <PanelCard title="Your Recent Calls">
-          <p className="mt-2 text-sm text-zinc-500">
-            <Link
-              href={`/user/${encodeURIComponent(session.user.id)}`}
-              className={PROFILE_LINK_CLASS}
-            >
-              {session.user.name ?? "Your profile"}
-            </Link>
-            <UserBadgeIcons
-              badges={badgesByUser[session.user.id.trim()] ?? []}
-              className="ml-1"
-            />
-          </p>
-          {callsLoading ? (
-            <div className="flex min-h-[88px] items-center justify-center py-6">
-              <p className="text-sm text-zinc-500">Loading calls...</p>
-            </div>
-          ) : recentCalls.length === 0 ? (
-            <div className="flex min-h-[88px] items-center justify-center py-6">
-              <p className="text-sm text-zinc-500">No calls yet</p>
-            </div>
-          ) : (
-            <ul className="mt-3 space-y-0 divide-y divide-zinc-800/50 text-sm">
-              {recentCalls.map((call, i) => (
-                <li
-                  key={`${call.token}-${String(call.time)}-${i}`}
-                  className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-1.5 text-zinc-300"
-                >
-                  <span className="min-w-0 font-medium text-zinc-100">
-                    {call.token}
-                    <span className="text-zinc-400"> → </span>
-                    <span
-                      className={`font-semibold tabular-nums ${multipleClass(
-                        call.multiple
-                      )}`}
+        <div className="mb-10 grid gap-3 lg:grid-cols-2">
+          <div>
+            {widgetEnabled(widgets, "recent_calls") && (
+              <PanelCard title="Your Recent Calls">
+                  <p className="mt-2 text-sm text-zinc-500">
+                    <Link
+                      href={`/user/${encodeURIComponent(session.user.id)}`}
+                      className={PROFILE_LINK_CLASS}
                     >
-                      {call.multiple.toFixed(1)}x
-                    </span>
-                  </span>
-                  <span className="ml-auto shrink-0 text-zinc-500">
-                    {formatJoinedAt(callTimeMs(call.time), nowMs)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </PanelCard>
-      </section>
-      )}
-
-      {widgetEnabled(widgets, "referral_link") && (
-      <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Your Referral Link
-        </h2>
-        <div
-          className={`flex flex-col gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 sm:flex-row sm:items-stretch sm:gap-3 ${CARD_HOVER}`}
-        >
-          <input
-            type="text"
-            readOnly
-            value={referralUrl || "Unavailable — sign in again if this stays empty"}
-            className="min-h-11 w-full flex-1 rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 font-mono text-sm text-zinc-300 outline-none ring-sky-500/30 focus:ring-2"
-          />
-          <button
-            type="button"
-            onClick={handleCopy}
-            disabled={!referralUrl}
-            className="shrink-0 rounded-lg bg-sky-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
-          >
-            {copied ? "Copied!" : "Copy"}
-          </button>
-        </div>
-      </section>
-      )}
-
-      {widgetEnabled(widgets, "referrals") && (
-      <section className="mb-10">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Your Referrals
-        </h2>
-        <div
-          className={`w-full overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm sm:px-5 ${CARD_HOVER}`}
-        >
-          {statsLoading ? (
-            <div className="flex min-h-[100px] items-center justify-center py-6">
-              <div className="flex flex-col items-center gap-2">
-                <div
-                  className="h-8 w-48 animate-pulse rounded-md bg-zinc-800/90"
-                  aria-hidden
-                />
-                <p className="text-sm text-zinc-500">Loading referrals…</p>
-              </div>
-            </div>
-          ) : displayedReferrals.length === 0 ? (
-            <div className="flex min-h-[100px] items-center justify-center py-6">
-              <p className="text-sm text-zinc-500">No referrals yet</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[280px] border-separate border-spacing-0 text-left text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-800/50">
-                    <th
-                      scope="col"
-                      className="pb-2 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
-                    >
-                      User
-                    </th>
-                    <th
-                      scope="col"
-                      className="pb-2 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
-                    >
-                      Joined
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/40 text-zinc-300">
-                  {displayedReferrals.map((row) => (
-                    <tr
-                      key={`${row.userId}-${row.joinedAt}`}
-                      className="transition-colors duration-150 hover:bg-zinc-800/45"
-                    >
-                      <td className="py-2 pr-4 font-mono text-xs sm:text-sm">
-                        <Link
-                          href={`/user/${encodeURIComponent(row.userId)}`}
-                          className={PROFILE_LINK_CLASS}
+                      {session.user.name ?? "Your profile"}
+                    </Link>
+                    <UserBadgeIcons
+                      badges={badgesByUser[session.user.id.trim()] ?? []}
+                      className="ml-1"
+                    />
+                  </p>
+                  {callsLoading ? (
+                    <div className="flex min-h-[88px] items-center justify-center py-6">
+                      <p className="text-sm text-zinc-500">Loading calls...</p>
+                    </div>
+                  ) : recentCalls.length === 0 ? (
+                    <div className="flex min-h-[88px] items-center justify-center py-6">
+                      <p className="text-sm text-zinc-500">No calls yet</p>
+                    </div>
+                  ) : (
+                    <ul className="mt-3 space-y-0 divide-y divide-zinc-800/50 text-sm">
+                      {recentCalls.map((call, i) => (
+                        <li
+                          key={`${call.token}-${String(call.time)}-${i}`}
+                          className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-1.5 text-zinc-300"
                         >
-                          {row.userId}
-                        </Link>
-                      </td>
-                      <td className="py-2 text-zinc-400">
-                        {formatJoinedAt(row.joinedAt, nowMs)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                          <span className="min-w-0 font-medium text-zinc-100">
+                            {call.token}
+                            <span className="text-zinc-400"> → </span>
+                            <span
+                              className={`font-semibold tabular-nums ${multipleClass(
+                                call.multiple
+                              )}`}
+                            >
+                              {call.multiple.toFixed(1)}x
+                            </span>
+                          </span>
+                          <span className="ml-auto shrink-0 text-zinc-500">
+                            {formatJoinedAt(callTimeMs(call.time), nowMs)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+              </PanelCard>
+            )}
+          </div>
+
+          <div>
+            {(widgetEnabled(widgets, "referral_link") ||
+              widgetEnabled(widgets, "referrals")) && (
+              <PanelCard title="Referrals">
+                {widgetEnabled(widgets, "referral_link") && (
+                  <div
+                    className={`flex flex-col gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 sm:flex-row sm:items-stretch sm:gap-3 ${CARD_HOVER}`}
+                  >
+                    <input
+                      type="text"
+                      readOnly
+                      value={
+                        referralUrl ||
+                        "Unavailable — sign in again if this stays empty"
+                      }
+                      className="min-h-11 w-full flex-1 rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 font-mono text-sm text-zinc-300 outline-none ring-sky-500/30 focus:ring-2"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      disabled={!referralUrl}
+                      className="shrink-0 rounded-lg bg-sky-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+                    >
+                      {copied ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                )}
+
+                {widgetEnabled(widgets, "referrals") && (
+                  <div
+                    className={
+                      widgetEnabled(widgets, "referral_link") ? "mt-4" : ""
+                    }
+                  >
+                    <div className="w-full overflow-hidden">
+                      {statsLoading ? (
+                        <div className="flex min-h-[100px] items-center justify-center py-6">
+                          <div className="flex flex-col items-center gap-2">
+                            <div
+                              className="h-8 w-48 animate-pulse rounded-md bg-zinc-800/90"
+                              aria-hidden
+                            />
+                            <p className="text-sm text-zinc-500">
+                              Loading referrals…
+                            </p>
+                          </div>
+                        </div>
+                      ) : displayedReferrals.length === 0 ? (
+                        <div className="flex min-h-[100px] items-center justify-center py-6">
+                          <p className="text-sm text-zinc-500">No referrals yet</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-[280px] border-separate border-spacing-0 text-left text-sm">
+                            <thead>
+                              <tr className="border-b border-zinc-800/50">
+                                <th
+                                  scope="col"
+                                  className="pb-2 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                                >
+                                  User
+                                </th>
+                                <th
+                                  scope="col"
+                                  className="pb-2 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
+                                >
+                                  Joined
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800/40 text-zinc-300">
+                              {displayedReferrals.map((row) => (
+                                <tr
+                                  key={`${row.userId}-${row.joinedAt}`}
+                                  className="transition-colors duration-150 hover:bg-zinc-800/45"
+                                >
+                                  <td className="py-2 pr-4 font-mono text-xs sm:text-sm">
+                                    <Link
+                                      href={`/user/${encodeURIComponent(row.userId)}`}
+                                      className={PROFILE_LINK_CLASS}
+                                    >
+                                      {row.userId}
+                                    </Link>
+                                  </td>
+                                  <td className="py-2 text-zinc-400">
+                                    {formatJoinedAt(row.joinedAt, nowMs)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </PanelCard>
+            )}
+          </div>
         </div>
-      </section>
-      )}
-      </div>
       )}
 
       <ActivityPopup

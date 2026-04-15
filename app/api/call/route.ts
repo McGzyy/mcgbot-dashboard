@@ -1,53 +1,53 @@
-const SOLANA_CA_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-
-function parseCa(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const ca = raw.trim();
-  if (!ca) return null;
-  if (!SOLANA_CA_RE.test(ca)) return null;
-  return ca;
-}
-
 export async function POST(request: Request) {
-  console.log("API CALL HIT");
+  console.log("Forwarding call to bot:", process.env.BOT_API_URL);
 
   try {
-    let body: unknown = null;
-    try {
-      body = await request.json();
-    } catch {
-      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    const botUrl = process.env.BOT_API_URL;
+    if (!botUrl) {
+      return Response.json(
+        { success: false, error: "Missing BOT_API_URL" },
+        { status: 500 }
+      );
     }
 
-    const ca =
-      body && typeof body === "object" && "ca" in body
-        ? parseCa((body as Record<string, unknown>).ca)
-        : null;
-
-    console.log("CA RECEIVED:", ca);
-
-    if (!ca) {
+    const body = (await request.json().catch(() => null)) as unknown;
+    if (!body || typeof body !== "object") {
       return Response.json(
-        { error: "Invalid contract address (ca)" },
+        { success: false, error: "Invalid JSON body" },
         { status: 400 }
       );
     }
 
-    console.log("Calling processCall");
-    // Lazy-load call engine to avoid bundling Discord deps.
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const req = (0, eval)("require") as NodeRequire;
-    const { processCall } = req("../../../lib/callService") as typeof import("../../../lib/callService");
-    await processCall(ca);
-    console.log("processCall completed");
+    const o = body as Record<string, unknown>;
+    const ca = typeof o.ca === "string" ? o.ca.trim() : "";
+    const userId = typeof o.userId === "string" ? o.userId.trim() : "";
 
-    return Response.json({
-      success: true,
-      message: "Call received",
+    console.log("API HIT CA:", ca);
+    console.log("Forwarding to:", botUrl);
+
+    if (!ca) {
+      return Response.json(
+        { success: false, error: "Missing CA" },
+        { status: 400 }
+      );
+    }
+
+    const res = await fetch(`${botUrl}/internal/call`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ca, userId }),
     });
+
+    const data = await res.json().catch(() => null);
+    return Response.json(data ?? { success: res.ok }, { status: res.status });
   } catch (err) {
     console.error("API ERROR:", err);
-    return Response.json({ error: "Call failed" }, { status: 500 });
+    return Response.json(
+      { success: false, error: "Failed to reach bot" },
+      { status: 500 }
+    );
   }
 }
 
