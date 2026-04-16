@@ -2,16 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Avatar } from "@/components/ui/avatar";
 
 type TimeframeId = "daily" | "weekly" | "monthly" | "all";
 
 type LeaderRow = {
   rank: number;
   username: string;
+  avatarSrc?: string;
   avgX: number;
   bestX: number;
   calls: number;
   winRate?: number;
+  /** vs prior window: positive up, negative down, 0 / omit = flat */
+  rankDelta?: number;
 };
 
 type TopCallRow = {
@@ -25,6 +29,7 @@ type TopCallRow = {
 type LeaderCard = {
   label: "Daily Leader" | "Weekly Leader" | "Monthly Leader";
   username: string;
+  avatarSrc?: string;
   bestCall: string;
   multiplier: number;
   avg: number;
@@ -41,36 +46,82 @@ const TIMEFRAMES: { id: TimeframeId; label: string }[] = [
   { id: "all", label: "All" },
 ];
 
-const MOCK_USERS: Record<TimeframeId, LeaderRow[]> = {
-  daily: [
-    { rank: 1, username: "user_1", avgX: 2.8, bestX: 4.2, calls: 5, winRate: 62 },
-    { rank: 2, username: "user_2", avgX: 2.1, bestX: 3.4, calls: 4, winRate: 50 },
-    { rank: 3, username: "user_3", avgX: 1.7, bestX: 2.6, calls: 6, winRate: 33 },
-  ],
-  weekly: [
-    { rank: 1, username: "SignalKing", avgX: 3.3, bestX: 6.1, calls: 22, winRate: 58 },
-    { rank: 2, username: "Luna", avgX: 2.9, bestX: 5.0, calls: 19, winRate: 53 },
-    { rank: 3, username: "Dex", avgX: 2.6, bestX: 4.4, calls: 17, winRate: 49 },
-  ],
-  monthly: [
-    { rank: 1, username: "mcgzzy", avgX: 3.8, bestX: 8.4, calls: 61, winRate: 55 },
-    { rank: 2, username: "Artemis", avgX: 3.1, bestX: 7.0, calls: 54, winRate: 51 },
-    { rank: 3, username: "Nova", avgX: 2.7, bestX: 5.9, calls: 47, winRate: 46 },
-  ],
-  all: [
-    { rank: 1, username: "ArcRunner", avgX: 3.5, bestX: 10.2, calls: 240, winRate: 52 },
-    { rank: 2, username: "WhaleWatcher", avgX: 3.0, bestX: 9.1, calls: 211, winRate: 48 },
-    { rank: 3, username: "TapeReader", avgX: 2.6, bestX: 7.8, calls: 198, winRate: 44 },
-  ],
+function buildUserLeaderboard(tf: TimeframeId): LeaderRow[] {
+  return Array.from({ length: 50 }, (_, i) => {
+    const rank = i + 1;
+    const n = i;
+    const username = `${tf}_caller_${rank}`;
+    return {
+      rank,
+      username,
+      avatarSrc:
+        n % 4 === 0
+          ? undefined
+          : `https://api.dicebear.com/7.x/thumbs/png?seed=${encodeURIComponent(username)}`,
+      avgX: Math.round((Math.max(1.2, 3.85 - n * 0.045) * 10)) / 10,
+      bestX: Math.round((Math.max(2.0, 10.2 - n * 0.16) * 10)) / 10,
+      calls: Math.max(8, 248 - n * 5),
+      winRate: Math.max(36, 59 - (n % 14)),
+      rankDelta: n % 3 === 0 ? 0 : n % 3 === 1 ? 1 : -1,
+    };
+  });
+}
+
+const MOCK_USER_LEADERBOARD: Record<TimeframeId, LeaderRow[]> = {
+  daily: buildUserLeaderboard("daily"),
+  weekly: buildUserLeaderboard("weekly"),
+  monthly: buildUserLeaderboard("monthly"),
+  all: buildUserLeaderboard("all"),
 };
 
-const MOCK_TOP_CALLS: TopCallRow[] = [
-  { symbol: "SOLX", multiplier: 4.2, username: "user_1", timestamp: "2h ago", callToATH: "12m" },
-  { symbol: "ALPHA", multiplier: 3.8, username: "SignalKing", timestamp: "5h ago", callToATH: "48m" },
-  { symbol: "DGN", multiplier: 3.1, username: "mcgzzy", timestamp: "1d ago", callToATH: "2h" },
-  { symbol: "PEPE2", multiplier: 2.4, username: "Luna", timestamp: "2d ago", callToATH: "6h" },
-  { symbol: "JUP", multiplier: 1.9, username: "Dex", timestamp: "3d ago", callToATH: "1d" },
-];
+function buildTopCalls(tf: TimeframeId, who: "users" | "bot"): TopCallRow[] {
+  const symbols = [
+    "SOLX",
+    "ALPHA",
+    "DGN",
+    "PEPE2",
+    "JUP",
+    "WIF",
+    "BONK",
+    "BOME",
+    "GIGA",
+    "POPCAT",
+  ];
+
+  const timeByTf: Record<TimeframeId, string[]> = {
+    daily: ["5m ago", "12m ago", "30m ago", "1h ago", "2h ago"],
+    weekly: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    monthly: ["Apr 2", "Apr 8", "Apr 12", "Apr 18", "Apr 23"],
+    all: ["Jan 2026", "Feb 2026", "Mar 2026", "2025", "2024"],
+  };
+
+  const toAthByTf: Record<TimeframeId, string[]> = {
+    daily: ["5m", "7m", "12m", "22m", "48m"],
+    weekly: ["35m", "1h", "2h", "4h", "8h"],
+    monthly: ["52m", "1h", "3h", "6h", "1d"],
+    all: ["1d", "2d", "3d", "5d", "7d"],
+  };
+
+  return Array.from({ length: 50 }, (_, i) => {
+    const n = i;
+    const rank = i + 1;
+    const sym = symbols[n % symbols.length];
+    const timestamp = timeByTf[tf][n % timeByTf[tf].length];
+    const callToATH = toAthByTf[tf][n % toAthByTf[tf].length];
+    const multiplier = Math.round(Math.max(1.4, (who === "bot" ? 8.2 : 7.4) - n * 0.12) * 10) / 10;
+    const username =
+      who === "bot" ? "McGBot" : `${tf}_caller_${Math.max(1, 1 + (n % 50))}`;
+
+    return { symbol: sym, multiplier, username, timestamp, callToATH };
+  });
+}
+
+const MOCK_INDIV_CALLS: Record<TimeframeId, TopCallRow[]> = {
+  daily: buildTopCalls("daily", "users"),
+  weekly: buildTopCalls("weekly", "users"),
+  monthly: buildTopCalls("monthly", "users"),
+  all: buildTopCalls("all", "users"),
+};
 
 const trendingNow = {
   symbol: "SOLX",
@@ -79,40 +130,81 @@ const trendingNow = {
   timeAgo: "12m ago",
 };
 
-const mostActive = {
-  user: "SignalKing",
-  calls1h: 6,
-  calls24h: 18,
-  avgPerDay: 4.1,
-};
-
 const MOCK_MCGBOT_TOP_CALLS: Record<TimeframeId, TopCallRow[]> = {
-  daily: [
-    { symbol: "BOME", multiplier: 3.4, username: "McGBot", timestamp: "30m ago", callToATH: "7m" },
-    { symbol: "WIF", multiplier: 2.8, username: "McGBot", timestamp: "1h ago", callToATH: "22m" },
-    { symbol: "BONK", multiplier: 2.1, username: "McGBot", timestamp: "3h ago", callToATH: "1h" },
-  ],
-  weekly: [
-    { symbol: "SOLX", multiplier: 5.2, username: "McGBot", timestamp: "Tue", callToATH: "35m" },
-    { symbol: "DEV123", multiplier: 4.1, username: "McGBot", timestamp: "Wed", callToATH: "2h" },
-    { symbol: "ABC", multiplier: 3.6, username: "McGBot", timestamp: "Thu", callToATH: "4h" },
-  ],
-  monthly: [
-    { symbol: "ALPHA", multiplier: 6.6, username: "McGBot", timestamp: "Apr 2", callToATH: "1h" },
-    { symbol: "DGN", multiplier: 5.9, username: "McGBot", timestamp: "Apr 8", callToATH: "3h" },
-    { symbol: "SOLX", multiplier: 5.1, username: "McGBot", timestamp: "Apr 12", callToATH: "52m" },
-  ],
-  all: [
-    { symbol: "APEX", multiplier: 8.0, username: "McGBot", timestamp: "Mar 2026", callToATH: "1d" },
-    { symbol: "MOON", multiplier: 7.2, username: "McGBot", timestamp: "Feb 2026", callToATH: "2d" },
-    { symbol: "GEM", multiplier: 6.2, username: "McGBot", timestamp: "Jan 2026", callToATH: "3d" },
-  ],
+  daily: buildTopCalls("daily", "bot"),
+  weekly: buildTopCalls("weekly", "bot"),
+  monthly: buildTopCalls("monthly", "bot"),
+  all: buildTopCalls("all", "bot"),
 };
 
 const MOCK_LEADERS: LeaderCard[] = [
-  { label: "Daily Leader", username: "user_1", bestCall: "SOLX", multiplier: 4.2, avg: 2.8, best: 4.2, calls: 5, winRate: 62 },
-  { label: "Weekly Leader", username: "SignalKing", bestCall: "ALPHA", multiplier: 6.1, avg: 3.3, best: 6.1, calls: 22, winRate: 58 },
-  { label: "Monthly Leader", username: "mcgzzy", bestCall: "DGN", multiplier: 8.4, avg: 3.8, best: 8.4, calls: 61, winRate: 55 },
+  {
+    label: "Daily Leader",
+    username: "user_1",
+    avatarSrc: undefined,
+    bestCall: "SOLX",
+    multiplier: 4.2,
+    avg: 2.8,
+    best: 4.2,
+    calls: 5,
+    winRate: 62,
+  },
+  {
+    label: "Weekly Leader",
+    username: "SignalKing",
+    avatarSrc: `https://api.dicebear.com/7.x/thumbs/png?seed=${encodeURIComponent("SignalKing")}`,
+    bestCall: "ALPHA",
+    multiplier: 6.1,
+    avg: 3.3,
+    best: 6.1,
+    calls: 22,
+    winRate: 58,
+  },
+  {
+    label: "Monthly Leader",
+    username: "mcgzzy",
+    avatarSrc: `https://api.dicebear.com/7.x/thumbs/png?seed=${encodeURIComponent("mcgzzy")}`,
+    bestCall: "DGN",
+    multiplier: 8.4,
+    avg: 3.8,
+    best: 8.4,
+    calls: 61,
+    winRate: 55,
+  },
+];
+
+/** Mock: community avg time call → ATH */
+const USER_AVG_TO_ATH = "68m";
+/** Mock: community avg time call → 2x */
+const USER_AVG_TO_2X = "14m";
+
+type BotMilestoneRow = {
+  token: string;
+  milestone: "2x" | "3x" | "5x" | "10x" | "ATH";
+  timeTo: string;
+  ago: string;
+};
+
+type LiveBotActivityRow = {
+  token: string;
+  mc: number;
+  ago: string;
+};
+
+const MOCK_BOT_MILESTONES: BotMilestoneRow[] = [
+  { token: "BOME", milestone: "2x", timeTo: "5m", ago: "just now" },
+  { token: "WIF", milestone: "3x", timeTo: "22m", ago: "2m ago" },
+  { token: "BONK", milestone: "ATH", timeTo: "1h", ago: "10m ago" },
+  { token: "POPCAT", milestone: "5x", timeTo: "2h", ago: "28m ago" },
+  { token: "GIGA", milestone: "10x", timeTo: "6h", ago: "1h ago" },
+];
+
+const MOCK_LIVE_BOT_ACTIVITY: LiveBotActivityRow[] = [
+  { token: "SOLX", mc: 15400, ago: "2m ago" },
+  { token: "WIF", mc: 28100, ago: "5m ago" },
+  { token: "BONK", mc: 120000, ago: "12m ago" },
+  { token: "BOME", mc: 8600, ago: "18m ago" },
+  { token: "POPCAT", mc: 44500, ago: "33m ago" },
 ];
 
 function fmtX(n: number): string {
@@ -120,21 +212,42 @@ function fmtX(n: number): string {
   return `${n.toFixed(1)}x`;
 }
 
-function parseCallToAthMinutes(value: string): number {
-  const v = value.trim().toLowerCase();
-  const m = v.match(/^(\d+)\s*m$/);
-  if (m) return Number(m[1]);
-  const h = v.match(/^(\d+)\s*h$/);
-  if (h) return Number(h[1]) * 60;
-  const d = v.match(/^(\d+)\s*d$/);
-  if (d) return Number(d[1]) * 60 * 24;
-  return Number.POSITIVE_INFINITY;
+function fmtMC(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return `${Math.round(n)}`;
+}
+
+function avatarUrlFor(name: string): string | undefined {
+  const cleaned = (name ?? "").trim();
+  if (!cleaned) return undefined;
+  if (cleaned === "McGBot") return undefined;
+  return `https://api.dicebear.com/7.x/thumbs/png?seed=${encodeURIComponent(cleaned)}`;
 }
 
 function symbolBadge(symbol: string) {
   const s = symbol.trim().toUpperCase();
   const letters = s.replace(/[^A-Z0-9]/g, "").slice(0, 2) || "—";
   return letters.length >= 2 ? letters.slice(0, 2) : `${letters}•`.slice(0, 2);
+}
+
+function RankDelta({ delta }: { delta?: number }) {
+  if (delta === undefined || delta === 0) {
+    return <span className="text-[10px] tabular-nums text-zinc-600">—</span>;
+  }
+  if (delta > 0) {
+    return (
+      <span className="text-[10px] font-medium tabular-nums text-emerald-400">
+        ▲ +{delta}
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] font-medium tabular-nums text-red-400/90">
+      ▼ {delta}
+    </span>
+  );
 }
 
 function TopCallsList({
@@ -156,25 +269,21 @@ function TopCallsList({
 
   return (
     <div className={shell}>
-      <ul>
+      <ul className="space-y-1">
         {sorted.map((row, i) => {
           return (
             <li
               key={`${row.symbol}-${row.username}-${row.timestamp}-${i}`}
-              className={`flex items-stretch justify-between gap-3 rounded-lg border px-3 py-2.5 transition-all duration-150 hover:bg-zinc-900/60 hover:border-zinc-700 border-b border-zinc-900 last:border-b-0 ${
+              className={[
+                "flex items-center justify-between rounded-lg border px-3 py-2 transition-all duration-150",
+                "hover:bg-zinc-900/60",
                 i === 0
-                  ? "bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_20px_rgba(34,197,94,0.08)]"
-                  : "border-[#1a1a1a] bg-transparent"
-              }`}
+                  ? "border-emerald-500/10 bg-emerald-500/5"
+                  : "border-transparent",
+              ].join(" ")}
             >
-              <div
-                className={`my-0.5 w-[2px] rounded-full ${
-                  i === 0 ? "bg-emerald-400" : "bg-zinc-700"
-                }`}
-                aria-hidden
-              />
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="w-7 shrink-0 text-right text-xs font-medium tabular-nums text-zinc-500">
+                <div className="w-8 shrink-0 text-right text-xs font-medium tabular-nums text-zinc-500">
                   #{i + 1}
                 </div>
                 <div
@@ -184,22 +293,15 @@ function TopCallsList({
                   {symbolBadge(row.symbol)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <span className="font-semibold text-zinc-100">{row.symbol}</span>
-                    <span className="text-xs text-zinc-600">{row.username}</span>
+                  <div className="truncate text-sm font-semibold text-zinc-100">{row.symbol}</div>
+                  <div className="truncate text-xs text-zinc-500">
+                    {row.username} · {row.timestamp}
                   </div>
-                  <div className="mt-0.5 text-[11px] text-zinc-600">{row.timestamp}</div>
                 </div>
               </div>
-              <div className="shrink-0 text-right">
-                <div
-                  className={`text-base font-semibold tabular-nums ${
-                    i === 0 ? "text-emerald-300" : "text-emerald-400"
-                  }`}
-                >
-                  {fmtX(row.multiplier)}
-                </div>
-                <div className="text-[11px] text-zinc-500">{row.callToATH}</div>
+              <div className="shrink-0 text-right min-w-[70px]">
+                <div className="text-base font-bold tabular-nums text-emerald-400">{fmtX(row.multiplier)}</div>
+                <div className="text-xs text-zinc-500">{row.callToATH}</div>
               </div>
             </li>
           );
@@ -212,7 +314,12 @@ function TopCallsList({
 export default function LeaderboardPage() {
   const router = useRouter();
   const [usersTimeframe, setUsersTimeframe] = useState<TimeframeId>("daily");
+  const [userPage, setUserPage] = useState(1);
+  const [indivTimeframe, setIndivTimeframe] = useState<TimeframeId>("daily");
+  const [indivPage, setIndivPage] = useState(1);
   const [mcgbotTimeframe, setMcgbotTimeframe] = useState<TimeframeId>("daily");
+  const [mcgbotPage, setMcgbotPage] = useState(1);
+  const [yourRankTf, setYourRankTf] = useState<"D" | "W" | "M" | "A">("D");
 
   useEffect(() => {
     const scrollToBot = () => {
@@ -226,13 +333,30 @@ export default function LeaderboardPage() {
     return () => window.removeEventListener("hashchange", scrollToBot);
   }, []);
 
-  const userRows = useMemo(
-    () => MOCK_USERS[usersTimeframe] ?? [],
+  const fullUserList = useMemo(
+    () => MOCK_USER_LEADERBOARD[usersTimeframe] ?? [],
     [usersTimeframe]
   );
+
+  const userRows = useMemo(
+    () => fullUserList.slice((userPage - 1) * 10, userPage * 10),
+    [fullUserList, userPage]
+  );
+
+  const indivRows = useMemo(() => {
+    const ITEMS_PER_PAGE = 10;
+    const calls = MOCK_INDIV_CALLS[indivTimeframe] ?? [];
+    const start = (indivPage - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return calls.slice(start, end);
+  }, [indivPage, indivTimeframe]);
   const mcgbotRows = useMemo(
-    () => MOCK_MCGBOT_TOP_CALLS[mcgbotTimeframe] ?? [],
-    [mcgbotTimeframe]
+    () =>
+      (MOCK_MCGBOT_TOP_CALLS[mcgbotTimeframe] ?? []).slice(
+        (mcgbotPage - 1) * 10,
+        mcgbotPage * 10
+      ),
+    [mcgbotPage, mcgbotTimeframe]
   );
 
   const botAllCalls = useMemo(() => MOCK_MCGBOT_TOP_CALLS.all ?? [], []);
@@ -260,16 +384,12 @@ export default function LeaderboardPage() {
       avgMultiplier,
       totalCalls: 18420,
       winRate: 54,
+      avgToAth: "52m",
+      avgTo2x: "14m",
     };
   }, [botAllCalls]);
 
-  const fastestBotCalls = useMemo(() => {
-    return [...botAllCalls]
-      .sort((a, b) => parseCallToAthMinutes(a.callToATH) - parseCallToAthMinutes(b.callToATH))
-      .slice(0, 3);
-  }, [botAllCalls]);
-
-  const allUsers = useMemo(() => MOCK_USERS.all ?? [], []);
+  const allUsers = useMemo(() => MOCK_USER_LEADERBOARD.all ?? [], []);
 
   const allTimeRecords = useMemo(() => {
     const highestMultiplierUser = allUsers.reduce(
@@ -304,27 +424,28 @@ export default function LeaderboardPage() {
     <div className="rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4">
       <div className="overflow-x-auto">
         <div className="min-w-[720px]">
-          <div className="flex items-end justify-between gap-4 border-b border-[#1a1a1a] pb-3 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]">
+          <div className="flex items-end justify-between gap-3 border-b border-[#1a1a1a] pb-2 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]">
             <div className="min-w-0 flex-1">User</div>
-            <div className="flex items-end gap-3">
-              <div className="text-right min-w-[60px]">Avg X</div>
-              <div className="text-right min-w-[60px]">Best X</div>
+            <div className="w-12 shrink-0 text-center">Δ</div>
+            <div className="flex shrink-0 items-end gap-2 sm:gap-3">
+              <div className="text-right min-w-[56px]">Avg X</div>
+              <div className="text-right min-w-[56px]">Best X</div>
             </div>
           </div>
 
-          <div className="space-y-1 pt-2">
+          <div className="space-y-1 pt-1.5">
             {rows.map((r) => (
               <div
                 key={`${r.rank}-${r.username}`}
                 className={[
-                  "flex items-center justify-between rounded-lg border px-3 py-2 transition-colors",
+                  "flex items-center justify-between gap-3 rounded-lg border px-3 py-1.5 transition-all",
                   "hover:bg-zinc-900/60 hover:shadow-[0_0_8px_rgba(255,255,255,0.03)]",
                   r.rank === 1
                     ? "bg-yellow-500/5 border-yellow-500/10"
                     : "border-transparent",
                 ].join(" ")}
               >
-                <div className="min-w-0 flex-1 pr-3">
+                <div className="min-w-0 flex-1 pr-2">
                   <div className="flex items-baseline gap-2">
                     <div className="shrink-0 text-xs tabular-nums text-zinc-500">#{r.rank}</div>
                     <div className="min-w-0 truncate text-sm font-medium text-zinc-200">
@@ -337,11 +458,15 @@ export default function LeaderboardPage() {
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-3">
-                  <div className="text-right min-w-[60px] text-sm font-semibold tabular-nums text-[#39FF14]">
+                <div className="flex w-12 shrink-0 items-center justify-center">
+                  <RankDelta delta={r.rankDelta} />
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                  <div className="text-right min-w-[56px] text-xs font-semibold tabular-nums text-[#39FF14]">
                     {fmtX(r.avgX)}
                   </div>
-                  <div className="text-right min-w-[60px] text-sm font-semibold tabular-nums text-amber-300">
+                  <div className="text-right min-w-[56px] text-xs font-semibold tabular-nums text-amber-300">
                     {fmtX(r.bestX)}
                   </div>
                 </div>
@@ -374,24 +499,31 @@ export default function LeaderboardPage() {
           {MOCK_LEADERS.map((w) => (
             <div
               key={w.label}
-              className="relative group cursor-pointer"
+              className="group relative cursor-pointer transition-all"
               onClick={() => router.push(`/profile/${w.username}`)}
             >
-              <div className="rounded-xl border border-[#2a2415] bg-gradient-to-br from-[#161308] via-[#0c0c0c] to-[#0a0a0a] p-6 shadow-[0_0_28px_rgba(255,215,0,0.12)] transition-shadow hover:shadow-[0_0_36px_rgba(255,215,0,0.18)]">
-                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-yellow-500/80">
-                  {w.label}
-                </p>
-                <p className="text-base font-medium text-zinc-100">{w.username}</p>
-                <p className="mt-3 text-xs text-zinc-600">Best call</p>
-                <div className="mt-1 flex items-end justify-between gap-3">
-                  <span className="text-sm font-medium text-zinc-200">{w.bestCall}</span>
-                  <span className="text-2xl font-bold tabular-nums leading-none text-[#39FF14]">
+              <div className="relative rounded-xl border border-[#2a2415] bg-gradient-to-br from-[#161308] via-[#0c0c0c] to-[#0a0a0a] p-6 shadow-[0_0_28px_rgba(255,215,0,0.12)] transition-all hover:bg-zinc-900/60 hover:shadow-[0_0_36px_rgba(255,215,0,0.18)]">
+                <div className="pr-20">
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-yellow-500/80">
+                    {w.label}
+                  </p>
+                  <p className="text-base font-medium text-zinc-100">{w.username}</p>
+                  <p className="mt-3 text-xs text-zinc-600">Best call</p>
+                  <div className="mt-1">
+                    <span className="text-sm font-medium text-zinc-200">{w.bestCall}</span>
+                  </div>
+                  {w.coin ? <p className="mt-3 text-xs text-zinc-600">Coin: {w.coin}</p> : null}
+                </div>
+
+                <div className="absolute right-6 top-5 h-10 w-10 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
+                  <Avatar src={w.avatarSrc} name={w.username} size="lg" />
+                </div>
+
+                <div className="absolute bottom-5 right-6">
+                  <span className="text-lg font-semibold tabular-nums text-green-400">
                     {fmtX(w.multiplier)}
                   </span>
                 </div>
-                {w.coin ? (
-                  <p className="mt-3 text-xs text-zinc-600">Coin: {w.coin}</p>
-                ) : null}
               </div>
 
               <div
@@ -420,74 +552,106 @@ export default function LeaderboardPage() {
         <div className="mb-6 rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
             <div className="grid h-full grid-cols-2 gap-3">
-              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-                    Highest Multiplier
+              <div className="relative rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+                <div className="pr-16">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="mb-1 text-xs font-semibold tracking-wide text-zinc-300">
+                      HIGHEST MULTIPLIER
+                    </p>
+                    <span className="text-base" aria-hidden />
+                  </div>
+                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+                    {fmtX(allTimeRecords.highestMultiplierUser?.bestX ?? 0)}
                   </p>
-                <span className="text-base" aria-hidden>
-                  ⚡
-                </span>
-              </div>
-              <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
-                {fmtX(allTimeRecords.highestMultiplierUser?.bestX ?? 0)}
-              </p>
-              <p className="mt-1.5 text-xs text-zinc-500">
-                {allTimeRecords.highestMultiplierUser?.username ?? "—"}
-              </p>
-            </div>
-              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-                    Best Average
+                  <p className="mt-1.5 text-xs text-zinc-500">
+                    {allTimeRecords.highestMultiplierUser?.username ?? "—"}
                   </p>
-                <span className="text-base" aria-hidden>
-                  📈
-                </span>
+                </div>
+
+                <div className="absolute right-6 top-5 h-8 w-8 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
+                  <Avatar
+                    src={allTimeRecords.highestMultiplierUser?.avatarSrc}
+                    name={allTimeRecords.highestMultiplierUser?.username ?? "—"}
+                    size="md"
+                  />
+                </div>
               </div>
-              <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
-                {fmtX(allTimeRecords.bestAverageUser?.avgX ?? 0)}
-              </p>
-              <p className="mt-1.5 text-xs text-zinc-500">
-                {allTimeRecords.bestAverageUser?.username ?? "—"}
-              </p>
-            </div>
-              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-                    Most Calls
+              <div className="relative rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+                <div className="pr-16">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="mb-1 text-xs font-semibold tracking-wide text-zinc-300">
+                      BEST AVERAGE
+                    </p>
+                    <span className="text-base" aria-hidden />
+                  </div>
+                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+                    {fmtX(allTimeRecords.bestAverageUser?.avgX ?? 0)}
                   </p>
-                <span className="text-base" aria-hidden>
-                  📞
-                </span>
-              </div>
-              <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-100">
-                {Number.isFinite(allTimeRecords.mostCalls?.calls)
-                  ? allTimeRecords.mostCalls?.calls
-                  : "—"}
-              </p>
-              <p className="mt-1.5 text-xs text-zinc-500">
-                {allTimeRecords.mostCalls?.username ?? "—"}
-              </p>
-            </div>
-              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-                    Best Win Rate
+                  <p className="mt-1.5 text-xs text-zinc-500">
+                    {allTimeRecords.bestAverageUser?.username ?? "—"}
                   </p>
-                <span className="text-base" aria-hidden>
-                  🎯
-                </span>
+                </div>
+
+                <div className="absolute right-6 top-5 h-8 w-8 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
+                  <Avatar
+                    src={allTimeRecords.bestAverageUser?.avatarSrc}
+                    name={allTimeRecords.bestAverageUser?.username ?? "—"}
+                    size="md"
+                  />
+                </div>
               </div>
-              <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-100">
-                {typeof allTimeRecords.bestWinRateUser?.winRate === "number"
-                  ? `${allTimeRecords.bestWinRateUser.winRate.toFixed(0)}%`
-                  : "—"}
-              </p>
-              <p className="mt-1.5 text-xs text-zinc-500">
-                {allTimeRecords.bestWinRateUser?.username ?? "—"}
-              </p>
-            </div>
+              <div className="relative rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+                <div className="pr-16">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="mb-1 text-xs font-semibold tracking-wide text-zinc-300">
+                      MOST CALLS
+                    </p>
+                    <span className="text-base" aria-hidden />
+                  </div>
+                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-100">
+                    {Number.isFinite(allTimeRecords.mostCalls?.calls)
+                      ? allTimeRecords.mostCalls?.calls
+                      : "—"}
+                  </p>
+                  <p className="mt-1.5 text-xs text-zinc-500">
+                    {allTimeRecords.mostCalls?.username ?? "—"}
+                  </p>
+                </div>
+
+                <div className="absolute right-6 top-5 h-8 w-8 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
+                  <Avatar
+                    src={allTimeRecords.mostCalls?.avatarSrc}
+                    name={allTimeRecords.mostCalls?.username ?? "—"}
+                    size="md"
+                  />
+                </div>
+              </div>
+              <div className="relative rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+                <div className="pr-16">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="mb-1 text-xs font-semibold tracking-wide text-zinc-300">
+                      BEST WIN RATE
+                    </p>
+                    <span className="text-base" aria-hidden />
+                  </div>
+                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-100">
+                    {typeof allTimeRecords.bestWinRateUser?.winRate === "number"
+                      ? `${allTimeRecords.bestWinRateUser.winRate.toFixed(0)}%`
+                      : "—"}
+                  </p>
+                  <p className="mt-1.5 text-xs text-zinc-500">
+                    {allTimeRecords.bestWinRateUser?.username ?? "—"}
+                  </p>
+                </div>
+
+                <div className="absolute right-6 top-5 h-8 w-8 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
+                  <Avatar
+                    src={allTimeRecords.bestWinRateUser?.avatarSrc}
+                    name={allTimeRecords.bestWinRateUser?.username ?? "—"}
+                    size="md"
+                  />
+                </div>
+              </div>
           </div>
 
             <div className="mx-2 hidden w-px bg-zinc-800 lg:block" />
@@ -503,7 +667,7 @@ export default function LeaderboardPage() {
                   </div>
 
                   <div className="min-w-0">
-                    <div className="text-sm text-zinc-400">🔥 Trending Now (1h)</div>
+                    <div className="text-sm text-zinc-400">Trending Now (1h)</div>
                     <div className="truncate text-base font-semibold text-zinc-100">
                       {trendingNow.symbol}
                     </div>
@@ -525,26 +689,44 @@ export default function LeaderboardPage() {
               <div className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
               <div className="pointer-events-none absolute inset-0 bg-zinc-500/5 blur-2xl opacity-35 transition-opacity duration-300 group-hover:opacity-55" />
 
-              <div className="relative z-10 flex items-center justify-between gap-6">
-                <div className="min-w-0">
-                  <div className="text-sm text-zinc-400">⚡ Most Active (1h)</div>
-                  <div className="truncate text-base font-semibold text-zinc-100">
-                    {mostActive.user}
-                  </div>
-                  <div className="text-xs text-zinc-500">
-                    {mostActive.calls1h} calls (1h) • {mostActive.calls24h} calls (24h)
-                  </div>
-                  <div className="mt-1 text-xs text-zinc-500">
-                    Avg/day: {mostActive.avgPerDay.toFixed(1)} calls
+              <div className="relative z-10">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="text-sm text-zinc-400">Your Rank</div>
+                  <div className="flex gap-1">
+                    {(["D", "W", "M", "A"] as const).map((t) => {
+                      const active = yourRankTf === t;
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setYourRankTf(t)}
+                          className={[
+                            "px-2 py-0.5 text-xs rounded border transition",
+                            active
+                              ? "border-green-400 text-zinc-100"
+                              : "border-zinc-700 text-zinc-500 hover:border-green-400 hover:text-zinc-100",
+                          ].join(" ")}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <div className="shrink-0 text-right">
-                  <div className="text-lg font-bold tabular-nums text-emerald-400">
-                    {mostActive.calls1h}
+                <div className="mt-2 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-zinc-400">Rank</div>
+                    <div className="text-xl font-semibold text-white">#12</div>
                   </div>
-                  <div className="text-[10px] text-zinc-500">calls (1h)</div>
+
+                  <div className="text-right">
+                    <div className="text-sm text-zinc-400">Win Rate</div>
+                    <div className="text-green-400 font-medium">58%</div>
+                  </div>
                 </div>
+
+                <div className="mt-2 text-xs text-zinc-500">18 calls • 24h</div>
               </div>
             </div>
           </div>
@@ -554,12 +736,40 @@ export default function LeaderboardPage() {
 
       {/* USER PERFORMANCE */}
       <div className="mt-10 rounded-xl border border-zinc-900 bg-[#050505]/60 p-5">
-        <div className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
+        <div className="mb-3 text-xs font-semibold tracking-wide text-zinc-400">
           User Performance
         </div>
 
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                AVG CALL → ATH
+              </p>
+              <span className="text-base" aria-hidden />
+            </div>
+            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+              {USER_AVG_TO_ATH}
+            </p>
+            <p className="mt-1.5 text-xs text-zinc-500">Community calls (mocked)</p>
+          </div>
+
+          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                AVG → 2X
+              </p>
+              <span className="text-base" aria-hidden />
+            </div>
+            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+              {USER_AVG_TO_2X}
+            </p>
+            <p className="mt-1.5 text-xs text-zinc-500">Community calls (mocked)</p>
+          </div>
+        </div>
+
         {/* User Leaderboard */}
-        <section className="space-y-4">
+        <section className="mt-6 space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className={sectionTitle}>User Leaderboard</h2>
@@ -572,7 +782,10 @@ export default function LeaderboardPage() {
                   <button
                     key={tf.id}
                     type="button"
-                    onClick={() => setUsersTimeframe(tf.id)}
+                    onClick={() => {
+                      setUsersTimeframe(tf.id);
+                      setUserPage(1);
+                    }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       active
                         ? "border-[#39FF14]/40 bg-[#0a0a0a] text-white"
@@ -586,25 +799,89 @@ export default function LeaderboardPage() {
             </div>
           </div>
           <Table rows={userRows} />
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+            {[1, 2, 3, 4, 5].map((p) => {
+              const active = userPage === p;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => setUserPage(p)}
+                  className={`min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+                    active
+                      ? "border-[#39FF14]/45 bg-[#0a0a0a] text-[#39FF14]"
+                      : "border-[#1a1a1a] bg-[#050505] text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         {/* Indiv. Call Leaderboard */}
         <div className="mt-8">
           <section className="space-y-4">
-            <div>
-              <h2 className={sectionTitle}>Indiv. Call Leaderboard</h2>
-              <p className="mt-0.5 text-xs text-zinc-600">
-                Top individual calls ranked by multiplier (mocked)
-              </p>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className={sectionTitle}>Indiv. Call Leaderboard</h2>
+                <p className="mt-0.5 text-xs text-zinc-600">
+                  Top individual calls ranked by multiplier (mocked)
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {TIMEFRAMES.map((tf) => {
+                  const active = indivTimeframe === tf.id;
+                  return (
+                    <button
+                      key={tf.id}
+                      type="button"
+                    onClick={() => {
+                      setIndivTimeframe(tf.id);
+                      setIndivPage(1);
+                    }}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        active
+                          ? "border-[#39FF14]/40 bg-[#0a0a0a] text-white"
+                          : "border-[#1a1a1a] bg-[#050505] text-zinc-500 hover:text-white"
+                      }`}
+                    >
+                      {tf.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <TopCallsList rows={MOCK_TOP_CALLS} tone="default" />
+            <TopCallsList rows={indivRows} tone="default" />
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+              {[1, 2, 3, 4, 5].map((p) => {
+                const active = indivPage === p;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setIndivPage(p)}
+                    className={`min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+                      active
+                        ? "border-[#39FF14]/45 bg-[#0a0a0a] text-[#39FF14]"
+                        : "border-[#1a1a1a] bg-[#050505] text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
           </section>
         </div>
       </div>
 
       {/* BOT PERFORMANCE */}
       <div id="bot-performance" className="mt-16 rounded-xl border border-zinc-900 bg-[#050505]/60 p-5">
-        <div className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
+        <div className="mb-3 text-xs font-semibold tracking-wide text-zinc-400">
           Bot Performance
         </div>
 
@@ -615,9 +892,7 @@ export default function LeaderboardPage() {
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Best Bot Call (All-Time)
               </p>
-              <span className="text-base" aria-hidden>
-                🏆
-              </span>
+              <span className="text-base" aria-hidden />
             </div>
             <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
               {fmtX(botSummary.bestMultiplier)}
@@ -630,9 +905,7 @@ export default function LeaderboardPage() {
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Avg Multiplier
               </p>
-              <span className="text-base" aria-hidden>
-                📈
-              </span>
+              <span className="text-base" aria-hidden />
             </div>
             <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
               {fmtX(botSummary.avgMultiplier)}
@@ -645,9 +918,7 @@ export default function LeaderboardPage() {
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Total Calls
               </p>
-              <span className="text-base" aria-hidden>
-                📞
-              </span>
+              <span className="text-base" aria-hidden />
             </div>
             <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-100">
               {botSummary.totalCalls.toLocaleString()}
@@ -660,53 +931,112 @@ export default function LeaderboardPage() {
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Win Rate
               </p>
-              <span className="text-base" aria-hidden>
-                🎯
-              </span>
+              <span className="text-base" aria-hidden />
             </div>
             <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-100">
               {botSummary.winRate}%
             </p>
             <p className="mt-1.5 text-xs text-zinc-500">Mock aggregate</p>
           </div>
-        </div>
 
-        {/* Fastest Calls */}
-        <div className="mt-6">
-          <div className="mb-2">
-            <h3 className="text-sm font-semibold text-zinc-100">Fastest Calls (Call → ATH)</h3>
-            <p className="mt-0.5 text-xs text-zinc-600">Shortest time from call to ATH (mocked)</p>
+          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                Avg → ATH
+              </p>
+              <span className="text-base" aria-hidden />
+            </div>
+            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+              {botSummary.avgToAth}
+            </p>
+            <p className="mt-1.5 text-xs text-zinc-500">Mean call → ATH (mocked)</p>
           </div>
 
-          <div className="rounded-xl border border-[#1a1a1a]/80 bg-[#080808] p-3 opacity-[0.94]">
-            <ul className="space-y-2">
-              {fastestBotCalls.map((c, idx) => (
-                <li
-                  key={`${c.symbol}-${c.callToATH}-${idx}`}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-transparent px-3 py-2.5"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#050505] text-[10px] font-bold tabular-nums text-zinc-300"
-                      aria-hidden
-                    >
-                      {symbolBadge(c.symbol)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-zinc-100">{c.symbol}</div>
-                      <div className="text-[11px] text-zinc-600">Call → ATH</div>
-                    </div>
-                  </div>
+          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                Avg → 2x
+              </p>
+              <span className="text-base" aria-hidden />
+            </div>
+            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+              {botSummary.avgTo2x}
+            </p>
+            <p className="mt-1.5 text-xs text-zinc-500">Mean call → 2x (mocked)</p>
+          </div>
+        </div>
 
-                  <div className="shrink-0 text-right">
-                    <div className="text-sm font-semibold tabular-nums text-[#39FF14]">
-                      {fmtX(c.multiplier)}
+        {/* Activity */}
+        <div className="mt-6 grid grid-cols-2 gap-6 items-stretch">
+          {/* Recent Milestone Hits */}
+          <div className="h-full max-h-[400px] flex flex-col rounded-xl border border-zinc-900 bg-[#050505]/40 p-4">
+            <div className="mb-2">
+              <h3 className="text-sm font-semibold text-zinc-100">Recent Milestone Hits</h3>
+              <p className="mt-0.5 text-xs text-zinc-600">Call → milestone activity (mocked)</p>
+            </div>
+            <div className="flex-1 overflow-y-auto rounded-xl border border-[#1a1a1a]/80 bg-[#080808] p-3 opacity-[0.94] scrollbar-thin scrollbar-thumb-zinc-700/50 scrollbar-track-transparent">
+              <ul className="space-y-1">
+                {MOCK_BOT_MILESTONES.map((row, idx) => (
+                  <li
+                    key={`${row.token}-${row.milestone}-${idx}`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-transparent px-3 py-1.5 transition-all duration-150 hover:bg-zinc-900/60"
+                  >
+                    <div className="min-w-0 flex-1 truncate text-[12px] text-zinc-200">
+                      <span className="font-semibold text-zinc-100">{row.token}</span>{" "}
+                      <span className="text-zinc-600">
+                        {row.milestone === "ATH" ? "reached" : "hit"}
+                      </span>{" "}
+                      <span
+                        className={[
+                          "font-semibold tabular-nums",
+                          row.milestone === "ATH" ? "text-amber-300" : "text-[#39FF14]",
+                        ].join(" ")}
+                      >
+                        {row.milestone}
+                      </span>{" "}
+                      <span className="text-zinc-600">in</span>{" "}
+                      <span className="tabular-nums text-zinc-400">{row.timeTo}</span>
                     </div>
-                    <div className="text-[11px] text-zinc-500">{c.callToATH}</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <div className="shrink-0 text-right text-[11px] tabular-nums text-zinc-600">
+                      {row.ago}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Live Bot Activity */}
+          <div className="h-full max-h-[400px] flex flex-col rounded-xl border border-zinc-900 bg-[#050505]/40 p-4">
+            <div className="mb-2">
+              <h3 className="text-sm font-semibold text-zinc-100">Live Bot Activity</h3>
+              <p className="mt-0.5 text-xs text-zinc-600">Recent bot calls (mocked)</p>
+            </div>
+            <div className="flex-1 overflow-y-auto rounded-xl border border-[#1a1a1a]/80 bg-[#080808] p-3 opacity-[0.94] scrollbar-thin scrollbar-thumb-zinc-700/50 scrollbar-track-transparent">
+              <ul className="space-y-1">
+                {MOCK_LIVE_BOT_ACTIVITY.map((row, idx) => (
+                  <li
+                    key={`${row.token}-${row.ago}-${idx}`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-transparent px-3 py-1.5 transition-all duration-150 hover:bg-zinc-900/60"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[12px] font-semibold text-zinc-100">
+                        {row.token}
+                      </div>
+                      <div className="truncate text-[11px] text-zinc-500">
+                        McGBot called {row.token} @{" "}
+                        <span className="font-semibold tabular-nums text-[#39FF14]">
+                          {fmtMC(row.mc)} MC
+                        </span>
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right text-[11px] tabular-nums text-zinc-600">
+                      {row.ago}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -726,11 +1056,14 @@ export default function LeaderboardPage() {
                   <button
                     key={tf.id}
                     type="button"
-                    onClick={() => setMcgbotTimeframe(tf.id)}
+                    onClick={() => {
+                      setMcgbotTimeframe(tf.id);
+                      setMcgbotPage(1);
+                    }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       active
-                        ? "border-zinc-600 bg-zinc-900/50 text-zinc-200"
-                        : "border-[#1a1a1a] bg-[#050505] text-zinc-600 hover:text-zinc-300"
+                        ? "border-[#39FF14]/40 bg-[#0a0a0a] text-white"
+                        : "border-[#1a1a1a] bg-[#050505] text-zinc-500 hover:text-white"
                     }`}
                   >
                     {tf.label}
@@ -742,6 +1075,26 @@ export default function LeaderboardPage() {
           <p className="mt-2 text-xs text-zinc-600">Automated call highlights (mocked)</p>
           <div className="mt-6">
             <TopCallsList rows={mcgbotRows} tone="muted" />
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+            {[1, 2, 3, 4, 5].map((p) => {
+              const active = mcgbotPage === p;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => setMcgbotPage(p)}
+                  className={`min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+                    active
+                      ? "border-[#39FF14]/45 bg-[#0a0a0a] text-[#39FF14]"
+                      : "border-[#1a1a1a] bg-[#050505] text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
