@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const DEFAULT_WIDGETS: WidgetsEnabled = {
   market: true,
+  live_tracked_calls: true,
   top_performers: true,
   rank: true,
   activity: true,
