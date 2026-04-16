@@ -319,7 +319,15 @@ export default function LeaderboardPage() {
   const [indivPage, setIndivPage] = useState(1);
   const [mcgbotTimeframe, setMcgbotTimeframe] = useState<TimeframeId>("daily");
   const [mcgbotPage, setMcgbotPage] = useState(1);
-  const [yourRankTf, setYourRankTf] = useState<"D" | "W" | "M" | "A">("D");
+  const [range, setRange] = useState<"D" | "W" | "M" | "A">("D");
+
+  const timeframeLabel =
+    {
+      D: "24h",
+      W: "7d",
+      M: "30d",
+      A: "All time",
+    }[range] ?? "24h";
 
   useEffect(() => {
     const scrollToBot = () => {
@@ -658,6 +666,48 @@ export default function LeaderboardPage() {
 
             <div className="flex h-full flex-col gap-4">
               <div className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
+              <div className="pointer-events-none absolute inset-0 bg-zinc-500/5 blur-2xl opacity-35 transition-opacity duration-300 group-hover:opacity-55" />
+
+              <div className="relative z-10">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="text-sm text-zinc-400">Your Rank</div>
+                  <div className="flex gap-1">
+                    {(["D", "W", "M", "A"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setRange(t)}
+                        className={`px-2 py-0.5 text-xs rounded border transition ${
+                          range === t
+                            ? "border-green-400 text-green-400"
+                            : "border-zinc-700 text-zinc-400 hover:border-green-400"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-zinc-400">Rank</div>
+                    <div className="text-2xl font-bold text-white tracking-tight drop-shadow-[0_0_6px_rgba(34,197,94,0.3)]">
+                      #12
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-sm text-zinc-400">Win Rate</div>
+                    <div className="text-green-400 font-medium">58%</div>
+                  </div>
+                </div>
+
+                <div className="mt-2 text-xs text-zinc-500">18 calls • {timeframeLabel}</div>
+              </div>
+            </div>
+
+              <div className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
               <div className="pointer-events-none absolute inset-0 bg-[#39FF14]/5 blur-2xl opacity-40 transition-opacity duration-300 group-hover:opacity-70" />
 
               <div className="relative z-10 flex items-center justify-between gap-6">
@@ -683,50 +733,6 @@ export default function LeaderboardPage() {
                   </div>
                   <div className="text-[10px] text-zinc-500">current</div>
                 </div>
-              </div>
-            </div>
-
-              <div className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
-              <div className="pointer-events-none absolute inset-0 bg-zinc-500/5 blur-2xl opacity-35 transition-opacity duration-300 group-hover:opacity-55" />
-
-              <div className="relative z-10">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="text-sm text-zinc-400">Your Rank</div>
-                  <div className="flex gap-1">
-                    {(["D", "W", "M", "A"] as const).map((t) => {
-                      const active = yourRankTf === t;
-                      return (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setYourRankTf(t)}
-                          className={[
-                            "px-2 py-0.5 text-xs rounded border transition",
-                            active
-                              ? "border-green-400 text-zinc-100"
-                              : "border-zinc-700 text-zinc-500 hover:border-green-400 hover:text-zinc-100",
-                          ].join(" ")}
-                        >
-                          {t}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="mt-2 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-zinc-400">Rank</div>
-                    <div className="text-xl font-semibold text-white">#12</div>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-sm text-zinc-400">Win Rate</div>
-                    <div className="text-green-400 font-medium">58%</div>
-                  </div>
-                </div>
-
-                <div className="mt-2 text-xs text-zinc-500">18 calls • 24h</div>
               </div>
             </div>
           </div>
