@@ -3,6 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 type TimeframeId = "daily" | "weekly" | "monthly" | "all";
 
@@ -45,6 +54,38 @@ const TIMEFRAMES: { id: TimeframeId; label: string }[] = [
   { id: "monthly", label: "Monthly" },
   { id: "all", label: "All" },
 ];
+
+const rankDataMap: Record<"W" | "M" | "Y" | "A", { time: string; rank: number }[]> = {
+  W: [
+    { time: "Mon", rank: 18 },
+    { time: "Tue", rank: 15 },
+    { time: "Wed", rank: 12 },
+    { time: "Thu", rank: 14 },
+    { time: "Fri", rank: 9 },
+    { time: "Sat", rank: 7 },
+    { time: "Sun", rank: 12 },
+  ],
+  M: [
+    { time: "Week 1", rank: 22 },
+    { time: "Week 2", rank: 18 },
+    { time: "Week 3", rank: 14 },
+    { time: "Week 4", rank: 10 },
+  ],
+  Y: [
+    { time: "Jan", rank: 40 },
+    { time: "Mar", rank: 32 },
+    { time: "May", rank: 25 },
+    { time: "Jul", rank: 18 },
+    { time: "Sep", rank: 12 },
+    { time: "Dec", rank: 8 },
+  ],
+  A: [
+    { time: "2022", rank: 80 },
+    { time: "2023", rank: 45 },
+    { time: "2024", rank: 20 },
+    { time: "2025", rank: 12 },
+  ],
+};
 
 function buildUserLeaderboard(tf: TimeframeId): LeaderRow[] {
   return Array.from({ length: 50 }, (_, i) => {
@@ -320,6 +361,7 @@ export default function LeaderboardPage() {
   const [mcgbotTimeframe, setMcgbotTimeframe] = useState<TimeframeId>("daily");
   const [mcgbotPage, setMcgbotPage] = useState(1);
   const [range, setRange] = useState<"D" | "W" | "M" | "A">("D");
+  const [timeframe, setTimeframe] = useState<"W" | "M" | "Y" | "A">("W");
 
   const timeframeLabel =
     {
@@ -495,6 +537,65 @@ export default function LeaderboardPage() {
         <p className="text-sm text-zinc-600">
           Leaders, records, top calls, and user rankings
         </p>
+      </div>
+
+      <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-sm text-zinc-400">Your Performance</div>
+            <div className="font-medium text-white">Rank Over Time</div>
+          </div>
+
+          <div className="flex gap-2">
+            {(["W", "M", "Y", "A"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTimeframe(t)}
+                className={`px-2 py-1 text-xs rounded-md border transition ${
+                  timeframe === t
+                    ? "border-green-500 text-green-400"
+                    : "border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={rankDataMap[timeframe]}>
+              <CartesianGrid stroke="#27272a" strokeDasharray="3 3" />
+              <XAxis
+                dataKey="time"
+                stroke="#71717a"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis reversed stroke="#71717a" fontSize={12} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#09090b",
+                  border: "1px solid #27272a",
+                  borderRadius: "8px",
+                }}
+                labelStyle={{ color: "#a1a1aa" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="rank"
+                stroke="#22c55e"
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={true}
+                style={{ filter: "drop-shadow(0 0 6px rgba(34,197,94,0.4))" }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* 1) Leaders */}
