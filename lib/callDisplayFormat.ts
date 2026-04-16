@@ -6,7 +6,7 @@ export function callTimeMs(t: unknown): number {
 }
 
 export function multipleClass(multiple: number): string {
-  if (multiple >= 2) return "text-emerald-400";
+  if (multiple >= 2) return "text-[#39FF14]";
   if (multiple < 1) return "text-red-400";
   return "text-zinc-200";
 }

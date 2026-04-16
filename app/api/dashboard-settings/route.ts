@@ -23,6 +23,7 @@ function createDashboardAdminClient() {
 
 const WIDGET_KEYS = [
   "market",
+  "live_tracked_calls",
   "top_performers",
   "rank",
   "activity",
@@ -39,6 +40,7 @@ export type WidgetsEnabled = Record<(typeof WIDGET_KEYS)[number], boolean>;
 
 const DEFAULT_WIDGETS: WidgetsEnabled = {
   market: true,
+  live_tracked_calls: true,
   top_performers: true,
   rank: true,
   activity: true,

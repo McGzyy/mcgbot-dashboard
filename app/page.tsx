@@ -8,6 +8,7 @@ import {
 import { ActivityPopup } from "./components/ActivityPopup";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
+import LiveTrackedCallsPanel from "@/components/LiveTrackedCallsPanel";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
@@ -34,14 +35,14 @@ const TRENDING_TOKENS_MOCK = [
 ] as const;
 
 const CARD_HOVER =
-  "transition-[box-shadow,border-color,ring-color] duration-200 ease-out hover:border-zinc-600/50 hover:shadow-lg hover:shadow-black/35 hover:ring-1 hover:ring-zinc-500/15";
+  "transition-[box-shadow,border-color,ring-color] duration-200 ease-out hover:border-[#2a2a2a] hover:shadow-lg hover:shadow-black/35 hover:ring-1 hover:ring-[#2a2a2a]/30";
 
 /** Row hover for Top Performers — border + shadow only (no scale / translate). */
 const TOP_PERFORMER_ROW_INTERACTIVE =
   "cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-zinc-500/40 hover:shadow-md hover:shadow-black/25";
 
 const PROFILE_LINK_CLASS =
-  "text-cyan-400 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50";
+  "text-[#39FF14] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39FF14]/30";
 
 function viewerDisplayName(
   discordId: string,
@@ -71,11 +72,11 @@ function topPerformerVisuals(
 } {
   if (isCurrentUser) {
     return {
-      row: "rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3",
-      badge: "bg-emerald-500/15 text-emerald-400",
+      row: "rounded-xl border border-[#39FF14]/35 bg-[#39FF14]/10 px-4 py-3",
+      badge: "bg-[#39FF14]/15 text-[#39FF14]",
       nameLink:
-        "min-w-0 truncate font-medium text-emerald-400 transition-colors hover:text-emerald-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
-      avgStrong: "font-semibold text-emerald-400",
+        "min-w-0 truncate font-medium text-[#39FF14] transition-colors hover:text-[#39FF14] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39FF14]/35",
+      avgStrong: "font-semibold text-[#39FF14]",
     };
   } else if (index === 0) {
     return {
@@ -103,10 +104,10 @@ function topPerformerVisuals(
     };
   }
   return {
-    row: "rounded-xl border border-zinc-800/90 bg-zinc-900/40 px-4 py-3",
-    badge: "bg-zinc-800 text-zinc-400",
+    row: "rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3",
+    badge: "bg-[#0a0a0a] text-zinc-500",
     nameLink: `${PROFILE_LINK_CLASS} min-w-0 truncate font-medium`,
-    avgStrong: "font-semibold text-emerald-400/95",
+    avgStrong: "font-semibold text-[#39FF14]/95",
   };
 }
 
@@ -510,11 +511,32 @@ function StatCard({
   loading?: boolean;
   positiveHint?: string;
 }) {
+  const valueText =
+    typeof value === "string" || typeof value === "number" ? String(value) : "";
+
+  let valueClassName = "text-zinc-50";
+  if (valueText.includes("x")) {
+    const n = Number(valueText.replace(/[^0-9.]+/g, ""));
+    if (Number.isFinite(n)) {
+      if (n > 3) valueClassName = "text-[#39FF14]";
+      else if (n >= 1) valueClassName = "text-sky-400";
+      else valueClassName = "text-zinc-500";
+    }
+  } else if (valueText.includes("%")) {
+    const n = Number(valueText.replace(/[^0-9.]+/g, ""));
+    if (Number.isFinite(n)) {
+      if (n > 60) valueClassName = "text-[#39FF14]";
+      else if (n >= 40) valueClassName = "text-yellow-400";
+      else valueClassName = "text-red-400";
+    }
+  }
+
   return (
     <div
-      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
+      className={`relative rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
     >
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+      <div className="absolute left-0 right-0 top-0 h-[2px] rounded-t-xl bg-gradient-to-r from-[#39FF14]/40 to-transparent" />
+      <p className="text-xs uppercase tracking-wide text-zinc-600">
         {title}
       </p>
       {loading ? (
@@ -525,11 +547,13 @@ function StatCard({
         />
       ) : (
         <>
-          <div className="mt-1.5 text-3xl font-bold tabular-nums tracking-tight text-zinc-50">
+          <div
+            className={`mt-1.5 text-xl font-semibold tabular-nums tracking-tight ${valueClassName}`}
+          >
             {value}
           </div>
           {positiveHint ? (
-            <p className="mt-1.5 text-xs font-medium text-emerald-400/95">
+            <p className="mt-1.5 text-xs font-medium text-[#39FF14]/95">
               {positiveHint}
             </p>
           ) : null}
@@ -556,8 +580,8 @@ function PanelCard({
   paddingClassName?: string;
 }) {
   const surface = elevated
-    ? "border-zinc-700/90 bg-zinc-800/55 shadow-md shadow-black/25"
-    : "border-zinc-800/80 bg-zinc-900/60 shadow-sm shadow-black/20";
+    ? "border-[#1a1a1a] bg-[#0a0a0a] shadow-md shadow-black/25"
+    : "border-[#1a1a1a] bg-[#0a0a0a] shadow-sm shadow-black/20";
 
   return (
     <div
@@ -579,11 +603,6 @@ function widgetEnabled(
 ): boolean {
   if (widgets === null) return true;
   return Boolean(widgets[key]);
-}
-
-/** Market strip is rendered in `TopBar`; `widgetEnabled` for `market` is applied there. */
-function MarketPanel() {
-  return null;
 }
 
 function NotesPanel() {
@@ -616,7 +635,7 @@ function TrendingPanel() {
               <span className="min-w-0 truncate font-medium text-zinc-100">
                 {row.symbol}
               </span>
-              <span className="shrink-0 tabular-nums text-xs font-semibold text-emerald-400/90">
+              <span className="shrink-0 tabular-nums text-xs font-semibold text-[#39FF14]/90">
                 {row.stat.toFixed(1)}x
               </span>
             </button>
@@ -714,14 +733,14 @@ function RankPanel({
             </span>
             <span>{rankPeriodLabel}</span>
             <span
-              className="text-base font-light leading-none text-emerald-500/75"
+              className="text-base font-light leading-none text-[#39FF14]/70"
               title="Rank change (placeholder)"
               aria-hidden
             >
               ↑
             </span>
           </p>
-          <p className="mt-1.5 text-xs text-emerald-500/65">{comparisonText}</p>
+          <p className="mt-1.5 text-xs text-[#39FF14]/60">{comparisonText}</p>
         </div>
       )}
     </PanelCard>
@@ -795,7 +814,7 @@ function TopPerformersPanel({
                         <span
                           className={
                             isCurrentUser
-                              ? "text-emerald-500/70"
+                              ? "text-[#39FF14]/70"
                               : "text-zinc-500"
                           }
                         >
@@ -806,7 +825,7 @@ function TopPerformersPanel({
                       <p
                         className={`mt-0.5 text-xs tabular-nums ${
                           isCurrentUser
-                            ? "text-emerald-500/60"
+                            ? "text-[#39FF14]/60"
                             : "text-zinc-500"
                         }`}
                       >
@@ -894,7 +913,7 @@ function ActivityFeedPanel({
           {activity.map((item, i) => (
             <li
               key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
-              className="dashboard-feed-item border-b border-zinc-800 last:border-b-0"
+              className="dashboard-feed-item border-b border-[#1a1a1a] last:border-b-0"
               style={{ animationDelay: `${i * 70}ms` }}
             >
               <div className="relative">
@@ -935,9 +954,9 @@ function ActivityFeedPanel({
                       </span>
                       <span className="flex shrink-0 items-center gap-1.5">
                         {Number.isFinite(item.multiple) && item.multiple > 0 ? (
-                          <span className="text-emerald-400 font-semibold tabular-nums">
-                            {item.multiple.toFixed(1)}x
-                          </span>
+                            <span className="font-semibold tabular-nums text-[#39FF14]">
+                              {item.multiple.toFixed(1)}x
+                            </span>
                         ) : null}
                         <span className="text-xs tabular-nums text-zinc-500">
                           {formatJoinedAt(callTimeMs(item.time), nowMs)}
@@ -983,7 +1002,7 @@ function FollowingFeedPanel() {
         {FOLLOWING_FEED_MOCK.slice(0, 10).map((item, i) => (
           <li
             key={`${item.user}-${item.token}-${item.time}-${i}`}
-            className="border-b border-zinc-800 last:border-b-0"
+            className="border-b border-[#1a1a1a] last:border-b-0"
           >
             <div className="-mx-1 flex items-start justify-between gap-3 rounded-md py-2 pl-1 pr-1 transition-colors duration-150 hover:bg-zinc-800/30 sm:pl-2 sm:pr-2">
               <div className="min-w-0">
@@ -1514,7 +1533,7 @@ export default function Home() {
   if (!session) {
     return (
       <div className="flex min-h-[calc(100vh-3rem)] flex-col items-center justify-center px-4">
-        <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/70 p-10 text-center shadow-xl shadow-black/40 backdrop-blur-sm">
+        <div className="w-full max-w-md rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-10 text-center shadow-xl shadow-black/40 backdrop-blur-sm">
           <h1 className="text-xl font-semibold text-zinc-100">McGBot Dashboard</h1>
           <p className="mt-3 text-sm leading-relaxed text-zinc-400">
             Sign in with Discord to view your referral stats and link.
@@ -1576,9 +1595,7 @@ export default function Home() {
         </div>
       </section>
 
-      {widgetEnabled(widgets, "market") && <MarketPanel />}
-
-      <div className="mb-4 grid gap-3 lg:grid-cols-3">
+      <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 flex flex-col gap-3">
           {widgetEnabled(widgets, "activity") && (
             <div className="min-h-[420px]">
@@ -1611,7 +1628,7 @@ export default function Home() {
           {widgetEnabled(widgets, "trending") && <TrendingPanel />}
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           {showRankWidget ? (
             <div className="w-full max-w-sm justify-self-start lg:max-w-none">
               <RankPanel
@@ -1630,25 +1647,27 @@ export default function Home() {
                     setSubmitCallFeedback(null);
                     setSubmitCallOpen(true);
                   }}
-                  className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-3 text-base font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-sky-400 hover:shadow-cyan-400/45 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
+                  className="w-full rounded-xl bg-[#39FF14] px-4 py-3 text-base font-medium text-black shadow-lg shadow-black/40 transition hover:bg-[#2ee012] focus:outline-none focus:ring-2 focus:ring-[#39FF14]/30"
                 >
                   Submit Call
                 </button>
                 <button
                   type="button"
-                  className="w-full rounded-lg border border-zinc-800 bg-zinc-800/80 px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+                  className="w-full rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#39FF14]/20"
                 >
                   Copy CA
                 </button>
                 <button
                   type="button"
-                  className="w-full rounded-lg border border-zinc-800 bg-zinc-800/80 px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+                  className="w-full rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#39FF14]/20"
                 >
                   Open Chart
                 </button>
               </div>
             </PanelCard>
           )}
+
+          {widgetEnabled(widgets, "live_tracked_calls") && <LiveTrackedCallsPanel />}
 
           {widgetEnabled(widgets, "hot_now") && (
             <PanelCard
@@ -1659,7 +1678,7 @@ export default function Home() {
                 {TRENDING_TOKENS_MOCK.map((row) => (
                   <li
                     key={row.symbol}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-800/50 bg-transparent px-3 py-2"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#1a1a1a] bg-transparent px-3 py-2"
                   >
                     <span className="font-medium text-zinc-100">{row.symbol}</span>
                     <span className="rounded-full border border-amber-500/35 bg-amber-500/5 px-2.5 py-0.5 text-[11px] font-medium leading-tight text-amber-200/95">
@@ -1735,7 +1754,7 @@ export default function Home() {
               <PanelCard title="Referrals">
                 {widgetEnabled(widgets, "referral_link") && (
                   <div
-                    className={`flex flex-col gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3 shadow-sm shadow-black/20 sm:flex-row sm:items-stretch sm:gap-3 ${CARD_HOVER}`}
+                    className={`flex flex-col gap-2 rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 shadow-sm shadow-black/20 sm:flex-row sm:items-stretch sm:gap-3 ${CARD_HOVER}`}
                   >
                     <input
                       type="text"
@@ -1744,13 +1763,13 @@ export default function Home() {
                         referralUrl ||
                         "Unavailable — sign in again if this stays empty"
                       }
-                      className="min-h-11 w-full flex-1 rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 font-mono text-sm text-zinc-300 outline-none ring-sky-500/30 focus:ring-2"
+                      className="min-h-11 w-full flex-1 rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 font-mono text-sm text-zinc-300 outline-none ring-[#39FF14]/20 focus:ring-2"
                     />
                     <button
                       type="button"
                       onClick={handleCopy}
                       disabled={!referralUrl}
-                      className="shrink-0 rounded-lg bg-sky-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+                      className="shrink-0 rounded-lg bg-[#39FF14] px-5 py-2 text-sm font-medium text-black transition hover:bg-[#2ee012] disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-[#39FF14]/30"
                     >
                       {copied ? "Copied!" : "Copy"}
                     </button>
@@ -1784,7 +1803,7 @@ export default function Home() {
                         <div className="overflow-x-auto">
                           <table className="w-full min-w-[280px] border-separate border-spacing-0 text-left text-sm">
                             <thead>
-                              <tr className="border-b border-zinc-800/50">
+                              <tr className="border-b border-[#1a1a1a]">
                                 <th
                                   scope="col"
                                   className="pb-2 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
@@ -1854,7 +1873,7 @@ export default function Home() {
             if (e.target === e.currentTarget) setSubmitCallOpen(false);
           }}
         >
-          <div className="w-full max-w-md rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+          <div className="w-full max-w-md rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">
@@ -1867,7 +1886,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setSubmitCallOpen(false)}
-                className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+                className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-2 py-1 text-xs text-zinc-300 hover:bg-[#0a0a0a]"
                 aria-label="Close"
                 disabled={submitCallSubmitting}
               >
@@ -1882,13 +1901,13 @@ export default function Home() {
                 onChange={(e) => setSubmitCallValue(e.target.value)}
                 placeholder="Enter contract address"
                 disabled={submitCallSubmitting}
-                className="w-full rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
+                className="w-full rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[#39FF14]/20 focus:ring-2 disabled:opacity-60"
               />
 
               {submitCallFeedback ? (
                 <p className="text-sm">
                   {submitCallFeedback === "success" ? (
-                    <span className="text-emerald-400">Call submitted</span>
+                    <span className="text-[#39FF14]">Call submitted</span>
                   ) : (
                     <span className="text-zinc-400">Already called</span>
                   )}
@@ -1900,7 +1919,7 @@ export default function Home() {
                   type="button"
                   onClick={() => setSubmitCallOpen(false)}
                   disabled={submitCallSubmitting}
-                  className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                  className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-[#0a0a0a] disabled:opacity-60"
                 >
                   Cancel
                 </button>
@@ -1908,7 +1927,7 @@ export default function Home() {
                   type="button"
                   onClick={handleSubmitCall}
                   disabled={submitCallSubmitting || submitCallValue.trim() === ""}
-                  className="rounded-md bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-sky-400 disabled:opacity-60"
+                  className="rounded-md bg-[#39FF14] px-3 py-1.5 text-xs font-medium text-black shadow-lg shadow-black/40 transition hover:bg-[#2ee012] disabled:opacity-60"
                 >
                   {submitCallSubmitting ? "Submitting…" : "Submit"}
                 </button>

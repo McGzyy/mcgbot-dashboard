@@ -3,6 +3,8 @@
  * SOL data from CoinGecko; PumpFun metrics are placeholders until wired to real feeds.
  */
 
+export const dynamic = "force-dynamic";
+
 const PLACEHOLDER_PUMP_VOLUME = 2_400_000;
 const PLACEHOLDER_ACTIVE_TRADERS = 1284;
 
