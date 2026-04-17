@@ -163,6 +163,47 @@ type TopPerformerTodayRow = {
   bestMultiple: number;
 };
 
+type SocialPlatform = "x" | "instagram";
+type SocialFeedItem = {
+  id: string;
+  platform: SocialPlatform;
+  authorName: string;
+  authorHandle: string;
+  postedAtLabel: string;
+  text: string;
+  metricLabel?: string;
+};
+
+const SOCIAL_FEED_MOCK: SocialFeedItem[] = [
+  {
+    id: "x-1",
+    platform: "x",
+    authorName: "Onchain Radar",
+    authorHandle: "@onchainradar",
+    postedAtLabel: "12m",
+    text: "SOL memecoin rotation picking up again. Watch for liquidity returning to midcaps — narratives are shifting fast.",
+    metricLabel: "4.2K",
+  },
+  {
+    id: "ig-1",
+    platform: "instagram",
+    authorName: "Market Narratives",
+    authorHandle: "@marketnarratives",
+    postedAtLabel: "38m",
+    text: "Viral clip: “Why narratives win cycles.” Quick breakdown of how attention flows across Telegram → X → charts.",
+    metricLabel: "18.9K",
+  },
+  {
+    id: "x-2",
+    platform: "x",
+    authorName: "Dex Pulse",
+    authorHandle: "@dexpulse",
+    postedAtLabel: "1h",
+    text: "Trending pairs: volume spikes on SOL with improving depth. If you’re scanning, focus on liquidity + holder distribution.",
+    metricLabel: "2.1K",
+  },
+];
+
 type ActivityItem = {
   type: "win" | "call";
   text: string;
@@ -1073,6 +1114,106 @@ function FollowingFeedPanel() {
   );
 }
 
+function SocialsFeedPanel() {
+  const [tab, setTab] = useState<"all" | SocialPlatform>("all");
+  const rows = useMemo(() => {
+    if (tab === "all") return SOCIAL_FEED_MOCK;
+    return SOCIAL_FEED_MOCK.filter((r) => r.platform === tab);
+  }, [tab]);
+
+  const platformPill = (p: SocialPlatform) =>
+    p === "x"
+      ? "border-zinc-700/60 bg-zinc-900/40 text-zinc-200"
+      : "border-fuchsia-500/25 bg-fuchsia-500/10 text-fuchsia-200";
+
+  return (
+    <PanelCard title="Social Feed" titleClassName="normal-case">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
+          <button
+            type="button"
+            onClick={() => setTab("all")}
+            className={`rounded-md px-2 py-1 text-xs transition-all ${
+              tab === "all"
+                ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
+                : "text-zinc-500 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("x")}
+            className={`rounded-md px-2 py-1 text-xs transition-all ${
+              tab === "x"
+                ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
+                : "text-zinc-500 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            X
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("instagram")}
+            className={`rounded-md px-2 py-1 text-xs transition-all ${
+              tab === "instagram"
+                ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
+                : "text-zinc-500 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            Instagram
+          </button>
+        </div>
+        <div className="text-[11px] text-zinc-500">Curated • mocked for now</div>
+      </div>
+
+      <div className="mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <ul className="space-y-1">
+          {rows.map((item) => (
+            <li
+              key={item.id}
+              className="rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 transition-colors hover:bg-zinc-900/35"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${platformPill(
+                        item.platform
+                      )}`}
+                    >
+                      {item.platform === "x" ? "X" : "IG"}
+                    </span>
+                    <span className="truncate text-sm font-semibold text-zinc-100">
+                      {item.authorName}
+                    </span>
+                    <span className="text-xs text-zinc-500">
+                      {item.authorHandle}
+                    </span>
+                    <span className="text-xs text-zinc-600">•</span>
+                    <span className="text-xs tabular-nums text-zinc-500">
+                      {item.postedAtLabel}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-sm text-zinc-200">
+                    {item.text}
+                  </p>
+                </div>
+
+                {item.metricLabel ? (
+                  <span className="shrink-0 rounded-full border border-zinc-700/60 bg-zinc-900/40 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-zinc-200">
+                    {item.metricLabel}
+                  </span>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </PanelCard>
+  );
+}
+
 async function submitCall(ca: string) {
   const res = await fetch("/api/call", {
     method: "POST",
@@ -1807,6 +1948,8 @@ export default function Home() {
               badgesByUser={badgesByUser}
             />
           )}
+
+          <SocialsFeedPanel />
 
           {showTrendingWidget ? <TrendingPanel /> : null}
         </div>
