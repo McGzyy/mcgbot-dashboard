@@ -118,8 +118,35 @@ type MeStats = {
   avgX: number;
   winRate: number;
   callsToday: number;
+  /** Rolling window immediately before `callsToday` (same length), for day-over-day style deltas. */
+  callsPriorRollingDay?: number;
   totalCalls: number;
 };
+
+function callsTodayDeltaLabel(stats: MeStats | null): ReactNode {
+  if (stats === null) {
+    return <span className="text-zinc-500">—</span>;
+  }
+  const prior = Number.isFinite(stats.callsPriorRollingDay)
+    ? Number(stats.callsPriorRollingDay)
+    : 0;
+  const d = stats.callsToday - prior;
+  if (d > 0) {
+    return (
+      <span className="text-green-400">
+        ↑ +{d} from yesterday
+      </span>
+    );
+  }
+  if (d < 0) {
+    return (
+      <span className="text-red-400">
+        ↓ {Math.abs(d)} from yesterday
+      </span>
+    );
+  }
+  return <span className="text-zinc-500">Flat from yesterday</span>;
+}
 
 type RecentCallRow = {
   token: string;
@@ -681,7 +708,7 @@ function RankPanel({
     <PanelCard
       title="Your Rank"
       titleClassName="normal-case"
-      className="flex h-full max-w-sm flex-col"
+      className="flex h-full w-full flex-col"
     >
       {/* TODO: connect timeframe to real backend stats */}
       <div className="mt-2 flex flex-wrap gap-2">
@@ -1271,12 +1298,18 @@ export default function Home() {
           typeof (json as MeStats).callsToday === "number" &&
           typeof (json as MeStats).totalCalls === "number"
         ) {
-          setStats(json as MeStats);
+          const o = json as MeStats;
+          const callsPriorRollingDay =
+            typeof o.callsPriorRollingDay === "number"
+              ? o.callsPriorRollingDay
+              : 0;
+          setStats({ ...o, callsPriorRollingDay });
         } else {
           setStats({
             avgX: 0,
             winRate: 0,
             callsToday: 0,
+            callsPriorRollingDay: 0,
             totalCalls: 0,
           });
         }
@@ -1287,6 +1320,7 @@ export default function Home() {
             avgX: 0,
             winRate: 0,
             callsToday: 0,
+            callsPriorRollingDay: 0,
             totalCalls: 0,
           });
         }
@@ -1571,6 +1605,7 @@ export default function Home() {
   // TODO: move referral link under banner
 
   const showRankWidget = widgetEnabled(widgets, "rank");
+  const showTrendingWidget = widgetEnabled(widgets, "trending");
 
   return (
     <div className="mx-auto max-w-[1200px] px-1 sm:px-0">
@@ -1578,54 +1613,102 @@ export default function Home() {
         <PerformanceChart />
       </div>
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Personal Stats
-        </h2>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-            <div className="text-xs text-zinc-400">AVG X</div>
-            <div className="mt-1 text-2xl font-bold text-green-400">
-              {stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
+      <section className="mb-8 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold tracking-tight text-zinc-100">
+            Personal Stats{" "}
+            <span className="font-normal text-zinc-500">•</span>{" "}
+            <span className="font-semibold text-[#39FF14]">LIVE</span>
+          </h2>
+          <p className="mt-0.5 text-xs text-zinc-600">
+            Key metrics from your recent activity.
+          </p>
+        </div>
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                  AVG X
+                </div>
+                <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+                  {stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
+                </div>
+                <div className="mt-1 text-xs text-green-400">+0.6x today ↑</div>
+              </div>
+
+              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                  WIN RATE
+                </div>
+                <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+                  {stats === null ? "—" : `${stats.winRate.toFixed(0)}%`}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                  STREAK
+                </div>
+                <div className="mt-2 text-sm font-medium leading-snug text-zinc-100">
+                  {streakValue}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                  BEST CALL (24H)
+                </div>
+                <div className="mt-2 text-sm font-medium text-zinc-200">SOLX</div>
+                <div className="mt-1 text-2xl font-bold tabular-nums text-[#39FF14]">
+                  8.2x
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                  CONSISTENCY
+                </div>
+                <div className="mt-2 text-2xl font-bold tabular-nums text-[#39FF14]">
+                  82%
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                  LAST CALL
+                </div>
+                <div className="mt-2 text-sm font-medium text-zinc-200">SOLX</div>
+                <div className="mt-1 text-2xl font-bold tabular-nums text-[#39FF14]">
+                  4.2x
+                </div>
+                <div className="mt-1 text-xs text-zinc-500">+12m</div>
+              </div>
             </div>
-            <div className="mt-1 text-xs text-green-400">+0.6x today ↑</div>
-          </div>
 
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-            <div className="text-xs text-zinc-400">WIN RATE</div>
-            <div className="text-xl font-semibold text-green-400">
-              {stats === null ? "—" : `${stats.winRate.toFixed(0)}%`}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-            <div className="text-xs text-zinc-400">STREAK</div>
-            <div className="mt-1 text-white font-medium">{streakValue}</div>
-          </div>
-
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-            <div className="text-xs text-zinc-400">BEST CALL (24H)</div>
-            <div className="text-white font-medium">SOLX</div>
-            <div className="text-green-400 text-xl font-bold">8.2x</div>
-          </div>
-
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-            <div className="text-xs text-zinc-400">CONSISTENCY</div>
-            <div className="text-green-400 text-xl font-bold">82%</div>
-          </div>
-
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-            <div className="text-xs text-zinc-400">LAST CALL</div>
-            <div className="mt-1 text-white font-medium">SOLX</div>
-            <div className="text-green-400 text-xl font-bold">4.2x</div>
-            <div className="mt-1 text-xs text-zinc-500">+12m</div>
-          </div>
-
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-            <div className="text-xs text-zinc-400">CALLS TODAY</div>
-            <div className="text-xl font-semibold text-white">
-              {stats === null ? "—" : stats.callsToday}
-            </div>
+            <>
+              <div className="mx-2 hidden w-px shrink-0 bg-zinc-800 lg:block" aria-hidden />
+              <div className="flex min-h-0 flex-col gap-4">
+                {showRankWidget ? (
+                  <RankPanel
+                    yourRankLoading={yourRankLoading}
+                    yourWeekRank={yourWeekRank}
+                  />
+                ) : null}
+                <PanelCard
+                  title="Calls today"
+                  titleClassName="normal-case"
+                  className="flex w-full flex-col"
+                >
+                  <div className="mt-2 text-4xl font-bold tabular-nums tracking-tight text-zinc-50">
+                    {stats === null ? "—" : stats.callsToday}
+                  </div>
+                  <p className="mt-1.5 text-xs leading-snug">
+                    {callsTodayDeltaLabel(stats)}
+                  </p>
+                </PanelCard>
+              </div>
+            </>
           </div>
         </div>
       </section>
@@ -1660,19 +1743,10 @@ export default function Home() {
             />
           )}
 
-          {widgetEnabled(widgets, "trending") && <TrendingPanel />}
+          {showTrendingWidget ? <TrendingPanel /> : null}
         </div>
 
         <div className="flex flex-col gap-4">
-          {showRankWidget ? (
-            <div className="w-full max-w-sm justify-self-start lg:max-w-none">
-              <RankPanel
-                yourRankLoading={yourRankLoading}
-                yourWeekRank={yourWeekRank}
-              />
-            </div>
-          ) : null}
-
           {widgetEnabled(widgets, "quick_actions") && (
             <PanelCard title="Quick Actions">
               <div className="mt-2 flex flex-col gap-2">

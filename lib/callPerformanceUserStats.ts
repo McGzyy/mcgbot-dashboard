@@ -35,6 +35,20 @@ export function countCallsInLastMs(
   }).length;
 }
 
+/** Calls in the prior window of the same length immediately before `countCallsInLastMs` (e.g. 24h–48h ago). */
+export function countCallsInPriorRollingWindow(
+  rows: Record<string, unknown>[],
+  windowMs: number,
+  nowMs: number
+): number {
+  return rows.filter((r) => {
+    const t = rowCallTimeUtcMs(r);
+    if (t <= 0 || nowMs < t) return false;
+    const age = nowMs - t;
+    return age >= windowMs && age < 2 * windowMs;
+  }).length;
+}
+
 export function mapCallPerformanceRowToRecentCall(
   row: Record<string, unknown>
 ): RecentCallDto {

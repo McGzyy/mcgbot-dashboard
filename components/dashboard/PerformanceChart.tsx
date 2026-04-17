@@ -205,7 +205,7 @@ export default function PerformanceChart() {
   return (
     <div className="rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] py-8">
       <div className="mx-auto w-full max-w-[1200px] px-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex w-full items-start justify-between gap-4 pr-10">
           <div className="min-w-0 pl-3">
             <h2 className="text-lg font-semibold tracking-tight text-white">
               Performance Overview

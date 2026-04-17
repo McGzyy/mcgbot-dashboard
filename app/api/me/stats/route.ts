@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import {
   computeCallPerformanceUserStats,
   countCallsInLastMs,
+  countCallsInPriorRollingWindow,
 } from "@/lib/callPerformanceUserStats";
 
 const ROLLING_DAY_MS = 86400000;
@@ -48,11 +49,17 @@ export async function GET() {
       computeCallPerformanceUserStats(rows);
     const now = Date.now();
     const callsToday = countCallsInLastMs(rows, ROLLING_DAY_MS, now);
+    const callsPriorRollingDay = countCallsInPriorRollingWindow(
+      rows,
+      ROLLING_DAY_MS,
+      now,
+    );
 
     return Response.json({
       avgX,
       winRate,
       callsToday,
+      callsPriorRollingDay,
       totalCalls,
     });
   } catch (e) {
