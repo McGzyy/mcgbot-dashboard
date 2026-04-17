@@ -3,11 +3,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
   computeCallPerformanceUserStats,
+  computeMedianX,
+  bestXInLastMs,
+  hitRate2xInLastMs,
   countCallsInLastMs,
   countCallsInPriorRollingWindow,
+  computeActiveDaysStreakUtc,
 } from "@/lib/callPerformanceUserStats";
 
 const ROLLING_DAY_MS = 86400000;
+const ROLLING_30D_MS = 30 * 86400000;
 
 export async function GET() {
   try {
@@ -45,8 +50,8 @@ export async function GET() {
       unknown
     >[];
 
-    const { avgX, winRate, totalCalls } =
-      computeCallPerformanceUserStats(rows);
+    const { avgX, winRate, totalCalls } = computeCallPerformanceUserStats(rows);
+    const medianX = computeMedianX(rows);
     const now = Date.now();
     const callsToday = countCallsInLastMs(rows, ROLLING_DAY_MS, now);
     const callsPriorRollingDay = countCallsInPriorRollingWindow(
@@ -54,12 +59,19 @@ export async function GET() {
       ROLLING_DAY_MS,
       now,
     );
+    const activeDaysStreak = computeActiveDaysStreakUtc(rows, now);
+    const bestX30d = bestXInLastMs(rows, ROLLING_30D_MS, now);
+    const hitRate2x30d = hitRate2xInLastMs(rows, ROLLING_30D_MS, now);
 
     return Response.json({
       avgX,
+      medianX,
       winRate,
       callsToday,
       callsPriorRollingDay,
+      activeDaysStreak,
+      bestX30d,
+      hitRate2x30d,
       totalCalls,
     });
   } catch (e) {

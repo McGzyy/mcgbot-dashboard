@@ -26,8 +26,6 @@ import {
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
-const STREAK_COUNT = 2;
-
 /** Mock trending rows; `mint` is a placeholder Solana mint for Dexscreener charts. */
 const TRENDING_TOKENS_MOCK = [
   { symbol: "SOLXYZ", stat: 2.4, mint: "So11111111111111111111111111111111111111112" },
@@ -43,7 +41,7 @@ const TOP_PERFORMER_ROW_INTERACTIVE =
   "cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-zinc-500/40 hover:shadow-md hover:shadow-black/25";
 
 const PROFILE_LINK_CLASS =
-  "text-[#39FF14] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39FF14]/30";
+  "text-[color:var(--accent)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/30";
 
 function viewerDisplayName(
   discordId: string,
@@ -116,10 +114,15 @@ type ReferralRow = { userId: string; joinedAt: number };
 
 type MeStats = {
   avgX: number;
+  medianX?: number;
   winRate: number;
   callsToday: number;
   /** Rolling window immediately before `callsToday` (same length), for day-over-day style deltas. */
   callsPriorRollingDay?: number;
+  /** Consecutive active UTC days with ≥1 call (ending today if active today, else yesterday). */
+  activeDaysStreak?: number;
+  bestX30d?: number;
+  hitRate2x30d?: number;
   totalCalls: number;
 };
 
@@ -947,7 +950,7 @@ function ActivityFeedPanel({
               <div className="relative">
                 <div className="absolute bottom-1 left-0 top-1 w-[2px] rounded-full bg-cyan-400/40" />
                 <div className="pl-3">
-                  <div className="flex items-start gap-2 rounded-lg px-3 py-2 transition-all duration-150 hover:bg-zinc-800/40">
+                  <div className="flex items-start gap-2 rounded-lg bg-zinc-900/40 px-3 py-2 transition-all duration-150 hover:bg-zinc-800/60">
                     <FollowButton
                       targetDiscordId={item.discordId}
                       following={followingIds.has(item.discordId)}
@@ -982,9 +985,9 @@ function ActivityFeedPanel({
                       </span>
                       <span className="flex shrink-0 items-center gap-1.5">
                         {Number.isFinite(item.multiple) && item.multiple > 0 ? (
-                            <span className="font-semibold tabular-nums text-[#39FF14]">
-                              {item.multiple.toFixed(1)}x
-                            </span>
+                          <span className="font-semibold tabular-nums text-[color:var(--accent)]">
+                            {item.multiple.toFixed(1)}x
+                          </span>
                         ) : null}
                         <span className="text-xs tabular-nums text-zinc-500">
                           {formatJoinedAt(callTimeMs(item.time), nowMs)}
@@ -1294,8 +1297,11 @@ export default function Home() {
           typeof json === "object" &&
           !("error" in json) &&
           typeof (json as MeStats).avgX === "number" &&
+          typeof (json as MeStats).medianX === "number" &&
           typeof (json as MeStats).winRate === "number" &&
           typeof (json as MeStats).callsToday === "number" &&
+          typeof (json as MeStats).bestX30d === "number" &&
+          typeof (json as MeStats).hitRate2x30d === "number" &&
           typeof (json as MeStats).totalCalls === "number"
         ) {
           const o = json as MeStats;
@@ -1303,13 +1309,30 @@ export default function Home() {
             typeof o.callsPriorRollingDay === "number"
               ? o.callsPriorRollingDay
               : 0;
-          setStats({ ...o, callsPriorRollingDay });
+          const activeDaysStreak =
+            typeof o.activeDaysStreak === "number" ? o.activeDaysStreak : 0;
+          const medianX = typeof o.medianX === "number" ? o.medianX : 0;
+          const bestX30d = typeof o.bestX30d === "number" ? o.bestX30d : 0;
+          const hitRate2x30d =
+            typeof o.hitRate2x30d === "number" ? o.hitRate2x30d : 0;
+          setStats({
+            ...o,
+            medianX,
+            bestX30d,
+            hitRate2x30d,
+            callsPriorRollingDay,
+            activeDaysStreak,
+          });
         } else {
           setStats({
             avgX: 0,
+            medianX: 0,
             winRate: 0,
             callsToday: 0,
             callsPriorRollingDay: 0,
+            activeDaysStreak: 0,
+            bestX30d: 0,
+            hitRate2x30d: 0,
             totalCalls: 0,
           });
         }
@@ -1318,9 +1341,13 @@ export default function Home() {
         if (!cancelled) {
           setStats({
             avgX: 0,
+            medianX: 0,
             winRate: 0,
             callsToday: 0,
             callsPriorRollingDay: 0,
+            activeDaysStreak: 0,
+            bestX30d: 0,
+            hitRate2x30d: 0,
             totalCalls: 0,
           });
         }
@@ -1585,19 +1612,48 @@ export default function Home() {
     );
   }
 
+  function streakBadge(days: number): { emoji: string; className?: string } {
+    if (days <= 0) return { emoji: "🥶" };
+    if (days === 1) return { emoji: "👌" };
+    if (days === 2) return { emoji: "🔥", className: "dashboard-fire-emoji" };
+    if (days === 3) return { emoji: "⚡" };
+    if (days >= 7 && days < 14) return { emoji: "🚀" };
+    if (days >= 14 && days < 30) return { emoji: "💎" };
+    if (days >= 30) return { emoji: "👑" };
+    return { emoji: "🔥", className: "dashboard-fire-emoji" };
+  }
+
+  const streakDays = stats?.activeDaysStreak;
+  const streakBadgeUi = streakBadge(streakDays ?? 0);
   const streakValue =
-    STREAK_COUNT > 0 ? (
+    stats === null ? (
+      <div className="text-base font-semibold text-zinc-500">—</div>
+    ) : (streakDays ?? 0) > 0 ? (
       <div>
-        <div className="inline-flex items-baseline gap-2">
-          <span className="dashboard-fire-emoji" aria-hidden>
-            🔥
+        <div className="inline-flex items-center gap-2 text-base font-semibold text-zinc-100">
+          <span
+            className={`${streakBadgeUi.className ?? ""} text-lg leading-none`}
+            aria-hidden
+          >
+            {streakBadgeUi.emoji}
           </span>
-          <span>{STREAK_COUNT} day streak</span>
+          <span>{streakDays} day streak</span>
         </div>
-        <div className="mt-1 text-xs text-green-400">+1 from yesterday</div>
+        <div className="mt-1 text-xs text-zinc-500">Active days</div>
       </div>
     ) : (
-      "0"
+      <div>
+        <div className="inline-flex items-center gap-2 text-base font-semibold text-zinc-300">
+          <span
+            className={`${streakBadgeUi.className ?? ""} text-lg leading-none`}
+            aria-hidden
+          >
+            {streakBadgeUi.emoji}
+          </span>
+          <span>No streak yet</span>
+        </div>
+        <div className="mt-1 text-xs text-zinc-500">Call today to start one</div>
+      </div>
     );
 
   // TODO: add badges next to usernames
@@ -1615,71 +1671,99 @@ export default function Home() {
 
       <section className="mb-8 space-y-4">
         <div>
-          <h2 className="text-base font-semibold tracking-tight text-zinc-100">
-            Personal Stats{" "}
-            <span className="font-normal text-zinc-500">•</span>{" "}
-            <span className="font-semibold text-[#39FF14]">LIVE</span>
-          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-semibold tracking-tight text-zinc-100">
+              Personal Stats
+            </h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--accent)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]" aria-hidden />
+              LIVE
+            </span>
+          </div>
           <p className="mt-0.5 text-xs text-zinc-600">
             Key metrics from your recent activity.
           </p>
         </div>
         <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   AVG X
                 </div>
-                <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+                <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
                   {stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
                 </div>
                 <div className="mt-1 text-xs text-green-400">+0.6x today ↑</div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   WIN RATE
                 </div>
-                <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+                <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
                   {stats === null ? "—" : `${stats.winRate.toFixed(0)}%`}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   STREAK
                 </div>
-                <div className="mt-2 text-sm font-medium leading-snug text-zinc-100">
+                <div className="mt-2">
                   {streakValue}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   BEST CALL (24H)
                 </div>
                 <div className="mt-2 text-sm font-medium text-zinc-200">SOLX</div>
-                <div className="mt-1 text-2xl font-bold tabular-nums text-[#39FF14]">
+                <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   8.2x
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
-                  CONSISTENCY
+                  MEDIAN X
                 </div>
-                <div className="mt-2 text-2xl font-bold tabular-nums text-[#39FF14]">
-                  82%
+                <div className="mt-2 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
+                  {stats === null || (stats.medianX ?? 0) <= 0
+                    ? "—"
+                    : `${(stats.medianX ?? 0).toFixed(1)}x`}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                  2X HIT (30D)
+                </div>
+                <div className="mt-2 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
+                  {stats === null || (stats.bestX30d ?? 0) <= 0
+                    ? "—"
+                    : `${Math.round(stats.hitRate2x30d ?? 0)}%`}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                  BEST X (30D)
+                </div>
+                <div className="mt-2 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
+                  {stats === null || (stats.bestX30d ?? 0) <= 0
+                    ? "—"
+                    : `${(stats.bestX30d ?? 0).toFixed(1)}x`}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   LAST CALL
                 </div>
                 <div className="mt-2 text-sm font-medium text-zinc-200">SOLX</div>
-                <div className="mt-1 text-2xl font-bold tabular-nums text-[#39FF14]">
+                <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   4.2x
                 </div>
                 <div className="mt-1 text-xs text-zinc-500">+12m</div>
@@ -1756,19 +1840,19 @@ export default function Home() {
                     setSubmitCallFeedback(null);
                     setSubmitCallOpen(true);
                   }}
-                  className="w-full rounded-xl bg-[#39FF14] px-4 py-3 text-base font-medium text-black shadow-lg shadow-black/40 transition hover:bg-[#2ee012] focus:outline-none focus:ring-2 focus:ring-[#39FF14]/30"
+                  className="w-full rounded-xl bg-[color:var(--accent)] px-4 py-3 text-base font-medium text-black shadow-lg shadow-black/40 transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/30"
                 >
                   Submit Call
                 </button>
                 <button
                   type="button"
-                  className="w-full rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#39FF14]/20"
+                  className="w-full rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                 >
                   Copy CA
                 </button>
                 <button
                   type="button"
-                  className="w-full rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#39FF14]/20"
+                  className="w-full rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                 >
                   Open Chart
                 </button>
@@ -2010,13 +2094,13 @@ export default function Home() {
                 onChange={(e) => setSubmitCallValue(e.target.value)}
                 placeholder="Enter contract address"
                 disabled={submitCallSubmitting}
-                className="w-full rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[#39FF14]/20 focus:ring-2 disabled:opacity-60"
+                className="w-full rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60"
               />
 
               {submitCallFeedback ? (
                 <p className="text-sm">
                   {submitCallFeedback === "success" ? (
-                    <span className="text-[#39FF14]">Call submitted</span>
+                    <span className="text-[color:var(--accent)]">Call submitted</span>
                   ) : (
                     <span className="text-zinc-400">Already called</span>
                   )}
@@ -2036,7 +2120,7 @@ export default function Home() {
                   type="button"
                   onClick={handleSubmitCall}
                   disabled={submitCallSubmitting || submitCallValue.trim() === ""}
-                  className="rounded-md bg-[#39FF14] px-3 py-1.5 text-xs font-medium text-black shadow-lg shadow-black/40 transition hover:bg-[#2ee012] disabled:opacity-60"
+                  className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-medium text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-60"
                 >
                   {submitCallSubmitting ? "Submitting…" : "Submit"}
                 </button>

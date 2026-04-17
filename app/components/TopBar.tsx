@@ -63,7 +63,11 @@ export function TopBar() {
   const activeNotificationCount = notifications.filter((n) => !n.exiting).length;
   const [market, setMarket] = useState<MarketSnapshot | null>(null);
   const [marketLoading, setMarketLoading] = useState(true);
-  const [pulse, setPulse] = useState(false);
+  const [marketUpdatedAtMs, setMarketUpdatedAtMs] = useState<number | null>(null);
+  const loadedOnceRef = useRef(false);
+  const prevSolPriceRef = useRef<number | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
+  const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
   const [showMarketWidget, setShowMarketWidget] = useState(true);
   const [open, setOpen] = useState(false);
   const [openNotifications, setOpenNotifications] = useState(false);
@@ -74,7 +78,7 @@ export function TopBar() {
     let cancelled = false;
 
     const fetchMarket = () => {
-      setMarketLoading(true);
+      if (!loadedOnceRef.current) setMarketLoading(true);
 
       fetch("/api/market")
         .then((res) => res.json())
@@ -89,18 +93,35 @@ export function TopBar() {
 
           if (!Number.isFinite(solPrice) || solPrice <= 0) return;
 
+          const prev = prevSolPriceRef.current;
+          if (prev != null && Number.isFinite(prev) && prev > 0 && prev !== solPrice) {
+            setPriceFlash(solPrice > prev ? "up" : "down");
+            if (flashTimerRef.current != null) {
+              window.clearTimeout(flashTimerRef.current);
+            }
+            flashTimerRef.current = window.setTimeout(() => {
+              setPriceFlash(null);
+              flashTimerRef.current = null;
+            }, 550);
+          }
+          prevSolPriceRef.current = solPrice;
+
           setMarket({
             solPrice,
             change24h: Number.isFinite(change24h) ? change24h : 0,
             pumpVolume: Number.isFinite(pumpVolume) ? pumpVolume : 0,
             activeTraders: Number.isFinite(activeTraders) ? activeTraders : 0,
           });
+          setMarketUpdatedAtMs(Date.now());
         })
         .catch(() => {
           if (!cancelled) setMarket(null);
         })
         .finally(() => {
-          if (!cancelled) setMarketLoading(false);
+          if (!cancelled) {
+            setMarketLoading(false);
+            loadedOnceRef.current = true;
+          }
         });
     };
 
@@ -113,6 +134,10 @@ export function TopBar() {
     return () => {
       cancelled = true;
       clearInterval(interval);
+      if (flashTimerRef.current != null) {
+        window.clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -141,13 +166,6 @@ export function TopBar() {
   }, [status]);
 
   useEffect(() => {
-    if (!market) return;
-    setPulse(true);
-    const t = setTimeout(() => setPulse(false), 300);
-    return () => clearTimeout(t);
-  }, [market?.solPrice]);
-
-  useEffect(() => {
     if (!open && !openNotifications) return;
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
@@ -168,10 +186,13 @@ export function TopBar() {
 
   const solLineClass =
     market != null && market.change24h >= 0
-      ? "text-[#39FF14]"
+      ? "text-[color:var(--accent)]"
       : market != null
         ? "text-red-400"
         : "text-zinc-300";
+
+  const marketUpdatedLabel =
+    marketUpdatedAtMs == null ? "—" : formatTimeAgo(marketUpdatedAtMs, Date.now());
 
   return (
     <header
@@ -214,7 +235,7 @@ export function TopBar() {
                     <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
                   </svg>
                   {activeNotificationCount > 0 ? (
-                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#39FF14] px-1 text-[10px] font-semibold leading-none text-black">
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[color:var(--accent)] px-1 text-[10px] font-semibold leading-none text-black">
                       {activeNotificationCount > 99
                         ? "99+"
                         : activeNotificationCount}
@@ -334,33 +355,52 @@ export function TopBar() {
 
       {/* MARKET STRIP ROW */}
       {showMarketWidget && (
-        <div className="border-t border-[#1a1a1a] bg-[#0a0a0a] px-4 sm:px-6 py-1.5 text-xs text-zinc-500">
+        <div className="border-t border-[#1a1a1a] bg-gradient-to-r from-[#070707] via-[#0a0a0a] to-[#070707] px-4 sm:px-6 py-2 text-xs text-zinc-500">
           {marketLoading ? (
             <span className="text-zinc-600">Loading market...</span>
           ) : market ? (
-            <div className="flex items-center gap-4 whitespace-nowrap overflow-hidden">
-              <span
-                className={`flex items-center gap-1 font-semibold tabular-nums transition ${
-                  pulse ? "opacity-70" : "opacity-100"
-                } ${market.change24h >= 0 ? "text-[#39FF14]" : "text-red-400"}`}
-              >
-                <span>{market.change24h >= 0 ? "▲" : "▼"}</span>
-                <span>
-                  SOL {formatSolUsd(market.solPrice)} ({formatPctChange(market.change24h)})
+            <div className="flex items-center justify-between gap-3 whitespace-nowrap">
+              <div className="flex min-w-0 items-center gap-3 overflow-hidden">
+                <span
+                  className={[
+                    "flex items-center gap-1 rounded-md border border-transparent px-1.5 py-1 font-semibold tabular-nums transition-colors duration-300",
+                    market.change24h >= 0 ? "text-[color:var(--accent)]" : "text-red-400",
+                    priceFlash === "up"
+                      ? "bg-[color:var(--accent)]/10 border-[color:var(--accent)]/20"
+                      : priceFlash === "down"
+                        ? "bg-red-500/10 border-red-500/20"
+                        : "bg-zinc-900/20 border-zinc-800/40",
+                  ].join(" ")}
+                >
+                  <span>{market.change24h >= 0 ? "▲" : "▼"}</span>
+                  <span>
+                    SOL {formatSolUsd(market.solPrice)} ({formatPctChange(market.change24h)})
+                  </span>
                 </span>
-              </span>
 
-              <span className="text-zinc-700">|</span>
+                <span className="text-zinc-800/80">|</span>
 
-              <span className="text-zinc-600">
-                PumpFun Vol: ${Math.round(market.pumpVolume / 1_000_000)}M
-              </span>
+                <span className="rounded-md border border-zinc-800/50 bg-zinc-900/20 px-2 py-1 text-zinc-400">
+                  PumpFun Vol{" "}
+                  <span className="font-medium text-zinc-200">
+                    {formatUsdCompact(market.pumpVolume)}
+                  </span>
+                </span>
 
-              <span className="text-zinc-700">|</span>
+                <span className="rounded-md border border-zinc-800/50 bg-zinc-900/20 px-2 py-1 text-zinc-400">
+                  Traders{" "}
+                  <span className="font-medium text-zinc-200">
+                    {formatCount(market.activeTraders)}
+                  </span>
+                </span>
+              </div>
 
-              <span className="text-zinc-600">
-                Traders: {market.activeTraders.toLocaleString()}
-              </span>
+              <div className="shrink-0 text-zinc-500">
+                Updated{" "}
+                <span className="font-medium tabular-nums text-zinc-300">
+                  {marketUpdatedLabel}
+                </span>
+              </div>
             </div>
           ) : (
             <span className="text-zinc-600">Market unavailable</span>

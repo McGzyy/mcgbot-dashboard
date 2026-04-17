@@ -23,6 +23,18 @@ export function computeCallPerformanceUserStats(
   return { avgX, winRate, totalCalls };
 }
 
+/** Median of `ath_multiple` (robust vs outliers). */
+export function computeMedianX(rows: Record<string, unknown>[]): number {
+  const xs = rows
+    .map((r) => Number(r.ath_multiple ?? 0))
+    .filter((n) => Number.isFinite(n) && n > 0)
+    .sort((a, b) => a - b);
+  const n = xs.length;
+  if (n === 0) return 0;
+  const mid = Math.floor(n / 2);
+  return n % 2 === 1 ? xs[mid]! : (xs[mid - 1]! + xs[mid]!) / 2;
+}
+
 /** Rolling window by `call_time` (same idea as `/api/me/stats` `callsToday`). */
 export function countCallsInLastMs(
   rows: Record<string, unknown>[],
@@ -33,6 +45,38 @@ export function countCallsInLastMs(
     const t = rowCallTimeUtcMs(r);
     return t > 0 && nowMs - t < windowMs && nowMs >= t;
   }).length;
+}
+
+export function bestXInLastMs(
+  rows: Record<string, unknown>[],
+  windowMs: number,
+  nowMs: number
+): number {
+  let best = 0;
+  for (const r of rows) {
+    const t = rowCallTimeUtcMs(r);
+    if (t <= 0 || nowMs < t || nowMs - t >= windowMs) continue;
+    const x = Number(r.ath_multiple ?? 0);
+    if (Number.isFinite(x) && x > best) best = x;
+  }
+  return best;
+}
+
+export function hitRate2xInLastMs(
+  rows: Record<string, unknown>[],
+  windowMs: number,
+  nowMs: number
+): number {
+  let total = 0;
+  let hits = 0;
+  for (const r of rows) {
+    const t = rowCallTimeUtcMs(r);
+    if (t <= 0 || nowMs < t || nowMs - t >= windowMs) continue;
+    total += 1;
+    const x = Number(r.ath_multiple ?? 0);
+    if (Number.isFinite(x) && x >= 2) hits += 1;
+  }
+  return total > 0 ? (hits / total) * 100 : 0;
 }
 
 /** Calls in the prior window of the same length immediately before `countCallsInLastMs` (e.g. 24h–48h ago). */
@@ -47,6 +91,39 @@ export function countCallsInPriorRollingWindow(
     const age = nowMs - t;
     return age >= windowMs && age < 2 * windowMs;
   }).length;
+}
+
+function startOfUtcDayMs(ms: number): number {
+  const d = new Date(ms);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+/**
+ * "Active days" streak: consecutive UTC calendar days with ≥1 call, counting
+ * backward from today if active today, otherwise from yesterday.
+ */
+export function computeActiveDaysStreakUtc(
+  rows: Record<string, unknown>[],
+  nowMs: number
+): number {
+  const days = new Set<number>();
+  for (const r of rows) {
+    const t = rowCallTimeUtcMs(r);
+    if (t > 0 && nowMs >= t) days.add(startOfUtcDayMs(t));
+  }
+  if (days.size === 0) return 0;
+
+  const today = startOfUtcDayMs(nowMs);
+  const yesterday = today - 86_400_000;
+  let cursor = days.has(today) ? today : days.has(yesterday) ? yesterday : null;
+  if (cursor == null) return 0;
+
+  let streak = 0;
+  while (days.has(cursor)) {
+    streak += 1;
+    cursor -= 86_400_000;
+  }
+  return streak;
 }
 
 export function mapCallPerformanceRowToRecentCall(
