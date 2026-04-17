@@ -2025,6 +2025,7 @@ export default function Home() {
                       ))}
                     </ul>
                   )}
+          </PanelCard>
         </div>
       )}
 
