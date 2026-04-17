@@ -1544,6 +1544,19 @@ export default function Home() {
       ? `${REF_BASE}/${session.user.id}`
       : "";
 
+  const notifyComingSoon = useCallback(
+    (label: string) => {
+      addNotification({
+        id: crypto.randomUUID(),
+        text: `${label} is coming soon`,
+        type: "call",
+        createdAt: Date.now(),
+        priority: "low",
+      });
+    },
+    [addNotification]
+  );
+
   const handleCopy = useCallback(async () => {
     if (!referralUrl) return;
     try {
@@ -1833,28 +1846,55 @@ export default function Home() {
         <div className="flex flex-col gap-4">
           {widgetEnabled(widgets, "quick_actions") && (
             <PanelCard title="Quick Actions">
-              <div className="mt-2 flex flex-col gap-2">
+              <div className="mt-3 space-y-3">
                 <button
                   type="button"
                   onClick={() => {
                     setSubmitCallFeedback(null);
                     setSubmitCallOpen(true);
                   }}
-                  className="w-full rounded-xl bg-[color:var(--accent)] px-4 py-3 text-base font-medium text-black shadow-lg shadow-black/40 transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/30"
+                  className="w-full rounded-xl bg-[color:var(--accent)] px-4 py-3 text-base font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/30"
                 >
                   Submit Call
                 </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    href={`/user/${encodeURIComponent(session.user.id)}`}
+                    className="flex items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                  >
+                    My Profile
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => notifyComingSoon("Watchlist")}
+                    className="rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                  >
+                    Watchlist
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => notifyComingSoon("Create Alert")}
+                    className="rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                  >
+                    Create Alert
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => notifyComingSoon("Following")}
+                    className="rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                  >
+                    Following
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  className="w-full rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                  onClick={handleCopy}
+                  disabled={!referralUrl}
+                  className="w-full rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Copy CA
-                </button>
-                <button
-                  type="button"
-                  className="w-full rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
-                >
-                  Open Chart
+                  {copied ? "Referral Link Copied" : "Copy Referral Link"}
                 </button>
               </div>
             </PanelCard>
