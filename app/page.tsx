@@ -110,8 +110,6 @@ function topPerformerVisuals(
   };
 }
 
-type ReferralRow = { userId: string; joinedAt: number };
-
 type MeStats = {
   avgX: number;
   medianX?: number;
@@ -510,25 +508,6 @@ function processActivityNotifications(
       priority: notificationPriorityFromMultiple(item.multiple),
     });
   }
-}
-
-function parseReferrals(raw: unknown): ReferralRow[] {
-  if (!Array.isArray(raw)) return [];
-  const out: ReferralRow[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const r = item as Record<string, unknown>;
-    const userId = String(r.userId ?? r.referred_user_id ?? "").trim();
-    const rawJoined = r.joinedAt ?? r.joined_at;
-    let joinedAt = typeof rawJoined === "number" ? rawJoined : Number(rawJoined);
-    if (!Number.isFinite(joinedAt) && typeof rawJoined === "string") {
-      const p = Date.parse(rawJoined);
-      if (Number.isFinite(p)) joinedAt = p;
-    }
-    if (!userId || !Number.isFinite(joinedAt)) continue;
-    out.push({ userId, joinedAt });
-  }
-  return out;
 }
 
 function StatCard({
@@ -1118,7 +1097,6 @@ export default function Home() {
   const lastSeenActivityKeysRef = useRef(new Set<string>());
   const activitySourceModeRef = useRef<"all" | "following" | null>(null);
   const [copied, setCopied] = useState(false);
-  const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
   const [stats, setStats] = useState<MeStats | null>(null);
   const [recentCalls, setRecentCalls] = useState<RecentCallRow[]>([]);
@@ -1270,54 +1248,6 @@ export default function Home() {
   }, [addNotification, apiActivityMode, session?.user?.id]);
 
   const nowMs = Date.now();
-  const displayedReferrals = useMemo(
-    () =>
-      [...referrals]
-        .sort((a, b) => b.joinedAt - a.joinedAt)
-        .slice(0, 20),
-    [referrals]
-  );
-
-  useEffect(() => {
-    if (!session) return;
-    const userId = session.user?.id?.trim();
-    if (!userId) {
-      setStatsLoading(false);
-      setReferrals([]);
-      return;
-    }
-
-    let cancelled = false;
-    setStatsLoading(true);
-
-    (async () => {
-      try {
-        const res = await fetch("/api/referrals");
-        if (!res.ok) {
-          if (!cancelled) {
-            setReferrals([]);
-          }
-          return;
-        }
-        const data: unknown = await res.json();
-        if (cancelled || !data || typeof data !== "object") return;
-        const o = data as Record<string, unknown>;
-        if (!cancelled) {
-          setReferrals(parseReferrals(o.referrals));
-        }
-      } catch {
-        if (!cancelled) {
-          setReferrals([]);
-        }
-      } finally {
-        if (!cancelled) setStatsLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session, session?.user?.id]);
 
   useEffect(() => {
     if (!session?.user?.id?.trim()) return;
@@ -1903,13 +1833,12 @@ export default function Home() {
                   >
                     My Profile
                   </Link>
-                  <button
-                    type="button"
-                    onClick={() => notifyComingSoon("Watchlist")}
-                    className="rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                  <Link
+                    href="/watchlist"
+                    className="flex items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     Watchlist
-                  </button>
+                  </Link>
                   <button
                     type="button"
                     onClick={() => notifyComingSoon("Create Alert")}
@@ -1940,6 +1869,87 @@ export default function Home() {
 
           {widgetEnabled(widgets, "live_tracked_calls") && <DailyLeaderboardPanel />}
 
+          <PanelCard title="Watchlist" titleClassName="normal-case">
+            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
+              <span className="tabular-nums">
+                Pinned <span className="font-semibold text-zinc-300">4</span>
+              </span>
+              <span>
+                Updated{" "}
+                <span className="font-medium tabular-nums text-zinc-300">
+                  just now
+                </span>
+              </span>
+            </div>
+            <div className="mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <ul className="space-y-1">
+                {[
+                  { symbol: "WIF", change: "+8.2%", mcap: "$312.4M" },
+                  { symbol: "JUP", change: "-1.4%", mcap: "$1.2B" },
+                  { symbol: "BONK", change: "+3.0%", mcap: "$1.8B" },
+                  { symbol: "PYTH", change: "+0.9%", mcap: "$612.0M" },
+                ]
+                  .slice(0, 3)
+                  .map((row) => (
+                    <li
+                      key={row.symbol}
+                      className="group flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-1.5 transition-colors hover:bg-zinc-900/35"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-zinc-100">
+                          {row.symbol}
+                        </div>
+                        <div
+                          className={`text-xs tabular-nums ${
+                            row.change.startsWith("+")
+                              ? "text-[color:var(--accent)]"
+                              : row.change.startsWith("-")
+                                ? "text-red-400"
+                                : "text-zinc-500"
+                          }`}
+                        >
+                          {row.change}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <div className="hidden items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 sm:flex">
+                          <button
+                            type="button"
+                            onClick={() => notifyComingSoon("Pin / Unpin")}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-800/70 bg-zinc-900/30 text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                            aria-label="Pin / unpin (coming soon)"
+                          >
+                            ☆
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => notifyComingSoon("Alert")}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-800/70 bg-zinc-900/30 text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                            aria-label="Create alert (coming soon)"
+                          >
+                            🔔
+                          </button>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-zinc-700/60 bg-zinc-900/40 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-zinc-200">
+                          {row.mcap}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-xs text-zinc-500">Market cap</p>
+              <Link
+                href="/watchlist"
+                className="text-xs font-semibold text-zinc-200 hover:text-white"
+              >
+                Open →
+              </Link>
+            </div>
+          </PanelCard>
+
           {widgetEnabled(widgets, "hot_now") && (
             <PanelCard
               title="📈 Trending Tokens"
@@ -1967,13 +1977,9 @@ export default function Home() {
         </div>
       </div>
 
-      {(widgetEnabled(widgets, "recent_calls") ||
-        widgetEnabled(widgets, "referral_link") ||
-        widgetEnabled(widgets, "referrals")) && (
-        <div className="mb-10 grid gap-3 lg:grid-cols-2">
-          <div>
-            {widgetEnabled(widgets, "recent_calls") && (
-              <PanelCard title="Your Recent Calls">
+      {widgetEnabled(widgets, "recent_calls") && (
+        <div className="mb-10">
+          <PanelCard title="Your Recent Calls">
                   <p className="mt-2 text-sm text-zinc-500">
                     <Link
                       href={`/user/${encodeURIComponent(session.user.id)}`}
@@ -2019,109 +2025,6 @@ export default function Home() {
                       ))}
                     </ul>
                   )}
-              </PanelCard>
-            )}
-          </div>
-
-          <div>
-            {(widgetEnabled(widgets, "referral_link") ||
-              widgetEnabled(widgets, "referrals")) && (
-              <PanelCard title="Referrals">
-                {widgetEnabled(widgets, "referral_link") && (
-                  <div
-                    className={`flex flex-col gap-2 rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 shadow-sm shadow-black/20 sm:flex-row sm:items-stretch sm:gap-3 ${CARD_HOVER}`}
-                  >
-                    <input
-                      type="text"
-                      readOnly
-                      value={
-                        referralUrl ||
-                        "Unavailable — sign in again if this stays empty"
-                      }
-                      className="min-h-11 w-full flex-1 rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 font-mono text-sm text-zinc-300 outline-none ring-[#39FF14]/20 focus:ring-2"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleCopy}
-                      disabled={!referralUrl}
-                      className="shrink-0 rounded-lg bg-[#39FF14] px-5 py-2 text-sm font-medium text-black transition hover:bg-[#2ee012] disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-[#39FF14]/30"
-                    >
-                      {copied ? "Copied!" : "Copy"}
-                    </button>
-                  </div>
-                )}
-
-                {widgetEnabled(widgets, "referrals") && (
-                  <div
-                    className={
-                      widgetEnabled(widgets, "referral_link") ? "mt-4" : ""
-                    }
-                  >
-                    <div className="w-full overflow-hidden">
-                      {statsLoading ? (
-                        <div className="flex min-h-[100px] items-center justify-center py-6">
-                          <div className="flex flex-col items-center gap-2">
-                            <div
-                              className="h-8 w-48 animate-pulse rounded-md bg-zinc-800/90"
-                              aria-hidden
-                            />
-                            <p className="text-sm text-zinc-500">
-                              Loading referrals…
-                            </p>
-                          </div>
-                        </div>
-                      ) : displayedReferrals.length === 0 ? (
-                        <div className="flex min-h-[100px] items-center justify-center py-6">
-                          <p className="text-sm text-zinc-500">No referrals yet</p>
-                        </div>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="w-full min-w-[280px] border-separate border-spacing-0 text-left text-sm">
-                            <thead>
-                              <tr className="border-b border-[#1a1a1a]">
-                                <th
-                                  scope="col"
-                                  className="pb-2 pr-4 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
-                                >
-                                  User
-                                </th>
-                                <th
-                                  scope="col"
-                                  className="pb-2 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]"
-                                >
-                                  Joined
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-800/40 text-zinc-300">
-                              {displayedReferrals.map((row) => (
-                                <tr
-                                  key={`${row.userId}-${row.joinedAt}`}
-                                  className="transition-colors duration-150 hover:bg-zinc-800/45"
-                                >
-                                  <td className="py-2 pr-4 font-mono text-xs sm:text-sm">
-                                    <Link
-                                      href={`/user/${encodeURIComponent(row.userId)}`}
-                                      className={PROFILE_LINK_CLASS}
-                                    >
-                                      {row.userId}
-                                    </Link>
-                                  </td>
-                                  <td className="py-2 text-zinc-400">
-                                    {formatJoinedAt(row.joinedAt, nowMs)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </PanelCard>
-            )}
-          </div>
         </div>
       )}
 

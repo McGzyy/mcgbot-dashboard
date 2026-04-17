@@ -77,6 +77,15 @@ export function Sidebar() {
             <span>Leaderboard</span>
           </Link>
 
+          <Link href="/watchlist" className={navItem(isActive(pathname, "/watchlist"))}>
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/watchlist") ? "bg-green-400 opacity-100" : "opacity-0"
+              }`}
+            />
+            <span>Watchlist</span>
+          </Link>
+
           <Link href="/referrals" className={navItem(isReferralsRoute)}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
