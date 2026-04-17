@@ -55,6 +55,45 @@ const TIMEFRAMES: { id: TimeframeId; label: string }[] = [
   { id: "all", label: "All" },
 ];
 
+type PerfPoint = {
+  time: string;
+  avgMultiplier: number;
+  winRate: number;
+  calls: number;
+};
+
+const performanceDataMap: Record<"W" | "M" | "3M" | "A", PerfPoint[]> = {
+  W: [
+    { time: "Mon", avgMultiplier: 3.1, winRate: 52, calls: 8 },
+    { time: "Tue", avgMultiplier: 3.4, winRate: 55, calls: 10 },
+    { time: "Wed", avgMultiplier: 2.9, winRate: 49, calls: 7 },
+    { time: "Thu", avgMultiplier: 3.6, winRate: 58, calls: 12 },
+    { time: "Fri", avgMultiplier: 4.2, winRate: 61, calls: 9 },
+    { time: "Sat", avgMultiplier: 3.8, winRate: 56, calls: 6 },
+    { time: "Sun", avgMultiplier: 4.0, winRate: 59, calls: 11 },
+  ],
+  M: [
+    { time: "Week 1", avgMultiplier: 2.6, winRate: 46, calls: 48 },
+    { time: "Week 2", avgMultiplier: 3.0, winRate: 51, calls: 63 },
+    { time: "Week 3", avgMultiplier: 3.4, winRate: 54, calls: 58 },
+    { time: "Week 4", avgMultiplier: 3.2, winRate: 49, calls: 70 },
+  ],
+  "3M": [
+    { time: "Jan", avgMultiplier: 2.1, winRate: 41, calls: 180 },
+    { time: "Feb", avgMultiplier: 2.7, winRate: 47, calls: 220 },
+    { time: "Mar", avgMultiplier: 3.0, winRate: 50, calls: 205 },
+    { time: "Apr", avgMultiplier: 3.5, winRate: 55, calls: 260 },
+    { time: "May", avgMultiplier: 3.1, winRate: 52, calls: 240 },
+    { time: "Jun", avgMultiplier: 3.8, winRate: 58, calls: 280 },
+  ],
+  A: [
+    { time: "2022", avgMultiplier: 1.6, winRate: 34, calls: 520 },
+    { time: "2023", avgMultiplier: 2.4, winRate: 42, calls: 980 },
+    { time: "2024", avgMultiplier: 3.2, winRate: 51, calls: 1320 },
+    { time: "2025", avgMultiplier: 3.7, winRate: 56, calls: 1680 },
+  ],
+};
+
 const rankDataMap: Record<"W" | "M" | "Y" | "A", { time: string; rank: number }[]> = {
   W: [
     { time: "Mon", rank: 18 },
@@ -370,6 +409,10 @@ export default function LeaderboardPage() {
       M: "30d",
       A: "All time",
     }[range] ?? "24h";
+
+  const rankDeltaToday = range === "D" ? 2 : range === "W" ? -1 : range === "M" ? 0 : 1;
+  const rankImproving = rankDeltaToday > 0;
+  void performanceDataMap;
 
   useEffect(() => {
     const scrollToBot = () => {
@@ -766,7 +809,12 @@ export default function LeaderboardPage() {
             <div className="mx-2 hidden w-px bg-zinc-800 lg:block" />
 
             <div className="flex h-full flex-col gap-4">
-              <div className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
+              <div
+                className={[
+                  "group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4",
+                  rankImproving ? "ring-1 ring-green-500/20 shadow-[0_0_18px_rgba(34,197,94,0.12)]" : "",
+                ].join(" ")}
+              >
               <div className="pointer-events-none absolute inset-0 bg-zinc-500/5 blur-2xl opacity-35 transition-opacity duration-300 group-hover:opacity-55" />
 
               <div className="relative z-10">
@@ -792,15 +840,32 @@ export default function LeaderboardPage() {
 
                 <div className="mt-2 flex items-center justify-between">
                   <div>
-                    <div className="text-sm text-zinc-400">Rank</div>
-                    <div className="text-2xl font-bold text-white tracking-tight drop-shadow-[0_0_6px_rgba(34,197,94,0.3)]">
+                    <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                      GLOBAL RANK
+                    </div>
+                    <div className="mt-0.5 text-4xl font-bold tracking-tight text-white drop-shadow-[0_0_6px_rgba(34,197,94,0.3)]">
                       #12
+                    </div>
+                    <div
+                      className={`mt-1 text-xs ${
+                        rankDeltaToday > 0
+                          ? "text-green-400"
+                          : rankDeltaToday < 0
+                            ? "text-red-400"
+                            : "text-zinc-500"
+                      }`}
+                    >
+                      {rankDeltaToday > 0
+                        ? `↑ +${rankDeltaToday} today`
+                        : rankDeltaToday < 0
+                          ? `↓ ${rankDeltaToday} today`
+                          : "— today"}
                     </div>
                   </div>
 
                   <div className="text-right">
-                    <div className="text-sm text-zinc-400">Win Rate</div>
-                    <div className="text-green-400 font-medium">58%</div>
+                    <div className="text-sm text-zinc-500">Win Rate</div>
+                    <div className="font-medium text-zinc-200">58%</div>
                   </div>
                 </div>
 
@@ -1076,19 +1141,19 @@ export default function LeaderboardPage() {
         {/* Activity */}
         <div className="mt-6 grid grid-cols-2 gap-6 items-stretch">
           {/* Recent Milestone Hits */}
-          <div className="h-full max-h-[400px] flex flex-col rounded-xl border border-zinc-900 bg-[#050505]/40 p-4">
+          <div className="h-full max-h-[340px] flex flex-col rounded-xl border border-zinc-900 bg-[#050505]/40 p-4">
             <div className="mb-2">
               <h3 className="text-sm font-semibold text-zinc-100">Recent Milestone Hits</h3>
               <p className="mt-0.5 text-xs text-zinc-600">Call → milestone activity (mocked)</p>
             </div>
-            <div className="flex-1 overflow-y-auto rounded-xl border border-[#1a1a1a]/80 bg-[#080808] p-3 opacity-[0.94] scrollbar-thin scrollbar-thumb-zinc-700/50 scrollbar-track-transparent">
-              <ul className="space-y-1">
+            <div className="flex-1 overflow-y-auto rounded-xl border border-[#1a1a1a]/60 bg-[#080808] p-3 opacity-[0.94] scrollbar-thin scrollbar-thumb-zinc-700/40 scrollbar-track-transparent">
+              <ul className="space-y-0.5">
                 {MOCK_BOT_MILESTONES.map((row, idx) => (
                   <li
                     key={`${row.token}-${row.milestone}-${idx}`}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-transparent px-3 py-1.5 transition-all duration-150 hover:bg-zinc-900/60"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a]/60 bg-transparent px-3 py-1 transition-all duration-150 hover:bg-zinc-900/60"
                   >
-                    <div className="min-w-0 flex-1 truncate text-[12px] text-zinc-200">
+                    <div className="min-w-0 flex-1 truncate text-[11px] text-zinc-200">
                       <span className="font-semibold text-zinc-100">{row.token}</span>{" "}
                       <span className="text-zinc-600">
                         {row.milestone === "ATH" ? "reached" : "hit"}
@@ -1104,7 +1169,7 @@ export default function LeaderboardPage() {
                       <span className="text-zinc-600">in</span>{" "}
                       <span className="tabular-nums text-zinc-400">{row.timeTo}</span>
                     </div>
-                    <div className="shrink-0 text-right text-[11px] tabular-nums text-zinc-600">
+                    <div className="shrink-0 text-right text-[10px] tabular-nums text-zinc-600">
                       {row.ago}
                     </div>
                   </li>
@@ -1114,30 +1179,30 @@ export default function LeaderboardPage() {
           </div>
 
           {/* Live Bot Activity */}
-          <div className="h-full max-h-[400px] flex flex-col rounded-xl border border-zinc-900 bg-[#050505]/40 p-4">
+          <div className="h-full max-h-[340px] flex flex-col rounded-xl border border-zinc-900 bg-[#050505]/40 p-4">
             <div className="mb-2">
               <h3 className="text-sm font-semibold text-zinc-100">Live Bot Activity</h3>
               <p className="mt-0.5 text-xs text-zinc-600">Recent bot calls (mocked)</p>
             </div>
-            <div className="flex-1 overflow-y-auto rounded-xl border border-[#1a1a1a]/80 bg-[#080808] p-3 opacity-[0.94] scrollbar-thin scrollbar-thumb-zinc-700/50 scrollbar-track-transparent">
-              <ul className="space-y-1">
+            <div className="flex-1 overflow-y-auto rounded-xl border border-[#1a1a1a]/60 bg-[#080808] p-3 opacity-[0.94] scrollbar-thin scrollbar-thumb-zinc-700/40 scrollbar-track-transparent">
+              <ul className="space-y-0.5">
                 {MOCK_LIVE_BOT_ACTIVITY.map((row, idx) => (
                   <li
                     key={`${row.token}-${row.ago}-${idx}`}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-transparent px-3 py-1.5 transition-all duration-150 hover:bg-zinc-900/60"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a]/60 bg-transparent px-3 py-1 transition-all duration-150 hover:bg-zinc-900/60"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[12px] font-semibold text-zinc-100">
+                      <div className="truncate text-[11px] font-semibold text-zinc-100">
                         {row.token}
                       </div>
-                      <div className="truncate text-[11px] text-zinc-500">
+                      <div className="truncate text-[10px] text-zinc-500">
                         McGBot called {row.token} @{" "}
                         <span className="font-semibold tabular-nums text-[#39FF14]">
                           {fmtMC(row.mc)} MC
                         </span>
                       </div>
                     </div>
-                    <div className="shrink-0 text-right text-[11px] tabular-nums text-zinc-600">
+                    <div className="shrink-0 text-right text-[10px] tabular-nums text-zinc-600">
                       {row.ago}
                     </div>
                   </li>

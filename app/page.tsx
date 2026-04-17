@@ -9,6 +9,7 @@ import { ActivityPopup } from "./components/ActivityPopup";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
 import LiveTrackedCallsPanel from "@/components/LiveTrackedCallsPanel";
+import PerformanceChart from "@/components/dashboard/PerformanceChart";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
@@ -1552,12 +1553,15 @@ export default function Home() {
 
   const streakValue =
     STREAK_COUNT > 0 ? (
-      <span className="inline-flex items-baseline gap-1">
-        <span className="dashboard-fire-emoji" aria-hidden>
-          🔥
-        </span>
-        <span>{STREAK_COUNT}</span>
-      </span>
+      <div>
+        <div className="inline-flex items-baseline gap-2">
+          <span className="dashboard-fire-emoji" aria-hidden>
+            🔥
+          </span>
+          <span>{STREAK_COUNT} day streak</span>
+        </div>
+        <div className="mt-1 text-xs text-green-400">+1 from yesterday</div>
+      </div>
     ) : (
       "0"
     );
@@ -1570,28 +1574,59 @@ export default function Home() {
 
   return (
     <div className="mx-auto max-w-[1200px] px-1 sm:px-0">
+      <div className="mb-8">
+        <PerformanceChart />
+      </div>
+
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Personal Stats
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Avg X"
-            value={
-              stats === null ? "—" : `${stats.avgX.toFixed(1)}x`
-            }
-          />
-          <StatCard
-            title="Win Rate"
-            value={
-              stats === null ? "—" : `${stats.winRate.toFixed(0)}%`
-            }
-          />
-          <StatCard
-            title="Calls Today"
-            value={stats === null ? "—" : stats.callsToday}
-          />
-          <StatCard title="Streak" value={streakValue} />
+        <div className="grid grid-cols-3 gap-4">
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <div className="text-xs text-zinc-400">AVG X</div>
+            <div className="mt-1 text-2xl font-bold text-green-400">
+              {stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
+            </div>
+            <div className="mt-1 text-xs text-green-400">+0.6x today ↑</div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <div className="text-xs text-zinc-400">WIN RATE</div>
+            <div className="text-xl font-semibold text-green-400">
+              {stats === null ? "—" : `${stats.winRate.toFixed(0)}%`}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <div className="text-xs text-zinc-400">STREAK</div>
+            <div className="mt-1 text-white font-medium">{streakValue}</div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <div className="text-xs text-zinc-400">BEST CALL (24H)</div>
+            <div className="text-white font-medium">SOLX</div>
+            <div className="text-green-400 text-xl font-bold">8.2x</div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <div className="text-xs text-zinc-400">CONSISTENCY</div>
+            <div className="text-green-400 text-xl font-bold">82%</div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <div className="text-xs text-zinc-400">LAST CALL</div>
+            <div className="mt-1 text-white font-medium">SOLX</div>
+            <div className="text-green-400 text-xl font-bold">4.2x</div>
+            <div className="mt-1 text-xs text-zinc-500">+12m</div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <div className="text-xs text-zinc-400">CALLS TODAY</div>
+            <div className="text-xl font-semibold text-white">
+              {stats === null ? "—" : stats.callsToday}
+            </div>
+          </div>
         </div>
       </section>
 
