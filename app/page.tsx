@@ -33,6 +33,169 @@ const TRENDING_TOKENS_MOCK = [
   { symbol: "DEV123", stat: 3.1, mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" },
 ] as const;
 
+type TrendingTokenRow = {
+  symbol: string;
+  mint: string;
+  priceUsd: number;
+  changePct: number;
+  liquidityUsd: number;
+  volumeUsd: number;
+  holders: number;
+  source: "Dexscreener" | "Axiom" | "Gecko";
+  timeframe: "5m" | "1h" | "24h";
+};
+
+const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
+  {
+    symbol: "WIF",
+    mint: "EKpQGSJtjMFqKZ9q8i7vNQkWQwGJcD3u3wqBzQk9sYtX",
+    priceUsd: 2.41,
+    changePct: 8.2,
+    liquidityUsd: 12_400_000,
+    volumeUsd: 18_900_000,
+    holders: 184_230,
+    source: "Dexscreener",
+    timeframe: "1h",
+  },
+  {
+    symbol: "JUP",
+    mint: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+    priceUsd: 1.13,
+    changePct: -1.4,
+    liquidityUsd: 31_800_000,
+    volumeUsd: 9_400_000,
+    holders: 612_990,
+    source: "Dexscreener",
+    timeframe: "24h",
+  },
+  {
+    symbol: "BONK",
+    mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+    priceUsd: 0.000028,
+    changePct: 3.0,
+    liquidityUsd: 9_200_000,
+    volumeUsd: 7_600_000,
+    holders: 742_100,
+    source: "Gecko",
+    timeframe: "24h",
+  },
+  {
+    symbol: "PYTH",
+    mint: "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
+    priceUsd: 0.49,
+    changePct: 0.9,
+    liquidityUsd: 6_700_000,
+    volumeUsd: 3_200_000,
+    holders: 221_540,
+    source: "Axiom",
+    timeframe: "1h",
+  },
+  {
+    symbol: "BOME",
+    mint: "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82",
+    priceUsd: 0.0142,
+    changePct: 5.6,
+    liquidityUsd: 4_900_000,
+    volumeUsd: 8_100_000,
+    holders: 129_870,
+    source: "Dexscreener",
+    timeframe: "1h",
+  },
+  {
+    symbol: "MEW",
+    mint: "MEW1gQWJ3nEXg2qZrJ2Jc8Gd8oZ2e2u9X1pQGqVJ9uQ",
+    priceUsd: 0.0068,
+    changePct: 12.4,
+    liquidityUsd: 2_700_000,
+    volumeUsd: 5_900_000,
+    holders: 74_220,
+    source: "Axiom",
+    timeframe: "5m",
+  },
+  {
+    symbol: "POPCAT",
+    mint: "7GCihgDB8Y1sZp8V7H9rYw1d3oY5eHc8GQyYqZQKQp5",
+    priceUsd: 0.86,
+    changePct: -3.8,
+    liquidityUsd: 3_300_000,
+    volumeUsd: 2_500_000,
+    holders: 43_110,
+    source: "Gecko",
+    timeframe: "1h",
+  },
+  {
+    symbol: "JTO",
+    mint: "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6YVqT7b",
+    priceUsd: 2.94,
+    changePct: 2.1,
+    liquidityUsd: 11_100_000,
+    volumeUsd: 4_400_000,
+    holders: 98_420,
+    source: "Dexscreener",
+    timeframe: "24h",
+  },
+  {
+    symbol: "RAY",
+    mint: "4k3Dyjzvzp8eMZWK5oAi6n3yJqfY1c7VQ9TzJpJpW6t",
+    priceUsd: 1.92,
+    changePct: 4.7,
+    liquidityUsd: 14_600_000,
+    volumeUsd: 6_200_000,
+    holders: 201_330,
+    source: "Axiom",
+    timeframe: "24h",
+  },
+  {
+    symbol: "ORCA",
+    mint: "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
+    priceUsd: 3.19,
+    changePct: -0.6,
+    liquidityUsd: 8_900_000,
+    volumeUsd: 1_900_000,
+    holders: 164_250,
+    source: "Gecko",
+    timeframe: "24h",
+  },
+  {
+    symbol: "DRIFT",
+    mint: "DRiFt11111111111111111111111111111111111111",
+    priceUsd: 1.07,
+    changePct: 6.9,
+    liquidityUsd: 5_800_000,
+    volumeUsd: 3_600_000,
+    holders: 56_880,
+    source: "Dexscreener",
+    timeframe: "1h",
+  },
+  {
+    symbol: "KMNO",
+    mint: "KMNo111111111111111111111111111111111111111",
+    priceUsd: 0.092,
+    changePct: 9.8,
+    liquidityUsd: 1_600_000,
+    volumeUsd: 2_200_000,
+    holders: 18_430,
+    source: "Axiom",
+    timeframe: "5m",
+  },
+];
+
+function formatCompactUsd(n: number): string {
+  const abs = Math.abs(n);
+  if (!Number.isFinite(abs)) return "—";
+  if (abs >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(2)}B`;
+  if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${n.toFixed(0)}`;
+}
+
+function formatPriceUsd(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  if (n >= 1) return `$${n.toFixed(2)}`;
+  if (n >= 0.01) return `$${n.toFixed(4)}`;
+  return `$${n.toFixed(6)}`;
+}
+
 const CARD_HOVER =
   "transition-[box-shadow,border-color,ring-color] duration-200 ease-out hover:border-[#2a2a2a] hover:shadow-lg hover:shadow-black/35 hover:ring-1 hover:ring-[#2a2a2a]/30";
 
@@ -202,7 +365,193 @@ const SOCIAL_FEED_MOCK: SocialFeedItem[] = [
     text: "Trending pairs: volume spikes on SOL with improving depth. If you’re scanning, focus on liquidity + holder distribution.",
     metricLabel: "2.1K",
   },
+  {
+    id: "x-3",
+    platform: "x",
+    authorName: "Flow Watch",
+    authorHandle: "@flowwatch",
+    postedAtLabel: "2h",
+    text: "Heatmap check: buy pressure building on SOL perps. If this holds, expect meme beta to follow.",
+    metricLabel: "6.8K",
+  },
+  {
+    id: "ig-2",
+    platform: "instagram",
+    authorName: "Chart Room",
+    authorHandle: "@chartroom",
+    postedAtLabel: "2h",
+    text: "3-step checklist before entering: trend → volume → invalidation. Keep it simple, keep it repeatable.",
+    metricLabel: "9.4K",
+  },
+  {
+    id: "x-4",
+    platform: "x",
+    authorName: "Liquidity Lens",
+    authorHandle: "@liq_lens",
+    postedAtLabel: "3h",
+    text: "Midcaps waking up: watch pools with steady adds (not single-sided). That’s the tell before breakout.",
+    metricLabel: "3.7K",
+  },
+  {
+    id: "ig-3",
+    platform: "instagram",
+    authorName: "Signal Digest",
+    authorHandle: "@signaldigest",
+    postedAtLabel: "3h",
+    text: "Attention rotates in waves. Track mentions + chart reactions, not just raw likes.",
+    metricLabel: "14.1K",
+  },
+  {
+    id: "x-5",
+    platform: "x",
+    authorName: "Narrative Desk",
+    authorHandle: "@narrativedesk",
+    postedAtLabel: "4h",
+    text: "What’s trending isn’t always what’s tradable. Focus on liquidity depth + clean distribution.",
+    metricLabel: "1.9K",
+  },
+  {
+    id: "x-6",
+    platform: "x",
+    authorName: "Dex Wire",
+    authorHandle: "@dexwire",
+    postedAtLabel: "5h",
+    text: "New pairs: watch the first 10 minutes — spread + depth tells you everything.",
+    metricLabel: "5.3K",
+  },
+  {
+    id: "ig-4",
+    platform: "instagram",
+    authorName: "Alpha Board",
+    authorHandle: "@alphaboard",
+    postedAtLabel: "6h",
+    text: "When the chart is noisy: zoom out, define the range, trade the edges.",
+    metricLabel: "21.3K",
+  },
+  {
+    id: "x-7",
+    platform: "x",
+    authorName: "Orderflow Notes",
+    authorHandle: "@of_notes",
+    postedAtLabel: "7h",
+    text: "If you can’t name the invalidation level, you don’t have a trade — you have a hope.",
+    metricLabel: "7.1K",
+  },
+  {
+    id: "ig-5",
+    platform: "instagram",
+    authorName: "Volume Lab",
+    authorHandle: "@volumelab",
+    postedAtLabel: "8h",
+    text: "Low float + rising volume can be explosive. Confirm depth before sizing up.",
+    metricLabel: "11.8K",
+  },
+  {
+    id: "x-8",
+    platform: "x",
+    authorName: "Whale Watch",
+    authorHandle: "@whalewatch",
+    postedAtLabel: "9h",
+    text: "Wallet clustering looks clean. If liquidity keeps increasing, that’s your green light.",
+    metricLabel: "12.6K",
+  },
+  {
+    id: "ig-6",
+    platform: "instagram",
+    authorName: "Cycle Theory",
+    authorHandle: "@cycletheory",
+    postedAtLabel: "10h",
+    text: "Narratives don’t move the chart alone — the chart moves narratives. Track both.",
+    metricLabel: "16.0K",
+  },
+  {
+    id: "x-9",
+    platform: "x",
+    authorName: "SOL Metrics",
+    authorHandle: "@solmetrics",
+    postedAtLabel: "12h",
+    text: "SOL dominance creeping up. Meme baskets usually respond with a lag — watch the leaders first.",
+    metricLabel: "8.9K",
+  },
+  {
+    id: "ig-7",
+    platform: "instagram",
+    authorName: "Community Pulse",
+    authorHandle: "@communitypulse",
+    postedAtLabel: "14h",
+    text: "Best traders I know: fewer positions, clearer thesis, faster exits.",
+    metricLabel: "19.6K",
+  },
+  {
+    id: "x-10",
+    platform: "x",
+    authorName: "Tape Reader",
+    authorHandle: "@tapereader",
+    postedAtLabel: "18h",
+    text: "When you see the bids stepping up consistently, that’s your cue. Don’t chase tops, wait for structure.",
+    metricLabel: "2.7K",
+  },
+  {
+    id: "ig-8",
+    platform: "instagram",
+    authorName: "Risk First",
+    authorHandle: "@riskfirst",
+    postedAtLabel: "22h",
+    text: "Your edge is risk management. The rest is just entries.",
+    metricLabel: "25.2K",
+  },
 ];
+
+const SOCIAL_AUTHOR_POOL: Array<{
+  platform: SocialPlatform;
+  authorName: string;
+  authorHandle: string;
+}> = [
+  { platform: "x", authorName: "Onchain Radar", authorHandle: "@onchainradar" },
+  { platform: "x", authorName: "Dex Pulse", authorHandle: "@dexpulse" },
+  { platform: "x", authorName: "Liquidity Lens", authorHandle: "@liq_lens" },
+  { platform: "x", authorName: "Tape Reader", authorHandle: "@tapereader" },
+  { platform: "x", authorName: "Whale Watch", authorHandle: "@whalewatch" },
+  { platform: "instagram", authorName: "Market Narratives", authorHandle: "@marketnarratives" },
+  { platform: "instagram", authorName: "Chart Room", authorHandle: "@chartroom" },
+  { platform: "instagram", authorName: "Volume Lab", authorHandle: "@volumelab" },
+  { platform: "instagram", authorName: "Risk First", authorHandle: "@riskfirst" },
+  { platform: "instagram", authorName: "Alpha Board", authorHandle: "@alphaboard" },
+];
+
+const SOCIAL_TEXT_POOL: string[] = [
+  "New listings popping up — check depth before you size.",
+  "Quick reminder: liquidity > followers. Always.",
+  "If the bid ladder keeps stepping up, don’t fade it.",
+  "Rotation watch: leaders move first, runners follow.",
+  "Spread tight + depth rising is the cleanest setup.",
+  "Conviction is fine. Invalidation is mandatory.",
+  "Watch for distribution: steady adds beat single spikes.",
+  "When attention shifts, charts usually front-run the narrative.",
+];
+
+function socialMetricLabel(): string {
+  const v = 500 + Math.floor(Math.random() * 25000);
+  if (v >= 1000) return `${(v / 1000).toFixed(v >= 10000 ? 1 : 2)}K`.replace(/\.0K$/, "K");
+  return String(v);
+}
+
+function makeNewSocialPost(forcePlatform?: SocialPlatform): SocialFeedItem {
+  const pool = forcePlatform
+    ? SOCIAL_AUTHOR_POOL.filter((a) => a.platform === forcePlatform)
+    : SOCIAL_AUTHOR_POOL;
+  const author = pool[Math.floor(Math.random() * pool.length)] ?? SOCIAL_AUTHOR_POOL[0]!;
+  const text = SOCIAL_TEXT_POOL[Math.floor(Math.random() * SOCIAL_TEXT_POOL.length)] ?? SOCIAL_TEXT_POOL[0]!;
+  return {
+    id: `mock-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    platform: author.platform,
+    authorName: author.authorName,
+    authorHandle: author.authorHandle,
+    postedAtLabel: "now",
+    text,
+    metricLabel: socialMetricLabel(),
+  };
+}
 
 type ActivityItem = {
   type: "win" | "call";
@@ -667,32 +1016,177 @@ function NotesPanel() {
 }
 
 function TrendingPanel() {
+  const [timeframe, setTimeframe] = useState<"5m" | "1h" | "24h">("1h");
+  const [source, setSource] = useState<"All" | TrendingTokenRow["source"]>("All");
+
+  const rows = useMemo(() => {
+    return TRENDING_TOKENS_ELITE_MOCK.filter((r) => {
+      if (r.timeframe !== timeframe) return false;
+      if (source !== "All" && r.source !== source) return false;
+      return true;
+    });
+  }, [source, timeframe]);
+
+  const chipClass = (active: boolean) =>
+    `rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+      active
+        ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
+        : "bg-zinc-900/70 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+    }`;
+
   return (
-    <PanelCard title="📈 Trending" titleClassName="normal-case">
-      <ul className="mt-2 divide-y divide-zinc-800/80 text-[13px] leading-snug">
-        {TRENDING_TOKENS_MOCK.map((row) => (
-          <li key={row.symbol}>
+    <PanelCard title="Trending Tokens" titleClassName="normal-case">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
             <button
               type="button"
-              onClick={() =>
-                window.open(
-                  `https://dexscreener.com/solana/${encodeURIComponent(row.mint)}`,
-                  "_blank",
-                  "noopener,noreferrer"
-                )
-              }
-              className="flex w-full items-center justify-between gap-3 py-2 text-left transition-colors hover:bg-zinc-800/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+              onClick={() => setTimeframe("5m")}
+              className={chipClass(timeframe === "5m")}
             >
-              <span className="min-w-0 truncate font-medium text-zinc-100">
-                {row.symbol}
-              </span>
-              <span className="shrink-0 tabular-nums text-xs font-semibold text-[#39FF14]/90">
-                {row.stat.toFixed(1)}x
-              </span>
+              5m
             </button>
-          </li>
-        ))}
-      </ul>
+            <button
+              type="button"
+              onClick={() => setTimeframe("1h")}
+              className={chipClass(timeframe === "1h")}
+            >
+              1h
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeframe("24h")}
+              className={chipClass(timeframe === "24h")}
+            >
+              24h
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
+            {(
+              ["All", "Dexscreener", "Axiom", "Gecko"] as const
+            ).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSource(s)}
+                className={chipClass(source === s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="text-[11px] text-zinc-500">
+          Mocked • ready to wire to sources
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <div className="px-2 pb-2 text-[11px] uppercase tracking-wider text-zinc-600">
+          <div className="grid grid-cols-[minmax(0,1.2fr)_auto_auto] items-center gap-3">
+            <span>Token</span>
+            <span className="text-right">Price / Chg</span>
+            <span className="text-right">Liq / Vol</span>
+          </div>
+        </div>
+
+        <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">
+          {rows.length === 0 ? (
+            <div className="flex h-full items-center justify-center px-3 py-10">
+              <div className="text-center">
+                <p className="text-sm font-semibold text-zinc-200">
+                  No matches
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Try a different timeframe or source.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <ul className="space-y-1">
+              {rows.map((row, i) => {
+                const positive = row.changePct >= 0;
+                return (
+                  <li key={`${row.symbol}-${row.mint}-${i}`}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        window.open(
+                          `https://dexscreener.com/solana/${encodeURIComponent(
+                            row.mint
+                          )}`,
+                          "_blank",
+                          "noopener,noreferrer"
+                        )
+                      }
+                      className="group flex w-full items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-zinc-950 text-xs font-semibold text-zinc-200">
+                            #{i + 1}
+                          </span>
+                          <span className="min-w-0 truncate text-sm font-semibold text-zinc-100">
+                            {row.symbol}
+                          </span>
+                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
+                            {row.source}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+                          <span className="tabular-nums">
+                            Holders{" "}
+                            <span className="font-semibold text-zinc-300">
+                              {row.holders.toLocaleString()}
+                            </span>
+                          </span>
+                          <span className="text-zinc-700" aria-hidden>
+                            •
+                          </span>
+                          <span className="tabular-nums">
+                            CA{" "}
+                            <span className="font-mono text-zinc-400">
+                              {shortenCa(row.mint)}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-semibold tabular-nums text-zinc-100">
+                          {formatPriceUsd(row.priceUsd)}
+                        </div>
+                        <div
+                          className={`mt-0.5 text-xs font-semibold tabular-nums ${
+                            positive ? "text-[#39FF14]/95" : "text-red-400"
+                          }`}
+                        >
+                          {positive ? "▲" : "▼"} {Math.abs(row.changePct).toFixed(1)}%
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        <div className="text-xs font-semibold tabular-nums text-zinc-200">
+                          {formatCompactUsd(row.liquidityUsd)}
+                        </div>
+                        <div className="mt-0.5 text-[11px] tabular-nums text-zinc-500">
+                          Vol {formatCompactUsd(row.volumeUsd)}
+                        </div>
+                      </div>
+
+                      <span className="ml-1 hidden text-xs text-zinc-500 group-hover:inline">
+                        ↗
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
     </PanelCard>
   );
 }
@@ -811,17 +1305,95 @@ function TopPerformersPanel({
   viewerName?: string | null;
   badgesByUser?: Record<string, string[]>;
 }) {
+  const emptyState = (
+    <div className="mt-3 flex min-h-[240px] flex-col justify-between gap-4">
+      <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-zinc-950 text-sm"
+              aria-hidden
+            >
+              🏆
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-zinc-100">
+                No calls in the last 24 hours yet.
+              </p>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                First solid call today will claim the #1 spot.
+              </p>
+            </div>
+          </div>
+          <span className="hidden rounded-full border border-green-400/15 bg-green-400/10 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-green-300/90 sm:inline-flex">
+            Rolling 24h
+          </span>
+        </div>
+      </div>
+
+      <ul className="space-y-2">
+        {[
+          { medal: "🥇", label: "#1", tint: "border-yellow-500/25 bg-yellow-500/5" },
+          { medal: "🥈", label: "#2", tint: "border-zinc-400/20 bg-zinc-500/5" },
+          { medal: "🥉", label: "#3", tint: "border-amber-500/25 bg-amber-500/5" },
+        ].map((row) => (
+          <li
+            key={row.label}
+            className={`rounded-xl border px-4 py-3 shadow-sm shadow-black/20 ${row.tint} border-[#1a1a1a]`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-zinc-950/40 text-base"
+                  aria-hidden
+                >
+                  {row.medal}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold tabular-nums text-zinc-400">
+                      {row.label}
+                    </span>
+                    <span className="h-1 w-1 rounded-full bg-zinc-700" aria-hidden />
+                    <span className="h-3 w-28 animate-pulse rounded bg-zinc-800/80" />
+                  </div>
+                  <div className="mt-1 h-3 w-48 animate-pulse rounded bg-zinc-900/70" />
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="h-4 w-14 animate-pulse rounded bg-zinc-800/80" />
+                <div className="mt-1 h-3 w-16 animate-pulse rounded bg-zinc-900/70" />
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="rounded-xl border border-zinc-900 bg-zinc-950/30 p-3">
+        <p className="text-xs leading-relaxed text-zinc-500">
+          Tip: leaderboard favors{" "}
+          <span className="font-semibold text-zinc-300">clean entries</span>,{" "}
+          <span className="font-semibold text-zinc-300">tight invalidation</span>, and{" "}
+          <span className="font-semibold text-zinc-300">real liquidity</span>.
+        </p>
+      </div>
+    </div>
+  );
+
   return (
     <section className="mb-8">
-      <PanelCard title="🔥 Top Performers Today" titleClassName="normal-case">
+      <PanelCard
+        title="🔥 Top Performers Today"
+        titleClassName="normal-case"
+        className="relative overflow-hidden"
+      >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-yellow-500/35 via-[color:var(--accent)]/35 to-transparent" />
         {topPerformersLoading ? (
           <div className="mt-3 flex min-h-[64px] items-center justify-center">
             <p className="text-sm text-zinc-500">Loading…</p>
           </div>
         ) : topPerformersToday.length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-500">
-            No calls in the last 24 hours yet.
-          </p>
+          emptyState
         ) : (
           <ul className="mt-3 space-y-2">
             {topPerformersToday.map((row, index) => {
@@ -1116,10 +1688,24 @@ function FollowingFeedPanel() {
 
 function SocialsFeedPanel() {
   const [tab, setTab] = useState<"all" | SocialPlatform>("all");
-  const rows = useMemo(() => {
-    if (tab === "all") return SOCIAL_FEED_MOCK;
-    return SOCIAL_FEED_MOCK.filter((r) => r.platform === tab);
+  const [items, setItems] = useState<SocialFeedItem[]>(() => SOCIAL_FEED_MOCK);
+  const [flashId, setFlashId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const intervalMs = 6500;
+    const interval = window.setInterval(() => {
+      const next = makeNewSocialPost(tab === "all" ? undefined : tab);
+      setItems((prev) => [next, ...prev].slice(0, 60));
+      setFlashId(next.id);
+      window.setTimeout(() => setFlashId(null), 2200);
+    }, intervalMs);
+    return () => window.clearInterval(interval);
   }, [tab]);
+
+  const rows = useMemo(() => {
+    if (tab === "all") return items;
+    return items.filter((r) => r.platform === tab);
+  }, [items, tab]);
 
   const platformPill = (p: SocialPlatform) =>
     p === "x"
@@ -1168,11 +1754,16 @@ function SocialsFeedPanel() {
       </div>
 
       <div className="mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-        <ul className="space-y-1">
+        <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">
+          <ul className="space-y-1">
           {rows.map((item) => (
             <li
               key={item.id}
-              className="rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 transition-colors hover:bg-zinc-900/35"
+              className={`rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 transition-colors hover:bg-zinc-900/35 ${
+                flashId === item.id
+                  ? "ring-1 ring-[color:var(--accent)]/35 bg-zinc-900/35"
+                  : ""
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -1208,13 +1799,491 @@ function SocialsFeedPanel() {
               </div>
             </li>
           ))}
-        </ul>
+          </ul>
+        </div>
       </div>
     </PanelCard>
   );
 }
 
-async function submitCall(ca: string) {
+type SetupTimeframe = "5m" | "1h" | "4h";
+type SetupMarket = "SOL Memes" | "Majors" | "New Pairs";
+type OpportunitySetup = {
+  id: string;
+  symbol: string;
+  mint: string;
+  setup: "Breakout" | "Reclaim" | "Sweep" | "VWAP Bounce" | "Rotation Leader";
+  score: number; // 0-100
+  timeframe: SetupTimeframe;
+  market: SetupMarket;
+  trigger: string;
+  invalidation: string;
+  liquidityUsd: number;
+  volumeUsd: number;
+  note: string;
+};
+
+const OPPORTUNITIES_MOCK: OpportunitySetup[] = [
+  {
+    id: "opp-1",
+    symbol: "WIF",
+    mint: "EKpQGSJtjMFqKZ9q8i7vNQkWQwGJcD3u3wqBzQk9sYtX",
+    setup: "Breakout",
+    score: 88,
+    timeframe: "5m",
+    market: "SOL Memes",
+    trigger: "Break above $2.45 with volume confirmation",
+    invalidation: "Lose $2.34 (range low)",
+    liquidityUsd: 12_400_000,
+    volumeUsd: 18_900_000,
+    note: "Tight range + rising bids. Let it prove strength.",
+  },
+  {
+    id: "opp-2",
+    symbol: "JUP",
+    mint: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+    setup: "Reclaim",
+    score: 76,
+    timeframe: "1h",
+    market: "Majors",
+    trigger: "Reclaim $1.15 and hold above VWAP",
+    invalidation: "Close below $1.09",
+    liquidityUsd: 31_800_000,
+    volumeUsd: 9_400_000,
+    note: "Cleaner structure; patience beats chasing.",
+  },
+  {
+    id: "opp-3",
+    symbol: "BOME",
+    mint: "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82",
+    setup: "Sweep",
+    score: 81,
+    timeframe: "5m",
+    market: "SOL Memes",
+    trigger: "Sweep lows then reclaim $0.0140",
+    invalidation: "Lower low + no reclaim",
+    liquidityUsd: 4_900_000,
+    volumeUsd: 8_100_000,
+    note: "Watch for quick reclaim; don’t marry it.",
+  },
+  {
+    id: "opp-4",
+    symbol: "PYTH",
+    mint: "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
+    setup: "VWAP Bounce",
+    score: 72,
+    timeframe: "1h",
+    market: "Majors",
+    trigger: "Bounce VWAP with higher low",
+    invalidation: "VWAP loss + weak bids",
+    liquidityUsd: 6_700_000,
+    volumeUsd: 3_200_000,
+    note: "If it holds VWAP twice, runners usually follow.",
+  },
+  {
+    id: "opp-5",
+    symbol: "MEW",
+    mint: "MEW1gQWJ3nEXg2qZrJ2Jc8Gd8oZ2e2u9X1pQGqVJ9uQ",
+    setup: "Rotation Leader",
+    score: 84,
+    timeframe: "5m",
+    market: "New Pairs",
+    trigger: "Hold above launch VWAP, then push highs",
+    invalidation: "Break below VWAP with heavy sells",
+    liquidityUsd: 2_700_000,
+    volumeUsd: 5_900_000,
+    note: "Lead coin behavior. Size only after confirmation.",
+  },
+  {
+    id: "opp-6",
+    symbol: "ORCA",
+    mint: "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
+    setup: "Reclaim",
+    score: 69,
+    timeframe: "4h",
+    market: "Majors",
+    trigger: "Reclaim $3.25 and hold on retest",
+    invalidation: "Fail retest; back into range",
+    liquidityUsd: 8_900_000,
+    volumeUsd: 1_900_000,
+    note: "Higher timeframe: wait for retest confirmation.",
+  },
+];
+
+function OpportunitiesPanel() {
+  const [timeframe, setTimeframe] = useState<SetupTimeframe>("5m");
+  const [market, setMarket] = useState<"All" | SetupMarket>("All");
+
+  const rows = useMemo(() => {
+    return OPPORTUNITIES_MOCK.filter((r) => {
+      if (r.timeframe !== timeframe) return false;
+      if (market !== "All" && r.market !== market) return false;
+      return true;
+    }).sort((a, b) => b.score - a.score);
+  }, [market, timeframe]);
+
+  const chipClass = (active: boolean) =>
+    `rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+      active
+        ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
+        : "bg-zinc-900/70 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+    }`;
+
+  const scoreColor = (score: number) => {
+    if (score >= 85) return "text-[#39FF14]/95";
+    if (score >= 75) return "text-sky-300";
+    if (score >= 65) return "text-yellow-300";
+    return "text-zinc-400";
+  };
+
+  return (
+    <PanelCard title="Opportunities" titleClassName="normal-case">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
+            {(["5m", "1h", "4h"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTimeframe(t)}
+                className={chipClass(timeframe === t)}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
+            {(
+              ["All", "SOL Memes", "Majors", "New Pairs"] as const
+            ).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMarket(m)}
+                className={chipClass(market === m)}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="text-[11px] text-zinc-500">Mocked • actionable layout</div>
+      </div>
+
+      <div className="mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <div className="px-2 pb-2 text-[11px] uppercase tracking-wider text-zinc-600">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <span>Setup</span>
+            <span className="text-right">Score</span>
+          </div>
+        </div>
+
+        <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">
+          {rows.length === 0 ? (
+            <div className="flex h-full items-center justify-center px-3 py-10">
+              <div className="text-center">
+                <p className="text-sm font-semibold text-zinc-200">
+                  No setups
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Try a different timeframe or market.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <ul className="space-y-1">
+              {rows.map((row, i) => (
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      window.open(
+                        `https://dexscreener.com/solana/${encodeURIComponent(
+                          row.mint
+                        )}`,
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                    className="group w-full rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-zinc-950 text-xs font-semibold text-zinc-200">
+                            {i + 1}
+                          </span>
+                          <span className="truncate text-sm font-semibold text-zinc-100">
+                            {row.symbol}
+                          </span>
+                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
+                            {row.setup}
+                          </span>
+                          <span className="text-[11px] text-zinc-600">•</span>
+                          <span className="text-[11px] font-medium text-zinc-500">
+                            {row.market}
+                          </span>
+                        </div>
+
+                        <div className="mt-1 grid gap-1.5 text-[11px] text-zinc-400">
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                            <span className="font-semibold text-zinc-300">
+                              Trigger:
+                            </span>
+                            <span className="text-zinc-200">
+                              {row.trigger}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                            <span className="font-semibold text-zinc-300">
+                              Invalidation:
+                            </span>
+                            <span className="text-zinc-200">
+                              {row.invalidation}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+                          <span className="tabular-nums">
+                            Liq{" "}
+                            <span className="font-semibold text-zinc-300">
+                              {formatCompactUsd(row.liquidityUsd)}
+                            </span>
+                          </span>
+                          <span className="text-zinc-700" aria-hidden>
+                            •
+                          </span>
+                          <span className="tabular-nums">
+                            Vol{" "}
+                            <span className="font-semibold text-zinc-300">
+                              {formatCompactUsd(row.volumeUsd)}
+                            </span>
+                          </span>
+                          <span className="text-zinc-700" aria-hidden>
+                            •
+                          </span>
+                          <span className="font-mono text-zinc-500">
+                            {shortenCa(row.mint)}
+                          </span>
+                        </div>
+
+                        <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-zinc-500">
+                          {row.note}
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        <div
+                          className={`text-lg font-bold tabular-nums ${scoreColor(
+                            row.score
+                          )}`}
+                        >
+                          {row.score}
+                        </div>
+                        <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-zinc-900">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-[color:var(--accent)]/70 to-[#39FF14]/70"
+                            style={{
+                              width: `${Math.max(0, Math.min(100, row.score))}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </PanelCard>
+  );
+}
+
+type ChatMessage = {
+  id: string;
+  authorName: string;
+  authorHandle?: string;
+  content: string;
+  createdAt: number;
+};
+
+function DashboardChatPanel() {
+  const { addNotification } = useNotifications();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [draft, setDraft] = useState("");
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+  const load = useCallback(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/chat/messages");
+        const json: any = await res.json().catch(() => ({}));
+        const list = Array.isArray(json?.messages) ? (json.messages as any[]) : [];
+        const parsed: ChatMessage[] = list
+          .filter((m) => m && typeof m === "object")
+          .map((m) => ({
+            id: String(m.id ?? crypto.randomUUID()),
+            authorName: String(m.authorName ?? "Unknown"),
+            authorHandle:
+              typeof m.authorHandle === "string" ? m.authorHandle : undefined,
+            content: String(m.content ?? ""),
+            createdAt: Number(m.createdAt ?? Date.now()),
+          }))
+          .filter((m) => m.content.trim() !== "")
+          .sort((a, b) => a.createdAt - b.createdAt);
+        setMessages(parsed.slice(-60));
+      } catch {
+        // ignore; keep last good list
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = window.setInterval(load, 3500);
+    return () => window.clearInterval(t);
+  }, [load]);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    // If user is near bottom, auto-follow new messages.
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (nearBottom) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [messages]);
+
+  const send = useCallback(async () => {
+    if (sending) return;
+    const content = draft.trim();
+    if (!content) return;
+    setSending(true);
+    try {
+      const res = await fetch("/api/chat/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      const json: any = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(String(json?.error ?? "Failed to send message"));
+      }
+      setDraft("");
+      // Refresh quickly after send.
+      window.setTimeout(load, 400);
+    } catch (err) {
+      const msg =
+        err && typeof err === "object" && "message" in err
+          ? String((err as any).message)
+          : "Failed to send message";
+      addNotification({
+        id: crypto.randomUUID(),
+        text: msg || "Failed to send message",
+        type: "call",
+        createdAt: Date.now(),
+        priority: "low",
+      });
+    } finally {
+      setSending(false);
+    }
+  }, [addNotification, draft, load, sending]);
+
+  return (
+    <PanelCard title="General Chat" titleClassName="normal-case">
+      <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+        <span className="inline-flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)] opacity-80" aria-hidden />
+          #general-chat
+        </span>
+        <span>{loading ? "Connecting…" : "Live"}</span>
+      </div>
+
+      <div className="mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <div
+          ref={scrollerRef}
+          className="h-[240px] overflow-y-auto pr-1 text-sm no-scrollbar"
+        >
+          {loading ? (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-sm text-zinc-500">Loading chat…</p>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex h-full items-center justify-center px-4">
+              <div className="text-center">
+                <p className="text-sm font-semibold text-zinc-200">No messages</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Start the conversation — keep it clean.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <ul className="space-y-2 px-1 py-1">
+              {messages.map((m) => (
+                <li key={m.id} className="rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="truncate text-sm font-semibold text-zinc-100">
+                        {m.authorName}
+                      </span>
+                      {m.authorHandle ? (
+                        <span className="ml-2 text-xs text-zinc-500">
+                          {m.authorHandle}
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="shrink-0 text-xs tabular-nums text-zinc-600">
+                      {formatJoinedAt(m.createdAt, Date.now())}
+                    </span>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-200">
+                    {m.content}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void send();
+              }
+            }}
+            placeholder="Message #general-chat"
+            disabled={sending}
+            className="h-10 flex-1 rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60"
+          />
+          <button
+            type="button"
+            onClick={() => void send()}
+            disabled={sending || draft.trim() === ""}
+            className="h-10 rounded-lg bg-[color:var(--accent)] px-4 text-sm font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {sending ? "Sending…" : "Send"}
+          </button>
+        </div>
+      </div>
+    </PanelCard>
+  );
+}
+
+async function submitCall(
+  ca: string
+): Promise<{ ok: boolean; status: number; data: any }> {
   const res = await fetch("/api/call", {
     method: "POST",
     headers: {
@@ -1223,13 +2292,8 @@ async function submitCall(ca: string) {
     body: JSON.stringify({ ca }),
   });
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data.error || "Failed to submit call");
-  }
-
-  return data;
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
 }
 
 export default function Home() {
@@ -1685,20 +2749,49 @@ export default function Home() {
     setSubmitCallSubmitting(true);
     setSubmitCallFeedback(null);
     try {
-      await submitCall(ca);
-      alert("Call submitted");
-      setSubmitCallOpen(false);
-      setSubmitCallValue("");
+      const res = await submitCall(ca);
+      if (res.ok) {
+        setSubmitCallFeedback("success");
+        window.setTimeout(() => {
+          setSubmitCallOpen(false);
+          setSubmitCallValue("");
+          setSubmitCallFeedback(null);
+        }, 900);
+        return;
+      }
+
+      const msg =
+        res.data && typeof res.data === "object" && "error" in res.data
+          ? String((res.data as any).error)
+          : "Failed to submit call";
+      const normalized = msg.toLowerCase();
+      if (res.status === 409 || normalized.includes("already")) {
+        setSubmitCallFeedback("already_exists");
+      } else {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: msg || "Failed to submit call",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      }
     } catch (err) {
       const msg =
         err && typeof err === "object" && "message" in err
           ? String((err as any).message)
-          : "Failed";
-      alert(msg || "Failed");
+          : "Failed to submit call";
+      addNotification({
+        id: crypto.randomUUID(),
+        text: msg || "Failed to submit call",
+        type: "call",
+        createdAt: Date.now(),
+        priority: "low",
+      });
     } finally {
       setSubmitCallSubmitting(false);
     }
-  }, [submitCallSubmitting, submitCallValue]);
+  }, [addNotification, submitCallSubmitting, submitCallValue]);
 
   if (status === "loading") {
     return (
@@ -2093,29 +3186,10 @@ export default function Home() {
             </div>
           </PanelCard>
 
+          <DashboardChatPanel />
+
           {widgetEnabled(widgets, "hot_now") && (
-            <PanelCard
-              title="📈 Trending Tokens"
-              titleClassName="normal-case"
-            >
-              <div className="mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                <ul className="space-y-1">
-                  {TRENDING_TOKENS_MOCK.map((row) => (
-                    <li
-                      key={row.symbol}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 transition-colors hover:bg-zinc-900/35"
-                    >
-                      <span className="text-sm font-semibold text-zinc-100">
-                        {row.symbol}
-                      </span>
-                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium leading-tight text-amber-200/95">
-                        {Number.isFinite(row.stat) ? `${row.stat}x` : "—"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </PanelCard>
+            <OpportunitiesPanel />
           )}
         </div>
       </div>

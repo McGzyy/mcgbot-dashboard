@@ -1,12 +1,26 @@
-export async function POST(request: Request) {
-  console.log("Forwarding call to bot:", process.env.BOT_API_URL);
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
+export async function POST(request: Request) {
   try {
-    const botUrl = process.env.BOT_API_URL;
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id?.trim() ?? "";
+    if (!userId) {
+      return Response.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const botUrl = process.env.BOT_API_URL?.trim() ?? "";
     if (!botUrl) {
       return Response.json(
-        { success: false, error: "Missing BOT_API_URL" },
-        { status: 500 }
+        {
+          success: false,
+          error:
+            "Submit Call is not configured (missing BOT_API_URL). Add it to your environment to enable calls.",
+        },
+        { status: 503 }
       );
     }
 
@@ -20,10 +34,6 @@ export async function POST(request: Request) {
 
     const o = body as Record<string, unknown>;
     const ca = typeof o.ca === "string" ? o.ca.trim() : "";
-    const userId = typeof o.userId === "string" ? o.userId.trim() : "";
-
-    console.log("API HIT CA:", ca);
-    console.log("Forwarding to:", botUrl);
 
     if (!ca) {
       return Response.json(
@@ -34,9 +44,7 @@ export async function POST(request: Request) {
 
     const res = await fetch(`${botUrl}/internal/call`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ca, userId }),
     });
 

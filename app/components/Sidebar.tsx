@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -46,15 +47,36 @@ export function Sidebar() {
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-zinc-800 bg-gradient-to-b from-black via-zinc-950 to-black">
       <div className="border-b border-zinc-800 px-4 py-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-green-500/20 bg-green-500/10">
-            <span className="text-sm font-bold text-green-400">M</span>
+        <Link
+          href="/"
+          className="group flex items-center gap-3 rounded-xl p-1 transition-colors hover:bg-white/[0.03]"
+          aria-label="Go to dashboard"
+        >
+          <div className="relative h-12 w-12 bg-transparent">
+            <Image
+              src="/brand/mcgbot-logo-v2.png"
+              alt="McGBot"
+              fill
+              sizes="48px"
+              priority
+              className="object-contain"
+            />
           </div>
-          <div>
-            <div className="font-semibold tracking-tight text-white">McGBot</div>
-            <div className="text-[11px] text-zinc-500">Terminal</div>
+          <div className="min-w-0">
+            <div className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-zinc-50">
+              McGBot
+            </div>
+            <div className="mt-0.5 flex items-center gap-2">
+              <span className="text-[11px] font-medium uppercase tracking-[0.22em] text-zinc-500">
+                Terminal
+              </span>
+              <span
+                className="h-1 w-1 rounded-full bg-green-400/70"
+                aria-hidden
+              />
+            </div>
           </div>
-        </div>
+        </Link>
       </div>
 
       <nav className="flex flex-1 flex-col" aria-label="Main">
