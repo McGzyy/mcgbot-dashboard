@@ -3,7 +3,8 @@
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type MarketSnapshot = {
   solPrice: number;
@@ -64,15 +65,22 @@ export function TopBar() {
   const [market, setMarket] = useState<MarketSnapshot | null>(null);
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketUpdatedAtMs, setMarketUpdatedAtMs] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
   const loadedOnceRef = useRef(false);
   const prevSolPriceRef = useRef<number | null>(null);
   const flashTimerRef = useRef<number | null>(null);
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
+  const [tokenSearchOpen, setTokenSearchOpen] = useState(false);
+  const [tokenSearchQuery, setTokenSearchQuery] = useState("");
   const [showMarketWidget, setShowMarketWidget] = useState(true);
   const [open, setOpen] = useState(false);
   const [openNotifications, setOpenNotifications] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,11 +202,52 @@ export function TopBar() {
   const marketUpdatedLabel =
     marketUpdatedAtMs == null ? "—" : formatTimeAgo(marketUpdatedAtMs, Date.now());
 
+  const openTokenSearch = useCallback(() => {
+    setTokenSearchOpen(true);
+    setTokenSearchQuery("");
+  }, []);
+
+  const openDexScreenerSearch = useCallback(() => {
+    const q = tokenSearchQuery.trim();
+    if (!q) return;
+    window.open(
+      `https://dexscreener.com/search?q=${encodeURIComponent(q)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }, [tokenSearchQuery]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName?.toLowerCase();
+      const inInput =
+        tag === "input" ||
+        tag === "textarea" ||
+        (t != null && (t as any).isContentEditable);
+
+      if (e.key === "Escape") {
+        if (tokenSearchOpen) setTokenSearchOpen(false);
+        return;
+      }
+
+      if (inInput) return;
+
+      if (e.key === "/") {
+        e.preventDefault();
+        openTokenSearch();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [openTokenSearch, tokenSearchOpen]);
+
   return (
-    <header
-      className="sticky top-0 z-50 border-b border-[#1a1a1a] bg-[#0a0a0a] backdrop-blur"
-      role="banner"
-    >
+    <>
+      <header
+        className="sticky top-0 z-50 border-b border-[#1a1a1a] bg-[#0a0a0a] backdrop-blur"
+        role="banner"
+      >
       {/* TOP ROW (existing header content) */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-2">
         <div className="min-w-0 flex-1" aria-hidden />
@@ -208,6 +257,17 @@ export function TopBar() {
             <div className="h-9 w-24 animate-pulse rounded-md bg-zinc-800/80" />
           ) : (
             <>
+              <button
+                type="button"
+                onClick={openTokenSearch}
+                className="hidden h-9 items-center gap-2 rounded-lg border border-zinc-800/70 bg-zinc-900/25 px-3 text-sm text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900/40 hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 sm:flex"
+                aria-label="Open token search"
+              >
+                <span className="text-zinc-400">Search…</span>
+                <span className="rounded-md border border-zinc-800/70 bg-zinc-900/30 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-400">
+                  /
+                </span>
+              </button>
               <div className="relative" ref={notifRef}>
                 <button
                   type="button"
@@ -407,6 +467,103 @@ export function TopBar() {
           )}
         </div>
       )}
-    </header>
+      </header>
+
+      {mounted
+        ? createPortal(
+            <TokenSearchModal
+              open={tokenSearchOpen}
+              query={tokenSearchQuery}
+              setQuery={setTokenSearchQuery}
+              onClose={() => setTokenSearchOpen(false)}
+              onSearch={openDexScreenerSearch}
+            />,
+            document.body
+          )
+        : null}
+    </>
+  );
+}
+
+function TokenSearchModal({
+  open,
+  query,
+  setQuery,
+  onClose,
+  onSearch,
+}: {
+  open: boolean;
+  query: string;
+  setQuery: (v: string) => void;
+  onClose: () => void;
+  onSearch: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Token search"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="mt-10 w-full max-w-xl rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-100">Token Search</h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              Paste a contract address, symbol, or pair name.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-2 py-1 text-xs text-zinc-300 hover:bg-[#0a0a0a]"
+            aria-label="Close"
+          >
+            Esc
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="e.g. So111... / SOL / WIF"
+            className="w-full rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onSearch();
+            }}
+          />
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-[#0a0a0a]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onSearch}
+              disabled={query.trim() === ""}
+              className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-medium text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-60"
+            >
+              Search
+            </button>
+          </div>
+
+          <p className="text-xs text-zinc-500">
+            Tip: press <span className="font-semibold text-zinc-300">/</span>{" "}
+            anywhere to open this.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

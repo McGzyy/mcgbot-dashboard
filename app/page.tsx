@@ -8,7 +8,7 @@ import {
 import { ActivityPopup } from "./components/ActivityPopup";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
-import LiveTrackedCallsPanel from "@/components/LiveTrackedCallsPanel";
+import DailyLeaderboardPanel from "@/components/DailyLeaderboardPanel";
 import PerformanceChart from "@/components/dashboard/PerformanceChart";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
@@ -875,8 +875,8 @@ function TopPerformersPanel({
 }
 
 type ActivityFeedPanelProps = {
-  feedMode: "all" | "following";
-  setFeedMode: (m: "all" | "following") => void;
+  feedMode: "all" | "me" | "milestones" | "calls" | "following";
+  setFeedMode: (m: "all" | "me" | "milestones" | "calls" | "following") => void;
   loadingActivity: boolean;
   activity: ActivityItem[];
   followingIds: Set<string>;
@@ -901,12 +901,26 @@ function ActivityFeedPanel({
   viewerId,
   viewerName,
 }: ActivityFeedPanelProps) {
+  const filteredActivity = useMemo(() => {
+    if (feedMode === "me") {
+      const me = (viewerId ?? "").trim();
+      if (!me) return [];
+      return activity.filter((a) => a.discordId.trim() === me);
+    }
+    if (feedMode === "milestones") return activity.filter((a) => a.type === "win");
+    if (feedMode === "calls") return activity.filter((a) => a.type === "call");
+    return activity;
+  }, [activity, feedMode, viewerId]);
+
   return (
     <PanelCard title="Live Activity">
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         {(
           [
             { id: "all" as const, label: "All" },
+            { id: "me" as const, label: "My Activity" },
+            { id: "milestones" as const, label: "Milestones" },
+            { id: "calls" as const, label: "Calls" },
             { id: "following" as const, label: "Following" },
           ] as const
         ).map(({ id, label }) => {
@@ -926,29 +940,47 @@ function ActivityFeedPanel({
             </button>
           );
         })}
+        <div className="ml-auto hidden items-center gap-2 text-[11px] text-zinc-500 sm:flex">
+          <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)] opacity-80" aria-hidden />
+          LIVE
+        </div>
       </div>
-      {loadingActivity ? (
-        <div className="flex min-h-[88px] items-center justify-center py-6">
-          <p className="text-sm text-zinc-500">Loading activity...</p>
-        </div>
-      ) : activity.length === 0 ? (
-        <div className="flex min-h-[88px] items-center justify-center py-6">
-          <p className="text-sm text-zinc-500">
-            {feedMode === "following"
-              ? "No activity from people you follow"
-              : "No activity yet"}
-          </p>
-        </div>
-      ) : (
-        <ul className="mt-2 max-h-[300px] overflow-y-auto pr-1 text-sm">
-          {activity.map((item, i) => (
+
+      <div className="mt-2 h-[300px] overflow-y-auto pr-1 text-sm no-scrollbar">
+        {loadingActivity ? (
+          <div className="flex h-full items-center justify-center">
+            <p className="text-sm text-zinc-500">Loading activity...</p>
+          </div>
+        ) : filteredActivity.length === 0 ? (
+          <div className="flex h-full items-center justify-center">
+            <p className="text-sm text-zinc-500">
+              {feedMode === "me"
+                ? "No activity from you yet"
+                : feedMode === "following"
+                ? "No activity from people you follow"
+                : feedMode === "milestones"
+                  ? "No milestones yet"
+                  : feedMode === "calls"
+                    ? "No calls yet"
+                    : "No activity yet"}
+            </p>
+          </div>
+        ) : (
+          <ul className="text-sm">
+            {filteredActivity.map((item, i) => (
             <li
               key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
               className="dashboard-feed-item border-b border-[#1a1a1a] last:border-b-0"
               style={{ animationDelay: `${i * 70}ms` }}
             >
-              <div className="relative">
-                <div className="absolute bottom-1 left-0 top-1 w-[2px] rounded-full bg-cyan-400/40" />
+              <div className="group relative">
+                <div
+                  className={`absolute bottom-1 left-0 top-1 w-[2px] rounded-full transition-opacity ${
+                    item.type === "win"
+                      ? "bg-[color:var(--accent)]/45 opacity-90"
+                      : "bg-cyan-400/35 opacity-0 group-hover:opacity-80"
+                  }`}
+                />
                 <div className="pl-3">
                   <div className="flex items-start gap-2 rounded-lg bg-zinc-900/40 px-3 py-2 transition-all duration-150 hover:bg-zinc-800/60">
                     <FollowButton
@@ -1001,9 +1033,10 @@ function ActivityFeedPanel({
                 </div>
               </div>
             </li>
-          ))}
-        </ul>
-      )}
+            ))}
+          </ul>
+        )}
+      </div>
     </PanelCard>
   );
 }
@@ -1099,7 +1132,9 @@ export default function Home() {
     null
   );
   const { followingIds, setFollowing } = useFollowingIds();
-  const [feedMode, setFeedMode] = useState<"all" | "following">("all");
+  const [feedMode, setFeedMode] = useState<
+    "all" | "me" | "milestones" | "calls" | "following"
+  >("all");
   const [topPerformersToday, setTopPerformersToday] = useState<
     TopPerformerTodayRow[]
   >([]);
@@ -1143,11 +1178,13 @@ export default function Home() {
     };
   }, [status]);
 
+  const apiActivityMode = feedMode === "following" ? "following" : "all";
+
   const loadActivity = useCallback(() => {
     void (async () => {
       try {
         const res = await fetch(
-          `/api/activity?mode=${encodeURIComponent(feedMode)}`
+          `/api/activity?mode=${encodeURIComponent(apiActivityMode)}`
         );
         const data: unknown = await res.json();
         if (!Array.isArray(data)) {
@@ -1199,12 +1236,12 @@ export default function Home() {
 
         const uid = session?.user?.id?.trim() ?? "";
         const notificationFilter =
-          uid && feedMode === "all"
+          uid && apiActivityMode === "all"
             ? await fetchNotificationFilter(uid)
             : null;
 
         setActivity((prev) => {
-          if (feedMode === "all") {
+          if (apiActivityMode === "all") {
             if (activitySourceModeRef.current === "all") {
               processActivityNotifications(
                 prev,
@@ -1230,7 +1267,7 @@ export default function Home() {
         setLoadingActivity(false);
       }
     })();
-  }, [addNotification, feedMode, session?.user?.id]);
+  }, [addNotification, apiActivityMode, session?.user?.id]);
 
   const nowMs = Date.now();
   const displayedReferrals = useMemo(
@@ -1556,6 +1593,7 @@ export default function Home() {
     },
     [addNotification]
   );
+
 
   const handleCopy = useCallback(async () => {
     if (!referralUrl) return;
@@ -1900,26 +1938,30 @@ export default function Home() {
             </PanelCard>
           )}
 
-          {widgetEnabled(widgets, "live_tracked_calls") && <LiveTrackedCallsPanel />}
+          {widgetEnabled(widgets, "live_tracked_calls") && <DailyLeaderboardPanel />}
 
           {widgetEnabled(widgets, "hot_now") && (
             <PanelCard
               title="📈 Trending Tokens"
               titleClassName="normal-case"
             >
-              <ul className="mt-2 space-y-2">
-                {TRENDING_TOKENS_MOCK.map((row) => (
-                  <li
-                    key={row.symbol}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#1a1a1a] bg-transparent px-3 py-2"
-                  >
-                    <span className="font-medium text-zinc-100">{row.symbol}</span>
-                    <span className="rounded-full border border-amber-500/35 bg-amber-500/5 px-2.5 py-0.5 text-[11px] font-medium leading-tight text-amber-200/95">
-                      {Number.isFinite(row.stat) ? `${row.stat}x` : "—"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                <ul className="space-y-1">
+                  {TRENDING_TOKENS_MOCK.map((row) => (
+                    <li
+                      key={row.symbol}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 transition-colors hover:bg-zinc-900/35"
+                    >
+                      <span className="text-sm font-semibold text-zinc-100">
+                        {row.symbol}
+                      </span>
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium leading-tight text-amber-200/95">
+                        {Number.isFinite(row.stat) ? `${row.stat}x` : "—"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </PanelCard>
           )}
         </div>

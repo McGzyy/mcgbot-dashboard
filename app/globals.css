@@ -70,6 +70,15 @@ body {
   animation: dashboard-fire-glow 2.2s ease-in-out infinite;
 }
 
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in {
     animation: none;
