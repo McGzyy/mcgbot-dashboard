@@ -379,7 +379,9 @@ export default function SettingsPage() {
         </p>
         <button
           type="button"
-          onClick={() => signIn("discord")}
+          onClick={() =>
+            void signIn("discord", { callbackUrl: window.location.href })
+          }
           className="mt-4 rounded-lg bg-[#5865F2] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50"
         >
           Login with Discord

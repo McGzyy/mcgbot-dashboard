@@ -2299,6 +2299,7 @@ async function submitCall(
 export default function Home() {
   const { data: session, status } = useSession();
   const { addNotification } = useNotifications();
+  const oauthErrorHandledRef = useRef(false);
   const lastSeenActivityKeysRef = useRef(new Set<string>());
   const activitySourceModeRef = useRef<"all" | "following" | null>(null);
   const [copied, setCopied] = useState(false);
@@ -2332,6 +2333,41 @@ export default function Home() {
   const [submitCallFeedback, setSubmitCallFeedback] = useState<
     "success" | "already_exists" | null
   >(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (status !== "unauthenticated") return;
+    if (oauthErrorHandledRef.current) return;
+
+    const sp = new URLSearchParams(window.location.search);
+    const err = sp.get("error");
+    if (!err) return;
+
+    oauthErrorHandledRef.current = true;
+
+    const descRaw = sp.get("error_description") ?? "";
+    const desc = (() => {
+      try {
+        return decodeURIComponent(descRaw.replace(/\+/g, " "));
+      } catch {
+        return descRaw.replace(/\+/g, " ");
+      }
+    })();
+
+    addNotification({
+      id: crypto.randomUUID(),
+      text: desc ? `Discord auth failed: ${desc}` : `Discord auth failed (${err})`,
+      type: "call",
+      createdAt: Date.now(),
+      priority: "medium",
+    });
+
+    // Clean the URL so refresh doesn't keep re-triggering the toast.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("error");
+    url.searchParams.delete("error_description");
+    window.history.replaceState({}, "", url.toString());
+  }, [addNotification, status]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -2817,7 +2853,9 @@ export default function Home() {
           </p>
           <button
             type="button"
-            onClick={() => signIn("discord")}
+            onClick={() =>
+              void signIn("discord", { callbackUrl: window.location.href })
+            }
             className="mt-8 w-full rounded-lg bg-[#5865F2] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50"
           >
             Login with Discord
