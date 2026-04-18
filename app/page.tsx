@@ -26,6 +26,17 @@ import {
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
+function discordSignInSafe() {
+  // Never pass `window.location.href` as callbackUrl if the current URL already contains
+  // NextAuth's `callbackUrl` query param — it recursively nests and can break OAuth.
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("callbackUrl");
+  window.history.replaceState({}, "", url.toString());
+
+  void signIn("discord", { callbackUrl: "/" });
+}
+
 /** Mock trending rows; `mint` is a placeholder Solana mint for Dexscreener charts. */
 const TRENDING_TOKENS_MOCK = [
   { symbol: "SOLXYZ", stat: 2.4, mint: "So11111111111111111111111111111111111111112" },
@@ -2853,9 +2864,7 @@ export default function Home() {
           </p>
           <button
             type="button"
-            onClick={() =>
-              void signIn("discord", { callbackUrl: window.location.href })
-            }
+            onClick={() => discordSignInSafe()}
             className="mt-8 w-full rounded-lg bg-[#5865F2] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50"
           >
             Login with Discord

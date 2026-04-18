@@ -13,6 +13,14 @@ type MarketSnapshot = {
   activeTraders: number;
 };
 
+function discordSignInSafe() {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("callbackUrl");
+  window.history.replaceState({}, "", url.toString());
+  void signIn("discord", { callbackUrl: "/" });
+}
+
 function formatSolUsd(n: number): string {
   if (!Number.isFinite(n)) return "—";
   return `$${n.toFixed(2)}`;
@@ -402,9 +410,7 @@ export function TopBar() {
               ) : (
                 <button
                   type="button"
-                  onClick={() =>
-                    void signIn("discord", { callbackUrl: window.location.href })
-                  }
+                  onClick={() => discordSignInSafe()}
                   className="rounded-lg bg-[#5865F2] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50"
                 >
                   Login with Discord
