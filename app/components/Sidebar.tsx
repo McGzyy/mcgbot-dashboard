@@ -18,7 +18,6 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const isReferralsRoute = pathname.startsWith("/referrals");
   const profileId = session?.user?.id?.trim() || "";
   const profileName =
     session?.user?.name?.trim() ||
@@ -35,13 +34,6 @@ export function Sidebar() {
       active
         ? "bg-zinc-800 text-white border border-zinc-700 shadow-[0_0_10px_rgba(34,197,94,0.15)]"
         : "text-zinc-400 hover:text-white hover:bg-zinc-900"
-    }`;
-
-  const subItemClass = (href: string) =>
-    `relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150 hover:bg-zinc-900/60 ${
-      pathname === href
-        ? "bg-zinc-800 text-white border border-zinc-700 shadow-[0_0_10px_rgba(34,197,94,0.15)]"
-        : "text-zinc-500 hover:text-white hover:bg-zinc-900"
     }`;
 
   return (
@@ -107,48 +99,6 @@ export function Sidebar() {
             />
             <span>Watchlist</span>
           </Link>
-
-          <Link href="/referrals" className={navItem(isReferralsRoute)}>
-            <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isReferralsRoute ? "bg-green-400 opacity-100" : "opacity-0"
-              }`}
-            />
-            <span>Referrals</span>
-          </Link>
-
-          {isReferralsRoute ? (
-            <div className="mt-1 flex flex-col gap-1 pl-2">
-              <Link href="/referrals" className={subItemClass("/referrals")}>
-                <div
-                  className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                    pathname === "/referrals" ? "bg-green-400 opacity-100" : "opacity-0"
-                  }`}
-                />
-                <span>Overview</span>
-              </Link>
-
-              <Link href="/referrals/performance" className={subItemClass("/referrals/performance")}>
-                <div
-                  className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                    pathname === "/referrals/performance"
-                      ? "bg-green-400 opacity-100"
-                      : "opacity-0"
-                  }`}
-                />
-                <span>Performance</span>
-              </Link>
-
-              <Link href="/referrals/rewards" className={subItemClass("/referrals/rewards")}>
-                <div
-                  className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                    pathname === "/referrals/rewards" ? "bg-green-400 opacity-100" : "opacity-0"
-                  }`}
-                />
-                <span>Rewards</span>
-              </Link>
-            </div>
-          ) : null}
 
           {nav.map(({ href, label }) => (
             <Link key={href} href={href} className={navItem(isActive(pathname, href))}>

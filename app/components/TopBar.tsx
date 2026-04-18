@@ -2,6 +2,7 @@
 
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -68,6 +69,7 @@ function formatTimeAgo(createdAt: number, nowMs: number): string {
 
 export function TopBar() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
   const { notifications } = useNotifications();
   const activeNotificationCount = notifications.filter((n) => !n.exiting).length;
   const [market, setMarket] = useState<MarketSnapshot | null>(null);
@@ -85,6 +87,11 @@ export function TopBar() {
   const [openNotifications, setOpenNotifications] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  const accountMenuItem = (active: boolean) =>
+    `block w-full px-4 py-2.5 text-left text-sm transition hover:bg-zinc-800 ${
+      active ? "bg-zinc-900 text-white" : "text-zinc-200"
+    }`;
 
   useEffect(() => {
     setMounted(true);
@@ -374,14 +381,17 @@ export function TopBar() {
                   </button>
                   {open ? (
                     <div
-                      className="absolute right-0 top-full z-50 mt-2 min-w-[180px] rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] py-1 shadow-lg"
+                      className="absolute right-0 top-full z-50 mt-2 min-w-[220px] rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] py-1 shadow-lg"
                       role="menu"
                     >
                       <Link
                         href={`/user/${encodeURIComponent(session.user.id)}`}
                         role="menuitem"
                         onClick={() => setOpen(false)}
-                        className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-zinc-800"
+                        className={accountMenuItem(
+                          pathname === `/user/${session.user.id}` ||
+                            pathname === `/user/${encodeURIComponent(session.user.id)}`
+                        )}
                       >
                         Profile
                       </Link>
@@ -389,10 +399,41 @@ export function TopBar() {
                         href="/settings"
                         role="menuitem"
                         onClick={() => setOpen(false)}
-                        className="block w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-zinc-800"
+                        className={accountMenuItem(pathname.startsWith("/settings"))}
                       >
                         Settings
                       </Link>
+
+                      <div className="my-1 border-t border-[#1a1a1a]" />
+                      <div className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                        Referrals
+                      </div>
+                      <Link
+                        href="/referrals"
+                        role="menuitem"
+                        onClick={() => setOpen(false)}
+                        className={accountMenuItem(pathname === "/referrals")}
+                      >
+                        Overview
+                      </Link>
+                      <Link
+                        href="/referrals/performance"
+                        role="menuitem"
+                        onClick={() => setOpen(false)}
+                        className={accountMenuItem(pathname === "/referrals/performance")}
+                      >
+                        Performance
+                      </Link>
+                      <Link
+                        href="/referrals/rewards"
+                        role="menuitem"
+                        onClick={() => setOpen(false)}
+                        className={accountMenuItem(pathname === "/referrals/rewards")}
+                      >
+                        Rewards
+                      </Link>
+
+                      <div className="my-1 border-t border-[#1a1a1a]" />
                       <button
                         type="button"
                         role="menuitem"
