@@ -5,16 +5,7 @@ import {
   parseDashboardChatKind,
   resolveDashboardChatChannelId,
 } from "@/lib/dashboardChat";
-
-type DiscordApiMessage = {
-  id?: string;
-  content?: string;
-  timestamp?: string;
-  author?: {
-    username?: string;
-    global_name?: string | null;
-  };
-};
+import { normalizeDiscordRestMessage } from "@/lib/discordChatMessageSerialize";
 
 function requireEnv(name: string): string {
   const v = (process.env[name] ?? "").trim();
@@ -74,17 +65,15 @@ export async function GET(request: Request) {
     );
   }
 
-  const raw = (await res.json().catch(() => [])) as DiscordApiMessage[];
-  const messages = (Array.isArray(raw) ? raw : [])
-    .map((m) => {
-      const id = String(m.id ?? "");
-      const content = String(m.content ?? "").trim();
-      const createdAt = m.timestamp ? Date.parse(m.timestamp) : Date.now();
-      const authorName = String(m.author?.global_name || m.author?.username || "Unknown");
-      const authorHandle = m.author?.username ? `@${String(m.author.username)}` : undefined;
-      return { id, content, createdAt, authorName, authorHandle };
-    })
-    .filter((m) => m.id && m.content)
+  const raw = (await res.json().catch(() => [])) as unknown;
+  const rows = Array.isArray(raw) ? raw : [];
+  const messages = rows
+    .map((row) =>
+      row && typeof row === "object"
+        ? normalizeDiscordRestMessage(row as Record<string, unknown>)
+        : null
+    )
+    .filter((m): m is NonNullable<typeof m> => m != null)
     .sort((a, b) => a.createdAt - b.createdAt);
 
   return Response.json({ messages });

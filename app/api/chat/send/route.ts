@@ -5,6 +5,11 @@ import {
   parseDashboardChatKind,
   resolveDashboardChatChannelId,
 } from "@/lib/dashboardChat";
+import {
+  executeDashboardChatWebhook,
+  isDiscordWebhookExecuteUrl,
+  resolveDashboardChatWebhookUrl,
+} from "@/lib/discordChatWebhook";
 
 function requireEnv(name: string): string {
   const v = (process.env[name] ?? "").trim();
@@ -42,6 +47,49 @@ export async function POST(request: Request) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const webhookUrl = resolveDashboardChatWebhookUrl(kind);
+
+  if (webhookUrl) {
+    if (!isDiscordWebhookExecuteUrl(webhookUrl)) {
+      return Response.json(
+        {
+          error:
+            "Invalid DISCORD_*_CHAT_WEBHOOK_URL (must be https://discord.com/… or https://discordapp.com/… + /api/webhooks/{id}/{token}).",
+        },
+        { status: 500 }
+      );
+    }
+
+    const su = session?.user;
+    const displayName = (
+      su?.name?.trim() ||
+      su?.email?.trim() ||
+      `User ${userId.slice(0, 6)}`
+    ).slice(0, 80);
+    const avatarUrl = typeof su?.image === "string" ? su.image : null;
+
+    try {
+      const res = await executeDashboardChatWebhook(webhookUrl, {
+        content: trimmed,
+        username: displayName,
+        avatarUrl,
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        return Response.json(
+          { error: `Discord webhook error (${res.status}) ${txt}`.trim() },
+          { status: 502 }
+        );
+      }
+      return Response.json({ success: true, via: "webhook" as const });
+    } catch {
+      return Response.json(
+        { error: "Failed to send message" },
+        { status: 500 }
+      );
+    }
+  }
+
   const channelId = resolveDashboardChatChannelId(kind);
   const token = requireEnv("DISCORD_TOKEN");
 
@@ -50,8 +98,8 @@ export async function POST(request: Request) {
       {
         error:
           kind === "mod"
-            ? "Mod chat is not configured (missing DISCORD_MOD_CHAT_CHANNEL_ID)."
-            : "Chat is not configured (missing DISCORD_GENERAL_CHAT_CHANNEL_ID or DISCORD_CHAT_CHANNEL_ID).",
+            ? "Mod chat is not configured (set DISCORD_MOD_CHAT_WEBHOOK_URL or DISCORD_MOD_CHAT_CHANNEL_ID + DISCORD_TOKEN)."
+            : "Chat is not configured (set DISCORD_GENERAL_CHAT_WEBHOOK_URL or DISCORD_GENERAL_CHAT_CHANNEL_ID + DISCORD_TOKEN).",
       },
       { status: 503 }
     );
@@ -85,7 +133,7 @@ export async function POST(request: Request) {
         { status: 502 }
       );
     }
-    return Response.json({ success: true });
+    return Response.json({ success: true, via: "bot" as const });
   } catch {
     return Response.json(
       { error: "Failed to send message" },

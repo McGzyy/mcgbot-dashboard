@@ -179,7 +179,7 @@ app.post("/internal/call", async (req, res) => {
 
     // Pick your target channel
     const channel = client.channels.cache.find(
-      (c) => c.name === "token-calls"
+      (c) => c.name === "user-calls" || c.name === "token-calls"
     );
 
     if (!channel) {
@@ -4246,7 +4246,7 @@ if (lowerContent.startsWith('!truestats')) {
 
     try {
       await handleBasicCommands(message, {
-        scanChannelNames: ['scanner', 'scanner-feed', 'calls', 'coin-calls', 'token-calls']
+        scanChannelNames: ['scanner', 'scanner-feed', 'calls', 'coin-calls', 'user-calls', 'token-calls']
       });
       return;
     } catch (scanError) {
