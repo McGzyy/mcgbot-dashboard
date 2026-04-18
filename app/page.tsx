@@ -1209,97 +1209,125 @@ function RankPanel({
   yourRankLoading: boolean;
   yourWeekRank: number | null;
 }) {
-  const [timeframe, setTimeframe] = useState("1D");
+  /** Same D / W / M / A control as `app/leaderboard/page.tsx` "Your Rank" card. */
+  const [range, setRange] = useState<"D" | "W" | "M" | "A">("D");
 
-  const rankPeriodLabel =
-    timeframe === "1D"
-      ? "today"
-      : timeframe === "1W"
-        ? "this week"
-        : "this month";
+  const timeframeLabel =
+    {
+      D: "24h",
+      W: "7d",
+      M: "30d",
+      A: "All time",
+    }[range] ?? "24h";
 
-  const comparisonText =
-    timeframe === "1D"
-      ? "+2 from yesterday"
-      : timeframe === "1W"
-        ? "+5 from last week"
-        : "+12 from last month";
+  const rankDeltaToday = range === "D" ? 2 : range === "W" ? -1 : range === "M" ? 0 : 1;
+  const rankImproving = rankDeltaToday > 0;
 
   const emptyRankHint =
-    timeframe === "1D"
+    range === "D"
       ? "No rank today yet — keep calling to climb the daily board."
-      : timeframe === "1W"
+      : range === "W"
         ? "No rank this week yet — user calls in the last 7 days earn a spot on the leaderboard."
-        : "No rank this month yet — sustained activity over the month counts toward placement.";
+        : range === "M"
+          ? "No rank this month yet — sustained activity over the month counts toward placement."
+          : "No all-time placement yet — long-term callers earn a permanent ladder spot.";
+
+  /** Weekly rank from API; shown for every range until multi-period API exists. */
+  const displayRank = yourWeekRank;
+
+  const shellRing =
+    !yourRankLoading && displayRank !== null && rankImproving
+      ? "ring-1 ring-green-500/20 shadow-[0_0_18px_rgba(34,197,94,0.12)]"
+      : "";
 
   return (
-    <PanelCard
-      title="Your Rank"
-      titleClassName="normal-case"
-      className="flex h-full w-full flex-col"
+    <div
+      className={[
+        "group relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4",
+        shellRing,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
-      {/* TODO: connect timeframe to real backend stats */}
-      <div className="mt-2 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setTimeframe("1D")}
-          className={`rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
-            timeframe === "1D"
-              ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
-              : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-          }`}
-        >
-          1D
-        </button>
-        <button
-          type="button"
-          onClick={() => setTimeframe("1W")}
-          className={`rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
-            timeframe === "1W"
-              ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
-              : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-          }`}
-        >
-          1W
-        </button>
-        <button
-          type="button"
-          onClick={() => setTimeframe("1M")}
-          className={`rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
-            timeframe === "1M"
-              ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
-              : "bg-zinc-800/90 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-          }`}
-        >
-          1M
-        </button>
+      <div className="pointer-events-none absolute inset-0 bg-zinc-500/5 opacity-35 blur-2xl transition-opacity duration-300 group-hover:opacity-55" />
+
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+        <div className="flex items-start justify-between gap-3">
+          <div className="text-sm text-zinc-400">Your Rank</div>
+          <div className="flex shrink-0 gap-1" role="tablist" aria-label="Rank period">
+            {(["D", "W", "M", "A"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={range === t}
+                onClick={() => setRange(t)}
+                className={`rounded border px-2 py-0.5 text-xs transition ${
+                  range === t
+                    ? "border-green-400 text-green-400"
+                    : "border-zinc-700 text-zinc-400 hover:border-green-400"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {yourRankLoading ? (
+          <div className="mt-2 flex flex-1 animate-pulse items-center justify-between gap-3" aria-busy="true">
+            <div className="space-y-2">
+              <div className="h-2 w-16 rounded bg-zinc-800" />
+              <div className="h-8 w-20 rounded bg-zinc-800/90" />
+              <div className="h-2 w-24 rounded bg-zinc-800/80" />
+            </div>
+            <div className="space-y-2 text-right">
+              <div className="ml-auto h-2 w-12 rounded bg-zinc-800" />
+              <div className="ml-auto h-5 w-10 rounded bg-zinc-800/90" />
+            </div>
+          </div>
+        ) : displayRank === null ? (
+          <p className="mt-2 text-sm leading-relaxed text-zinc-400">{emptyRankHint}</p>
+        ) : (
+          <>
+            <div className="mt-2 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                  GLOBAL RANK
+                </div>
+                <div className="mt-0.5 text-4xl font-bold tracking-tight text-white drop-shadow-[0_0_6px_rgba(34,197,94,0.3)]">
+                  #{displayRank}
+                </div>
+                <div
+                  className={`mt-1 text-xs ${
+                    rankDeltaToday > 0
+                      ? "text-green-400"
+                      : rankDeltaToday < 0
+                        ? "text-red-400"
+                        : "text-zinc-500"
+                  }`}
+                >
+                  {rankDeltaToday > 0
+                    ? `↑ +${rankDeltaToday} today`
+                    : rankDeltaToday < 0
+                      ? `↓ ${rankDeltaToday} today`
+                      : "— today"}
+                </div>
+              </div>
+
+              <div className="text-right">
+                <div className="text-sm text-zinc-500">Win Rate</div>
+                <div className="font-medium text-zinc-200">58%</div>
+              </div>
+            </div>
+
+            <div className="mt-2 text-xs text-zinc-500">
+              18 calls • {timeframeLabel}
+            </div>
+          </>
+        )}
       </div>
-      {yourRankLoading ? (
-        <div className="mt-3 flex min-h-[52px] items-center">
-          <p className="text-sm text-zinc-500">Loading rank…</p>
-        </div>
-      ) : yourWeekRank === null ? (
-        <p className="mt-3 text-sm leading-relaxed text-zinc-400">{emptyRankHint}</p>
-      ) : (
-        <div className="mt-3">
-          <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-sm text-zinc-300">
-            <span>You are</span>
-            <span className="font-bold tabular-nums text-zinc-50">
-              #{yourWeekRank}
-            </span>
-            <span>{rankPeriodLabel}</span>
-            <span
-              className="text-base font-light leading-none text-[#39FF14]/70"
-              title="Rank change (placeholder)"
-              aria-hidden
-            >
-              ↑
-            </span>
-          </p>
-          <p className="mt-1.5 text-xs text-[#39FF14]/60">{comparisonText}</p>
-        </div>
-      )}
-    </PanelCard>
+    </div>
   );
 }
 

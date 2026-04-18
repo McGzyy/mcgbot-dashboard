@@ -403,6 +403,14 @@ export function TopBar() {
                       >
                         Settings
                       </Link>
+                      <Link
+                        href="/help"
+                        role="menuitem"
+                        onClick={() => setOpen(false)}
+                        className={accountMenuItem(pathname.startsWith("/help"))}
+                      >
+                        Help
+                      </Link>
 
                       <div className="my-1 border-t border-[#1a1a1a]" />
                       <div className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
