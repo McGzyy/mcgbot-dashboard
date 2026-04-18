@@ -14,6 +14,7 @@ import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { callTimeMs, formatJoinedAt, multipleClass } from "@/lib/callDisplayFormat";
+import type { HelpTier } from "@/lib/helpRole";
 import {
   useCallback,
   useEffect,
@@ -2149,51 +2150,78 @@ type ChatMessage = {
   createdAt: number;
 };
 
-function DashboardChatPanel() {
+type DashboardChatTab = "general" | "mod";
+
+function DashboardChatPanel({
+  showModTab,
+  modStaffSetupHint = false,
+}: {
+  showModTab: boolean;
+  /** Mod/admin, but `DISCORD_MOD_CHAT_CHANNEL_ID` is not set — explain in UI. */
+  modStaffSetupHint?: boolean;
+}) {
   const { addNotification } = useNotifications();
+  const [tab, setTab] = useState<DashboardChatTab>("general");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [draft, setDraft] = useState("");
+  const [draftByTab, setDraftByTab] = useState<{ general: string; mod: string }>({
+    general: "",
+    mod: "",
+  });
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
-  const load = useCallback(() => {
-    void (async () => {
-      try {
-        const res = await fetch("/api/chat/messages");
-        const json: any = await res.json().catch(() => ({}));
-        const list = Array.isArray(json?.messages) ? (json.messages as any[]) : [];
-        const parsed: ChatMessage[] = list
-          .filter((m) => m && typeof m === "object")
-          .map((m) => ({
-            id: String(m.id ?? crypto.randomUUID()),
-            authorName: String(m.authorName ?? "Unknown"),
-            authorHandle:
-              typeof m.authorHandle === "string" ? m.authorHandle : undefined,
-            content: String(m.content ?? ""),
-            createdAt: Number(m.createdAt ?? Date.now()),
-          }))
-          .filter((m) => m.content.trim() !== "")
-          .sort((a, b) => a.createdAt - b.createdAt);
-        setMessages(parsed.slice(-60));
-      } catch {
-        // ignore; keep last good list
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  useEffect(() => {
+    if (!showModTab && tab === "mod") setTab("general");
+  }, [showModTab, tab]);
+
+  const draft = draftByTab[tab];
+  const setDraft = (next: string) =>
+    setDraftByTab((prev) => ({ ...prev, [tab]: next }));
+
+  const channelLabel = tab === "mod" ? "#mod-chat" : "#general-chat";
+
+  const load = useCallback(
+    (mode: "full" | "poll") => {
+      void (async () => {
+        if (mode === "full") setLoading(true);
+        try {
+          const qs = new URLSearchParams({ channel: tab });
+          const res = await fetch(`/api/chat/messages?${qs.toString()}`);
+          const json: any = await res.json().catch(() => ({}));
+          const list = Array.isArray(json?.messages) ? (json.messages as any[]) : [];
+          const parsed: ChatMessage[] = list
+            .filter((m) => m && typeof m === "object")
+            .map((m) => ({
+              id: String(m.id ?? crypto.randomUUID()),
+              authorName: String(m.authorName ?? "Unknown"),
+              authorHandle:
+                typeof m.authorHandle === "string" ? m.authorHandle : undefined,
+              content: String(m.content ?? ""),
+              createdAt: Number(m.createdAt ?? Date.now()),
+            }))
+            .filter((m) => m.content.trim() !== "")
+            .sort((a, b) => a.createdAt - b.createdAt);
+          setMessages(parsed.slice(-60));
+        } catch {
+          // ignore; keep last good list
+        } finally {
+          if (mode === "full") setLoading(false);
+        }
+      })();
+    },
+    [tab]
+  );
 
   useEffect(() => {
-    load();
-    const t = window.setInterval(load, 3500);
+    load("full");
+    const t = window.setInterval(() => load("poll"), 3500);
     return () => window.clearInterval(t);
   }, [load]);
 
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    // If user is near bottom, auto-follow new messages.
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     if (nearBottom) {
       el.scrollTop = el.scrollHeight;
@@ -2209,15 +2237,14 @@ function DashboardChatPanel() {
       const res = await fetch("/api/chat/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, channel: tab }),
       });
       const json: any = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(String(json?.error ?? "Failed to send message"));
       }
       setDraft("");
-      // Refresh quickly after send.
-      window.setTimeout(load, 400);
+      window.setTimeout(() => load("poll"), 400);
     } catch (err) {
       const msg =
         err && typeof err === "object" && "message" in err
@@ -2233,22 +2260,73 @@ function DashboardChatPanel() {
     } finally {
       setSending(false);
     }
-  }, [addNotification, draft, load, sending]);
+  }, [addNotification, draft, load, sending, tab]);
 
   return (
-    <PanelCard title="General Chat" titleClassName="normal-case">
-      <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-zinc-500">
-        <span className="inline-flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)] opacity-80" aria-hidden />
-          #general-chat
-        </span>
-        <span>{loading ? "Connecting…" : "Live"}</span>
+    <PanelCard title="Discord chat" titleClassName="normal-case">
+      {modStaffSetupHint ? (
+        <p className="mt-1 text-[11px] leading-relaxed text-amber-500/90">
+          Mod tab: set{" "}
+          <code className="rounded border border-amber-500/25 bg-zinc-950 px-1 py-px font-mono text-[10px] text-amber-200/90">
+            DISCORD_MOD_CHAT_CHANNEL_ID
+          </code>{" "}
+          in the server environment (Discord channel ID for{" "}
+          <span className="font-medium">#mod-chat</span>).
+        </p>
+      ) : null}
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {showModTab ? (
+          <div
+            className="flex shrink-0 rounded-lg border border-zinc-800/90 bg-zinc-950/50 p-0.5"
+            role="tablist"
+            aria-label="Chat channel"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "general"}
+              onClick={() => setTab("general")}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                tab === "general"
+                  ? "bg-zinc-800 text-zinc-100 shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              General
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "mod"}
+              onClick={() => setTab("mod")}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                tab === "mod"
+                  ? "bg-sky-950/80 text-sky-100 ring-1 ring-sky-500/25"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              Mod
+            </button>
+          </div>
+        ) : null}
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-2 text-[11px] text-zinc-500">
+          <span className="inline-flex min-w-0 items-center gap-2 truncate">
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full opacity-80 ${
+                tab === "mod" ? "bg-sky-400" : "bg-[color:var(--accent)]"
+              }`}
+              aria-hidden
+            />
+            <span className="truncate font-medium text-zinc-400">{channelLabel}</span>
+          </span>
+          <span className="shrink-0">{loading ? "Connecting…" : "Live"}</span>
+        </div>
       </div>
 
       <div className="mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
         <div
           ref={scrollerRef}
-          className="h-[240px] overflow-y-auto pr-1 text-sm no-scrollbar"
+          className="h-[clamp(320px,42vh,560px)] overflow-y-auto pr-1 text-sm no-scrollbar"
         >
           {loading ? (
             <div className="flex h-full items-center justify-center">
@@ -2302,7 +2380,7 @@ function DashboardChatPanel() {
                 void send();
               }
             }}
-            placeholder="Message #general-chat"
+            placeholder={`Message ${channelLabel}`}
             disabled={sending}
             className="h-10 flex-1 rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60"
           />
@@ -2372,6 +2450,37 @@ export default function Home() {
   const [submitCallFeedback, setSubmitCallFeedback] = useState<
     "success" | "already_exists" | null
   >(null);
+  const [helpTier, setHelpTier] = useState<HelpTier>("user");
+  const [modChatConfigured, setModChatConfigured] = useState(false);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/help-role");
+        const json = (await res.json().catch(() => ({}))) as {
+          role?: string;
+          modChatConfigured?: boolean;
+        };
+        if (cancelled) return;
+        const r = json.role;
+        if (r === "user" || r === "mod" || r === "admin") {
+          setHelpTier(r);
+          if (r === "mod" || r === "admin") {
+            setModChatConfigured(json.modChatConfigured === true);
+          } else {
+            setModChatConfigured(false);
+          }
+        }
+      } catch {
+        // keep defaults
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -3178,6 +3287,15 @@ export default function Home() {
             </PanelCard>
           )}
 
+          <DashboardChatPanel
+            showModTab={
+              (helpTier === "mod" || helpTier === "admin") && modChatConfigured
+            }
+            modStaffSetupHint={
+              (helpTier === "mod" || helpTier === "admin") && !modChatConfigured
+            }
+          />
+
           {widgetEnabled(widgets, "live_tracked_calls") && <DailyLeaderboardPanel />}
 
           <PanelCard title="Watchlist" titleClassName="normal-case">
@@ -3260,8 +3378,6 @@ export default function Home() {
               </Link>
             </div>
           </PanelCard>
-
-          <DashboardChatPanel />
 
           {widgetEnabled(widgets, "hot_now") && (
             <OpportunitiesPanel />

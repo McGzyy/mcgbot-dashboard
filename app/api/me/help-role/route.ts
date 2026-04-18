@@ -12,5 +12,12 @@ export async function GET() {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  return Response.json({ role: resolveHelpTier(id) });
+  const role = resolveHelpTier(id);
+  const modChatConfigured = !!(process.env.DISCORD_MOD_CHAT_CHANNEL_ID ?? "").trim();
+
+  if (role === "mod" || role === "admin") {
+    return Response.json({ role, modChatConfigured });
+  }
+
+  return Response.json({ role });
 }

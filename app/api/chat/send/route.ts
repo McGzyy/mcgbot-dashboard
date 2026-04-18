@@ -1,5 +1,10 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  canUseModDashboardChat,
+  parseDashboardChatKind,
+  resolveDashboardChatChannelId,
+} from "@/lib/dashboardChat";
 
 function requireEnv(name: string): string {
   const v = (process.env[name] ?? "").trim();
@@ -29,16 +34,24 @@ export async function POST(request: Request) {
     return Response.json({ error: "Message too long" }, { status: 400 });
   }
 
-  const channelId =
-    requireEnv("DISCORD_GENERAL_CHAT_CHANNEL_ID") ||
-    requireEnv("DISCORD_CHAT_CHANNEL_ID");
+  const kind = parseDashboardChatKind(
+    typeof o.channel === "string" ? o.channel : undefined
+  );
+
+  if (kind === "mod" && !canUseModDashboardChat(userId)) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const channelId = resolveDashboardChatChannelId(kind);
   const token = requireEnv("DISCORD_TOKEN");
 
   if (!channelId) {
     return Response.json(
       {
         error:
-          "Chat is not configured (missing DISCORD_GENERAL_CHAT_CHANNEL_ID).",
+          kind === "mod"
+            ? "Mod chat is not configured (missing DISCORD_MOD_CHAT_CHANNEL_ID)."
+            : "Chat is not configured (missing DISCORD_GENERAL_CHAT_CHANNEL_ID or DISCORD_CHAT_CHANNEL_ID).",
       },
       { status: 503 }
     );

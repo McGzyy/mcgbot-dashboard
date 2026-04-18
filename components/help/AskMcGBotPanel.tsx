@@ -1,31 +1,15 @@
 "use client";
 
+import { HUB_SUGGESTED_PROMPTS, hubBotReply } from "@/lib/helpHubMcGBot";
 import { useCallback, useRef, useState } from "react";
 
-type ChatLine = { id: string; from: "user" | "bot"; text: string };
-
-function botReply(question: string): string {
-  const q = question.toLowerCase();
-  if (q.includes("rank") || q.includes("leaderboard")) {
-    return "Leaderboard ranks use rolling windows (daily board on the home hub and full page under Leaderboard). Your Rank D/W/M/A matches that page — keep calls high quality to climb.";
-  }
-  if (q.includes("referral") || q.includes("invite")) {
-    return "Referrals live under your account menu → Referrals. Start at Overview for your link; Performance and Rewards summarize downstream callers (live metrics wiring soon).";
-  }
-  if (q.includes("login") || q.includes("discord") || q.includes("oauth") || q.includes("sign in")) {
-    return "We use Discord for sign-in. If OAuth loops, confirm NEXTAUTH_URL matches the live site (www vs apex) and Discord redirect URLs include https://your-domain/api/auth/callback/discord.";
-  }
-  if (q.includes("submit") || q.includes("call")) {
-    return "Submit Call is on the dashboard: open the modal, fill symbol / chain / thesis, then send. Bad or duplicate calls hurt leaderboard trust — double-check before posting.";
-  }
-  if (q.includes("setting") || q.includes("profile") || q.includes("bio")) {
-    return "Profile is under your avatar → Profile; account toggles live in Settings. Visibility and bio sync when the profile API is connected to your Supabase row.";
-  }
-  if (q.includes("watchlist")) {
-    return "Watchlist is in the left nav. You’ll track tickers and alerts there as we wire market data.";
-  }
-  return "I’m McGBot help (preview). Try keywords like **rank**, **referrals**, **Discord**, **submit call**, or **settings**. Full answers will ship when we plug in search + docs RAG.";
-}
+type ChatLine = {
+  id: string;
+  from: "user" | "bot";
+  text: string;
+  /** Bot-only: attribution line under the body */
+  source?: string;
+};
 
 export function AskMcGBotPanel() {
   const [lines, setLines] = useState<ChatLine[]>([
@@ -33,6 +17,7 @@ export function AskMcGBotPanel() {
       id: "welcome",
       from: "bot",
       text: "Ask about ranks, referrals, Discord login, submitting calls, or settings — short answers for now.",
+      source: "From: McGBot · Help hub",
     },
   ]);
   const [draft, setDraft] = useState("");
@@ -42,16 +27,28 @@ export function AskMcGBotPanel() {
     return `m-${idRef.current}`;
   };
 
+  const appendExchange = useCallback((userText: string) => {
+    const t = userText.trim();
+    if (!t) return;
+    const reply = hubBotReply(t);
+    setLines((prev) => [
+      ...prev,
+      { id: nextId(), from: "user", text: t },
+      {
+        id: nextId(),
+        from: "bot",
+        text: reply.body,
+        source: reply.source,
+      },
+    ]);
+  }, []);
+
   const send = useCallback(() => {
     const text = draft.trim();
     if (!text) return;
     setDraft("");
-    setLines((prev) => [
-      ...prev,
-      { id: nextId(), from: "user", text },
-      { id: nextId(), from: "bot", text: botReply(text) },
-    ]);
-  }, [draft]);
+    appendExchange(text);
+  }, [draft, appendExchange]);
 
   return (
     <div className="flex flex-col rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-sm shadow-black/20">
@@ -60,6 +57,18 @@ export function AskMcGBotPanel() {
         <p className="text-[11px] leading-snug text-zinc-500">
           Keyword hints for now — smarter answers when we connect docs search.
         </p>
+        <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Suggested questions">
+          {HUB_SUGGESTED_PROMPTS.map((chip) => (
+            <button
+              key={chip.label}
+              type="button"
+              onClick={() => appendExchange(chip.query)}
+              className="rounded-full border border-zinc-700/90 bg-zinc-900/50 px-2.5 py-1 text-[10px] font-medium text-zinc-400 transition hover:border-green-500/35 hover:bg-zinc-800/80 hover:text-zinc-200"
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="max-h-[220px] min-h-[120px] space-y-2 overflow-y-auto px-3 py-2">
         {lines.map((m) => (
@@ -74,7 +83,12 @@ export function AskMcGBotPanel() {
                   : "border border-green-500/20 bg-green-500/5 text-zinc-200"
               }`}
             >
-              {m.text}
+              <div>{m.text}</div>
+              {m.from === "bot" && m.source ? (
+                <p className="mt-1.5 border-t border-green-500/15 pt-1.5 text-[10px] font-medium leading-snug text-zinc-500">
+                  {m.source}
+                </p>
+              ) : null}
             </div>
           </div>
         ))}

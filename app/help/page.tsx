@@ -4,17 +4,24 @@ import { AskMcGBotPanel } from "@/components/help/AskMcGBotPanel";
 import { HelpDocModal } from "@/components/help/HelpDocModal";
 import { HelpFaqPanel } from "@/components/help/HelpFaqPanel";
 import { HelpQuickLinksPanel } from "@/components/help/HelpQuickLinksPanel";
+import { getHelpDocToc } from "@/components/help/HelpDocSections";
 import { HELP_DOC_CARDS } from "@/lib/helpDocCatalog";
-import type { HelpDocSlug, HelpTier } from "@/lib/helpRole";
+import { isHelpDocSlug, type HelpDocSlug, type HelpTier } from "@/lib/helpRole";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
-export default function HelpPage() {
+function HelpPageContent() {
   const { status } = useSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [tier, setTier] = useState<HelpTier | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [openDocSlug, setOpenDocSlug] = useState<HelpDocSlug | null>(null);
+  /** When opening from `?doc=&section=`, which anchor to select + scroll to (cleared on modal close). */
+  const [initialSectionId, setInitialSectionId] = useState<string | null>(null);
+  const docOpenerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -40,8 +47,33 @@ export default function HelpPage() {
     };
   }, [status]);
 
+  useEffect(() => {
+    if (tier === null) return;
+    const docRaw = searchParams.get("doc");
+    if (!docRaw || !isHelpDocSlug(docRaw)) return;
+    const slug = docRaw;
+    const allowed = HELP_DOC_CARDS.some((c) => c.slug === slug && c.visible(tier));
+    if (!allowed) return;
+
+    const sectionRaw = searchParams.get("section");
+    let sectionValid: string | null = null;
+    if (sectionRaw && getHelpDocToc(slug).some((r) => r.id === sectionRaw)) {
+      sectionValid = sectionRaw;
+    }
+
+    docOpenerRef.current = null;
+    setInitialSectionId(sectionValid);
+    setOpenDocSlug(slug);
+    router.replace("/help", { scroll: false });
+  }, [tier, searchParams, router]);
+
   const visibleCards =
     tier === null ? [] : HELP_DOC_CARDS.filter((c) => c.visible(tier));
+
+  const closeModal = () => {
+    setOpenDocSlug(null);
+    setInitialSectionId(null);
+  };
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6">
@@ -51,6 +83,21 @@ export default function HelpPage() {
           <p className="text-sm text-zinc-500">
             Role docs, FAQ, and quick answers — McGBot support will plug in here over time.
           </p>
+          {status === "authenticated" ? (
+            <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+              <span className="font-medium text-zinc-500">Shortcut:</span>{" "}
+              <kbd className="rounded-md border border-zinc-700/80 bg-zinc-900/50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-400">
+                ?
+              </kbd>{" "}
+              <span className="text-zinc-600">
+                (Shift + /) opens Help from any page when focus is not in a field, like
+              </span>{" "}
+              <kbd className="rounded-md border border-zinc-700/80 bg-zinc-900/50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-400">
+                /
+              </kbd>{" "}
+              <span className="text-zinc-600">for token search.</span>
+            </p>
+          ) : null}
         </div>
         <Link
           href="/"
@@ -96,26 +143,67 @@ export default function HelpPage() {
               </span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleCards.map((card) => (
+              {visibleCards.map((card, index) => (
                 <button
                   key={card.slug}
                   type="button"
-                  onClick={() => setOpenDocSlug(card.slug)}
-                  className="group flex flex-col rounded-xl border border-zinc-800 bg-zinc-900/30 p-3 text-left transition hover:border-green-500/25 hover:bg-zinc-900/45"
+                  onMouseDown={(e) => {
+                    docOpenerRef.current = e.currentTarget;
+                  }}
+                  onClick={() => {
+                    setInitialSectionId(null);
+                    setOpenDocSlug(card.slug);
+                  }}
+                  className={[
+                    "group relative flex flex-col overflow-hidden rounded-xl border border-zinc-800/90",
+                    "bg-gradient-to-b from-zinc-900/55 to-zinc-900/[0.18] p-3 text-left shadow-sm shadow-black/25",
+                    "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+                    "transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out",
+                    "before:pointer-events-none before:absolute before:inset-0 before:rounded-xl",
+                    "before:bg-gradient-to-br before:from-[#39FF14]/12 before:via-transparent before:to-sky-500/5",
+                    "before:opacity-0 before:transition-opacity before:duration-200",
+                    "hover:-translate-y-0.5 hover:border-green-500/35 hover:shadow-[inset_0_1px_0_rgba(57,255,20,0.07),0_12px_40px_-16px_rgba(0,0,0,0.75)]",
+                    "hover:before:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500/35",
+                  ].join(" ")}
                 >
-                  <h2 className="text-sm font-semibold text-zinc-100 group-hover:text-[color:var(--accent)]">
-                    {card.title}
-                  </h2>
-                  <p className="mt-1 flex-1 text-xs leading-relaxed text-zinc-500">{card.description}</p>
-                  <span className="mt-2 text-[11px] font-semibold text-zinc-600 group-hover:text-green-400/90">
-                    Open guide →
-                  </span>
+                  <div className="relative z-[1] flex flex-col gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-600 transition-colors group-hover:text-[color:var(--accent)]/90">
+                        #{String(index + 1).padStart(2, "0")}
+                      </span>
+                      <span className="shrink-0 rounded-md border border-zinc-800/80 bg-black/25 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-zinc-500 transition-colors group-hover:border-green-500/20 group-hover:text-zinc-400">
+                        {card.readMinutes} min read
+                      </span>
+                    </div>
+                    <h2 className="text-sm font-semibold leading-snug text-zinc-100 transition-colors group-hover:text-[color:var(--accent)]">
+                      {card.title}
+                    </h2>
+                    <p className="min-h-[2.75rem] flex-1 text-xs leading-relaxed text-zinc-500 transition-colors group-hover:text-zinc-400">
+                      {card.description}
+                    </p>
+                    <div className="mt-1 flex items-end justify-between gap-2 border-t border-zinc-800/60 pt-2">
+                      <span className="text-[10px] tabular-nums text-zinc-600">
+                        Updated{" "}
+                        <span className="font-medium text-zinc-500 group-hover:text-zinc-400">
+                          {card.updatedLabel}
+                        </span>
+                      </span>
+                      <span className="text-[11px] font-semibold text-zinc-600 transition-colors group-hover:text-green-400/90">
+                        Open guide →
+                      </span>
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>
           </section>
 
-          <HelpDocModal slug={openDocSlug} onClose={() => setOpenDocSlug(null)} />
+          <HelpDocModal
+            slug={openDocSlug}
+            initialSectionId={initialSectionId}
+            onClose={closeModal}
+            openerRef={docOpenerRef}
+          />
 
           <div className="border-t border-zinc-800/90" aria-hidden />
 
@@ -132,5 +220,17 @@ export default function HelpPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function HelpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto w-full max-w-6xl px-4 py-6 text-sm text-zinc-500">Loading Help…</div>
+      }
+    >
+      <HelpPageContent />
+    </Suspense>
   );
 }

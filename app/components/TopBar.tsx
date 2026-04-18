@@ -406,10 +406,22 @@ export function TopBar() {
                       <Link
                         href="/help"
                         role="menuitem"
+                        aria-keyshortcuts="Shift+/"
                         onClick={() => setOpen(false)}
-                        className={accountMenuItem(pathname.startsWith("/help"))}
+                        className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition hover:bg-zinc-800 ${
+                          pathname.startsWith("/help")
+                            ? "bg-zinc-900 text-white"
+                            : "text-zinc-200"
+                        }`}
                       >
-                        Help
+                        <span>Help</span>
+                        <kbd
+                          className="pointer-events-none shrink-0 rounded-md border border-zinc-700/80 bg-zinc-900/50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-500"
+                          title="Shift + / (question mark)"
+                          aria-hidden
+                        >
+                          ?
+                        </kbd>
                       </Link>
 
                       <div className="my-1 border-t border-[#1a1a1a]" />

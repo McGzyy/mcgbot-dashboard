@@ -1,5 +1,10 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  canUseModDashboardChat,
+  parseDashboardChatKind,
+  resolveDashboardChatChannelId,
+} from "@/lib/dashboardChat";
 
 type DiscordApiMessage = {
   id?: string;
@@ -16,23 +21,30 @@ function requireEnv(name: string): string {
   return v;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id?.trim() ?? "";
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const channelId =
-    requireEnv("DISCORD_GENERAL_CHAT_CHANNEL_ID") ||
-    requireEnv("DISCORD_CHAT_CHANNEL_ID");
+  const url = new URL(request.url);
+  const kind = parseDashboardChatKind(url.searchParams.get("channel"));
+
+  if (kind === "mod" && !canUseModDashboardChat(userId)) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const channelId = resolveDashboardChatChannelId(kind);
   const token = requireEnv("DISCORD_TOKEN");
 
   if (!channelId) {
     return Response.json(
       {
         error:
-          "Chat is not configured (missing DISCORD_GENERAL_CHAT_CHANNEL_ID).",
+          kind === "mod"
+            ? "Mod chat is not configured (missing DISCORD_MOD_CHAT_CHANNEL_ID)."
+            : "Chat is not configured (missing DISCORD_GENERAL_CHAT_CHANNEL_ID or DISCORD_CHAT_CHANNEL_ID).",
       },
       { status: 503 }
     );
