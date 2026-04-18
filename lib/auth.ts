@@ -3,8 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 import DiscordProvider from "next-auth/providers/discord";
 
 export const authOptions: NextAuthOptions = {
-  // Helps hosted/proxied setups (Vercel, tunnels, preview URLs) infer the correct host for OAuth callbacks.
-  trustHost: true,
   providers: [
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID!,
