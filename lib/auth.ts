@@ -2,18 +2,15 @@ import type { NextAuthOptions } from "next-auth";
 import { createClient } from "@supabase/supabase-js";
 import DiscordProvider from "next-auth/providers/discord";
 
-console.log("DISCORD ID:", process.env.DISCORD_CLIENT_ID);
-console.log(
-  "DISCORD SECRET:",
-  process.env.DISCORD_CLIENT_SECRET ? "[present]" : "[missing]"
-);
-
 export const authOptions: NextAuthOptions = {
+  // Helps hosted/proxied setups (Vercel, tunnels, preview URLs) infer the correct host for OAuth callbacks.
+  trustHost: true,
   providers: [
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID!,
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
-      authorization: { params: { scope: "identify email" } },
+      // Keep scopes minimal: `email` can cause extra consent friction and isn't required for dashboard access.
+      authorization: { params: { scope: "identify" } },
       profile(profile) {
         const p = profile as {
           id: string;
@@ -33,30 +30,29 @@ export const authOptions: NextAuthOptions = {
   ],
   secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt" },
+  pages: {
+    signIn: "/",
+    error: "/auth/error",
+  },
   callbacks: {
     async signIn({ user }) {
       try {
-        const supabase = createClient(
-          process.env.SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
-
-        const { data: existingUser, error } = await supabase
-          .from("users")
-          .select("*")
-          .eq("discord_id", user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error("Supabase fetch error:", error);
-          return true; // never break auth
+        const supabaseUrl = process.env.SUPABASE_URL?.trim();
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+        if (!supabaseUrl || !serviceKey) {
+          return true;
         }
 
-        if (!existingUser) {
-          await supabase.from("users").insert({
-            discord_id: user.id,
-            username: user.name,
-          });
+        const supabase = createClient(supabaseUrl, serviceKey);
+
+        // Ensure a `public.users` row exists (schema uses discord_id UNIQUE, no username column).
+        const { error } = await supabase.from("users").upsert(
+          { discord_id: user.id },
+          { onConflict: "discord_id", ignoreDuplicates: true }
+        );
+
+        if (error) {
+          console.error("Supabase upsert error (users):", error);
         }
 
         return true;
