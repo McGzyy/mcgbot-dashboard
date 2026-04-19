@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { joinBotApiPath, joinBotHealthUrl } from "@/lib/botInternalUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -37,9 +38,7 @@ export async function POST() {
       );
     }
 
-    // Path must be exactly "/internal/x-oauth/start" (no other suffix, no double slash).
-    const base = rawBase.replace(/\/+$/, "");
-    const fullUrl = `${base}/internal/x-oauth/start`;
+    const fullUrl = joinBotApiPath(rawBase, "/internal/x-oauth/start");
     console.log("[api/x/oauth/start] full URL:", fullUrl);
 
     const res = await fetch(fullUrl, {
@@ -67,10 +66,43 @@ export async function POST() {
     });
 
     if (!res.ok) {
-      const msg =
+      let msg =
         data && typeof data.error === "string"
           ? data.error
           : `Bot returned HTTP ${res.status}`;
+
+      if (res.status === 404) {
+        let healthHint = "";
+        try {
+          const h = await fetch(joinBotHealthUrl(rawBase), {
+            method: "GET",
+            cache: "no-store",
+          });
+          const ht = await h.text();
+          let healthJson: Record<string, unknown> | null = null;
+          try {
+            healthJson = ht ? (JSON.parse(ht) as Record<string, unknown>) : null;
+          } catch {
+            healthJson = null;
+          }
+          const healthOk =
+            h.ok && healthJson && healthJson.ok === true;
+          if (healthOk) {
+            healthHint =
+              " The bot GET /health succeeded, but POST /internal/x-oauth/start was not found — redeploy or restart the bot so apiServer.js includes the X OAuth routes.";
+          } else if (h.status === 404) {
+            healthHint =
+              " GET /health also returned 404 — BOT_API_URL is likely wrong (often set to the dashboard URL). It must be the bot HTTP API origin, same host/port as REFERRAL_API_PORT (default 3001), e.g. http://YOUR_SERVER_IP:3001.";
+          } else {
+            healthHint = ` GET /health returned HTTP ${h.status}.`;
+          }
+        } catch {
+          healthHint =
+            " Could not reach GET /health on the same BOT_API_URL (network, firewall, or wrong host/port).";
+        }
+        msg = `Bot returned HTTP 404 at ${new URL(fullUrl).origin}.${healthHint}`;
+      }
+
       return Response.json({ error: msg }, { status: res.status >= 400 ? res.status : 502 });
     }
 

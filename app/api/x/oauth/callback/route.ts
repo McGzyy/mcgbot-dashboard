@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { joinBotApiPath } from "@/lib/botInternalUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -29,17 +30,16 @@ export async function GET(request: Request) {
     return settingsRedirect(request, { x: "error", reason: "missing_code_or_state" });
   }
 
-  const base = String(process.env.BOT_API_URL ?? "")
-    .trim()
-    .replace(/\/$/, "");
+  const rawBase = String(process.env.BOT_API_URL ?? "").trim();
   const secret = String(process.env.CALL_INTERNAL_SECRET ?? "").trim();
-  if (!base || !secret) {
+  if (!rawBase || !secret) {
     return settingsRedirect(request, { x: "error", reason: "bot_api_not_configured" });
   }
 
   let botJson: Record<string, unknown> | null = null;
   try {
-    const res = await fetch(`${base}/internal/x-oauth/complete`, {
+    const completeUrl = joinBotApiPath(rawBase, "/internal/x-oauth/complete");
+    const res = await fetch(completeUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${secret}`,
@@ -67,28 +67,36 @@ export async function GET(request: Request) {
 
   const supabaseUrl = process.env.SUPABASE_URL?.trim();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (supabaseUrl && serviceKey) {
-    try {
-      const supabase = createClient(supabaseUrl, serviceKey);
-      const { error } = await supabase.from("users").upsert(
-        {
-          discord_id: discordUserId,
-          x_handle: username,
-          x_verified: true,
-        },
-        { onConflict: "discord_id" }
-      );
-      if (error) {
-        console.error("[x/oauth/callback] Supabase upsert:", error.message);
-        return settingsRedirect(request, {
-          x: "error",
-          reason: "supabase_sync_failed",
-        });
-      }
-    } catch (e) {
-      console.error("[x/oauth/callback] Supabase:", e);
-      return settingsRedirect(request, { x: "error", reason: "supabase_sync_failed" });
+  if (!supabaseUrl || !serviceKey) {
+    console.error(
+      "[x/oauth/callback] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY — cannot persist X link; refusing x=linked redirect"
+    );
+    return settingsRedirect(request, {
+      x: "error",
+      reason: "missing_supabase_env_add_SUPABASE_URL_and_SERVICE_ROLE_KEY",
+    });
+  }
+
+  try {
+    const supabase = createClient(supabaseUrl, serviceKey);
+    const { error } = await supabase.from("users").upsert(
+      {
+        discord_id: discordUserId,
+        x_handle: username,
+        x_verified: true,
+      },
+      { onConflict: "discord_id" }
+    );
+    if (error) {
+      console.error("[x/oauth/callback] Supabase upsert:", error.message);
+      return settingsRedirect(request, {
+        x: "error",
+        reason: "supabase_sync_failed",
+      });
     }
+  } catch (e) {
+    console.error("[x/oauth/callback] Supabase:", e);
+    return settingsRedirect(request, { x: "error", reason: "supabase_sync_failed" });
   }
 
   return settingsRedirect(request, { x: "linked" });

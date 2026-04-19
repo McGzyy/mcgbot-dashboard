@@ -367,7 +367,9 @@ function SettingsPageInner() {
         .then((d) => {
           if (d && typeof d === "object" && !("error" in d)) {
             const row = d as Record<string, unknown>;
-            setXHandle(typeof row.x_handle === "string" ? row.x_handle : "");
+            const handle =
+              typeof row.x_handle === "string" ? row.x_handle.trim() : "";
+            setXHandle(handle);
             setXVerified(
               row.x_verified === true ||
                 row.x_verified === "true" ||
@@ -382,6 +384,11 @@ function SettingsPageInner() {
             setXMilestoneTagMinMultiple(
               Number.isFinite(mm) && mm >= 1 ? Math.min(mm, 500) : 10
             );
+            if (!handle) {
+              setXMessage(
+                "X sign-in finished but your profile still has no handle. Hard-refresh the page or check Supabase (users row for your discord_id) and env on the host."
+              );
+            }
           }
         })
         .catch(() => {});
