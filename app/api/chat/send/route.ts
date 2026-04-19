@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
-  canUseModDashboardChat,
+  canUseModDashboardChatAsync,
   parseDashboardChatKind,
   resolveDashboardChatChannelId,
 } from "@/lib/dashboardChat";
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     typeof o.channel === "string" ? o.channel : undefined
   );
 
-  if (kind === "mod" && !canUseModDashboardChat(userId)) {
+  if (kind === "mod" && !(await canUseModDashboardChatAsync(userId))) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 

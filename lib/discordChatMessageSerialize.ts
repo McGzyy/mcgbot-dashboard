@@ -75,7 +75,8 @@ export type ChatMessagePayload = {
 };
 
 export function normalizeDiscordRestMessage(
-  m: Record<string, unknown>
+  m: Record<string, unknown>,
+  tierByAuthor?: ReadonlyMap<string, HelpTier>
 ): ChatMessagePayload | null {
   const id = String(m.id ?? "").trim();
   if (!id) return null;
@@ -146,7 +147,7 @@ export function normalizeDiscordRestMessage(
     author,
     mentions
   );
-  const authorTier = resolveHelpTier(authorId);
+  const authorTier = tierByAuthor?.get(authorId) ?? resolveHelpTier(authorId);
 
   return {
     id,

@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { resolveHelpTier } from "@/lib/helpRole";
+import { meetsModerationMinTier, resolveHelpTierWithSource } from "@/lib/helpRole";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,12 +12,22 @@ export async function GET() {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const role = resolveHelpTier(id);
+  const { tier: role, source: staffSource } = await resolveHelpTierWithSource(id);
   const modChatConfigured = !!(process.env.DISCORD_MOD_CHAT_CHANNEL_ID ?? "").trim();
+  const guildStaffConfigured = !!(
+    (process.env.DISCORD_GUILD_ID ?? "").trim() &&
+    ((process.env.DISCORD_BOT_TOKEN ?? "").trim() || (process.env.DISCORD_TOKEN ?? "").trim())
+  );
+  const canModerate = meetsModerationMinTier(role);
+  const moderationMinTier =
+    (process.env.MODERATION_MIN_TIER ?? "mod").trim().toLowerCase() === "admin" ? "admin" : "mod";
 
-  if (role === "mod" || role === "admin") {
-    return Response.json({ role, modChatConfigured });
-  }
-
-  return Response.json({ role });
+  return Response.json({
+    role,
+    canModerate,
+    moderationMinTier,
+    modChatConfigured,
+    staffSource,
+    guildStaffConfigured,
+  });
 }

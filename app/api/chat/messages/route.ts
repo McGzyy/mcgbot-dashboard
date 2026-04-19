@@ -1,11 +1,12 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
-  canUseModDashboardChat,
+  canUseModDashboardChatAsync,
   parseDashboardChatKind,
   resolveDashboardChatChannelId,
 } from "@/lib/dashboardChat";
 import { normalizeDiscordRestMessage } from "@/lib/discordChatMessageSerialize";
+import { resolveHelpTierAsync, type HelpTier } from "@/lib/helpRole";
 
 function requireEnv(name: string): string {
   const v = (process.env[name] ?? "").trim();
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const kind = parseDashboardChatKind(url.searchParams.get("channel"));
 
-  if (kind === "mod" && !canUseModDashboardChat(userId)) {
+  if (kind === "mod" && !(await canUseModDashboardChatAsync(userId))) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -67,10 +68,27 @@ export async function GET(request: Request) {
 
   const raw = (await res.json().catch(() => [])) as unknown;
   const rows = Array.isArray(raw) ? raw : [];
+
+  const authorIds = new Set<string>();
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const o = row as Record<string, unknown>;
+    const author = o.author && typeof o.author === "object" ? (o.author as { id?: unknown }) : null;
+    const aid = typeof author?.id === "string" ? author.id.trim() : "";
+    if (aid) authorIds.add(aid);
+  }
+
+  const tierByAuthor = new Map<string, HelpTier>();
+  await Promise.all(
+    [...authorIds].map(async (aid) => {
+      tierByAuthor.set(aid, await resolveHelpTierAsync(aid));
+    })
+  );
+
   const messages = rows
     .map((row) =>
       row && typeof row === "object"
-        ? normalizeDiscordRestMessage(row as Record<string, unknown>)
+        ? normalizeDiscordRestMessage(row as Record<string, unknown>, tierByAuthor)
         : null
     )
     .filter((m): m is NonNullable<typeof m> => m != null)

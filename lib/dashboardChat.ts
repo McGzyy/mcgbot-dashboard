@@ -1,4 +1,4 @@
-import { resolveHelpTier } from "@/lib/helpRole";
+import { resolveHelpTierAsync } from "@/lib/helpRole";
 
 export type DashboardChatKind = "general" | "mod";
 
@@ -18,8 +18,8 @@ export function resolveDashboardChatChannelId(kind: DashboardChatKind): string |
   return (process.env.DISCORD_MOD_CHAT_CHANNEL_ID ?? "").trim() || null;
 }
 
-/** Mod chat: only Discord IDs listed as mod or admin. */
-export function canUseModDashboardChat(userId: string): boolean {
-  const tier = resolveHelpTier(userId);
+/** Mod chat: mod/admin via Discord guild roles (when configured) or env id lists. */
+export async function canUseModDashboardChatAsync(userId: string): Promise<boolean> {
+  const tier = await resolveHelpTierAsync(userId);
   return tier === "mod" || tier === "admin";
 }

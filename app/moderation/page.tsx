@@ -381,10 +381,13 @@ export default function ModerationPage() {
     void (async () => {
       try {
         const res = await fetch("/api/me/help-role");
-        const json = (await res.json().catch(() => ({}))) as { role?: string };
+        const json = (await res.json().catch(() => ({}))) as {
+          role?: string;
+          canModerate?: boolean;
+        };
         if (cancelled) return;
         const r = json.role;
-        if (r === "user" || r === "mod" || r === "admin") {
+        if (json.canModerate === true && (r === "mod" || r === "admin")) {
           setTier(r);
         } else {
           setTier("user");
@@ -513,16 +516,21 @@ export default function ModerationPage() {
       <div className="mx-auto max-w-lg">
         <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Moderation</h1>
         <p className="mt-3 text-sm leading-relaxed text-zinc-500">
-          This area is only available to McGBot moderators and admins. Your Discord account must be
-          listed in{" "}
+          Staff access is granted when your Discord account has the{" "}
+          <span className="font-medium text-zinc-400">MOD</span> or{" "}
+          <span className="font-medium text-zinc-400">ADMIN</span> role in the McGBot server (see{" "}
+          <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-[13px] text-zinc-300">
+            DISCORD_GUILD_ID
+          </code>{" "}
+          + bot token on the host), or when your user id is listed in{" "}
           <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-[13px] text-zinc-300">
             DISCORD_MOD_IDS
           </code>{" "}
-          or{" "}
+          /{" "}
           <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-[13px] text-zinc-300">
             DISCORD_ADMIN_IDS
           </code>{" "}
-          on the dashboard host.
+          as a fallback if role sync is unavailable.
         </p>
         <Link
           href="/"

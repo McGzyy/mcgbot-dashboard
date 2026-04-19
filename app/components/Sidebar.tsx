@@ -39,10 +39,16 @@ export function Sidebar() {
     void (async () => {
       try {
         const res = await fetch("/api/me/help-role");
-        const json = (await res.json().catch(() => ({}))) as { role?: string };
+        const json = (await res.json().catch(() => ({}))) as {
+          role?: string;
+          canModerate?: boolean;
+        };
         if (cancelled) return;
         const r = json.role;
-        const staff = r === "mod" || r === "admin";
+        const staff =
+          typeof json.canModerate === "boolean"
+            ? json.canModerate
+            : r === "mod" || r === "admin";
         setStaffNav(staff);
         if (!staff) {
           setModPendingTotal(null);

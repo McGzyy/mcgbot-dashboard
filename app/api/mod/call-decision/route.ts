@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { resolveHelpTier } from "@/lib/helpRole";
+import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,8 +13,8 @@ export async function POST(request: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const tier = resolveHelpTier(userId);
-    if (tier !== "mod" && tier !== "admin") {
+    const tier = await resolveHelpTierAsync(userId);
+    if (!meetsModerationMinTier(tier)) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
