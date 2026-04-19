@@ -27,14 +27,17 @@ export function ModQueueHomePanel() {
   const [data, setData] = useState<ModQueuePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [errHint, setErrHint] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
+    setErrHint(null);
     try {
       const res = await fetch("/api/mod/queue?limit=8");
       const json = (await res.json().catch(() => ({}))) as ModQueuePayload & {
         error?: string;
+        hint?: string;
       };
       if (!res.ok) {
         setData(null);
@@ -45,6 +48,7 @@ export function ModQueueHomePanel() {
               ? "You do not have access to the mod queue."
               : `Request failed (${res.status}).`
         );
+        setErrHint(typeof json.hint === "string" ? json.hint : null);
         return;
       }
       if (json.success && Array.isArray(json.callApprovals) && Array.isArray(json.devSubmissions)) {
@@ -54,10 +58,12 @@ export function ModQueueHomePanel() {
         setErr(
           typeof json.error === "string" ? json.error : "Unexpected response from mod queue."
         );
+        setErrHint(typeof json.hint === "string" ? json.hint : null);
       }
     } catch {
       setData(null);
       setErr("Could not load mod queue.");
+      setErrHint(null);
     } finally {
       setLoading(false);
     }
@@ -112,7 +118,12 @@ export function ModQueueHomePanel() {
         </div>
 
         {err ? (
-          <p className="mt-3 text-sm leading-relaxed text-red-400/90">{err}</p>
+          <div className="mt-3 space-y-2">
+            <p className="text-sm leading-relaxed text-red-400/90">{err}</p>
+            {errHint ? (
+              <p className="text-xs leading-relaxed text-zinc-500">{errHint}</p>
+            ) : null}
+          </div>
         ) : loading ? (
           <PanelSkeleton />
         ) : total === 0 ? (

@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { botApiUnreachableHint, describeBotApiFetchError } from "@/lib/botUpstreamFetchError";
 import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 
 export const runtime = "nodejs";
@@ -90,12 +91,13 @@ export async function GET(request: Request) {
         },
       });
     } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      console.error("[api/mod/queue] fetch failed:", detail, "target:", base);
+      const detail = describeBotApiFetchError(err);
+      console.error("[api/mod/queue] fetch failed:", detail, "target:", base, err);
       return Response.json(
         {
           success: false,
-          error: `Could not reach bot API. ${detail}. Check BOT_API_URL (try opening ${base}/health in a browser).`,
+          error: `Could not reach bot API. ${detail} Check BOT_API_URL (try opening ${base}/health in a browser on this same machine).`,
+          hint: botApiUnreachableHint(base),
         },
         { status: 502 }
       );

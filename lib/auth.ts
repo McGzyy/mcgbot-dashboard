@@ -1,6 +1,8 @@
 import type { NextAuthOptions } from "next-auth";
 import { createClient } from "@supabase/supabase-js";
 import DiscordProvider from "next-auth/providers/discord";
+import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
+import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -27,7 +29,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60, updateAge: 60 * 60 },
   pages: {
     signIn: "/",
     error: "/auth/error",
@@ -59,7 +61,7 @@ export const authOptions: NextAuthOptions = {
         return true; // NEVER crash auth
       }
     },
-    async jwt({ token, user, profile }) {
+    async jwt({ token, user, profile, trigger, session }) {
       if (user) {
         token.discord_id = user.id;
         if (user.name) token.name = user.name;
@@ -80,6 +82,25 @@ export const authOptions: NextAuthOptions = {
           if (display) token.name = display;
         }
       }
+
+      const discordId = (token.discord_id as string | undefined)?.trim();
+      const sessionObj = session && typeof session === "object" ? (session as { refreshSubscription?: boolean }) : null;
+      const refreshSubscriptionFlag = Boolean(sessionObj?.refreshSubscription);
+      const shouldRefreshAccess =
+        Boolean(user) ||
+        (Boolean(discordId) &&
+          (!("subscriptionActiveUntil" in token) || !("subscriptionExempt" in token))) ||
+        (trigger === "update" && refreshSubscriptionFlag);
+
+      if (discordId && shouldRefreshAccess) {
+        const [end, exempt] = await Promise.all([
+          getSubscriptionEnd(discordId),
+          computeSubscriptionExempt(discordId),
+        ]);
+        token.subscriptionActiveUntil = end;
+        token.subscriptionExempt = exempt;
+      }
+
       return token;
     },
 
@@ -92,6 +113,17 @@ export const authOptions: NextAuthOptions = {
       if (typeof token.picture === "string" && token.picture) {
         session.user.image = token.picture;
       }
+      const end =
+        typeof token.subscriptionActiveUntil === "string"
+          ? token.subscriptionActiveUntil
+          : null;
+      const exempt = token.subscriptionExempt === true;
+      session.user.subscriptionActiveUntil = end;
+      session.user.subscriptionExempt = exempt;
+      session.user.hasActiveSubscription =
+        end != null && end.length > 0 && new Date(end).getTime() > Date.now();
+      session.user.hasDashboardAccess =
+        exempt || session.user.hasActiveSubscription;
       return session;
     },
   },

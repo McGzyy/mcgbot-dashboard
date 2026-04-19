@@ -370,6 +370,7 @@ export default function ModerationPage() {
   const [data, setData] = useState<ModQueuePayload | null>(null);
   const [queueLoading, setQueueLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [errHint, setErrHint] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
 
   useEffect(() => {
@@ -407,10 +408,12 @@ export default function ModerationPage() {
     async (opts?: { toastOnOk?: boolean }) => {
       setQueueLoading(true);
       setErr(null);
+      setErrHint(null);
       try {
         const res = await fetch("/api/mod/queue?limit=200");
         const json = (await res.json().catch(() => ({}))) as ModQueuePayload & {
           error?: string;
+          hint?: string;
         };
         if (!res.ok) {
           setData(null);
@@ -419,6 +422,7 @@ export default function ModerationPage() {
               ? json.error
               : `Request failed (${res.status}).`;
           setErr(msg);
+          setErrHint(typeof json.hint === "string" ? json.hint : null);
           return;
         }
         if (json.success && Array.isArray(json.callApprovals) && Array.isArray(json.devSubmissions)) {
@@ -439,10 +443,12 @@ export default function ModerationPage() {
           const msg =
             typeof json.error === "string" ? json.error : "Unexpected response from mod queue.";
           setErr(msg);
+          setErrHint(typeof json.hint === "string" ? json.hint : null);
         }
       } catch {
         setData(null);
         setErr("Could not load mod queue.");
+        setErrHint(null);
         addNotification({
           id: crypto.randomUUID(),
           text: "Could not load mod queue.",
@@ -612,9 +618,10 @@ export default function ModerationPage() {
       {err && !queueLoading ? (
         <div
           role="alert"
-          className="mb-6 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm leading-relaxed text-red-200/95"
+          className="mb-6 space-y-2 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm leading-relaxed text-red-200/95"
         >
-          {err}
+          <p>{err}</p>
+          {errHint ? <p className="text-xs leading-relaxed text-zinc-400">{errHint}</p> : null}
         </div>
       ) : null}
 

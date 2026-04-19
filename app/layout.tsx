@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { MainShell } from "./components/MainShell";
-import { Sidebar } from "./components/Sidebar";
+import { AppChrome } from "./components/AppChrome";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -32,10 +31,7 @@ export default function RootLayout({
     >
       <body className="min-h-screen bg-[#050505] text-zinc-100 antialiased">
         <Providers>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <MainShell>{children}</MainShell>
-          </div>
+          <AppChrome>{children}</AppChrome>
         </Providers>
       </body>
     </html>

@@ -1,0 +1,54 @@
+import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
+import { meetsModerationMinTier, resolveHelpTierWithSource } from "@/lib/helpRole";
+
+function idSet(raw: string | undefined): Set<string> {
+  if (!raw?.trim()) return new Set();
+  return new Set(
+    raw
+      .split(/[\s,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+  );
+}
+
+function staffExemptionEnabled(): boolean {
+  const v = (process.env.SUBSCRIPTION_EXEMPT_STAFF ?? "").trim().toLowerCase();
+  if (v === "0" || v === "false" || v === "no" || v === "off") return false;
+  if (v === "1" || v === "true" || v === "yes" || v === "on") return true;
+  return true;
+}
+
+function exemptByExplicitUserIds(discordUserId: string): boolean {
+  return idSet(process.env.SUBSCRIPTION_EXEMPT_DISCORD_IDS).has(discordUserId.trim());
+}
+
+async function exemptByExplicitRoleIds(discordUserId: string): Promise<boolean> {
+  const wanted = idSet(process.env.SUBSCRIPTION_EXEMPT_DISCORD_ROLE_IDS);
+  if (wanted.size === 0) return false;
+  const memberRoles = await getDiscordGuildMemberRoleIds(discordUserId);
+  if (memberRoles == null) return false;
+  return memberRoles.some((r) => wanted.has(r));
+}
+
+async function exemptByStaffTier(discordUserId: string): Promise<boolean> {
+  if (!staffExemptionEnabled()) return false;
+  const { tier } = await resolveHelpTierWithSource(discordUserId);
+  return meetsModerationMinTier(tier);
+}
+
+/**
+ * Users matching any rule bypass subscription middleware / API gating.
+ *
+ * - SUBSCRIPTION_EXEMPT_DISCORD_IDS — comma-separated Discord user snowflakes
+ * - SUBSCRIPTION_EXEMPT_DISCORD_ROLE_IDS — comma-separated role ids (guild member must have one)
+ * - SUBSCRIPTION_EXEMPT_STAFF — default on: dashboard mod/admin (same tier as moderation) is exempt.
+ *   Set to 0 / false / off to disable staff auto-exemption.
+ */
+export async function computeSubscriptionExempt(discordUserId: string): Promise<boolean> {
+  const id = discordUserId.trim();
+  if (!id) return false;
+  if (exemptByExplicitUserIds(id)) return true;
+  if (await exemptByExplicitRoleIds(id)) return true;
+  if (await exemptByStaffTier(id)) return true;
+  return false;
+}
