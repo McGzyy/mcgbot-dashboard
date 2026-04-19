@@ -21,6 +21,8 @@ export async function GET() {
     DISCORD_ADMIN_IDS: !!(process.env.DISCORD_ADMIN_IDS ?? "").trim(),
     DISCORD_MOD_IDS: !!(process.env.DISCORD_MOD_IDS ?? "").trim(),
     SUBSCRIPTION_EXEMPT_DISCORD_IDS: !!(process.env.SUBSCRIPTION_EXEMPT_DISCORD_IDS ?? "").trim(),
+    SUBSCRIPTION_EXEMPT_DISCORD_ROLE_IDS: !!(process.env.SUBSCRIPTION_EXEMPT_DISCORD_ROLE_IDS ?? "").trim(),
+    SUBSCRIPTION_EXEMPT_ROLE_IDS: !!(process.env.SUBSCRIPTION_EXEMPT_ROLE_IDS ?? "").trim(),
     SUBSCRIPTION_EXEMPT_STAFF: (() => {
       const v = (process.env.SUBSCRIPTION_EXEMPT_STAFF ?? "").trim().toLowerCase();
       if (v === "0" || v === "false" || v === "no" || v === "off") return false;

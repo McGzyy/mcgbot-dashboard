@@ -26,8 +26,14 @@ function exemptByExplicitUserIds(discordUserId: string): boolean {
   return idSet(process.env.SUBSCRIPTION_EXEMPT_DISCORD_IDS).has(discordUserId.trim());
 }
 
+function subscriptionExemptRoleIdSet(): Set<string> {
+  const a = idSet(process.env.SUBSCRIPTION_EXEMPT_DISCORD_ROLE_IDS);
+  const b = idSet(process.env.SUBSCRIPTION_EXEMPT_ROLE_IDS);
+  return new Set([...a, ...b]);
+}
+
 async function exemptByExplicitRoleIds(discordUserId: string): Promise<boolean> {
-  const wanted = idSet(process.env.SUBSCRIPTION_EXEMPT_DISCORD_ROLE_IDS);
+  const wanted = subscriptionExemptRoleIdSet();
   if (wanted.size === 0) return false;
   const memberRoles = await getDiscordGuildMemberRoleIds(discordUserId);
   if (memberRoles == null) return false;
@@ -44,7 +50,8 @@ async function exemptByStaffTier(discordUserId: string): Promise<boolean> {
  * Users matching any rule bypass subscription middleware / API gating.
  *
  * - SUBSCRIPTION_EXEMPT_DISCORD_IDS — comma-separated Discord user snowflakes
- * - SUBSCRIPTION_EXEMPT_DISCORD_ROLE_IDS — comma-separated role ids (guild member must have one)
+ * - SUBSCRIPTION_EXEMPT_DISCORD_ROLE_IDS — comma-separated role ids (member must have one)
+ * - SUBSCRIPTION_EXEMPT_ROLE_IDS — same as above (shorter alias; merged with DISCORD list)
  * - SUBSCRIPTION_EXEMPT_STAFF — default on: dashboard mod/admin (same tier as moderation) is exempt.
  *   Set to 0 / false / off to disable staff auto-exemption.
  */
