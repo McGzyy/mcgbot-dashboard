@@ -17,5 +17,7 @@ declare module "next-auth/jwt" {
     discord_id?: string;
     subscriptionActiveUntil?: string | null;
     subscriptionExempt?: boolean;
+    /** ms since epoch — throttles recomputing subscription/exempt in jwt callback */
+    subscriptionRefreshAt?: number;
   }
 }

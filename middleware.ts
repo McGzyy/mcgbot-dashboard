@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { liveDashboardAccessForDiscordId } from "@/lib/dashboardGate";
 
 function isStaticPath(pathname: string): boolean {
   if (pathname.startsWith("/_next")) return true;
@@ -45,6 +46,27 @@ function hasDashboardAccess(token: Record<string, unknown> | null): boolean {
   return subscriptionActive(token);
 }
 
+function discordIdFromToken(token: Record<string, unknown> | null): string {
+  const fromDiscord = typeof token?.discord_id === "string" ? token.discord_id.trim() : "";
+  if (fromDiscord) return fromDiscord;
+  const sub = typeof token?.sub === "string" ? token.sub.trim() : "";
+  return sub;
+}
+
+/** Cookie claims first; if denied, re-check server (fixes stale JWT after env/code changes). */
+async function hasDashboardAccessResolved(
+  token: Record<string, unknown> | null
+): Promise<boolean> {
+  if (hasDashboardAccess(token)) return true;
+  const id = discordIdFromToken(token);
+  if (!id) return false;
+  try {
+    return await liveDashboardAccessForDiscordId(id);
+  } catch {
+    return false;
+  }
+}
+
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
@@ -80,7 +102,7 @@ export async function middleware(req: NextRequest) {
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!hasDashboardAccess(token)) {
+    if (!(await hasDashboardAccessResolved(token))) {
       return NextResponse.json({ error: "Subscription required" }, { status: 402 });
     }
     return NextResponse.next();
@@ -105,7 +127,7 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname === "/") {
-    if (!hasDashboardAccess(token)) {
+    if (!(await hasDashboardAccessResolved(token))) {
       const url = req.nextUrl.clone();
       url.pathname = "/subscribe";
       url.search = "";
@@ -114,7 +136,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  if (!hasDashboardAccess(token)) {
+  if (!(await hasDashboardAccessResolved(token))) {
     const url = req.nextUrl.clone();
     url.pathname = "/subscribe";
     url.search = "";

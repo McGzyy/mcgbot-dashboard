@@ -86,11 +86,17 @@ export const authOptions: NextAuthOptions = {
       const discordId = (token.discord_id as string | undefined)?.trim();
       const sessionObj = session && typeof session === "object" ? (session as { refreshSubscription?: boolean }) : null;
       const refreshSubscriptionFlag = Boolean(sessionObj?.refreshSubscription);
+      const SUB_REFRESH_MS = 3 * 60 * 1000;
+      const lastRefresh =
+        typeof token.subscriptionRefreshAt === "number" ? token.subscriptionRefreshAt : 0;
+      const subscriptionGateStale =
+        Boolean(discordId) && Date.now() - lastRefresh > SUB_REFRESH_MS;
       const shouldRefreshAccess =
         Boolean(user) ||
         (Boolean(discordId) &&
           (!("subscriptionActiveUntil" in token) || !("subscriptionExempt" in token))) ||
-        (trigger === "update" && refreshSubscriptionFlag);
+        (trigger === "update" && refreshSubscriptionFlag) ||
+        subscriptionGateStale;
 
       if (discordId && shouldRefreshAccess) {
         const [end, exempt] = await Promise.all([
@@ -99,6 +105,7 @@ export const authOptions: NextAuthOptions = {
         ]);
         token.subscriptionActiveUntil = end;
         token.subscriptionExempt = exempt;
+        token.subscriptionRefreshAt = Date.now();
       }
 
       return token;
