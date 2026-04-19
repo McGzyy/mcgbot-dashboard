@@ -8,6 +8,17 @@ export type HelpTierSource = "development_override" | "discord_guild" | "env_all
 const tierAsyncCache = new Map<string, { tier: HelpTier; source: HelpTierSource; exp: number }>();
 const TIER_ASYNC_CACHE_MS = 45_000;
 
+function tierRank(t: HelpTier): number {
+  if (t === "admin") return 2;
+  if (t === "mod") return 1;
+  return 0;
+}
+
+/** Highest privilege (admin > mod > user). */
+function mergeHelpTiers(a: HelpTier, b: HelpTier): HelpTier {
+  return tierRank(a) >= tierRank(b) ? a : b;
+}
+
 function idSet(raw: string | undefined): Set<string> {
   if (!raw?.trim()) return new Set();
   return new Set(
@@ -72,14 +83,20 @@ export async function resolveHelpTierWithSource(
   }
 
   const fromDiscord = await staffTierFromDiscord(id);
-  let tier: HelpTier;
+  const discordTier: HelpTier =
+    fromDiscord === "admin" || fromDiscord === "mod" || fromDiscord === "user"
+      ? fromDiscord
+      : "user";
+  const envTier = resolveHelpTier(id);
+  const tier = mergeHelpTiers(discordTier, envTier);
+
   let source: HelpTierSource;
-  if (fromDiscord !== null) {
-    tier = fromDiscord;
-    source = "discord_guild";
-  } else {
-    tier = resolveHelpTier(id);
+  if (fromDiscord === null) {
     source = "env_allowlist";
+  } else if (tierRank(tier) > tierRank(discordTier)) {
+    source = "env_allowlist";
+  } else {
+    source = "discord_guild";
   }
 
   tierAsyncCache.set(id, { tier, source, exp: now + TIER_ASYNC_CACHE_MS });
