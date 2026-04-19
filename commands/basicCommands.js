@@ -480,7 +480,7 @@ function createCommandsEmbed(message) {
     fields.push({
       name: '🛡️ Manage Server (summary)',
       value:
-        '`!scanner` / `!scanner on|off`, approvals, `!pendingapprovals`, `!verifyx @user`, `!resetmonitor`, … — see `!help`',
+        '`!scanner` / `!scanner on|off`, approvals, `!pendingapprovals`, `!resetmonitor`, … — see `!help`',
       inline: false
     });
   }

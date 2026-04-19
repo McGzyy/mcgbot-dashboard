@@ -4,6 +4,10 @@ export type ModQueueCallApproval = {
   ticker: string | null;
   approvalRequestedAt: string | null;
   approvalMessageId: string | null;
+  approvalGuildId?: string | null;
+  approvalChannelId?: string | null;
+  /** Opens the #mod-approvals message in Discord when guild/channel/message ids are present. */
+  discordJumpUrl?: string | null;
   firstCallerUsername: string | null;
   callSourceType: string | null;
   chain: string | null;
@@ -22,6 +26,8 @@ export type ModQueueDevSubmission = {
   notes: string | null;
   approvalMessageId: string | null;
   approvalChannelId: string | null;
+  approvalGuildId?: string | null;
+  discordJumpUrl?: string | null;
 };
 
 export type ModQueuePayload = {

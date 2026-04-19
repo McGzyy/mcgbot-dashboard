@@ -3664,6 +3664,8 @@ export default function Home() {
             </PanelCard>
           )}
 
+          {(helpTier === "mod" || helpTier === "admin") && <ModQueueHomePanel />}
+
           <DashboardChatPanel
             showModTab={
               (helpTier === "mod" || helpTier === "admin") && modChatConfigured
@@ -3672,8 +3674,6 @@ export default function Home() {
               (helpTier === "mod" || helpTier === "admin") && !modChatConfigured
             }
           />
-
-          {(helpTier === "mod" || helpTier === "admin") && <ModQueueHomePanel />}
 
           {widgetEnabled(widgets, "live_tracked_calls") && <DailyLeaderboardPanel />}
 

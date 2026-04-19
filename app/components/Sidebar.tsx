@@ -19,6 +19,8 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [staffNav, setStaffNav] = useState(false);
+  /** Pending mod-queue count (from API); null = not loaded or not staff. */
+  const [modPendingTotal, setModPendingTotal] = useState<number | null>(null);
 
   const profileId = session?.user?.id?.trim() || "";
   const profileName =
@@ -34,6 +36,7 @@ export function Sidebar() {
   useEffect(() => {
     if (status !== "authenticated") {
       setStaffNav(false);
+      setModPendingTotal(null);
       return;
     }
     let cancelled = false;
@@ -43,9 +46,28 @@ export function Sidebar() {
         const json = (await res.json().catch(() => ({}))) as { role?: string };
         if (cancelled) return;
         const r = json.role;
-        setStaffNav(r === "mod" || r === "admin");
+        const staff = r === "mod" || r === "admin";
+        setStaffNav(staff);
+        if (!staff) {
+          setModPendingTotal(null);
+          return;
+        }
+        const q = await fetch("/api/mod/queue?limit=1");
+        const qj = (await q.json().catch(() => ({}))) as {
+          success?: boolean;
+          counts?: { total?: number };
+        };
+        if (cancelled) return;
+        if (qj.success && qj.counts && typeof qj.counts.total === "number") {
+          setModPendingTotal(qj.counts.total);
+        } else {
+          setModPendingTotal(null);
+        }
       } catch {
-        if (!cancelled) setStaffNav(false);
+        if (!cancelled) {
+          setStaffNav(false);
+          setModPendingTotal(null);
+        }
       }
     })();
     return () => {
@@ -131,7 +153,14 @@ export function Sidebar() {
                   isActive(pathname, "/moderation") ? "bg-amber-400 opacity-100" : "opacity-0"
                 }`}
               />
-              <span>Moderation</span>
+              <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                <span className="truncate">Moderation</span>
+                {modPendingTotal != null && modPendingTotal > 0 ? (
+                  <span className="shrink-0 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-amber-200 ring-1 ring-amber-500/30">
+                    {modPendingTotal > 99 ? "99+" : modPendingTotal}
+                  </span>
+                ) : null}
+              </span>
             </Link>
           ) : null}
 

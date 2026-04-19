@@ -7,6 +7,7 @@ import {
   formatJoinedAt,
   multipleClass,
 } from "@/lib/callDisplayFormat";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
@@ -1275,6 +1276,43 @@ export default function UserProfilePage() {
 
         <aside className="col-span-12 lg:col-span-4">
           <div className="w-full max-w-sm space-y-4 lg:ml-auto">
+            {isOwnProfile ? (
+              <PanelCard title="X account">
+                {xVerified ? (
+                  <p className="mt-2 text-sm text-zinc-300">
+                    <span className="text-emerald-400">✓</span> Linked as{" "}
+                    <a
+                      href={`https://x.com/${encodeURIComponent(xHandle)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:underline"
+                    >
+                      @{xHandle || "your handle"}
+                    </a>
+                    . Manage or unlink in{" "}
+                    <Link
+                      href="/settings#connected-accounts"
+                      className="text-sky-400 hover:underline"
+                    >
+                      Settings
+                    </Link>
+                    .
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                    Connect your X account with OAuth (no DMs or codes). Open{" "}
+                    <Link
+                      href="/settings#connected-accounts"
+                      className="text-sky-400 hover:underline"
+                    >
+                      Settings → Connected accounts
+                    </Link>{" "}
+                    to link.
+                  </p>
+                )}
+              </PanelCard>
+            ) : null}
+
             <PanelCard title="Alpha Score">
               <div className="flex flex-col gap-1">
                 <p className="text-3xl font-semibold">

@@ -80,7 +80,10 @@ export async function GET() {
         ? row.profile_visibility
         : {};
 
-    return Response.json({ bio, banner_url, x_handle, profile_visibility });
+    const x_verified =
+      row && (row.x_verified === true || row.x_verified === "true" || row.x_verified === 1);
+
+    return Response.json({ bio, banner_url, x_handle, x_verified, profile_visibility });
   } catch (e) {
     console.error("[profile API] GET:", e);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });

@@ -135,7 +135,16 @@ async function createPost(text, replyToId = null, mediaPngBuffer = null) {
   }
 }
 
+function getXBotUsernameForCopy() {
+  const raw = String(process.env.X_BOT_USERNAME || 'McGBot')
+    .trim()
+    .replace(/^@+/, '');
+  const cleaned = raw.replace(/[^\w]/g, '').slice(0, 15);
+  return cleaned || 'McGBot';
+}
+
 module.exports = {
   createPost,
-  uploadMediaPng
+  uploadMediaPng,
+  getXBotUsernameForCopy
 };

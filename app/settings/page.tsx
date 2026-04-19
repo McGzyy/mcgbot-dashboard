@@ -2,7 +2,8 @@
 
 import type { WidgetsEnabled } from "@/app/api/dashboard-settings/route";
 import { signIn, useSession } from "next-auth/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 function discordSignInSafe() {
   if (typeof window === "undefined") return;
@@ -180,8 +181,10 @@ function ToggleRow({
   );
 }
 
-export default function SettingsPage() {
+function SettingsPageInner() {
   const { status } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [widgets, setWidgets] = useState<WidgetsEnabled>(DEFAULT_WIDGETS);
@@ -200,7 +203,13 @@ export default function SettingsPage() {
   >("idle");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
+  const [toastLabel, setToastLabel] = useState("Settings saved ✅");
   const toastHideTimeoutRef = useRef<number | null>(null);
+
+  const [xHandle, setXHandle] = useState("");
+  const [xVerified, setXVerified] = useState(false);
+  const [xBusy, setXBusy] = useState(false);
+  const [xMessage, setXMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -261,6 +270,12 @@ export default function SettingsPage() {
         ) {
           const row = profileData as Record<string, unknown>;
           setProfileVisibility(parseProfileVisibility(row.profile_visibility));
+          setXHandle(typeof row.x_handle === "string" ? row.x_handle : "");
+          setXVerified(
+            row.x_verified === true ||
+              row.x_verified === "true" ||
+              row.x_verified === 1
+          );
         }
       })
       .catch(() => {
@@ -276,11 +291,100 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    const x = searchParams.get("x");
+    const reason = searchParams.get("reason");
+    if (x === "linked") {
+      setXMessage(null);
+      setToastLabel("X account linked ✅");
+      setShowToast(true);
+      if (toastHideTimeoutRef.current !== null) {
+        clearTimeout(toastHideTimeoutRef.current);
+      }
+      toastHideTimeoutRef.current = window.setTimeout(() => {
+        setShowToast(false);
+        toastHideTimeoutRef.current = null;
+      }, 3200);
+      void fetch("/api/profile")
+        .then((r) => r.json())
+        .then((d) => {
+          if (d && typeof d === "object" && !("error" in d)) {
+            const row = d as Record<string, unknown>;
+            setXHandle(typeof row.x_handle === "string" ? row.x_handle : "");
+            setXVerified(
+              row.x_verified === true ||
+                row.x_verified === "true" ||
+                row.x_verified === 1
+            );
+          }
+        })
+        .catch(() => {});
+      router.replace("/settings", { scroll: false });
+      return;
+    }
+    if (x === "error") {
+      setXMessage(
+        reason && reason.length > 0
+          ? `X linking failed: ${reason}`
+          : "X linking failed."
+      );
+      router.replace("/settings", { scroll: false });
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
     return () => {
       if (toastHideTimeoutRef.current !== null) {
         clearTimeout(toastHideTimeoutRef.current);
       }
     };
+  }, []);
+
+  const startXOAuth = useCallback(async () => {
+    setXBusy(true);
+    setXMessage(null);
+    try {
+      const res = await fetch("/api/x/oauth/start", { method: "POST" });
+      const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+      if (!res.ok) {
+        setXMessage(
+          typeof data?.error === "string" ? data.error : "Could not start X sign-in"
+        );
+        return;
+      }
+      const authUrl =
+        data && typeof data.authUrl === "string" ? data.authUrl.trim() : "";
+      if (!authUrl) {
+        setXMessage("Invalid response from server (missing authUrl).");
+        return;
+      }
+      window.location.href = authUrl;
+    } catch {
+      setXMessage("Network error.");
+    } finally {
+      setXBusy(false);
+    }
+  }, []);
+
+  const unlinkX = useCallback(async () => {
+    setXBusy(true);
+    setXMessage(null);
+    try {
+      const res = await fetch("/api/x/unlink", { method: "POST" });
+      const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+      if (!res.ok) {
+        setXMessage(
+          typeof data?.error === "string" ? data.error : "Could not unlink X"
+        );
+        return;
+      }
+      setXHandle("");
+      setXVerified(false);
+      setXMessage("X account unlinked.");
+    } catch {
+      setXMessage("Network error.");
+    } finally {
+      setXBusy(false);
+    }
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -351,6 +455,7 @@ export default function SettingsPage() {
 
       setSaveState("saved");
       setSaveMessage("Saved.");
+      setToastLabel("Settings saved ✅");
       if (toastHideTimeoutRef.current !== null) {
         clearTimeout(toastHideTimeoutRef.current);
       }
@@ -601,6 +706,56 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      <section id="connected-accounts" className="mt-10">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Connected accounts
+        </h2>
+        <div className="mt-4 rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
+          <p className="text-sm font-medium text-zinc-100">X (Twitter)</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            Sign in with X to prove your handle. Used for verified @ on your profile and call
+            credit when you use that mode in Discord.
+          </p>
+          {xMessage ? (
+            <p
+              className={`mt-2 text-xs ${
+                /failed|Could not|Network|Invalid|not configured/i.test(xMessage)
+                  ? "text-red-400/90"
+                  : "text-emerald-400/90"
+              }`}
+            >
+              {xMessage}
+            </p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {xVerified && xHandle ? (
+              <>
+                <span className="inline-flex items-center gap-2 rounded-md border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-sm text-sky-100">
+                  Linked as @{xHandle.replace(/^@+/, "")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void unlinkX()}
+                  disabled={xBusy}
+                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  {xBusy ? "Working…" : "Unlink X"}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void startXOAuth()}
+                disabled={xBusy}
+                className="rounded-lg bg-[#1d9bf0] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#1a8cd8] disabled:opacity-50"
+              >
+                {xBusy ? "Opening…" : "Connect X"}
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
       <section className="mt-12">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Dashboard Widgets
@@ -725,9 +880,23 @@ export default function SettingsPage() {
         role="status"
         aria-live="polite"
       >
-        Settings saved ✅
+        {toastLabel}
       </div>
     ) : null}
     </>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-lg">
+          <p className="text-sm text-zinc-500">Loading…</p>
+        </div>
+      }
+    >
+      <SettingsPageInner />
+    </Suspense>
   );
 }

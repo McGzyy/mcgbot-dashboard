@@ -1,12 +1,17 @@
 "use client";
 
-import type { ModQueuePayload } from "@/lib/modQueue";
+import { useNotifications } from "@/app/contexts/NotificationsContext";
+import type { ModQueueCallApproval, ModQueueDevSubmission, ModQueuePayload } from "@/lib/modQueue";
+import {
+  dexscreenerTokenUrl,
+  formatListField,
+  formatRelativeTime,
+  parseTagsList,
+  solscanAccountUrl,
+} from "@/lib/modUiUtils";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
-
-const CARD_HOVER =
-  "transition-[box-shadow,border-color,ring-color] duration-200 ease-out hover:border-[#2a2a2a] hover:shadow-lg hover:shadow-black/35 hover:ring-1 hover:ring-[#2a2a2a]/30";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 function shortAddr(ca: string) {
   const s = ca.trim();
@@ -14,20 +19,358 @@ function shortAddr(ca: string) {
   return `${s.slice(0, 8)}…${s.slice(-4)}`;
 }
 
-function formatListField(v: unknown): string {
-  if (v == null) return "—";
-  if (Array.isArray(v)) return v.length ? v.map(String).join(", ") : "—";
-  if (typeof v === "string") return v.trim() || "—";
-  return String(v);
+function ModQueueSkeleton() {
+  return (
+    <div className="grid animate-pulse gap-4 lg:grid-cols-2">
+      {[0, 1].map((k) => (
+        <div
+          key={k}
+          className="h-52 rounded-xl border border-zinc-800/60 bg-gradient-to-br from-zinc-950/80 to-zinc-900/20"
+        />
+      ))}
+    </div>
+  );
+}
+
+function useCopyWithToast() {
+  const { addNotification } = useNotifications();
+  return useCallback(
+    async (text: string, okMsg: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        addNotification({
+          id: crypto.randomUUID(),
+          text: okMsg,
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+        return true;
+      } catch {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Could not copy to clipboard.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "high",
+        });
+        return false;
+      }
+    },
+    [addNotification]
+  );
+}
+
+const btnGhost =
+  "inline-flex items-center justify-center rounded-md border border-zinc-700/90 bg-zinc-900/40 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800/50 hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/30 disabled:cursor-not-allowed disabled:opacity-45";
+
+const btnApprove =
+  "inline-flex items-center justify-center rounded-md border border-emerald-600/50 bg-emerald-950/50 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-200 transition hover:border-emerald-500 hover:bg-emerald-900/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 disabled:cursor-not-allowed disabled:opacity-45";
+
+const btnDeny =
+  "inline-flex items-center justify-center rounded-md border border-red-600/45 bg-red-950/35 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-red-200 transition hover:border-red-500 hover:bg-red-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/35 disabled:cursor-not-allowed disabled:opacity-45";
+
+const btnExclude =
+  "inline-flex items-center justify-center rounded-md border border-zinc-600/80 bg-zinc-900/60 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/30 disabled:cursor-not-allowed disabled:opacity-45";
+
+function CallApprovalRow({
+  c,
+  onQueueChanged,
+}: {
+  c: ModQueueCallApproval;
+  onQueueChanged: () => void;
+}) {
+  const { addNotification } = useNotifications();
+  const copy = useCopyWithToast();
+  const [busy, setBusy] = useState<null | "approve" | "deny" | "exclude">(null);
+
+  const title =
+    [c.ticker, c.tokenName].filter(Boolean).join(" · ") || shortAddr(c.contractAddress);
+  const dex = dexscreenerTokenUrl(c.chain, c.contractAddress);
+  const solscan = solscanAccountUrl(c.contractAddress);
+  const rel = formatRelativeTime(c.approvalRequestedAt);
+
+  const runDecision = async (decision: "approve" | "deny" | "exclude") => {
+    if (typeof window === "undefined") return;
+    const msg =
+      decision === "approve"
+        ? "Approve this call? The #mod-approvals message will be finalized in Discord (and X may post if milestones qualify)."
+        : decision === "deny"
+          ? "Deny this call? The queue message will be finalized in Discord."
+          : "Exclude this call from stats? The queue message will be finalized in Discord.";
+    if (!window.confirm(msg)) return;
+
+    setBusy(decision);
+    try {
+      const res = await fetch("/api/mod/call-decision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contractAddress: c.contractAddress, decision }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        discordMessageSkipped?: boolean;
+        warning?: string | null;
+      };
+      if (!res.ok || !json.success) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: json.error || `Request failed (${res.status})`,
+          type: "call",
+          createdAt: Date.now(),
+          priority: "high",
+        });
+        return;
+      }
+      addNotification({
+        id: crypto.randomUUID(),
+        text:
+          decision === "approve"
+            ? "Call approved."
+            : decision === "deny"
+              ? "Call denied."
+              : "Call excluded.",
+        type: "call",
+        createdAt: Date.now(),
+        priority: "low",
+      });
+      if (json.discordMessageSkipped && json.warning) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: `Discord message: ${json.warning}`,
+          type: "call",
+          createdAt: Date.now(),
+          priority: "medium",
+        });
+      }
+      onQueueChanged();
+    } catch {
+      addNotification({
+        id: crypto.randomUUID(),
+        text: "Network error while applying decision.",
+        type: "call",
+        createdAt: Date.now(),
+        priority: "high",
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <li className="group rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3.5 shadow-sm shadow-black/20 transition hover:border-zinc-700/90 hover:bg-zinc-900/25">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-[15px] font-semibold tracking-tight text-zinc-100">{title}</div>
+          <div className="mt-1 break-all font-mono text-[11px] leading-relaxed text-zinc-500">
+            {c.contractAddress}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200/95">
+            Pending
+          </span>
+          <span className="text-[11px] tabular-nums text-zinc-500" title={c.approvalRequestedAt ?? ""}>
+            {rel}
+          </span>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className={btnGhost}
+          onClick={() => void copy(c.contractAddress, "Contract address copied.")}
+          disabled={busy !== null}
+        >
+          Copy CA
+        </button>
+        <a href={dex} target="_blank" rel="noopener noreferrer" className={btnGhost}>
+          Dexscreener
+        </a>
+        {solscan ? (
+          <a href={solscan} target="_blank" rel="noopener noreferrer" className={btnGhost}>
+            Solscan
+          </a>
+        ) : null}
+        {c.discordJumpUrl ? (
+          <a href={c.discordJumpUrl} target="_blank" rel="noopener noreferrer" className={btnGhost}>
+            Discord
+          </a>
+        ) : null}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 border-t border-zinc-800/60 pt-3">
+        <button
+          type="button"
+          className={btnApprove}
+          disabled={busy !== null}
+          onClick={() => void runDecision("approve")}
+        >
+          {busy === "approve" ? "…" : "Approve"}
+        </button>
+        <button
+          type="button"
+          className={btnDeny}
+          disabled={busy !== null}
+          onClick={() => void runDecision("deny")}
+        >
+          {busy === "deny" ? "…" : "Deny"}
+        </button>
+        <button
+          type="button"
+          className={btnExclude}
+          disabled={busy !== null}
+          onClick={() => void runDecision("exclude")}
+        >
+          {busy === "exclude" ? "…" : "Exclude"}
+        </button>
+      </div>
+      <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+        {c.chain ? (
+          <span>
+            Chain <span className="font-medium text-zinc-400">{c.chain}</span>
+          </span>
+        ) : null}
+        {c.firstCallerUsername ? (
+          <span>
+            Caller <span className="font-medium text-zinc-400">{c.firstCallerUsername}</span>
+          </span>
+        ) : null}
+        {c.callSourceType ? (
+          <span>
+            Source <span className="font-medium text-zinc-400">{c.callSourceType}</span>
+          </span>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+const NOTE_PREVIEW = 220;
+
+function DevSubmissionRow({ d }: { d: ModQueueDevSubmission }) {
+  const copy = useCopyWithToast();
+  const tags = parseTagsList(d.tags);
+  const wallets = formatListField(d.walletAddresses);
+  const coins = formatListField(d.coinAddresses);
+  const notes = d.notes?.trim() || "";
+  const [expanded, setExpanded] = useState(false);
+  const longNotes = notes.length > NOTE_PREVIEW;
+  const shownNotes = expanded || !longNotes ? notes : `${notes.slice(0, NOTE_PREVIEW)}…`;
+
+  return (
+    <li className="group rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3.5 shadow-sm shadow-black/20 transition hover:border-zinc-700/90 hover:bg-zinc-900/25">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-[15px] font-semibold tracking-tight text-zinc-100">
+            {d.nickname?.trim() || "Dev submission"}
+          </div>
+          <div className="mt-0.5 font-mono text-[10px] text-zinc-600">{d.id}</div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <span className="rounded-md border border-violet-500/25 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-200/95">
+            Queue
+          </span>
+          <span className="text-[11px] tabular-nums text-zinc-500" title={d.createdAt}>
+            {formatRelativeTime(d.createdAt)}
+          </span>
+        </div>
+      </div>
+      {tags.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {tags.map((t) => (
+            <span
+              key={t}
+              className="rounded-md border border-zinc-700/80 bg-zinc-900/50 px-2 py-0.5 text-[10px] font-medium text-zinc-300"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {d.discordJumpUrl ? (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <a
+            href={d.discordJumpUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={btnGhost}
+          >
+            Open in Discord
+          </a>
+        </div>
+      ) : null}
+      <div className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-zinc-500">
+        <div>
+          <span className="text-zinc-600">Submitter</span>{" "}
+          <span className="text-zinc-300">
+            {d.submitterUsername || "—"}
+            {d.submitterId ? (
+              <span className="font-mono text-zinc-500"> · {d.submitterId}</span>
+            ) : null}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-start gap-2">
+          <span className="min-w-0 flex-1">
+            <span className="text-zinc-600">Wallets</span>{" "}
+            <span className="text-zinc-400">{wallets}</span>
+          </span>
+          {wallets !== "—" ? (
+            <button
+              type="button"
+              className={btnGhost}
+              onClick={() => void copy(wallets.replace(/,\s*/g, "\n"), "Wallets copied.")}
+            >
+              Copy
+            </button>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-start gap-2">
+          <span className="min-w-0 flex-1">
+            <span className="text-zinc-600">Coins</span>{" "}
+            <span className="break-all text-zinc-400">{coins}</span>
+          </span>
+          {coins !== "—" ? (
+            <button
+              type="button"
+              className={btnGhost}
+              onClick={() => void copy(coins.replace(/,\s*/g, "\n"), "Coin list copied.")}
+            >
+              Copy
+            </button>
+          ) : null}
+        </div>
+      </div>
+      {notes ? (
+        <div className="mt-2.5 border-t border-zinc-800/60 pt-2.5">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600">Notes</div>
+          <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-zinc-400">
+            {shownNotes}
+          </p>
+          {longNotes ? (
+            <button
+              type="button"
+              onClick={() => setExpanded((e) => !e)}
+              className="mt-1 text-[11px] font-semibold text-[color:var(--accent)] hover:underline"
+            >
+              {expanded ? "Show less" : "Show more"}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  );
 }
 
 export default function ModerationPage() {
   const { status } = useSession();
+  const { addNotification } = useNotifications();
   const [tier, setTier] = useState<"user" | "mod" | "admin" | null>(null);
   const [tierLoading, setTierLoading] = useState(true);
   const [data, setData] = useState<ModQueuePayload | null>(null);
   const [queueLoading, setQueueLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -57,38 +400,59 @@ export default function ModerationPage() {
     };
   }, [status]);
 
-  const loadQueue = useCallback(async () => {
-    setQueueLoading(true);
-    setErr(null);
-    try {
-      const res = await fetch("/api/mod/queue?limit=200");
-      const json = (await res.json().catch(() => ({}))) as ModQueuePayload & {
-        error?: string;
-      };
-      if (!res.ok) {
+  const loadQueue = useCallback(
+    async (opts?: { toastOnOk?: boolean }) => {
+      setQueueLoading(true);
+      setErr(null);
+      try {
+        const res = await fetch("/api/mod/queue?limit=200");
+        const json = (await res.json().catch(() => ({}))) as ModQueuePayload & {
+          error?: string;
+        };
+        if (!res.ok) {
+          setData(null);
+          const msg =
+            typeof json.error === "string"
+              ? json.error
+              : `Request failed (${res.status}).`;
+          setErr(msg);
+          return;
+        }
+        if (json.success && Array.isArray(json.callApprovals) && Array.isArray(json.devSubmissions)) {
+          setData(json);
+          setLastUpdatedAt(Date.now());
+          if (opts?.toastOnOk) {
+            const n = json.counts?.total ?? 0;
+            addNotification({
+              id: crypto.randomUUID(),
+              text: n === 0 ? "Queue is clear." : `Queue updated · ${n} pending`,
+              type: "call",
+              createdAt: Date.now(),
+              priority: "low",
+            });
+          }
+        } else {
+          setData(null);
+          const msg =
+            typeof json.error === "string" ? json.error : "Unexpected response from mod queue.";
+          setErr(msg);
+        }
+      } catch {
         setData(null);
-        setErr(
-          typeof json.error === "string"
-            ? json.error
-            : `Request failed (${res.status}).`
-        );
-        return;
+        setErr("Could not load mod queue.");
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Could not load mod queue.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "high",
+        });
+      } finally {
+        setQueueLoading(false);
       }
-      if (json.success && Array.isArray(json.callApprovals) && Array.isArray(json.devSubmissions)) {
-        setData(json);
-      } else {
-        setData(null);
-        setErr(
-          typeof json.error === "string" ? json.error : "Unexpected response from mod queue."
-        );
-      }
-    } catch {
-      setData(null);
-      setErr("Could not load mod queue.");
-    } finally {
-      setQueueLoading(false);
-    }
-  }, []);
+    },
+    [addNotification]
+  );
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -96,36 +460,75 @@ export default function ModerationPage() {
     void loadQueue();
   }, [status, tier, loadQueue]);
 
+  useEffect(() => {
+    if (tier !== "mod" && tier !== "admin") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "r" && e.key !== "R") return;
+      const el = e.target as HTMLElement | null;
+      if (el?.closest("input, textarea, select, [contenteditable=true]")) return;
+      e.preventDefault();
+      void loadQueue({ toastOnOk: true });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tier, loadQueue]);
+
+  useEffect(() => {
+    if (tier !== "mod" && tier !== "admin") return;
+    const POLL_MS = 50_000;
+    const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void loadQueue();
+    }, POLL_MS);
+    return () => window.clearInterval(id);
+  }, [tier, loadQueue]);
+
+  const lastUpdatedLabel = useMemo(() => {
+    if (!lastUpdatedAt) return null;
+    return formatRelativeTime(new Date(lastUpdatedAt).toISOString());
+  }, [lastUpdatedAt]);
+
   if (status === "loading" || tierLoading) {
     return (
-      <div className="p-6 text-sm text-zinc-500">
-        Loading…
+      <div className="mx-auto max-w-6xl">
+        <div className="h-8 w-48 animate-pulse rounded-lg bg-zinc-800/60" />
+        <div className="mt-4 h-4 w-2/3 max-w-md animate-pulse rounded bg-zinc-800/40" />
       </div>
     );
   }
 
   if (status === "unauthenticated") {
     return (
-      <div className="p-6">
-        <h1 className="text-lg font-semibold text-zinc-100">Moderation</h1>
-        <p className="mt-2 text-sm text-zinc-500">Sign in with Discord to continue.</p>
+      <div className="mx-auto max-w-lg">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Moderation</h1>
+        <p className="mt-3 text-sm leading-relaxed text-zinc-500">
+          Sign in with Discord to open the mod queue.
+        </p>
       </div>
     );
   }
 
   if (tier !== "mod" && tier !== "admin") {
     return (
-      <div className="p-6">
-        <h1 className="text-lg font-semibold text-zinc-100">Moderation</h1>
-        <p className="mt-2 max-w-md text-sm text-zinc-500">
-          This area is only available to McGBot moderators and admins. If you believe this is a
-          mistake, check that your Discord account is listed in{" "}
-          <code className="rounded bg-zinc-900 px-1 text-zinc-300">DISCORD_MOD_IDS</code> or{" "}
-          <code className="rounded bg-zinc-900 px-1 text-zinc-300">DISCORD_ADMIN_IDS</code> on the
-          dashboard host.
+      <div className="mx-auto max-w-lg">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Moderation</h1>
+        <p className="mt-3 text-sm leading-relaxed text-zinc-500">
+          This area is only available to McGBot moderators and admins. Your Discord account must be
+          listed in{" "}
+          <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-[13px] text-zinc-300">
+            DISCORD_MOD_IDS
+          </code>{" "}
+          or{" "}
+          <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-[13px] text-zinc-300">
+            DISCORD_ADMIN_IDS
+          </code>{" "}
+          on the dashboard host.
         </p>
-        <Link href="/" className="mt-4 inline-block text-sm font-medium text-[color:var(--accent)] hover:underline">
-          Back to dashboard
+        <Link
+          href="/"
+          className="mt-6 inline-flex text-sm font-semibold text-[color:var(--accent)] hover:underline"
+        >
+          ← Back to dashboard
         </Link>
       </div>
     );
@@ -134,138 +537,134 @@ export default function ModerationPage() {
   const calls = data?.callApprovals ?? [];
   const devs = data?.devSubmissions ?? [];
   const counts = data?.counts;
+  const total = counts?.total ?? 0;
+  const callN = counts?.callApprovals ?? calls.length;
+  const devN = counts?.devSubmissions ?? devs.length;
 
   return (
-    <div className="p-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Moderation</h1>
-          <p className="mt-1 max-w-2xl text-sm text-zinc-500">
-            Pending items posted to{" "}
-            <span className="font-medium text-zinc-400">#mod-approvals</span>. Approve or deny from
-            Discord using the message buttons until web actions are wired.
-          </p>
+    <div className="mx-auto max-w-6xl">
+      <div className="sticky top-0 z-20 mb-8 rounded-xl border border-zinc-800/90 bg-[#050505]/95 p-4 shadow-lg shadow-black/40 backdrop-blur-md">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+              Staff
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Moderation</h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
+              Live view of the same queue as{" "}
+              <span className="font-medium text-zinc-400">#mod-approvals</span>. Use Discord buttons
+              to approve or deny until web actions ship.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {lastUpdatedLabel ? (
+              <span className="text-xs tabular-nums text-zinc-500">
+                Updated <span className="font-medium text-zinc-400">{lastUpdatedLabel}</span>
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void loadQueue({ toastOnOk: true })}
+              disabled={queueLoading}
+              className="inline-flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-900/80 px-4 py-2 text-sm font-semibold text-zinc-100 shadow-sm transition hover:border-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span
+                className={queueLoading ? "inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent" : ""}
+                aria-hidden
+              />
+              {queueLoading ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => void loadQueue()}
-          disabled={queueLoading}
-          className="rounded-lg border border-zinc-700 bg-zinc-900/60 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-zinc-600 disabled:opacity-50"
-        >
-          {queueLoading ? "Refreshing…" : "Refresh"}
-        </button>
+
+        <div className="mt-5 grid grid-cols-3 gap-2 sm:max-w-md">
+          <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2.5 text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Total</div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-zinc-100">{queueLoading ? "…" : total}</div>
+          </div>
+          <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2.5 text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Calls</div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-amber-200/90">
+              {queueLoading ? "…" : callN}
+            </div>
+          </div>
+          <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2.5 text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Devs</div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-violet-200/90">
+              {queueLoading ? "…" : devN}
+            </div>
+          </div>
+        </div>
+        <p className="mt-3 text-[11px] text-zinc-600">
+          Tip: press <kbd className="rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-400">R</kbd>{" "}
+          outside inputs to refresh.
+        </p>
       </div>
 
-      {err ? (
-        <p className="mt-4 text-sm text-red-400/90">{err}</p>
+      {err && !queueLoading ? (
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm leading-relaxed text-red-200/95"
+        >
+          {err}
+        </div>
       ) : null}
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <section
-          className={`rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-sm shadow-black/20 ${CARD_HOVER}`}
-        >
-          <h2 className="text-sm font-semibold text-zinc-300">
-            Tracked call approvals
-            <span className="ml-2 tabular-nums text-zinc-500">
-              ({counts?.callApprovals ?? calls.length})
-            </span>
-          </h2>
-          {!data && !err ? (
-            <p className="mt-3 text-sm text-zinc-500">Loading…</p>
-          ) : calls.length === 0 ? (
-            <p className="mt-3 text-sm text-zinc-500">No pending call approvals.</p>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {calls.map((c) => {
-                const title =
-                  [c.ticker, c.tokenName].filter(Boolean).join(" · ") ||
-                  shortAddr(c.contractAddress);
-                return (
-                  <li
-                    key={`${c.contractAddress}-${c.approvalMessageId}`}
-                    className="rounded-lg border border-zinc-800/90 bg-zinc-950/50 p-3 text-sm"
-                  >
-                    <div className="font-semibold text-zinc-100">{title}</div>
-                    <div className="mt-1 font-mono text-xs text-zinc-500">{c.contractAddress}</div>
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
-                      {c.chain ? (
-                        <span>
-                          Chain: <span className="text-zinc-400">{c.chain}</span>
-                        </span>
-                      ) : null}
-                      {c.firstCallerUsername ? (
-                        <span>
-                          Caller:{" "}
-                          <span className="text-zinc-400">{c.firstCallerUsername}</span>
-                        </span>
-                      ) : null}
-                      {c.callSourceType ? (
-                        <span>
-                          Source:{" "}
-                          <span className="text-zinc-400">{c.callSourceType}</span>
-                        </span>
-                      ) : null}
-                      {c.approvalRequestedAt ? (
-                        <span className="tabular-nums">
-                          Requested: {new Date(c.approvalRequestedAt).toLocaleString()}
-                        </span>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+      {!data && !err ? <ModQueueSkeleton /> : null}
 
-        <section
-          className={`rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-sm shadow-black/20 ${CARD_HOVER}`}
-        >
-          <h2 className="text-sm font-semibold text-zinc-300">
-            Dev submissions
-            <span className="ml-2 tabular-nums text-zinc-500">
-              ({counts?.devSubmissions ?? devs.length})
-            </span>
-          </h2>
-          {!data && !err ? (
-            <p className="mt-3 text-sm text-zinc-500">Loading…</p>
-          ) : devs.length === 0 ? (
-            <p className="mt-3 text-sm text-zinc-500">No pending dev submissions in queue.</p>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {devs.map((d) => (
-                <li
-                  key={d.id}
-                  className="rounded-lg border border-zinc-800/90 bg-zinc-950/50 p-3 text-sm"
-                >
-                  <div className="font-semibold text-zinc-100">
-                    {d.nickname?.trim() || "Dev submission"}{" "}
-                    <span className="font-mono text-xs font-normal text-zinc-500">({d.id.slice(0, 10)}…)</span>
-                  </div>
-                  <div className="mt-2 space-y-1 text-xs text-zinc-500">
-                    <div>
-                      Submitter:{" "}
-                      <span className="text-zinc-400">
-                        {d.submitterUsername || "—"}
-                        {d.submitterId ? ` · ${d.submitterId}` : ""}
-                      </span>
-                    </div>
-                    <div>Wallets: {formatListField(d.walletAddresses)}</div>
-                    <div>Coins: {formatListField(d.coinAddresses)}</div>
-                    <div>Tags: {formatListField(d.tags)}</div>
-                    {d.notes ? (
-                      <div className="whitespace-pre-wrap text-zinc-400">{d.notes}</div>
-                    ) : null}
-                    <div className="tabular-nums text-zinc-600">
-                      Created: {d.createdAt ? new Date(d.createdAt).toLocaleString() : "—"}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
+      {data ? (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <section>
+            <div className="mb-3 flex items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                Tracked call approvals
+              </h2>
+              <span className="text-xs tabular-nums text-zinc-600">{callN} open</span>
+            </div>
+            {calls.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-zinc-800/90 bg-zinc-950/30 px-4 py-10 text-center">
+                <p className="text-sm font-medium text-zinc-400">No call approvals waiting</p>
+                <p className="mx-auto mt-2 max-w-xs text-xs leading-relaxed text-zinc-600">
+                  When callers need review, items appear here and in Discord automatically.
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {calls.map((c) => (
+                  <CallApprovalRow
+                    key={`${c.contractAddress}-${c.approvalMessageId}`}
+                    c={c}
+                    onQueueChanged={() => void loadQueue()}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section>
+            <div className="mb-3 flex items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                Dev submissions
+              </h2>
+              <span className="text-xs tabular-nums text-zinc-600">{devN} open</span>
+            </div>
+            {devs.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-zinc-800/90 bg-zinc-950/30 px-4 py-10 text-center">
+                <p className="text-sm font-medium text-zinc-400">No dev submissions in queue</p>
+                <p className="mx-auto mt-2 max-w-xs text-xs leading-relaxed text-zinc-600">
+                  New intel submissions show up here after they hit #mod-approvals.
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {devs.map((d) => (
+                  <DevSubmissionRow key={d.id} d={d} />
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
