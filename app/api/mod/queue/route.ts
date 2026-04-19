@@ -30,6 +30,30 @@ export async function GET(request: Request) {
       );
     }
 
+    let parsedBotOrigin: URL;
+    try {
+      parsedBotOrigin = new URL(botUrl);
+    } catch {
+      return Response.json(
+        {
+          success: false,
+          error: `BOT_API_URL is not a valid URL: ${JSON.stringify(botUrl)}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const pathname = parsedBotOrigin.pathname.replace(/\/+$/, "") || "";
+    if (pathname && pathname !== "/") {
+      return Response.json(
+        {
+          success: false,
+          error: `BOT_API_URL must be an origin only (no path). Current pathname is "${parsedBotOrigin.pathname}". Example: http://209.38.78.121:3001 — not http://host:3001/internal.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const callSecret = process.env.CALL_INTERNAL_SECRET?.trim() ?? "";
     if (!callSecret) {
       return Response.json(
@@ -91,15 +115,28 @@ export async function GET(request: Request) {
       return Response.json(data, { status: res.status });
     }
 
+    const bodyPreview = raw.replace(/\s+/g, " ").slice(0, 220);
+    console.error(
+      "[api/mod/queue] Bad bot response",
+      JSON.stringify({
+        status: res.status,
+        botApiBase: base,
+        targetPath: "/internal/mod-queue",
+        contentType: res.headers.get("content-type"),
+        bodyPreview,
+      })
+    );
+
     const notThisService =
       res.status === 404
-        ? ` HTTP 404 usually means BOT_API_URL is wrong. Open ${base}/health — you must see {"ok":true}.`
+        ? ` HTTP 404 on GET /internal/mod-queue: nothing registered that path on ${base}. Open ${base}/health — you must see "endpoints" and "loadedFrom". If /health is still only {"ok":true}, the VPS is not running this repo's apiServer.js (wrong PM2 cwd/script path, old clone, or a different program on that port). On the server: pm2 describe <app> → check "exec cwd" and script; curl -sS "${base}/health" | head -c 400`
         : "";
 
     return Response.json(
       {
         success: false,
         error: `Bot API returned HTTP ${res.status} with a non-JSON body.${notThisService}`,
+        botApiBase: base,
       },
       { status: 502 }
     );
