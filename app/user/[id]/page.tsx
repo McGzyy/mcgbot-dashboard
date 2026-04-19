@@ -79,6 +79,26 @@ type EditableProfile = {
 
 const BIO_MAX = 200;
 
+/** Solana-style base58 mint (loose check for explorer links). */
+const SOLANA_MINT_LIKE = /^[1-9A-HJ-NP-Za-km-z]{32,48}$/;
+
+function formatCallTokenForProfile(token: string): {
+  display: string;
+  explorerUrl: string | null;
+} {
+  const t = token.trim();
+  if (!t || t === "Unknown") {
+    return { display: "Mint not on file", explorerUrl: null };
+  }
+  if (SOLANA_MINT_LIKE.test(t)) {
+    return {
+      display: `${t.slice(0, 4)}…${t.slice(-4)}`,
+      explorerUrl: `https://dexscreener.com/solana/${encodeURIComponent(t)}`,
+    };
+  }
+  return { display: t, explorerUrl: null };
+}
+
 function formatDateJoined(createdAt: unknown): string | null {
   if (!createdAt) return null;
   const d = new Date(String(createdAt));
@@ -100,7 +120,12 @@ function computeBestCall(calls: { multiple: number; token?: string }[]) {
     }
     if (best == null || c.multiple > best) {
       best = c.multiple;
-      token = typeof c.token === "string" && c.token.trim() ? c.token.trim() : null;
+      const raw =
+        typeof c.token === "string" && c.token.trim() ? c.token.trim() : null;
+      token =
+        raw && raw !== "Unknown"
+          ? raw
+          : null;
     }
   }
   return { best, token };
@@ -138,6 +163,65 @@ function getRecentForm(calls: { multiple: number }[]) {
     if (m >= 1) return "neutral";
     return "red";
   });
+}
+
+function PinnedCallSpotlight({
+  token,
+  multiple,
+  timeLabel,
+}: {
+  token: string;
+  multiple: number;
+  timeLabel: string;
+}) {
+  const multDisplay = Number.isFinite(multiple) ? multiple.toFixed(1) : null;
+  return (
+    <section
+      className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-zinc-900 via-zinc-950 to-emerald-950/45 p-6 shadow-2xl shadow-black/50 ring-1 ring-white/[0.05] sm:p-8"
+      aria-label="Pinned call showcase"
+    >
+      <div className="pointer-events-none absolute -right-28 -top-28 h-80 w-80 rounded-full bg-emerald-400/18 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 left-0 h-60 w-60 rounded-full bg-cyan-500/12 blur-3xl" />
+      <div className="relative grid gap-6 sm:grid-cols-[1fr_auto] sm:items-end">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-emerald-400/95">
+            Signature pick
+          </p>
+          <p className="mt-2 break-all font-mono text-[13px] leading-relaxed text-zinc-100 sm:text-sm">
+            {token}
+          </p>
+          <p className="mt-3 text-xs text-zinc-500">{timeLabel}</p>
+        </div>
+        <div className="flex flex-col items-start sm:items-end">
+          <p className="text-5xl font-black tabular-nums tracking-tighter text-transparent bg-gradient-to-br from-emerald-200 via-emerald-400 to-cyan-300 bg-clip-text sm:text-6xl sm:leading-[0.95]">
+            {multDisplay !== null ? `${multDisplay}×` : "—"}
+          </p>
+          <p className="mt-2 hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500 sm:block">
+            Peak multiple
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PinnedCallSpotlightSkeleton() {
+  return (
+    <section
+      className="relative overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 sm:p-8"
+      aria-busy
+      aria-label="Loading pinned call"
+    >
+      <div className="grid gap-6 sm:grid-cols-[1fr_auto] sm:items-end">
+        <div className="space-y-3">
+          <div className="h-3 w-32 animate-pulse rounded bg-zinc-800" />
+          <div className="h-5 w-full max-w-lg animate-pulse rounded bg-zinc-800/80" />
+          <div className="h-3 w-36 animate-pulse rounded bg-zinc-800" />
+        </div>
+        <div className="h-16 w-32 animate-pulse rounded-xl bg-zinc-800/90 sm:h-20 sm:w-40" />
+      </div>
+    </section>
+  );
 }
 
 function computeAlphaScore({
@@ -258,14 +342,14 @@ function TrophyTierRow({
         : "text-2xl leading-none";
   const shellClass =
     size === "lg"
-      ? "rounded-lg bg-gradient-to-b from-zinc-800/80 to-zinc-900/80 px-2.5 py-2 ring-1 ring-amber-500/25 shadow-md shadow-black/30"
+      ? "rounded-lg bg-gradient-to-b from-zinc-800/90 to-zinc-950/90 px-2.5 py-2 ring-1 ring-amber-500/30 shadow-lg shadow-black/40"
       : size === "md"
-        ? "rounded-md px-1.5 py-1 ring-1 ring-zinc-700/45"
-        : "rounded px-0.5 py-px";
+        ? "rounded-md bg-zinc-900/50 px-1.5 py-1 ring-1 ring-zinc-700/50"
+        : "rounded bg-zinc-900/40 px-0.5 py-px ring-1 ring-zinc-800/60";
 
   return (
     <div className="overflow-visible">
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
         {label}
       </p>
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 overflow-visible sm:gap-x-3">
@@ -279,10 +363,18 @@ function TrophyTierRow({
               t.periodStartMs,
               timeframe
             );
+            const rankAccent =
+              t.rank === 1
+                ? size === "lg"
+                  ? "ring-2 ring-amber-400/50 shadow-lg shadow-amber-950/35"
+                  : size === "md"
+                    ? "ring-2 ring-amber-400/40 shadow-md shadow-amber-950/25"
+                    : "ring-1 ring-amber-400/35"
+                : "";
             return (
               <span
                 key={t.id}
-                className={`group relative inline-flex shrink-0 cursor-default select-none ${shellClass}`}
+                className={`group relative inline-flex shrink-0 cursor-default select-none ${shellClass} ${rankAccent}`.trim()}
                 aria-label={tooltipText}
               >
                 <span
@@ -320,26 +412,38 @@ function StatCard({
   title,
   value,
   loading,
+  accent,
 }: {
   title: string;
   value: ReactNode;
   loading?: boolean;
+  accent?: boolean;
 }) {
   return (
     <div
-      className={`rounded-xl border border-zinc-800/80 bg-zinc-900/80 px-3 py-2.5 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
+      className={`flex min-h-[5.25rem] flex-col justify-between rounded-xl border px-3.5 py-3 shadow-md backdrop-blur-sm ${CARD_HOVER} ${
+        accent
+          ? "border-cyan-500/20 bg-gradient-to-br from-cyan-950/35 via-zinc-900/85 to-zinc-950 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
+          : "border-zinc-800/55 bg-gradient-to-br from-zinc-900/80 to-zinc-950/95 shadow-black/25"
+      }`}
     >
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
         {title}
       </p>
       {loading ? (
         <div
-          className="mt-1.5 h-8 w-20 max-w-full animate-pulse rounded-md bg-zinc-800/90"
+          className="mt-2 h-8 w-20 max-w-full animate-pulse rounded-md bg-zinc-800/90"
           aria-busy
           aria-label="Loading"
         />
       ) : (
-        <div className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-50">
+        <div
+          className={`mt-1 text-2xl font-bold tabular-nums tracking-tight ${
+            accent
+              ? "bg-gradient-to-br from-cyan-100 to-cyan-400 bg-clip-text text-transparent"
+              : "text-zinc-50"
+          }`}
+        >
           {value}
         </div>
       )}
@@ -358,12 +462,57 @@ function PanelCard({
 }) {
   return (
     <div
-      className={`w-full rounded-xl border border-zinc-800/80 bg-zinc-900/80 px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER} ${className}`.trim()}
+      className={`w-full rounded-xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/75 to-zinc-950/95 px-4 py-3.5 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.85)] backdrop-blur-md ring-1 ring-white/[0.03] ${CARD_HOVER} ${className}`.trim()}
     >
-      <h2 className="text-sm font-semibold tracking-wide text-zinc-400 uppercase">
+      <h2 className="flex items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+        <span
+          className="inline-flex h-1 w-1 shrink-0 rounded-full bg-cyan-400/80 shadow-[0_0_12px_rgba(34,211,238,0.45)]"
+          aria-hidden
+        />
         {title}
       </h2>
       {children}
+    </div>
+  );
+}
+
+function DepthMetricsGrid({
+  keyStats: ks,
+}: {
+  keyStats: NonNullable<ProfilePayload["keyStats"]>;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      {ks.bestMultiple != null ? (
+        <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/50 px-3 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Peak multiple
+          </p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-emerald-300">
+            {ks.bestMultiple.toFixed(1)}×
+          </p>
+        </div>
+      ) : null}
+      {ks.medianMultiple != null ? (
+        <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/50 px-3 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Median X
+          </p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-zinc-100">
+            {ks.medianMultiple.toFixed(1)}×
+          </p>
+        </div>
+      ) : null}
+      {ks.last10Avg != null ? (
+        <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/50 px-3 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Last 10 avg
+          </p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-cyan-200/90">
+            {ks.last10Avg.toFixed(1)}×
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -544,7 +693,6 @@ export default function UserProfilePage() {
         return false;
       }
       setProfile(parsed);
-      console.log("PROFILE DATA:", profile);
       setError(null);
       return true;
     } catch {
@@ -629,7 +777,6 @@ export default function UserProfilePage() {
         }
 
         const data = (await res.json().catch(() => null)) as unknown;
-        console.log("Loaded profile:", data);
 
         if (!data || typeof data !== "object") return;
         const o = data as Record<string, unknown>;
@@ -745,7 +892,6 @@ export default function UserProfilePage() {
       .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
         if (cancelled) return;
-        console.log("TROPHIES:", data, ok ? null : new Error("HTTP error"));
         if (!ok) {
           setTrophies(null);
           return;
@@ -772,7 +918,6 @@ export default function UserProfilePage() {
       const res = await fetch(`/api/follow?userId=${q}`);
       const data = await res.json().catch(() => null);
       if (!res.ok || !data || typeof data !== "object") {
-        console.log("[profile] follow stats refresh", res.status);
         return;
       }
       const d = data as Record<string, unknown>;
@@ -787,7 +932,6 @@ export default function UserProfilePage() {
         isFollowing: Boolean(d.isFollowing),
       });
     } catch (e) {
-      console.log("[profile] follow stats refresh", e);
     }
   }, [profileUserId]);
 
@@ -835,8 +979,6 @@ export default function UserProfilePage() {
     winRate: winRate,
   });
 
-  console.log("Banner URL:", profile?.banner_url);
-
   const xHandle = profile?.x_handle?.trim() || "";
   const xVerified = Boolean(profile?.x_verified);
 
@@ -848,6 +990,14 @@ export default function UserProfilePage() {
     show_pinned_call: profile?.profile_visibility?.show_pinned_call ?? true,
     show_distribution: profile?.profile_visibility?.show_distribution ?? true,
   };
+
+  const keyStatsPayload = profile?.keyStats;
+  const hasDepthMetrics = Boolean(
+    keyStatsPayload &&
+      (keyStatsPayload.bestMultiple != null ||
+        keyStatsPayload.medianMultiple != null ||
+        keyStatsPayload.last10Avg != null)
+  );
 
   const handleSave = async () => {
     if (editSaving) return;
@@ -906,7 +1056,7 @@ export default function UserProfilePage() {
       });
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
-        console.log("[pin call] failed", res.status, txt);
+        console.warn("[pin call] failed", res.status, txt);
         return;
       }
       // refresh pinned call card
@@ -931,58 +1081,65 @@ export default function UserProfilePage() {
 
   if (!userId?.trim()) {
     return (
-      <div className="mx-auto max-w-3xl px-1 sm:px-0">
+      <div className="mx-auto max-w-4xl px-2 sm:px-0 lg:max-w-5xl">
         <p className="text-sm text-zinc-500">Invalid profile link.</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-1 sm:px-0">
-      <div className="mb-4 h-24 w-full overflow-hidden rounded-xl">
+    <div className="min-w-0">
+      <div className="mx-auto max-w-4xl animate-fade-in px-2 sm:px-0 lg:max-w-5xl">
+      <div className="relative mb-6 h-36 w-full overflow-hidden rounded-2xl border border-zinc-800/70 bg-zinc-950 shadow-lg shadow-black/40 sm:mb-7 sm:h-40">
         {profile?.banner_url ? (
           <img
             src={profile.banner_url}
             alt="Profile Banner"
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover object-center"
           />
         ) : (
-          <div className="h-full w-full bg-gradient-to-r from-zinc-800 to-zinc-700" />
+          <div className="h-full w-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950" />
         )}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/35 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-10%,rgba(34,211,238,0.14),transparent_50%)]" />
       </div>
-      <header className="border-b border-zinc-800/80 pb-8">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+
+      <header className="border-b border-zinc-800/60 pb-10 pt-2 sm:pt-3">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:gap-8">
           <img
             src={avatarSrc}
             alt=""
-            width={96}
-            height={96}
-            className="h-24 w-24 shrink-0 rounded-full bg-zinc-900 object-cover ring-2 ring-zinc-800/80"
+            width={128}
+            height={128}
+            className="-mt-11 h-28 w-28 shrink-0 rounded-2xl border border-zinc-700/50 bg-zinc-900 object-cover shadow-2xl shadow-black/60 ring-4 ring-[#050505] sm:-mt-12 sm:h-32 sm:w-32"
           />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-              <h1 className="text-xl font-semibold tracking-tight text-zinc-50 sm:text-2xl">
+          <div className="min-w-0 flex-1 sm:pb-1">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+              <h1 className="text-2xl font-bold tracking-tight text-zinc-50 drop-shadow-sm sm:text-3xl">
                 {showNameSkeleton ? (
-                  <span className="inline-block h-8 w-48 max-w-full animate-pulse rounded-md bg-zinc-800/90" />
+                  <span className="inline-block h-9 w-52 max-w-full animate-pulse rounded-md bg-zinc-800/90" />
                 ) : (
                   displayName
                 )}
               </h1>
               {!loading && isTopCaller ? (
-                <span className="inline-flex shrink-0 items-center rounded-full bg-zinc-800 px-2 py-1 text-xs font-medium leading-none text-zinc-300">
-                  🔥 Top Caller
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-orange-500/35 bg-gradient-to-r from-orange-950/90 to-amber-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-100 shadow-md shadow-orange-950/30">
+                  <span className="dashboard-fire-emoji text-sm leading-none" aria-hidden>
+                    🔥
+                  </span>
+                  Top Caller
                 </span>
               ) : null}
               {!loading && isTrustedPro ? (
-                <span className="inline-flex shrink-0 items-center rounded-full bg-zinc-800 px-2 py-1 text-xs font-medium leading-none text-zinc-300">
-                  🧠 Trusted Pro
+                <span className="inline-flex shrink-0 items-center rounded-full border border-violet-500/35 bg-gradient-to-r from-violet-950/90 to-indigo-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-100 shadow-md shadow-violet-950/25">
+                  Trusted Pro
                 </span>
               ) : null}
               {isOwnProfile ? (
                 <button
                   type="button"
                   onClick={() => setEditOpen(true)}
-                  className="shrink-0 rounded-md border border-zinc-700/80 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 sm:ml-auto"
+                  className="shrink-0 rounded-lg border border-zinc-600/70 bg-gradient-to-b from-zinc-800/90 to-zinc-900/90 px-3.5 py-1.5 text-xs font-semibold text-zinc-100 shadow-md shadow-black/30 transition hover:border-zinc-500 hover:from-zinc-700/90 hover:to-zinc-800/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/35 sm:ml-auto"
                 >
                   Edit Profile
                 </button>
@@ -1020,35 +1177,34 @@ export default function UserProfilePage() {
               </>
             ) : null}
             {!loading && xHandle ? (
-              <div className="mt-1 flex items-center gap-2">
-                <span className="text-xs text-zinc-500">X:</span>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <a
                   href={`https://x.com/${encodeURIComponent(xHandle)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-blue-400 hover:underline"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700/60 bg-zinc-900/80 px-2.5 py-1 text-sm font-medium text-sky-300 transition hover:border-sky-500/40 hover:bg-sky-950/30 hover:text-sky-200"
                 >
-                  @{xHandle}
+                  <span className="text-zinc-500">𝕏</span>@{xHandle}
                 </a>
                 {xVerified ? (
-                  <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-300">
-                    ✓ Verified
+                  <span className="inline-flex items-center rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+                    Verified
                   </span>
                 ) : null}
               </div>
             ) : null}
-            <p className="mt-2 text-xs text-zinc-500">
+            <div className="mt-3 inline-flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800/80 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-400">
               {followStats ? (
                 <>
-                  <span className="tabular-nums text-zinc-400">
+                  <span className="tabular-nums font-semibold text-zinc-200">
                     {followStats.followers.toLocaleString()}
-                  </span>{" "}
-                  Followers
-                  <span className="mx-2 text-zinc-700">·</span>
-                  <span className="tabular-nums text-zinc-400">
+                  </span>
+                  <span className="text-zinc-600">followers</span>
+                  <span className="text-zinc-700">·</span>
+                  <span className="tabular-nums font-semibold text-zinc-200">
                     {followStats.following.toLocaleString()}
-                  </span>{" "}
-                  Following
+                  </span>
+                  <span className="text-zinc-600">following</span>
                 </>
               ) : (
                 <span
@@ -1056,47 +1212,106 @@ export default function UserProfilePage() {
                   aria-hidden
                 />
               )}
-            </p>
+            </div>
           </div>
         </div>
       </header>
+
+      {visibility.show_pinned_call ? (
+        <div className="mt-8">
+          {pinnedLoading ? (
+            <PinnedCallSpotlightSkeleton />
+          ) : pinnedCall ? (
+            <PinnedCallSpotlight
+              token={pinnedCall.token}
+              multiple={pinnedCall.multiple}
+              timeLabel={formatJoinedAt(callTimeMs(pinnedCall.time), nowMs)}
+            />
+          ) : isOwnProfile ? (
+            <div className="flex items-start gap-3 rounded-2xl border border-dashed border-zinc-700/50 bg-zinc-900/20 px-4 py-4 sm:items-center sm:gap-4 sm:px-6 sm:py-4">
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-700/60 bg-zinc-900/80 text-lg text-zinc-500"
+                aria-hidden
+              >
+                📌
+              </span>
+              <div className="min-w-0 text-left">
+                <p className="text-sm font-medium text-zinc-300">No signature pick yet</p>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                  Pin a call from <span className="text-zinc-400">Recent Calls</span> below — it
+                  becomes your headline showcase.
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {error ? (
         <p className="mt-8 text-sm text-red-400/90">{error}</p>
       ) : null}
 
-      <div className="mt-10 grid grid-cols-12 gap-4">
+      <div className="mt-10 grid grid-cols-12 gap-5 lg:items-start lg:gap-6">
         {visibility.show_stats ? (
         <section className="col-span-12">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-            Stats
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <StatCard
-              title="Avg X"
-              loading={loading}
-              value={profile ? `${profile.stats.avgX.toFixed(1)}x` : "—"}
-            />
-            <StatCard
-              title="Win Rate"
-              loading={loading}
-              value={profile ? `${profile.stats.winRate.toFixed(0)}%` : "—"}
-            />
-            <StatCard
-              title="Total Calls"
-              loading={loading}
-              value={profile ? profile.stats.totalCalls : "—"}
-            />
-            <StatCard
-              title="2x Rate"
-              loading={loading}
-              value={hitRates.rate2x ? `${Math.round(hitRates.rate2x)}%` : "-"}
-            />
-            <StatCard
-              title="3x+ Rate"
-              loading={loading}
-              value={hitRates.rate3x ? `${Math.round(hitRates.rate3x)}%` : "-"}
-            />
+          <div className="rounded-2xl border border-zinc-800/55 bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)] ring-1 ring-white/[0.03] sm:p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
+                <span className="h-px w-10 rounded-full bg-gradient-to-r from-cyan-400/90 to-transparent" />
+                Performance
+              </h2>
+              {profile && profile.stats.totalCalls > 0 ? (
+                <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+                  {profile.stats.totalCalls} recorded
+                </span>
+              ) : null}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
+              <StatCard
+                title="Avg X"
+                loading={loading}
+                accent
+                value={profile ? `${profile.stats.avgX.toFixed(1)}x` : "—"}
+              />
+              <StatCard
+                title="Win Rate"
+                loading={loading}
+                value={profile ? `${profile.stats.winRate.toFixed(0)}%` : "—"}
+              />
+              <StatCard
+                title="Total Calls"
+                loading={loading}
+                value={profile ? profile.stats.totalCalls : "—"}
+              />
+              <StatCard
+                title="2x Rate"
+                loading={loading}
+                value={hitRates.rate2x ? `${Math.round(hitRates.rate2x)}%` : "-"}
+              />
+              <StatCard
+                title="3x+ Rate"
+                loading={loading}
+                value={hitRates.rate3x ? `${Math.round(hitRates.rate3x)}%` : "-"}
+              />
+            </div>
+            {visibility.show_key_stats && hasDepthMetrics && keyStatsPayload ? (
+              <div className="mt-5 border-t border-zinc-800/60 pt-4">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Depth metrics
+                </p>
+                <DepthMetricsGrid keyStats={keyStatsPayload} />
+              </div>
+            ) : null}
+          </div>
+        </section>
+        ) : visibility.show_key_stats && hasDepthMetrics && keyStatsPayload ? (
+        <section className="col-span-12">
+          <div className="rounded-2xl border border-zinc-800/55 bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 sm:p-5">
+            <h2 className="mb-4 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
+              <span className="h-px w-10 rounded-full bg-gradient-to-r from-cyan-400/90 to-transparent" />
+              Depth metrics
+            </h2>
+            <DepthMetricsGrid keyStats={keyStatsPayload} />
           </div>
         </section>
         ) : null}
@@ -1107,18 +1322,21 @@ export default function UserProfilePage() {
             <PanelCard title="Trophy Case" className="overflow-visible">
               {trophiesLoading ? (
                 <div
-                  className="mt-3 space-y-5"
+                  className="mt-3 grid gap-3 sm:grid-cols-3"
                   aria-busy
                   aria-label="Loading trophies"
                 >
                   {(["Daily", "Weekly", "Monthly"] as const).map((label) => (
-                    <div key={label}>
+                    <div
+                      key={label}
+                      className="rounded-lg border border-zinc-800/40 bg-zinc-950/30 px-3 py-3"
+                    >
                       <div className="mb-2 h-3 w-14 animate-pulse rounded bg-zinc-800/90" />
                       <div className="flex flex-wrap gap-2">
-                        {Array.from({ length: 8 }, (_, j) => (
+                        {Array.from({ length: 5 }, (_, j) => (
                           <div
                             key={j}
-                            className="h-8 w-8 shrink-0 animate-pulse rounded-md bg-zinc-800/80"
+                            className="h-7 w-7 shrink-0 animate-pulse rounded-md bg-zinc-800/80"
                           />
                         ))}
                       </div>
@@ -1126,25 +1344,31 @@ export default function UserProfilePage() {
                   ))}
                 </div>
               ) : trophies ? (
-                <div className="mt-3 space-y-5">
-                  <TrophyTierRow
-                    label="Daily"
-                    timeframe="daily"
-                    items={trophies.daily}
-                    size="sm"
-                  />
-                  <TrophyTierRow
-                    label="Weekly"
-                    timeframe="weekly"
-                    items={trophies.weekly}
-                    size="md"
-                  />
-                  <TrophyTierRow
-                    label="Monthly"
-                    timeframe="monthly"
-                    items={trophies.monthly}
-                    size="lg"
-                  />
+                <div className="mt-3 grid gap-3 sm:grid-cols-3 sm:gap-3">
+                  <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
+                    <TrophyTierRow
+                      label="Daily"
+                      timeframe="daily"
+                      items={trophies.daily}
+                      size="sm"
+                    />
+                  </div>
+                  <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
+                    <TrophyTierRow
+                      label="Weekly"
+                      timeframe="weekly"
+                      items={trophies.weekly}
+                      size="md"
+                    />
+                  </div>
+                  <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
+                    <TrophyTierRow
+                      label="Monthly"
+                      timeframe="monthly"
+                      items={trophies.monthly}
+                      size="lg"
+                    />
+                  </div>
                 </div>
               ) : (
                 <p className="mt-2 text-sm text-zinc-500">
@@ -1192,9 +1416,9 @@ export default function UserProfilePage() {
                           <span className="w-12 text-xs text-zinc-400">
                             {r.label}
                           </span>
-                          <div className="h-2 flex-1 rounded bg-zinc-800">
+                          <div className="h-2.5 flex-1 rounded-full bg-zinc-800/90 ring-1 ring-zinc-700/40">
                             <div
-                              className="h-2 rounded bg-cyan-400"
+                              className="h-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 shadow-sm shadow-cyan-900/40"
                               style={{ width: `${pct}%` }}
                             />
                           </div>
@@ -1226,24 +1450,50 @@ export default function UserProfilePage() {
               ) : (
                 <>
                   <div
-                    className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-800/60 pb-2 text-[10px] font-medium uppercase tracking-wide text-zinc-500 sm:gap-x-4"
+                    className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-700/50 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 sm:gap-x-4"
                     aria-hidden
                   >
                     <span>Token / CA</span>
                     <span className="text-right">Result</span>
                     <span className="text-right">Time</span>
                   </div>
-                  <ul className="divide-y divide-zinc-800/50 text-sm">
-                    {profile.recentCalls.map((call, i) => (
+                  <ul className="divide-y divide-zinc-800/40 text-sm">
+                    {profile.recentCalls.map((call, i) => {
+                      const tokenFmt = formatCallTokenForProfile(call.token);
+                      const titleMint =
+                        call.token.trim() &&
+                        call.token !== "Unknown" &&
+                        SOLANA_MINT_LIKE.test(call.token.trim())
+                          ? call.token.trim()
+                          : tokenFmt.display;
+                      return (
                       <li
                         key={`${call.token}-${String(call.time)}-${i}`}
-                        className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 py-2.5 text-zinc-300 first:pt-2 sm:gap-x-4"
+                        className="group grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 py-2.5 text-zinc-300 transition first:pt-2 hover:bg-zinc-800/25 sm:gap-x-4"
                       >
-                        <span
-                          className="min-w-0 truncate font-mono text-[13px] text-zinc-100"
-                          title={call.token}
-                        >
-                          {call.token}
+                        <span className="min-w-0 font-mono text-[13px]">
+                          {tokenFmt.explorerUrl ? (
+                            <a
+                              href={tokenFmt.explorerUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="truncate text-cyan-200/90 underline decoration-cyan-500/30 underline-offset-2 transition hover:text-cyan-100 hover:decoration-cyan-400/50"
+                              title={titleMint}
+                            >
+                              {tokenFmt.display}
+                            </a>
+                          ) : (
+                            <span
+                              className={`block truncate ${
+                                tokenFmt.display === "Mint not on file"
+                                  ? "text-zinc-500"
+                                  : "text-zinc-100"
+                              }`}
+                              title={titleMint}
+                            >
+                              {tokenFmt.display}
+                            </span>
+                          )}
                           {isOwnProfile && call.id ? (
                             <button
                               type="button"
@@ -1265,7 +1515,8 @@ export default function UserProfilePage() {
                           {formatJoinedAt(callTimeMs(call.time), nowMs)}
                         </span>
                       </li>
-                    ))}
+                    );
+                    })}
                   </ul>
                 </>
               )}
@@ -1275,51 +1526,29 @@ export default function UserProfilePage() {
         </div>
 
         <aside className="col-span-12 lg:col-span-4">
-          <div className="w-full max-w-sm space-y-4 lg:ml-auto">
-            {isOwnProfile ? (
+          <div className="w-full max-w-sm space-y-4 lg:sticky lg:top-20 lg:z-10 lg:ml-auto lg:self-start">
+            {isOwnProfile && !xVerified ? (
               <PanelCard title="X account">
-                {xVerified ? (
-                  <p className="mt-2 text-sm text-zinc-300">
-                    <span className="text-emerald-400">✓</span> Linked as{" "}
-                    <a
-                      href={`https://x.com/${encodeURIComponent(xHandle)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:underline"
-                    >
-                      @{xHandle || "your handle"}
-                    </a>
-                    . Manage or unlink in{" "}
-                    <Link
-                      href="/settings#connected-accounts"
-                      className="text-sky-400 hover:underline"
-                    >
-                      Settings
-                    </Link>
-                    .
-                  </p>
-                ) : (
-                  <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                    Connect your X account with OAuth (no DMs or codes). Open{" "}
-                    <Link
-                      href="/settings#connected-accounts"
-                      className="text-sky-400 hover:underline"
-                    >
-                      Settings → Connected accounts
-                    </Link>{" "}
-                    to link.
-                  </p>
-                )}
+                <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                  Connect your X account with OAuth (no DMs or codes). Open{" "}
+                  <Link
+                    href="/settings#connected-accounts"
+                    className="text-sky-400 hover:underline"
+                  >
+                    Settings → Connected accounts
+                  </Link>{" "}
+                  to link.
+                </p>
               </PanelCard>
             ) : null}
 
             <PanelCard title="Alpha Score">
-              <div className="flex flex-col gap-1">
-                <p className="text-3xl font-semibold">
-                  {alphaScore ? alphaScore.toFixed(2) : "-"}
+              <div className="mt-1 flex flex-col gap-1">
+                <p className="bg-gradient-to-br from-amber-100 via-amber-200 to-orange-300 bg-clip-text text-4xl font-black tabular-nums tracking-tight text-transparent sm:text-5xl">
+                  {alphaScore ? alphaScore.toFixed(2) : "—"}
                 </p>
-                <p className="text-xs text-zinc-500">
-                  Composite performance score
+                <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-zinc-500">
+                  Composite score
                 </p>
               </div>
             </PanelCard>
@@ -1344,82 +1573,92 @@ export default function UserProfilePage() {
                     ) : null}
                   </p>
                 ) : null}
+                {isOwnProfile && xVerified ? (
+                  <p className="text-xs text-zinc-500">
+                    <Link
+                      href="/settings#connected-accounts"
+                      className="text-sky-400/90 hover:underline"
+                    >
+                      Unlink or reconnect X
+                    </Link>{" "}
+                    in Settings.
+                  </p>
+                ) : null}
               </div>
               <p className="mt-3 text-xs text-zinc-500">
                 Discord ID · {uid}
               </p>
             </PanelCard>
 
-            <PanelCard title="Best Call">
-              <div className="flex flex-col gap-2">
-                {bestCall.token ? (
-                  <p
-                    className="truncate text-sm text-zinc-300"
-                    title={bestCall.token}
-                  >
-                    {bestCall.token}
+            <PanelCard title="Call snapshot">
+              <div className="mt-3 grid gap-5 sm:grid-cols-2 sm:gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                    Best call
                   </p>
-                ) : null}
-                <p className="text-3xl font-semibold text-emerald-400">
-                  {bestCall.best ? `${bestCall.best.toFixed(1)}x` : "-"}
-                </p>
-
-                <p className="text-xs text-zinc-500">
-                  Highest recorded multiple
-                </p>
-              </div>
-            </PanelCard>
-
-            <PanelCard title="Recent Form">
-              <div className="flex gap-2">
-                {recentForm.length > 0 ? (
-                  recentForm.map((f, i) => (
-                    <span
-                      key={i}
-                      className={`h-3 w-3 rounded-full ${
-                        f === "green"
-                          ? "bg-emerald-400"
-                          : f === "neutral"
-                            ? "bg-zinc-500"
-                            : "bg-red-400"
-                      }`}
-                    />
-                  ))
-                ) : (
-                  <span className="text-sm text-zinc-500">No recent calls</span>
-                )}
-              </div>
-            </PanelCard>
-
-            {visibility.show_pinned_call ? (
-            <PanelCard title="Pinned Call">
-              {pinnedLoading ? (
-                <div className="mt-2 space-y-2" aria-busy>
-                  <div className="h-4 w-40 animate-pulse rounded bg-zinc-800/80" />
-                  <div className="h-8 w-24 animate-pulse rounded bg-zinc-800/80" />
-                </div>
-              ) : pinnedCall ? (
-                <div className="mt-2 space-y-2">
-                  <p
-                    className="truncate font-mono text-[13px] text-zinc-200"
-                    title={pinnedCall.token}
-                  >
-                    {pinnedCall.token}
+                  {(() => {
+                    const fmt = bestCall.token
+                      ? formatCallTokenForProfile(bestCall.token)
+                      : { display: "Mint not on file", explorerUrl: null as string | null };
+                    return fmt.explorerUrl ? (
+                      <a
+                        href={fmt.explorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 block truncate text-sm text-cyan-200/90 underline decoration-cyan-500/30 underline-offset-2 hover:text-cyan-100"
+                        title={bestCall.token ?? undefined}
+                      >
+                        {fmt.display}
+                      </a>
+                    ) : (
+                      <p
+                        className={`mt-1 truncate text-sm ${
+                          fmt.display === "Mint not on file"
+                            ? "text-zinc-500"
+                            : "text-zinc-300"
+                        }`}
+                        title={bestCall.token ?? undefined}
+                      >
+                        {fmt.display}
+                      </p>
+                    );
+                  })()}
+                  <p className="mt-2 text-3xl font-semibold tabular-nums text-emerald-400">
+                    {bestCall.best != null ? `${bestCall.best.toFixed(1)}×` : "—"}
                   </p>
-                  <p className="text-3xl font-bold tabular-nums tracking-tight text-emerald-400">
-                    {Number.isFinite(pinnedCall.multiple)
-                      ? `${pinnedCall.multiple.toFixed(1)}x`
-                      : "—"}
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    {formatJoinedAt(callTimeMs(pinnedCall.time), nowMs)}
+                  <p className="mt-1 text-[11px] text-zinc-500">
+                    Highest in recent history
                   </p>
                 </div>
-              ) : (
-                <p className="mt-2 text-sm text-zinc-500">No pinned call</p>
-              )}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                    Recent form
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {recentForm.length > 0 ? (
+                      recentForm.map((f, i) => (
+                        <span
+                          key={i}
+                          className={`h-3 w-3 rounded-full ring-1 ring-black/40 ${
+                            f === "green"
+                              ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.35)]"
+                              : f === "neutral"
+                                ? "bg-zinc-500"
+                                : "bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.25)]"
+                          }`}
+                          title={f === "green" ? "≥2×" : f === "neutral" ? "1–2×" : "<1×"}
+                        />
+                      ))
+                    ) : (
+                      <span className="text-sm text-zinc-500">No streak yet</span>
+                    )}
+                  </div>
+                  <p className="mt-3 text-[11px] leading-snug text-zinc-600">
+                    Last five calls, newest → oldest
+                  </p>
+                </div>
+              </div>
             </PanelCard>
-            ) : null}
 
           </div>
         </aside>
@@ -1532,6 +1771,7 @@ export default function UserProfilePage() {
           </div>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

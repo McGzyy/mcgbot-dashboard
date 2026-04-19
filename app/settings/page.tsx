@@ -3,7 +3,7 @@
 import type { WidgetsEnabled } from "@/app/api/dashboard-settings/route";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 function discordSignInSafe() {
   if (typeof window === "undefined") return;
@@ -80,6 +80,13 @@ const SECONDARY_DASHBOARD_WIDGET_TOGGLES: {
   },
 ];
 
+const SETTINGS_NAV = [
+  { href: "#account", label: "Account & X" },
+  { href: "#notifications", label: "Notifications" },
+  { href: "#public-profile", label: "Public profile" },
+  { href: "#dashboard", label: "Dashboard" },
+] as const;
+
 function parseWidgetsEnabled(raw: unknown): WidgetsEnabled {
   const out: WidgetsEnabled = { ...DEFAULT_WIDGETS };
   if (!raw || typeof raw !== "object") return out;
@@ -127,6 +134,42 @@ function parseProfileVisibility(raw: unknown): ProfileVisibility {
   return out;
 }
 
+function SettingsSection({
+  id,
+  title,
+  description,
+  children,
+}: {
+  id: string;
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className="scroll-mt-24">
+      <div className="rounded-2xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/55 to-zinc-950/95 p-5 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.04] sm:p-6">
+        <header className="border-b border-zinc-800/60 pb-4">
+          <div className="flex items-start gap-3">
+            <span
+              className="mt-1.5 inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-400/90 shadow-[0_0_14px_rgba(34,211,238,0.45)]"
+              aria-hidden
+            />
+            <div className="min-w-0">
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+                {title}
+              </h2>
+              {description ? (
+                <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{description}</p>
+              ) : null}
+            </div>
+          </div>
+        </header>
+        <div className="pt-4">{children}</div>
+      </div>
+    </section>
+  );
+}
+
 function ToggleRow({
   id,
   label,
@@ -134,6 +177,7 @@ function ToggleRow({
   checked,
   onToggle,
   disabled,
+  className = "",
 }: {
   id: string;
   label: string;
@@ -141,9 +185,12 @@ function ToggleRow({
   checked: boolean;
   onToggle: () => void;
   disabled?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
+    <div
+      className={`flex items-start justify-between gap-3 rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-3 py-2.5 sm:gap-4 sm:px-3.5 sm:py-3 ${className}`.trim()}
+    >
       <label
         htmlFor={id}
         className={`min-w-0 select-none ${
@@ -210,6 +257,8 @@ function SettingsPageInner() {
   const [xVerified, setXVerified] = useState(false);
   const [xBusy, setXBusy] = useState(false);
   const [xMessage, setXMessage] = useState<string | null>(null);
+  const [xMilestoneTagEnabled, setXMilestoneTagEnabled] = useState(false);
+  const [xMilestoneTagMinMultiple, setXMilestoneTagMinMultiple] = useState(10);
 
   useEffect(() => {
     let cancelled = false;
@@ -276,6 +325,15 @@ function SettingsPageInner() {
               row.x_verified === "true" ||
               row.x_verified === 1
           );
+          setXMilestoneTagEnabled(
+            row.x_milestone_tag_enabled === true ||
+              row.x_milestone_tag_enabled === "true" ||
+              row.x_milestone_tag_enabled === 1
+          );
+          const mm = Number(row.x_milestone_tag_min_multiple);
+          setXMilestoneTagMinMultiple(
+            Number.isFinite(mm) && mm >= 1 ? Math.min(mm, 500) : 10
+          );
         }
       })
       .catch(() => {
@@ -314,6 +372,15 @@ function SettingsPageInner() {
               row.x_verified === true ||
                 row.x_verified === "true" ||
                 row.x_verified === 1
+            );
+            setXMilestoneTagEnabled(
+              row.x_milestone_tag_enabled === true ||
+                row.x_milestone_tag_enabled === "true" ||
+                row.x_milestone_tag_enabled === 1
+            );
+            const mm = Number(row.x_milestone_tag_min_multiple);
+            setXMilestoneTagMinMultiple(
+              Number.isFinite(mm) && mm >= 1 ? Math.min(mm, 500) : 10
             );
           }
         })
@@ -423,7 +490,11 @@ function SettingsPageInner() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
-          body: JSON.stringify({ profile_visibility: profileVisibility }),
+          body: JSON.stringify({
+            profile_visibility: profileVisibility,
+            x_milestone_tag_enabled: xMilestoneTagEnabled,
+            x_milestone_tag_min_multiple: xMilestoneTagMinMultiple,
+          }),
         });
         if (!profRes.ok) {
           const text = await profRes.text();
@@ -450,8 +521,7 @@ function SettingsPageInner() {
         throw new Error("Failed to save");
       }
 
-      const data = await res.json();
-      console.log("Save success:", data);
+      await res.json().catch(() => null);
 
       setSaveState("saved");
       setSaveMessage("Saved.");
@@ -473,7 +543,7 @@ function SettingsPageInner() {
       setSaveState("error");
       setSaveMessage(e instanceof Error ? e.message : "Network error.");
     }
-  }, [prefs, widgets, profileVisibility]);
+  }, [prefs, widgets, profileVisibility, xMilestoneTagEnabled, xMilestoneTagMinMultiple]);
 
   if (status === "loading") {
     return (
@@ -505,21 +575,190 @@ function SettingsPageInner() {
 
   return (
     <>
-    <div className="mx-auto max-w-lg">
-      <h1 className="text-xl font-semibold tracking-tight text-zinc-50 sm:text-2xl">
-        Settings
-      </h1>
+    <div className="mx-auto max-w-6xl pb-28">
+      <div className="lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-x-10 xl:grid-cols-[12.5rem_minmax(0,1fr)] xl:gap-x-12">
+        <aside className="mb-6 hidden lg:block">
+          <nav
+            className="sticky top-24 space-y-0.5 border-l border-zinc-800/60 pl-3 text-[13px] font-medium"
+            aria-label="Settings sections"
+          >
+            {SETTINGS_NAV.map(({ href, label }) => (
+              <a
+                key={href}
+                href={href}
+                className="block rounded-md py-1.5 pl-2 text-zinc-500 transition hover:bg-zinc-900/70 hover:text-zinc-100"
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+        </aside>
 
-      <section className="mt-10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Notifications
-        </h2>
+        <div className="min-w-0">
+          <header className="flex flex-col gap-4 border-b border-zinc-800/60 pb-6 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
+                Settings
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-500">
+                Dashboard panels, alerts, public profile visibility, and how you appear on approved
+                X milestone posts.
+              </p>
+              <nav
+                className="mt-4 flex gap-1.5 overflow-x-auto pb-1 text-[12px] font-medium text-zinc-400 lg:hidden"
+                aria-label="Settings sections"
+              >
+                {SETTINGS_NAV.map(({ href, label }) => (
+                  <a
+                    key={href}
+                    href={href}
+                    className="shrink-0 rounded-full border border-zinc-800/80 bg-zinc-900/50 px-3 py-1.5 hover:border-zinc-600 hover:text-zinc-100"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </nav>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+              {saveMessage ? (
+                <span
+                  className={`hidden max-w-xs truncate text-right text-sm sm:inline ${
+                    saveState === "error" ? "text-red-400" : "text-emerald-400/90"
+                  }`}
+                >
+                  {saveMessage}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={settingsLoading || saveState === "saving"}
+                className="hidden rounded-lg bg-gradient-to-r from-cyan-600 to-sky-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-950/25 transition hover:from-cyan-500 hover:to-sky-500 disabled:opacity-50 sm:inline-flex"
+              >
+                {saveState === "saving" ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </header>
 
+          <div className="mt-8 space-y-6 lg:mt-10 lg:space-y-7">
+      <SettingsSection
+        id="account"
+        title="Account & X"
+        description="Link X for a verified handle. Milestone posts use these preferences for your calls; bot calls on X always credit McGBot."
+      >
+        <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
+        <div id="connected-accounts" className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5">
+          <p className="text-sm font-medium text-zinc-100">X (Twitter)</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            Sign in with X to prove your handle. Used for a verified @ on your profile and for
+            optional @mentions on high-multiple milestone posts.
+          </p>
+          {xMessage ? (
+            <p
+              className={`mt-2 text-xs ${
+                /failed|Could not|Network|Invalid|not configured/i.test(xMessage)
+                  ? "text-red-400/90"
+                  : "text-emerald-400/90"
+              }`}
+            >
+              {xMessage}
+            </p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {xVerified && xHandle ? (
+              <>
+                <span className="inline-flex items-center gap-2 rounded-md border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-sm text-sky-100">
+                  Linked as @{xHandle.replace(/^@+/, "")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void unlinkX()}
+                  disabled={xBusy}
+                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  {xBusy ? "Working…" : "Unlink X"}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void startXOAuth()}
+                disabled={xBusy}
+                className="rounded-lg bg-[#1d9bf0] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#1a8cd8] disabled:opacity-50"
+              >
+                {xBusy ? "Opening…" : "Connect X"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            X milestone posts
+          </h3>
+          <p className="mt-2 text-xs text-zinc-500">
+            When a call you made hits a milestone and moderators approve an X post, McGBot can
+            @mention you only at or above the multiple you choose. If tagging is off (or the post
+            is below your threshold), the line reads as a generic community credit instead of your
+            @handle — so you are not pinged on every small move.
+          </p>
+          {!xVerified ? (
+            <p className="mt-2 text-xs text-amber-400/90">
+              Connect and verify X above to enable @mentions on posts.
+            </p>
+          ) : null}
+          <div className="mt-3 space-y-3">
+            <ToggleRow
+              id="x-milestone-tag-enabled"
+              label="Allow @mentions on milestone posts"
+              description="When on, posts that reach your minimum multiple may include your @handle. When off, attribution stays generic."
+              checked={xMilestoneTagEnabled}
+              onToggle={() => setXMilestoneTagEnabled((v) => !v)}
+              disabled={settingsLoading || !xVerified}
+            />
+            <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/40 px-3 py-3 sm:px-4">
+              <label htmlFor="x-milestone-min" className="text-sm font-medium text-zinc-100">
+                Minimum multiple to @mention
+              </label>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                Example: set 10 to only be tagged when the post highlights roughly 10× or more from
+                your call.
+              </p>
+              <input
+                id="x-milestone-min"
+                type="number"
+                step="0.5"
+                min={1}
+                max={500}
+                value={xMilestoneTagMinMultiple}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const n = Number(raw);
+                  setXMilestoneTagMinMultiple(
+                    raw === "" || !Number.isFinite(n)
+                      ? xMilestoneTagMinMultiple
+                      : Math.min(500, Math.max(1, n))
+                  );
+                }}
+                disabled={settingsLoading || !xVerified || !xMilestoneTagEnabled}
+                className="mt-3 w-full max-w-[200px] rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 tabular-nums outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50"
+              />
+            </div>
+          </div>
+        </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        id="notifications"
+        title="Notifications"
+        description="In-dashboard alerts and sound. Discord-specific controls stay in the server."
+      >
         {loadError ? (
-          <p className="mt-4 text-sm text-red-400/90">{loadError}</p>
+          <p className="mb-3 text-sm text-red-400/90">{loadError}</p>
         ) : null}
 
-        <div className="mt-4 space-y-3">
+        <div className="grid gap-2 sm:grid-cols-2 sm:gap-2.5">
           <ToggleRow
             id="notification-own-calls"
             label="My Calls Only"
@@ -568,23 +807,22 @@ function SettingsPageInner() {
             disabled={settingsLoading || isOwnOnly}
           />
 
-          <div className="border-t border-zinc-800/60 pt-6 mt-3">
-            <ToggleRow
-              id="notification-sound-enabled"
-              label="Notification Sound"
-              description="Play a sound when notifications appear."
-              checked={prefs.sound_enabled}
-              onToggle={() =>
-                setPrefs((prev) => ({
-                  ...prev,
-                  sound_enabled: !prev.sound_enabled,
-                }))
-              }
-              disabled={settingsLoading}
-            />
-          </div>
+          <ToggleRow
+            id="notification-sound-enabled"
+            className="sm:col-span-2"
+            label="Notification Sound"
+            description="Play a sound when notifications appear."
+            checked={prefs.sound_enabled}
+            onToggle={() =>
+              setPrefs((prev) => ({
+                ...prev,
+                sound_enabled: !prev.sound_enabled,
+              }))
+            }
+            disabled={settingsLoading}
+          />
 
-          <div className="rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
+          <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/35 px-3 py-3 sm:col-span-2 sm:px-4">
             <label
               htmlFor="min-multiple"
               className="text-sm font-medium text-zinc-100"
@@ -618,13 +856,14 @@ function SettingsPageInner() {
             />
           </div>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section className="mt-10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Profile
-        </h2>
-        <div className="mt-4 space-y-3">
+      <SettingsSection
+        id="public-profile"
+        title="Public profile"
+        description="What visitors see on your McGBot profile page (stats, trophies, calls, pinned pick)."
+      >
+        <div className="grid gap-2 sm:grid-cols-2 sm:gap-2.5">
           <ToggleRow
             id="profile-show-stats"
             label="Show Stats"
@@ -704,64 +943,28 @@ function SettingsPageInner() {
             disabled={settingsLoading}
           />
         </div>
-      </section>
+      </SettingsSection>
 
-      <section id="connected-accounts" className="mt-10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Connected accounts
-        </h2>
-        <div className="mt-4 rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
-          <p className="text-sm font-medium text-zinc-100">X (Twitter)</p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Sign in with X to prove your handle. Used for verified @ on your profile and call
-            credit when you use that mode in Discord.
-          </p>
-          {xMessage ? (
-            <p
-              className={`mt-2 text-xs ${
-                /failed|Could not|Network|Invalid|not configured/i.test(xMessage)
-                  ? "text-red-400/90"
-                  : "text-emerald-400/90"
-              }`}
+      <SettingsSection
+        id="dashboard"
+        title="Dashboard layout"
+        description="Which panels appear on your home dashboard (only affects your session)."
+      >
+        <details className="group rounded-xl border border-zinc-800/40 bg-black/20 [&_summary::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-3 py-3 text-sm font-medium text-zinc-200 transition hover:bg-zinc-900/50 sm:px-4">
+            <span>All home widgets</span>
+            <span
+              className="text-xs text-zinc-500 transition-transform duration-200 group-open:rotate-180"
+              aria-hidden
             >
-              {xMessage}
+              ▼
+            </span>
+          </summary>
+          <div className="border-t border-zinc-800/50 px-3 pb-4 pt-1 sm:px-4">
+            <p className="mt-2 text-xs text-zinc-600">
+              Expand to tweak every panel. Core layout stays fast when this stays closed.
             </p>
-          ) : null}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {xVerified && xHandle ? (
-              <>
-                <span className="inline-flex items-center gap-2 rounded-md border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-sm text-sky-100">
-                  Linked as @{xHandle.replace(/^@+/, "")}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void unlinkX()}
-                  disabled={xBusy}
-                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
-                >
-                  {xBusy ? "Working…" : "Unlink X"}
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void startXOAuth()}
-                disabled={xBusy}
-                className="rounded-lg bg-[#1d9bf0] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#1a8cd8] disabled:opacity-50"
-              >
-                {xBusy ? "Opening…" : "Connect X"}
-              </button>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-12">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Dashboard Widgets
-        </h2>
-
-        <div className="mt-4 space-y-3">
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 sm:gap-2.5">
           <ToggleRow
             id="dashboard-widget-market"
             label="Market"
@@ -843,40 +1046,44 @@ function SettingsPageInner() {
               />
             )
           )}
-        </div>
-      </section>
+            </div>
+          </div>
+        </details>
+      </SettingsSection>
 
-      <div className="mt-8 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => void handleSave()}
-          disabled={settingsLoading || saveState === "saving"}
-          className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50"
-        >
-          {saveState === "saving" ? "Saving…" : "Save"}
-        </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between gap-3 border-t border-zinc-800/80 bg-zinc-950/95 px-4 py-3.5 shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.75)] backdrop-blur-md sm:px-6 lg:left-64">
+      <p className="hidden min-w-0 flex-1 truncate text-xs text-zinc-500 sm:block">
+        Unsaved changes apply after you save. X linking updates immediately when you connect.
+      </p>
+      <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
         {saveMessage ? (
           <span
-            className={`text-sm ${
+            className={`max-w-[40vw] truncate text-xs sm:max-w-xs sm:text-sm ${
               saveState === "error" ? "text-red-400" : "text-emerald-400/90"
             }`}
           >
             {saveMessage}
           </span>
         ) : null}
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={settingsLoading || saveState === "saving"}
+          className="w-full rounded-lg bg-gradient-to-r from-cyan-600 to-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-950/25 transition hover:from-cyan-500 hover:to-sky-500 disabled:opacity-50 sm:w-auto"
+        >
+          {saveState === "saving" ? "Saving…" : "Save changes"}
+        </button>
       </div>
     </div>
 
     {showToast ? (
       <div
-        className="
-    fixed bottom-6 right-6
-    bg-emerald-500/90 text-white
-    px-4 py-2 rounded-lg
-    shadow-lg
-    text-sm
-    animate-fade-in
-  "
+        className="fixed bottom-24 right-4 z-50 rounded-lg bg-emerald-500/90 px-4 py-2 text-sm text-white shadow-lg animate-fade-in sm:bottom-20 sm:right-6"
         role="status"
         aria-live="polite"
       >

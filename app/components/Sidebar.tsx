@@ -6,10 +6,6 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
-const nav = [
-  { href: "/settings", label: "Settings" },
-] as const;
-
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -164,16 +160,6 @@ export function Sidebar() {
             </Link>
           ) : null}
 
-          {nav.map(({ href, label }) => (
-            <Link key={href} href={href} className={navItem(isActive(pathname, href))}>
-              <div
-                className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                  isActive(pathname, href) ? "bg-green-400 opacity-100" : "opacity-0"
-                }`}
-              />
-              <span>{label}</span>
-            </Link>
-          ))}
         </div>
       </nav>
 

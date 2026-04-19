@@ -93,10 +93,6 @@ export async function GET(
       return Response.json({ error: "Invalid user id" }, { status: 400 });
     }
 
-    console.log("READ PROJECT URL:", process.env.SUPABASE_URL);
-    console.log("READ USING SERVICE KEY:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-    console.log("DISCORD ID USED:", discordId);
-
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -124,8 +120,6 @@ export async function GET(
         .maybeSingle(),
     ]);
 
-    console.log("USER FETCH RESULT:", data, error);
-
     if (error) {
       console.error("[user API] GET:", error);
       return Response.json(
@@ -150,9 +144,6 @@ export async function GET(
           profile_visibility?: unknown;
         }
       | null;
-    
-    console.log("USER FETCH RESULT:", userRowResult.data, userRowResult.error);
-
     const rows = (Array.isArray(data) ? data : []) as Record<
       string,
       unknown
