@@ -656,7 +656,9 @@ function SettingsPageInner() {
           {xMessage ? (
             <p
               className={`mt-2 text-xs ${
-                /failed|Could not|Network|Invalid|not configured/i.test(xMessage)
+                /failed|Could not|Network|Invalid|not configured|missing|misconfiguration|unreachable|unauthorized|token_exchange|users_me/i.test(
+                  xMessage
+                )
                   ? "text-red-400/90"
                   : "text-emerald-400/90"
               }`}

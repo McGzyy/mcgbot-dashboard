@@ -1,6 +1,5 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { botApiBaseUrl, botInternalSecret } from "@/lib/botInternal";
 
 export const dynamic = "force-dynamic";
 
@@ -12,13 +11,24 @@ export async function POST() {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const base = botApiBaseUrl();
-    const secret = botInternalSecret();
-    if (!base || !secret) {
+    const base = String(process.env.BOT_API_URL ?? "")
+      .trim()
+      .replace(/\/$/, "");
+    const secret = String(process.env.CALL_INTERNAL_SECRET ?? "").trim();
+    if (!base) {
       return Response.json(
         {
           error:
-            "Server is not configured for X OAuth (set BOT_API_URL and CALL_INTERNAL_SECRET).",
+            "This Next.js deployment is missing BOT_API_URL. Add it in Vercel/hosting env (the bot API origin, same as on your VPS). It is not read from the browser.",
+        },
+        { status: 503 }
+      );
+    }
+    if (!secret) {
+      return Response.json(
+        {
+          error:
+            "This Next.js deployment is missing CALL_INTERNAL_SECRET. Add it in Vercel/hosting env (must match the bot host). It is not read from the browser.",
         },
         { status: 503 }
       );
