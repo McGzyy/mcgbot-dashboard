@@ -15,6 +15,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [staffNav, setStaffNav] = useState(false);
+  const [adminNav, setAdminNav] = useState(false);
   /** Pending mod-queue count (from API); null = not loaded or not staff. */
   const [modPendingTotal, setModPendingTotal] = useState<number | null>(null);
 
@@ -32,6 +33,7 @@ export function Sidebar() {
   useEffect(() => {
     if (status !== "authenticated") {
       setStaffNav(false);
+      setAdminNav(false);
       setModPendingTotal(null);
       return;
     }
@@ -45,6 +47,7 @@ export function Sidebar() {
         };
         if (cancelled) return;
         const r = json.role;
+        setAdminNav(r === "admin");
         const staff =
           typeof json.canModerate === "boolean"
             ? json.canModerate
@@ -68,6 +71,7 @@ export function Sidebar() {
       } catch {
         if (!cancelled) {
           setStaffNav(false);
+          setAdminNav(false);
           setModPendingTotal(null);
         }
       }
@@ -163,6 +167,17 @@ export function Sidebar() {
                   </span>
                 ) : null}
               </span>
+            </Link>
+          ) : null}
+
+          {adminNav ? (
+            <Link href="/admin" className={navItem(isActive(pathname, "/admin"))}>
+              <div
+                className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                  isActive(pathname, "/admin") ? "bg-violet-400 opacity-100" : "opacity-0"
+                }`}
+              />
+              <span>Admin</span>
             </Link>
           ) : null}
 

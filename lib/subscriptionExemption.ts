@@ -4,6 +4,7 @@ import {
   resolveHelpTier,
   resolveHelpTierWithSource,
 } from "@/lib/helpRole";
+import { isDiscordIdInExemptAllowlist } from "@/lib/subscription/exemptAllowlistDb";
 
 function idSet(raw: string | undefined): Set<string> {
   if (!raw?.trim()) return new Set();
@@ -50,6 +51,7 @@ async function exemptByStaffTier(discordUserId: string): Promise<boolean> {
  * Users matching any rule bypass subscription middleware / API gating.
  *
  * - SUBSCRIPTION_EXEMPT_DISCORD_IDS — comma-separated Discord user snowflakes
+ * - `subscription_exempt_allowlist` (Supabase) — same effect; managed from the dashboard admin panel
  * - SUBSCRIPTION_EXEMPT_DISCORD_ROLE_IDS — comma-separated role ids (member must have one)
  * - SUBSCRIPTION_EXEMPT_ROLE_IDS — same as above (shorter alias; merged with DISCORD list)
  * - SUBSCRIPTION_EXEMPT_STAFF — default on: dashboard mod/admin (same tier as moderation) is exempt.
@@ -68,6 +70,7 @@ export async function computeSubscriptionExempt(discordUserId: string): Promise<
   const id = discordUserId.trim();
   if (!id) return false;
   if (exemptByExplicitUserIds(id)) return true;
+  if (await isDiscordIdInExemptAllowlist(id)) return true;
   if (exemptByEnvStaffListsSync(id)) return true;
   if (await exemptByExplicitRoleIds(id)) return true;
   if (await exemptByStaffTier(id)) return true;

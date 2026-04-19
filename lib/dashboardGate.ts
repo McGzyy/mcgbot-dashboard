@@ -47,3 +47,10 @@ export async function liveDashboardAccessForDiscordId(discordId: string): Promis
   accessCache.set(id, { ok, exp: now + CACHE_MS });
   return ok;
 }
+
+/** Call after admin changes subscription bypass list so the next request re-evaluates access. */
+export function invalidateLiveDashboardAccessCache(discordId: string): void {
+  const id = discordId.trim();
+  if (!id) return;
+  accessCache.delete(id);
+}
