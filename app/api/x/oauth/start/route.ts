@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { botApiBaseUrl } from "@/lib/botInternal";
 import { joinBotApiPath, joinBotHealthUrl } from "@/lib/botInternalUrl";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export async function POST() {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rawBase = String(process.env.BOT_API_URL ?? "").trim();
+    const rawBase = botApiBaseUrl();
     const secret = String(process.env.CALL_INTERNAL_SECRET ?? "").trim();
 
     if (!rawBase) {

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { botApiBaseUrl } from "@/lib/botInternal";
 import { joinBotApiPath } from "@/lib/botInternalUrl";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
     return settingsRedirect(request, { x: "error", reason: "missing_code_or_state" });
   }
 
-  const rawBase = String(process.env.BOT_API_URL ?? "").trim();
+  const rawBase = botApiBaseUrl();
   const secret = String(process.env.CALL_INTERNAL_SECRET ?? "").trim();
   if (!rawBase || !secret) {
     return settingsRedirect(request, { x: "error", reason: "bot_api_not_configured" });

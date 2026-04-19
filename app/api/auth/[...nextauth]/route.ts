@@ -1,3 +1,7 @@
+/**
+ * NextAuth App Router handler. Env: NEXTAUTH_SECRET, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET.
+ * Provider and callbacks: `@/lib/auth`.
+ */
 import NextAuth from "next-auth";
 
 import { authOptions } from "@/lib/auth";

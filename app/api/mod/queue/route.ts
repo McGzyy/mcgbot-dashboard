@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { botApiBaseUrl } from "@/lib/botInternal";
 import { botApiUnreachableHint, describeBotApiFetchError } from "@/lib/botUpstreamFetchError";
 import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 
@@ -19,13 +20,13 @@ export async function GET(request: Request) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const botUrl = process.env.BOT_API_URL?.trim() ?? "";
+    const botUrl = botApiBaseUrl();
     if (!botUrl) {
       return Response.json(
         {
           success: false,
           error:
-            "Mod queue is not configured (missing BOT_API_URL). Point it at the bot Node API (same host as Submit Call).",
+            "Mod queue is not configured (missing BOT_API_URL). In local dev with an SSH tunnel, set BOT_API_URL_LOCAL=http://127.0.0.1:3001 or point BOT_API_URL at that origin.",
         },
         { status: 503 }
       );

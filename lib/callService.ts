@@ -1,5 +1,11 @@
+import { botApiBaseUrl } from "@/lib/botInternal";
+
 export async function processCall(contractAddress: string) {
-  const res = await fetch(process.env.BOT_API_URL + "/internal/call", {
+  const base = botApiBaseUrl();
+  if (!base) {
+    throw new Error("BOT_API_URL is not configured");
+  }
+  const res = await fetch(`${base}/internal/call`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

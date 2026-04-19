@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { botApiBaseUrl } from "@/lib/botInternal";
 import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 
 export const runtime = "nodejs";
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const botUrl = process.env.BOT_API_URL?.trim() ?? "";
+    const botUrl = botApiBaseUrl();
     if (!botUrl) {
       return Response.json(
         { success: false, error: "BOT_API_URL is not configured on the dashboard host." },

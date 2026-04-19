@@ -13,11 +13,19 @@ export function describeBotApiFetchError(err: unknown): string {
     if (e instanceof Error) {
       const code = (e as NodeJS.ErrnoException).code;
       const syscall = (e as NodeJS.ErrnoException).syscall;
-      const prefix =
-        typeof code === "string"
-          ? `[${code}]${typeof syscall === "string" ? ` ${syscall}` : ""} `
-          : "";
-      const msg = `${prefix}${e.message}`.trim();
+      const rawMsg = e.message.trim();
+      let head = "";
+      if (typeof code === "string") {
+        head = `[${code}]`;
+        const sy = typeof syscall === "string" ? syscall.trim() : "";
+        if (sy) {
+          const alreadyHasSyscall =
+            rawMsg.toLowerCase().startsWith(sy.toLowerCase() + " ") || rawMsg.toLowerCase() === sy.toLowerCase();
+          if (!alreadyHasSyscall) head += ` ${sy}`;
+        }
+        head += " ";
+      }
+      const msg = `${head}${rawMsg}`.trim();
       if (msg && !parts.includes(msg)) parts.push(msg);
       if (e.cause != null) walk(e.cause, depth + 1);
       return;
@@ -45,8 +53,8 @@ export function botApiUnreachableHint(botApiOrigin: string): string {
   const base = botApiOrigin.replace(/\/+$/, "");
   const health = `${base}/health`;
   return (
-    "This call runs from the Next.js server process (your PC when using npm run dev), not from the browser tab. " +
-    `If ${health} does not load in a browser on this same PC, open the bot port on the VPS firewall and ensure the API listens on 0.0.0.0 (not only 127.0.0.1). ` +
-    "If the API is localhost-only on the server, use SSH port forwarding (for example ssh -L 3001:127.0.0.1:3001 root@YOUR_HOST) and set BOT_API_URL=http://127.0.0.1:3001 in .env.local."
+    `1) Open ${health} in your browser on this PC — if it fails, the tunnel or bot is down. ` +
+    "2) Keep the SSH window open (the one with -L 3001:127.0.0.1:3001). " +
+    "3) On the server, run the bot API on port 3001 (pm2 / apiServer.js) and restart `npm run dev` after any .env change."
   );
 }
