@@ -352,7 +352,7 @@ function SettingsPageInner() {
     const x = searchParams.get("x");
     const reason = searchParams.get("reason");
     if (x === "linked") {
-      setXMessage(null);
+      const xhFallback = searchParams.get("xh");
       setToastLabel("X account linked ✅");
       setShowToast(true);
       if (toastHideTimeoutRef.current !== null) {
@@ -362,19 +362,39 @@ function SettingsPageInner() {
         setShowToast(false);
         toastHideTimeoutRef.current = null;
       }, 3200);
-      void fetch("/api/profile")
-        .then((r) => r.json())
-        .then((d) => {
+
+      let cancelled = false;
+      (async () => {
+        const applyFallbackHandle = () => {
+          if (!xhFallback) return "";
+          try {
+            return decodeURIComponent(xhFallback).replace(/^@+/, "").trim().slice(0, 32);
+          } catch {
+            return "";
+          }
+        };
+
+        try {
+          const r = await fetch("/api/profile", {
+            cache: "no-store",
+            credentials: "same-origin",
+          });
+          if (cancelled) return;
+          const d = await r.json();
+          if (cancelled) return;
           if (d && typeof d === "object" && !("error" in d)) {
             const row = d as Record<string, unknown>;
-            const handle =
+            let handle =
               typeof row.x_handle === "string" ? row.x_handle.trim() : "";
+            if (!handle) {
+              handle = applyFallbackHandle();
+            }
             setXHandle(handle);
-            setXVerified(
+            const verifiedFromRow =
               row.x_verified === true ||
-                row.x_verified === "true" ||
-                row.x_verified === 1
-            );
+              row.x_verified === "true" ||
+              row.x_verified === 1;
+            setXVerified(verifiedFromRow || !!handle);
             setXMilestoneTagEnabled(
               row.x_milestone_tag_enabled === true ||
                 row.x_milestone_tag_enabled === "true" ||
@@ -388,12 +408,40 @@ function SettingsPageInner() {
               setXMessage(
                 "X sign-in finished but your profile still has no handle. Hard-refresh the page or check Supabase (users row for your discord_id) and env on the host."
               );
+            } else {
+              setXMessage(null);
+            }
+          } else {
+            const h = applyFallbackHandle();
+            if (h) {
+              setXHandle(h);
+              setXVerified(true);
+              setXMessage(null);
+            } else {
+              setXMessage("Could not load profile after linking. Try refreshing the page.");
             }
           }
-        })
-        .catch(() => {});
-      router.replace("/settings", { scroll: false });
-      return;
+        } catch {
+          if (!cancelled) {
+            const h = applyFallbackHandle();
+            if (h) {
+              setXHandle(h);
+              setXVerified(true);
+              setXMessage(null);
+            } else {
+              setXMessage("Could not load profile after linking. Try refreshing the page.");
+            }
+          }
+        } finally {
+          if (!cancelled) {
+            router.replace("/settings", { scroll: false });
+          }
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
     }
     if (x === "error") {
       setXMessage(

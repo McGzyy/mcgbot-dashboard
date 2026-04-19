@@ -99,5 +99,5 @@ export async function GET(request: Request) {
     return settingsRedirect(request, { x: "error", reason: "supabase_sync_failed" });
   }
 
-  return settingsRedirect(request, { x: "linked" });
+  return settingsRedirect(request, { x: "linked", xh: username });
 }
