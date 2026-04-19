@@ -47,10 +47,15 @@ function hasDashboardAccess(token: Record<string, unknown> | null): boolean {
 }
 
 function discordIdFromToken(token: Record<string, unknown> | null): string {
-  const fromDiscord = typeof token?.discord_id === "string" ? token.discord_id.trim() : "";
+  const pick = (v: unknown): string => {
+    if (typeof v === "string" && v.trim()) return v.trim();
+    return "";
+  };
+  const fromDiscord = pick(token?.discord_id);
   if (fromDiscord) return fromDiscord;
-  const sub = typeof token?.sub === "string" ? token.sub.trim() : "";
-  return sub;
+  const sub = pick(token?.sub);
+  if (sub) return sub;
+  return pick(token?.id);
 }
 
 /** Cookie claims first; if denied, re-check server (fixes stale JWT after env/code changes). */
@@ -88,6 +93,10 @@ export async function middleware(req: NextRequest) {
     : null;
 
   if (pathname.startsWith("/api/")) {
+    if (pathname === "/api/debug-env" && req.method === "GET") {
+      return NextResponse.next();
+    }
+
     if (pathname === "/api/subscription/plans" && req.method === "GET") {
       return NextResponse.next();
     }

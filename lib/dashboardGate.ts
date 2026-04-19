@@ -26,11 +26,24 @@ export async function liveDashboardAccessForDiscordId(discordId: string): Promis
     return hit.ok;
   }
 
-  const [exempt, end] = await Promise.all([
-    computeSubscriptionExempt(id),
-    getSubscriptionEnd(id),
-  ]);
-  const ok = exempt === true || subscriptionActiveUntil(end);
+  let exempt = false;
+  try {
+    exempt = await computeSubscriptionExempt(id);
+  } catch (e) {
+    console.warn("[dashboardGate] computeSubscriptionExempt:", e);
+  }
+  if (exempt === true) {
+    accessCache.set(id, { ok: true, exp: now + CACHE_MS });
+    return true;
+  }
+
+  let end: string | null = null;
+  try {
+    end = await getSubscriptionEnd(id);
+  } catch (e) {
+    console.warn("[dashboardGate] getSubscriptionEnd:", e);
+  }
+  const ok = subscriptionActiveUntil(end);
   accessCache.set(id, { ok, exp: now + CACHE_MS });
   return ok;
 }

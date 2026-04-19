@@ -1,5 +1,9 @@
 import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
-import { meetsModerationMinTier, resolveHelpTierWithSource } from "@/lib/helpRole";
+import {
+  meetsModerationMinTier,
+  resolveHelpTier,
+  resolveHelpTierWithSource,
+} from "@/lib/helpRole";
 
 function idSet(raw: string | undefined): Set<string> {
   if (!raw?.trim()) return new Set();
@@ -44,10 +48,20 @@ async function exemptByStaffTier(discordUserId: string): Promise<boolean> {
  * - SUBSCRIPTION_EXEMPT_STAFF — default on: dashboard mod/admin (same tier as moderation) is exempt.
  *   Set to 0 / false / off to disable staff auto-exemption.
  */
+/**
+ * Env-only staff (DISCORD_ADMIN_IDS / DISCORD_MOD_IDS) — no Discord API.
+ * Edge-safe and avoids a failed network call blocking admins listed in env.
+ */
+function exemptByEnvStaffListsSync(discordUserId: string): boolean {
+  if (!staffExemptionEnabled()) return false;
+  return meetsModerationMinTier(resolveHelpTier(discordUserId));
+}
+
 export async function computeSubscriptionExempt(discordUserId: string): Promise<boolean> {
   const id = discordUserId.trim();
   if (!id) return false;
   if (exemptByExplicitUserIds(id)) return true;
+  if (exemptByEnvStaffListsSync(id)) return true;
   if (await exemptByExplicitRoleIds(id)) return true;
   if (await exemptByStaffTier(id)) return true;
   return false;
