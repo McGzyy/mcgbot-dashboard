@@ -232,9 +232,6 @@ function SettingsPageInner() {
   const { status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  /** Bot API origin exposed to the browser; must match server `BOT_API_URL`. Never read secrets here. */
-  const isConfigured = Boolean(String(process.env.NEXT_PUBLIC_BOT_API_URL ?? "").trim());
   const [loadError, setLoadError] = useState<string | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [widgets, setWidgets] = useState<WidgetsEnabled>(DEFAULT_WIDGETS);
@@ -413,13 +410,6 @@ function SettingsPageInner() {
     setXBusy(true);
     setXMessage(null);
     try {
-      if (!isConfigured) {
-        setXMessage(
-          "Set NEXT_PUBLIC_BOT_API_URL in your dashboard environment to the bot API base URL (same value as BOT_API_URL on the server)."
-        );
-        return;
-      }
-
       const res = await fetch("/api/x/oauth/start", { method: "POST" });
       const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
       if (!res.ok) {
@@ -440,7 +430,7 @@ function SettingsPageInner() {
     } finally {
       setXBusy(false);
     }
-  }, [isConfigured]);
+  }, []);
 
   const unlinkX = useCallback(async () => {
     setXBusy(true);
@@ -663,14 +653,6 @@ function SettingsPageInner() {
             Sign in with X to prove your handle. Used for a verified @ on your profile and for
             optional @mentions on high-multiple milestone posts.
           </p>
-          {!isConfigured ? (
-            <p className="mt-2 text-xs text-amber-400/90">
-              Add{" "}
-              <span className="font-mono text-[11px] text-amber-200/90">NEXT_PUBLIC_BOT_API_URL</span> to your site
-              environment (same origin as <span className="font-mono text-[11px] text-amber-200/90">BOT_API_URL</span>{" "}
-              on the server) so this page can enable Connect X.
-            </p>
-          ) : null}
           {xMessage ? (
             <p
               className={`mt-2 text-xs ${
@@ -701,7 +683,7 @@ function SettingsPageInner() {
               <button
                 type="button"
                 onClick={() => void startXOAuth()}
-                disabled={xBusy || !isConfigured}
+                disabled={xBusy}
                 className="rounded-lg bg-[#1d9bf0] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#1a8cd8] disabled:opacity-50"
               >
                 {xBusy ? "Opening…" : "Connect X"}
