@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import { createClient } from "@supabase/supabase-js";
 import DiscordProvider from "next-auth/providers/discord";
+import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
 
@@ -91,20 +92,32 @@ export const authOptions: NextAuthOptions = {
         typeof token.subscriptionRefreshAt === "number" ? token.subscriptionRefreshAt : 0;
       const subscriptionGateStale =
         Boolean(discordId) && Date.now() - lastRefresh > SUB_REFRESH_MS;
+      const accessFieldsMissing =
+        Boolean(discordId) &&
+        (!("subscriptionActiveUntil" in token) ||
+          !("subscriptionExempt" in token) ||
+          typeof token.helpTier !== "string" ||
+          typeof token.canModerate !== "boolean");
+
       const shouldRefreshAccess =
         Boolean(user) ||
-        (Boolean(discordId) &&
-          (!("subscriptionActiveUntil" in token) || !("subscriptionExempt" in token))) ||
+        accessFieldsMissing ||
         (trigger === "update" && refreshSubscriptionFlag) ||
         subscriptionGateStale;
 
       if (discordId && shouldRefreshAccess) {
-        const [end, exempt] = await Promise.all([
+        const [end, exempt, helpTier] = await Promise.all([
           getSubscriptionEnd(discordId),
           computeSubscriptionExempt(discordId),
+          resolveHelpTierAsync(discordId).catch((e) => {
+            console.warn("[auth] resolveHelpTierAsync:", e);
+            return "user" as const;
+          }),
         ]);
         token.subscriptionActiveUntil = end;
         token.subscriptionExempt = exempt;
+        token.helpTier = helpTier;
+        token.canModerate = meetsModerationMinTier(helpTier);
         token.subscriptionRefreshAt = Date.now();
       }
 
@@ -131,6 +144,10 @@ export const authOptions: NextAuthOptions = {
         end != null && end.length > 0 && new Date(end).getTime() > Date.now();
       session.user.hasDashboardAccess =
         exempt || session.user.hasActiveSubscription;
+      const tier = token.helpTier;
+      session.user.helpTier =
+        tier === "admin" || tier === "mod" || tier === "user" ? tier : "user";
+      session.user.canModerate = token.canModerate === true;
       return session;
     },
   },

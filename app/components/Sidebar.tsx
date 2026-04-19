@@ -14,8 +14,9 @@ function isActive(pathname: string, href: string) {
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  const [staffNav, setStaffNav] = useState(false);
-  const [adminNav, setAdminNav] = useState(false);
+  /** Staff tier comes from the session JWT (same refresh as subscription) — not the mod-queue API. */
+  const staffNav = session?.user?.canModerate === true;
+  const adminNav = session?.user?.helpTier === "admin";
   /** Pending mod-queue count (from API); null = not loaded or not staff. */
   const [modPendingTotal, setModPendingTotal] = useState<number | null>(null);
 
@@ -31,33 +32,14 @@ export function Sidebar() {
     .toUpperCase() || "MC";
 
   useEffect(() => {
-    if (status !== "authenticated") {
-      setStaffNav(false);
-      setAdminNav(false);
+    if (status !== "authenticated" || !staffNav) {
       setModPendingTotal(null);
       return;
     }
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/me/help-role");
-        const json = (await res.json().catch(() => ({}))) as {
-          role?: string;
-          canModerate?: boolean;
-        };
-        if (cancelled) return;
-        const r = json.role;
-        setAdminNav(r === "admin");
-        const staff =
-          typeof json.canModerate === "boolean"
-            ? json.canModerate
-            : r === "mod" || r === "admin";
-        setStaffNav(staff);
-        if (!staff) {
-          setModPendingTotal(null);
-          return;
-        }
-        const q = await fetch("/api/mod/queue?limit=1");
+        const q = await fetch("/api/mod/queue?limit=1", { credentials: "same-origin" });
         const qj = (await q.json().catch(() => ({}))) as {
           success?: boolean;
           counts?: { total?: number };
@@ -69,17 +51,13 @@ export function Sidebar() {
           setModPendingTotal(null);
         }
       } catch {
-        if (!cancelled) {
-          setStaffNav(false);
-          setAdminNav(false);
-          setModPendingTotal(null);
-        }
+        if (!cancelled) setModPendingTotal(null);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [status, staffNav]);
 
   const navItem = (active: boolean) =>
     `relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150 hover:bg-zinc-900/60 ${

@@ -1,4 +1,5 @@
 import type { DefaultSession } from "next-auth";
+import type { HelpTier } from "@/lib/helpRole";
 
 declare module "next-auth" {
   interface Session {
@@ -8,6 +9,10 @@ declare module "next-auth" {
       hasActiveSubscription: boolean;
       subscriptionExempt: boolean;
       hasDashboardAccess: boolean;
+      /** Discord staff tier; refreshed with subscription gate (JWT). */
+      helpTier: HelpTier;
+      /** Whether moderation UI/APIs are allowed for this user. */
+      canModerate: boolean;
     };
   }
 }
@@ -19,5 +24,7 @@ declare module "next-auth/jwt" {
     subscriptionExempt?: boolean;
     /** ms since epoch — throttles recomputing subscription/exempt in jwt callback */
     subscriptionRefreshAt?: number;
+    helpTier?: HelpTier;
+    canModerate?: boolean;
   }
 }
