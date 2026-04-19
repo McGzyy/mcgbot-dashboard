@@ -6,6 +6,8 @@ import {
   type NotificationPriority,
 } from "@/app/contexts/NotificationsContext";
 import { ActivityPopup } from "./components/ActivityPopup";
+import { AddToWatchlistModal } from "./components/AddToWatchlistModal";
+import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
 import DailyLeaderboardPanel from "@/components/DailyLeaderboardPanel";
@@ -2818,6 +2820,7 @@ export default function Home() {
 
   const [widgets, setWidgets] = useState<WidgetsEnabled | null>(null);
   const [submitCallOpen, setSubmitCallOpen] = useState(false);
+  const [addWatchlistOpen, setAddWatchlistOpen] = useState(false);
   const [submitCallValue, setSubmitCallValue] = useState("");
   const [submitCallSubmitting, setSubmitCallSubmitting] = useState(false);
   const [submitCallFeedback, setSubmitCallFeedback] = useState<
@@ -3626,12 +3629,13 @@ export default function Home() {
                   >
                     My Profile
                   </Link>
-                  <Link
-                    href="/watchlist"
+                  <button
+                    type="button"
+                    onClick={() => setAddWatchlistOpen(true)}
                     className="flex items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     Watchlist
-                  </Link>
+                  </button>
                   <button
                     type="button"
                     onClick={() => notifyComingSoon("Create Alert")}
@@ -3668,6 +3672,8 @@ export default function Home() {
               (helpTier === "mod" || helpTier === "admin") && !modChatConfigured
             }
           />
+
+          {(helpTier === "mod" || helpTier === "admin") && <ModQueueHomePanel />}
 
           {widgetEnabled(widgets, "live_tracked_calls") && <DailyLeaderboardPanel />}
 
@@ -3821,6 +3827,11 @@ export default function Home() {
             : null
         }
         onClose={() => setSelectedActivity(null)}
+      />
+
+      <AddToWatchlistModal
+        open={addWatchlistOpen}
+        onClose={() => setAddWatchlistOpen(false)}
       />
 
       {submitCallOpen ? (

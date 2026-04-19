@@ -18,14 +18,6 @@ console.log("SUPABASE_URL:", process.env.SUPABASE_URL);
 console.log("SUPABASE_ANON_KEY exists:", !!process.env.SUPABASE_ANON_KEY);
 
 const { readJson, writeJson } = require('./utils/jsonStore');
-const express = require("express");
-const app = express();
-
-app.use(express.json());
-
-app.get("/ping", (req, res) => {
-  res.send("pong");
-});
 
 const {
   Client,
@@ -164,46 +156,8 @@ const client = new Client({
   ]
 });
 
-app.post("/internal/call", async (req, res) => {
-  try {
-    console.log("BOT RECEIVED CALL", req.body);
-    const auth = req.headers.authorization;
-    if (auth !== `Bearer ${process.env.BOT_API_KEY}`) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const { ca } = req.body;
-    if (!ca) {
-      return res.status(400).json({ error: "Missing CA" });
-    }
-
-    // Pick your target channel
-    const channel = client.channels.cache.find(
-      (c) => c.name === "user-calls" || c.name === "token-calls"
-    );
-
-    if (!channel) {
-      return res.status(500).json({ error: "Channel not found" });
-    }
-
-    const fakeMessage = {
-      author: { id: "dashboard_user" },
-      member: null,
-      channel,
-      guild: channel.guild,
-      reply: async (payload) => {
-        return await channel.send(payload);
-      },
-    };
-
-    await handleCallCommand(fakeMessage, ca, "dashboard");
-
-    return res.json({ success: true });
-  } catch (err) {
-    console.error("INTERNAL CALL ERROR:", err);
-    return res.status(500).json({ error: "Internal error" });
-  }
-});
+const { startReferralApiServer } = require(path.join(__dirname, '..', 'apiServer'));
+startReferralApiServer(client);
 
 const devEditSessions = new Map();
 const DEV_EDIT_SESSION_TTL_MS = 10 * 60 * 1000;
@@ -4287,9 +4241,3 @@ if (lowerContent.startsWith('!truestats')) {
 
   client.login(process.env.DISCORD_TOKEN);
 })();
-
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Internal API running on port ${PORT}`);
-  console.log("Server binding to 0.0.0.0:", PORT);
-});

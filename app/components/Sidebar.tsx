@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 
 const nav = [
   { href: "/settings", label: "Settings" },
@@ -16,7 +17,8 @@ function isActive(pathname: string, href: string) {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const [staffNav, setStaffNav] = useState(false);
 
   const profileId = session?.user?.id?.trim() || "";
   const profileName =
@@ -28,6 +30,28 @@ export function Sidebar() {
     .replace(/[^a-z0-9]/gi, "")
     .slice(0, 2)
     .toUpperCase() || "MC";
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setStaffNav(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/help-role");
+        const json = (await res.json().catch(() => ({}))) as { role?: string };
+        if (cancelled) return;
+        const r = json.role;
+        setStaffNav(r === "mod" || r === "admin");
+      } catch {
+        if (!cancelled) setStaffNav(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   const navItem = (active: boolean) =>
     `relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150 hover:bg-zinc-900/60 ${
@@ -99,6 +123,17 @@ export function Sidebar() {
             />
             <span>Watchlist</span>
           </Link>
+
+          {staffNav ? (
+            <Link href="/moderation" className={navItem(isActive(pathname, "/moderation"))}>
+              <div
+                className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                  isActive(pathname, "/moderation") ? "bg-amber-400 opacity-100" : "opacity-0"
+                }`}
+              />
+              <span>Moderation</span>
+            </Link>
+          ) : null}
 
           {nav.map(({ href, label }) => (
             <Link key={href} href={href} className={navItem(isActive(pathname, href))}>

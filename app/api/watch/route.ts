@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { isLikelySolanaMint } from "@/lib/solanaCa";
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
         {
           success: false,
           error:
-            "Submit Call is not configured (missing BOT_API_URL). Add it to your environment to enable calls.",
+            "Public watch is not configured (missing BOT_API_URL). Add it to your environment.",
         },
         { status: 503 }
       );
@@ -34,10 +35,9 @@ export async function POST(request: Request) {
 
     const o = body as Record<string, unknown>;
     const ca = typeof o.ca === "string" ? o.ca.trim() : "";
-
-    if (!ca) {
+    if (!ca || !isLikelySolanaMint(ca)) {
       return Response.json(
-        { success: false, error: "Missing CA" },
+        { success: false, error: "Invalid or missing Solana contract address" },
         { status: 400 }
       );
     }
@@ -48,14 +48,14 @@ export async function POST(request: Request) {
         {
           success: false,
           error:
-            "Submit Call is not configured (missing CALL_INTERNAL_SECRET). Set the same secret on the bot host and in this dashboard.",
+            "Public watch is not configured (missing CALL_INTERNAL_SECRET). Set the same secret on the bot host and in this dashboard.",
         },
         { status: 503 }
       );
     }
 
     const base = botUrl.replace(/\/+$/, "");
-    const url = `${base}/internal/call`;
+    const url = `${base}/internal/watch`;
 
     let res: globalThis.Response;
     try {
@@ -69,11 +69,11 @@ export async function POST(request: Request) {
       });
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
-      console.error("[api/call] fetch failed:", detail, "target:", base);
+      console.error("[api/watch] fetch failed:", detail, "target:", base);
       return Response.json(
         {
           success: false,
-          error: `Could not reach bot API. ${detail}. Check BOT_API_URL (try opening ${base}/health in a browser), firewall, and that the bot process is running on the VPS.`,
+          error: `Could not reach bot API. ${detail}. Check BOT_API_URL and that /internal/watch is available.`,
         },
         { status: 502 }
       );
@@ -93,25 +93,19 @@ export async function POST(request: Request) {
       return Response.json(data, { status: res.status });
     }
 
-    const notThisService =
-      res.status === 404
-        ? ` HTTP 404 usually means BOT_API_URL is your website (e.g. Next.js), not the bot. Open ${base}/health in a browser — you must see {"ok":true}. If not, point BOT_API_URL at the VPS Node API (subdomain or IP:port) or add a reverse-proxy rule for /health and /internal/call to that process.`
-        : "";
-
     return Response.json(
       {
         success: false,
-        error: `Bot API returned HTTP ${res.status} with a non-JSON body (wrong URL, reverse proxy, or not this service). Expected JSON from ${base}/internal/call.${notThisService}`,
+        error: `Bot API returned HTTP ${res.status} with a non-JSON body.`,
       },
       { status: 502 }
     );
   } catch (err) {
-    console.error("API ERROR:", err);
+    console.error("API ERROR [watch]:", err);
     const detail = err instanceof Error ? err.message : String(err);
     return Response.json(
-      { success: false, error: `Submit Call failed: ${detail}` },
+      { success: false, error: `Submit watch failed: ${detail}` },
       { status: 500 }
     );
   }
 }
-
