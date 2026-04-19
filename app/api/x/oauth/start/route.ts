@@ -37,10 +37,12 @@ export async function POST() {
       );
     }
 
+    // Path must be exactly "/internal/x-oauth/start" (no other suffix, no double slash).
     const base = rawBase.replace(/\/+$/, "");
-    const botUrl = `${base}/internal/x-oauth/start`;
+    const fullUrl = `${base}/internal/x-oauth/start`;
+    console.log("[api/x/oauth/start] full URL:", fullUrl);
 
-    const res = await fetch(botUrl, {
+    const res = await fetch(fullUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${secret}`,
@@ -59,7 +61,7 @@ export async function POST() {
     }
 
     console.log("[api/x/oauth/start] bot response", {
-      botUrl,
+      fullUrl,
       httpStatus: res.status,
       body: data ?? rawText.slice(0, 500),
     });
