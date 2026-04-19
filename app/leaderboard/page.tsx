@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import {
@@ -210,6 +211,11 @@ const trendingNow = {
   timeAgo: "12m ago",
 };
 
+/** Mock “signed-in” caller — highlighted on the current timeframe’s page 1 */
+function mockViewerUsername(tf: TimeframeId): string {
+  return `${tf}_caller_6`;
+}
+
 const MOCK_MCGBOT_TOP_CALLS: Record<TimeframeId, TopCallRow[]> = {
   daily: buildTopCalls("daily", "bot"),
   weekly: buildTopCalls("weekly", "bot"),
@@ -335,7 +341,7 @@ function TopCallsList({
   tone = "default",
 }: {
   rows: TopCallRow[];
-  tone?: "default" | "muted";
+  tone?: "default" | "muted" | "bot";
 }) {
   const sorted = useMemo(
     () => [...rows].sort((a, b) => b.multiplier - a.multiplier),
@@ -345,7 +351,14 @@ function TopCallsList({
   const shell =
     tone === "muted"
       ? "rounded-xl border border-[#1a1a1a]/80 bg-[#080808] p-3 opacity-[0.94]"
-      : "rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-3";
+      : tone === "bot"
+        ? "rounded-xl border border-sky-500/20 bg-sky-950/15 p-3 ring-1 ring-sky-500/10"
+        : "rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-3 ring-1 ring-emerald-500/10";
+
+  const topRow =
+    tone === "bot"
+      ? "border-sky-400/20 bg-sky-500/10 shadow-[0_0_20px_-8px_rgba(56,189,248,0.35)]"
+      : "border-emerald-500/10 bg-emerald-500/5";
 
   return (
     <div className={shell}>
@@ -356,10 +369,12 @@ function TopCallsList({
               key={`${row.symbol}-${row.username}-${row.timestamp}-${i}`}
               className={[
                 "flex items-center justify-between rounded-lg border px-3 py-2 transition-all duration-150",
-                "hover:bg-zinc-900/60",
-                i === 0
-                  ? "border-emerald-500/10 bg-emerald-500/5"
-                  : "border-transparent",
+                tone === "bot"
+                  ? "hover:bg-sky-950/40"
+                  : tone === "muted"
+                    ? "hover:bg-zinc-900/50"
+                    : "hover:bg-emerald-950/30",
+                i === 0 ? topRow : "border-transparent",
               ].join(" ")}
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -367,7 +382,14 @@ function TopCallsList({
                   #{i + 1}
                 </div>
                 <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#050505] text-[10px] font-bold tabular-nums text-zinc-300"
+                  className={[
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-[10px] font-bold tabular-nums",
+                    tone === "bot"
+                      ? "border-sky-500/25 bg-sky-950/50 text-sky-200"
+                      : tone === "muted"
+                        ? "border-[#1a1a1a] bg-[#050505] text-zinc-300"
+                        : "border-emerald-500/20 bg-emerald-950/40 text-emerald-200/90",
+                  ].join(" ")}
                   aria-hidden
                 >
                   {symbolBadge(row.symbol)}
@@ -379,8 +401,14 @@ function TopCallsList({
                   </div>
                 </div>
               </div>
-              <div className="shrink-0 text-right min-w-[70px]">
-                <div className="text-base font-bold tabular-nums text-emerald-400">{fmtX(row.multiplier)}</div>
+              <div className="min-w-[70px] shrink-0 text-right">
+                <div
+                  className={`text-base font-bold tabular-nums ${
+                    tone === "bot" ? "text-sky-300" : "text-emerald-400"
+                  }`}
+                >
+                  {fmtX(row.multiplier)}
+                </div>
                 <div className="text-xs text-zinc-500">{row.callToATH}</div>
               </div>
             </li>
@@ -415,15 +443,16 @@ export default function LeaderboardPage() {
   void performanceDataMap;
 
   useEffect(() => {
-    const scrollToBot = () => {
-      if (window.location.hash !== "#bot-performance") return;
-      const el = document.getElementById("bot-performance");
+    const scrollToHashSection = () => {
+      const id = window.location.hash.replace(/^#/, "");
+      if (!id) return;
+      const el = document.getElementById(id);
       if (el) el.scrollIntoView({ behavior: "smooth" });
     };
 
-    scrollToBot();
-    window.addEventListener("hashchange", scrollToBot);
-    return () => window.removeEventListener("hashchange", scrollToBot);
+    scrollToHashSection();
+    window.addEventListener("hashchange", scrollToHashSection);
+    return () => window.removeEventListener("hashchange", scrollToHashSection);
   }, []);
 
   const fullUserList = useMemo(
@@ -513,76 +542,175 @@ export default function LeaderboardPage() {
     };
   }, [allUsers]);
 
-  const Table = ({ rows }: { rows: LeaderRow[] }) => (
-    <div className="rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4">
-      <div className="overflow-x-auto">
-        <div className="min-w-[720px]">
-          <div className="flex items-end justify-between gap-3 border-b border-[#1a1a1a] pb-2 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]">
-            <div className="min-w-0 flex-1">User</div>
-            <div className="w-12 shrink-0 text-center">Δ</div>
-            <div className="flex shrink-0 items-end gap-2 sm:gap-3">
-              <div className="text-right min-w-[56px]">Avg X</div>
-              <div className="text-right min-w-[56px]">Best X</div>
-            </div>
-          </div>
+  const podiumRowClass = (rank: number) => {
+    if (rank === 1) {
+      return "border-yellow-500/20 bg-gradient-to-r from-yellow-500/[0.09] via-yellow-500/[0.03] to-transparent shadow-[0_0_24px_-10px_rgba(234,179,8,0.22)]";
+    }
+    if (rank === 2) {
+      return "border-zinc-400/15 bg-gradient-to-r from-zinc-300/[0.06] via-zinc-400/[0.02] to-transparent";
+    }
+    if (rank === 3) {
+      return "border-amber-700/25 bg-gradient-to-r from-amber-600/[0.1] via-amber-700/[0.03] to-transparent";
+    }
+    return "border-transparent";
+  };
 
-          <div className="space-y-1 pt-1.5">
-            {rows.map((r) => (
-              <div
-                key={`${r.rank}-${r.username}`}
-                className={[
-                  "flex items-center justify-between gap-3 rounded-lg border px-3 py-1.5 transition-all",
-                  "hover:bg-zinc-900/60 hover:shadow-[0_0_8px_rgba(255,255,255,0.03)]",
-                  r.rank === 1
-                    ? "bg-yellow-500/5 border-yellow-500/10"
-                    : "border-transparent",
-                ].join(" ")}
-              >
-                <div className="min-w-0 flex-1 pr-2">
-                  <div className="flex items-baseline gap-2">
-                    <div className="shrink-0 text-xs tabular-nums text-zinc-500">#{r.rank}</div>
-                    <div className="min-w-0 truncate text-sm font-medium text-zinc-200">
-                      {r.username}
+  const Table = ({ rows }: { rows: LeaderRow[] }) => {
+    const youHandle = mockViewerUsername(usersTimeframe);
+    return (
+      <div className="rounded-xl border border-emerald-500/15 bg-black/30 p-4 ring-1 ring-emerald-500/10">
+        <div className="overflow-x-auto">
+          <div className="min-w-[720px]">
+            <div className="flex items-end justify-between gap-3 border-b border-emerald-500/10 pb-2 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]">
+              <div className="min-w-0 flex-1 pl-1">User</div>
+              <div className="w-12 shrink-0 text-center">Δ</div>
+              <div className="flex shrink-0 items-end gap-2 sm:gap-3">
+                <div className="text-right min-w-[56px]">Avg X</div>
+                <div className="text-right min-w-[56px]">Best X</div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 pt-2">
+              {rows.map((r) => {
+                const isYou = r.username === youHandle;
+                return (
+                  <div
+                    key={`${r.rank}-${r.username}`}
+                    className={[
+                      "group/row flex items-center justify-between gap-3 rounded-xl border px-2.5 py-2 transition-all duration-200 sm:px-3",
+                      "hover:bg-emerald-950/30 hover:shadow-[0_0_18px_-6px_rgba(16,185,129,0.12)]",
+                      podiumRowClass(r.rank),
+                      isYou
+                        ? "ring-1 ring-emerald-400/35 ring-offset-2 ring-offset-[#050505]"
+                        : "",
+                    ].join(" ")}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-2.5 pr-1 sm:gap-3">
+                      <div className="w-7 shrink-0 text-right text-[11px] font-semibold tabular-nums text-zinc-500 sm:w-8">
+                        #{r.rank}
+                      </div>
+                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full ring-1 ring-white/10 transition group-hover/row:ring-emerald-500/25">
+                        <Avatar src={r.avatarSrc} name={r.username} size="sm" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm font-medium text-zinc-100">{r.username}</span>
+                          {isYou ? (
+                            <span className="shrink-0 rounded border border-emerald-400/40 bg-emerald-500/15 px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider text-emerald-200">
+                              You
+                            </span>
+                          ) : null}
+                          {r.rank <= 3 && !isYou ? (
+                            <span
+                              className={[
+                                "shrink-0 rounded px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider",
+                                r.rank === 1
+                                  ? "border border-yellow-500/25 bg-yellow-500/10 text-yellow-200/95"
+                                  : r.rank === 2
+                                    ? "border border-zinc-400/20 bg-zinc-400/10 text-zinc-200"
+                                    : "border border-amber-600/25 bg-amber-600/10 text-amber-200/90",
+                              ].join(" ")}
+                            >
+                              {r.rank === 1 ? "Gold" : r.rank === 2 ? "Silver" : "Bronze"}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="mt-0.5 text-xs text-zinc-500">
+                          {r.calls} calls
+                          {typeof r.winRate === "number" ? ` · ${r.winRate.toFixed(0)}% win` : ""}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex w-12 shrink-0 items-center justify-center">
+                      <RankDelta delta={r.rankDelta} />
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                      <div className="text-right min-w-[56px] text-xs font-semibold tabular-nums text-emerald-400">
+                        {fmtX(r.avgX)}
+                      </div>
+                      <div className="text-right min-w-[56px] text-xs font-semibold tabular-nums text-amber-300">
+                        {fmtX(r.bestX)}
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-0.5 pl-7 text-xs text-zinc-500">
-                    {r.calls} calls
-                    {typeof r.winRate === "number" ? ` · ${r.winRate.toFixed(0)}% win` : ""}
-                  </div>
-                </div>
-
-                <div className="flex w-12 shrink-0 items-center justify-center">
-                  <RankDelta delta={r.rankDelta} />
-                </div>
-
-                <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-                  <div className="text-right min-w-[56px] text-xs font-semibold tabular-nums text-[#39FF14]">
-                    {fmtX(r.avgX)}
-                  </div>
-                  <div className="text-right min-w-[56px] text-xs font-semibold tabular-nums text-amber-300">
-                    {fmtX(r.bestX)}
-                  </div>
-                </div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const sectionTitle = "text-base font-semibold tracking-tight text-zinc-100";
+  const navPill =
+    "rounded-full border border-zinc-800/90 bg-zinc-950/70 px-3 py-1.5 text-[11px] font-medium text-zinc-400 outline-none transition-all duration-200 hover:-translate-y-px hover:border-cyan-500/40 hover:bg-zinc-900/80 hover:text-cyan-100 hover:shadow-[0_12px_40px_-24px_rgba(0,0,0,0.85)] focus-visible:ring-2 focus-visible:ring-cyan-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070708] active:translate-y-0";
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] space-y-6 px-4 py-6">
-      <div>
-        <h1 className="text-xl font-semibold text-zinc-100">Leaderboard</h1>
-        <p className="text-sm text-zinc-600">
-          Leaders, records, top calls, and user rankings
-        </p>
-      </div>
+    <div className="min-h-screen bg-[#070708] bg-[radial-gradient(ellipse_120%_80%_at_50%_-18%,rgba(34,211,238,0.12),transparent_55%)] text-zinc-100">
+      <div className="mx-auto w-full max-w-[1100px] space-y-8 px-4 py-8 sm:px-6 lg:py-10">
+        <header className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[#070708] p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_35%,rgba(34,211,238,0.06)_48%,transparent_62%)] opacity-90" />
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-500/[0.07] blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-16 h-56 w-56 rounded-full bg-emerald-600/[0.06] blur-3xl" />
+          <div className="relative">
+            <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-cyan-400/90">
+              McGBot Terminal
+            </p>
+            <h1 className="mt-2 bg-gradient-to-b from-white via-zinc-100 to-zinc-400 bg-clip-text text-2xl font-bold tracking-tight text-transparent sm:text-4xl sm:tracking-tighter">
+              Leaderboards
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
+              The public scoreboard for callers and automation. Verified runs, clean multiples, and
+              rank that actually moves — built to make you want the top row.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800/90 bg-black/35 px-3 py-1.5 text-[11px] text-zinc-400">
+                <span
+                  className="relative flex h-2 w-2"
+                  aria-hidden
+                >
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.65)]" />
+                </span>
+                Boards track verified calls
+              </span>
+              <Link
+                href="/"
+                className="inline-flex items-center rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15"
+              >
+                Post calls · climb ranks →
+              </Link>
+            </div>
+            <nav
+              className="mt-6 flex flex-wrap gap-2 border-t border-zinc-800/60 pt-5"
+              aria-label="Jump to leaderboard section"
+            >
+              <a href="#leaders" className={navPill}>
+                Spotlight
+              </a>
+              <a href="#records" className={navPill}>
+                Records
+              </a>
+              <a href="#rank" className={navPill}>
+                Rank trend
+              </a>
+              <a href="#community-performance" className={navPill}>
+                Community
+              </a>
+              <a href="#user-boards" className={navPill}>
+                Caller boards
+              </a>
+              <a href="#bot-performance" className={navPill}>
+                McGBot
+              </a>
+            </nav>
+          </div>
+        </header>
 
-      <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+      <div id="rank" className="mb-2 scroll-mt-28 rounded-2xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/55 to-zinc-950/95 p-5 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.04] sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <div className="text-sm text-zinc-400">Your Performance</div>
@@ -595,10 +723,10 @@ export default function LeaderboardPage() {
                 key={t}
                 type="button"
                 onClick={() => setTimeframe(t)}
-                className={`px-2 py-1 text-xs rounded-md border transition ${
+                className={`rounded-md border px-2 py-1 text-xs transition ${
                   timeframe === t
-                    ? "border-green-500 text-green-400"
-                    : "border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+                    ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-200 shadow-[0_0_16px_-4px_rgba(34,211,238,0.35)]"
+                    : "border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white"
                 }`}
               >
                 {t}
@@ -630,11 +758,11 @@ export default function LeaderboardPage() {
               <Line
                 type="monotone"
                 dataKey="rank"
-                stroke="#22c55e"
+                stroke="#22d3ee"
                 strokeWidth={2}
                 dot={false}
                 isAnimationActive={true}
-                style={{ filter: "drop-shadow(0 0 6px rgba(34,197,94,0.4))" }}
+                style={{ filter: "drop-shadow(0 0 8px rgba(34,211,238,0.45))" }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -642,10 +770,13 @@ export default function LeaderboardPage() {
       </div>
 
       {/* 1) Leaders */}
-      <section className="space-y-4">
+      <section id="leaders" className="scroll-mt-28 space-y-4">
         <div>
           <h2 className={sectionTitle}>Leaders</h2>
-          <p className="mt-0.5 text-xs text-zinc-600">Top performers by period (mocked)</p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            Faces on the board rotate with performance — the strip is reserved for people who ship
+            signals others actually follow.
+          </p>
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
           {MOCK_LEADERS.map((w) => (
@@ -655,7 +786,10 @@ export default function LeaderboardPage() {
               onClick={() => router.push(`/profile/${w.username}`)}
             >
               <div className="relative rounded-xl border border-[#2a2415] bg-gradient-to-br from-[#161308] via-[#0c0c0c] to-[#0a0a0a] p-6 shadow-[0_0_28px_rgba(255,215,0,0.12)] transition-all hover:bg-zinc-900/60 hover:shadow-[0_0_36px_rgba(255,215,0,0.18)]">
-                <div className="pr-20">
+                <div className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/50 text-xs font-black tabular-nums text-zinc-200 shadow-inner backdrop-blur-sm">
+                  {w.label === "Daily Leader" ? "1" : w.label === "Weekly Leader" ? "2" : "3"}
+                </div>
+                <div className="pr-20 pl-12">
                   <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-yellow-500/80">
                     {w.label}
                   </p>
@@ -672,7 +806,7 @@ export default function LeaderboardPage() {
                 </div>
 
                 <div className="absolute bottom-5 right-6">
-                  <span className="text-lg font-semibold tabular-nums text-green-400">
+                  <span className="text-lg font-semibold tabular-nums text-emerald-400">
                     {fmtX(w.multiplier)}
                   </span>
                 </div>
@@ -696,10 +830,12 @@ export default function LeaderboardPage() {
       </section>
 
       {/* 2) All-Time Records */}
-      <section className="space-y-4 border-t border-[#1a1a1a] pt-6">
+      <section id="records" className="scroll-mt-28 space-y-4 border-t border-zinc-800/60 pt-8">
         <div>
           <h2 className={sectionTitle}>All-Time Records</h2>
-          <p className="mt-0.5 text-xs text-zinc-600">Standings across all timeframes (mocked)</p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            Highest multiplier, best average, volume, and win-rate standouts — snapshot metrics.
+          </p>
         </div>
         <div className="mb-6 rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
@@ -712,7 +848,7 @@ export default function LeaderboardPage() {
                     </p>
                     <span className="text-base" aria-hidden />
                   </div>
-                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-emerald-400">
                     {fmtX(allTimeRecords.highestMultiplierUser?.bestX ?? 0)}
                   </p>
                   <p className="mt-1.5 text-xs text-zinc-500">
@@ -736,7 +872,7 @@ export default function LeaderboardPage() {
                     </p>
                     <span className="text-base" aria-hidden />
                   </div>
-                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-emerald-400">
                     {fmtX(allTimeRecords.bestAverageUser?.avgX ?? 0)}
                   </p>
                   <p className="mt-1.5 text-xs text-zinc-500">
@@ -812,7 +948,9 @@ export default function LeaderboardPage() {
               <div
                 className={[
                   "group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4",
-                  rankImproving ? "ring-1 ring-green-500/20 shadow-[0_0_18px_rgba(34,197,94,0.12)]" : "",
+                  rankImproving
+                    ? "ring-1 ring-emerald-500/20 shadow-[0_0_18px_rgba(16,185,129,0.12)]"
+                    : "",
                 ].join(" ")}
               >
               <div className="pointer-events-none absolute inset-0 bg-zinc-500/5 blur-2xl opacity-35 transition-opacity duration-300 group-hover:opacity-55" />
@@ -828,8 +966,8 @@ export default function LeaderboardPage() {
                         onClick={() => setRange(t)}
                         className={`px-2 py-0.5 text-xs rounded border transition ${
                           range === t
-                            ? "border-green-400 text-green-400"
-                            : "border-zinc-700 text-zinc-400 hover:border-green-400"
+                            ? "border-emerald-500/55 text-emerald-300"
+                            : "border-zinc-700 text-zinc-400 hover:border-emerald-500/40"
                         }`}
                       >
                         {t}
@@ -843,13 +981,13 @@ export default function LeaderboardPage() {
                     <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
                       GLOBAL RANK
                     </div>
-                    <div className="mt-0.5 text-4xl font-bold tracking-tight text-white drop-shadow-[0_0_6px_rgba(34,197,94,0.3)]">
+                    <div className="mt-0.5 text-4xl font-bold tracking-tight text-white drop-shadow-[0_0_6px_rgba(16,185,129,0.28)]">
                       #12
                     </div>
                     <div
                       className={`mt-1 text-xs ${
                         rankDeltaToday > 0
-                          ? "text-green-400"
+                          ? "text-emerald-400"
                           : rankDeltaToday < 0
                             ? "text-red-400"
                             : "text-zinc-500"
@@ -874,7 +1012,7 @@ export default function LeaderboardPage() {
             </div>
 
               <div className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
-              <div className="pointer-events-none absolute inset-0 bg-[#39FF14]/5 blur-2xl opacity-40 transition-opacity duration-300 group-hover:opacity-70" />
+              <div className="pointer-events-none absolute inset-0 bg-emerald-500/10 blur-2xl opacity-40 transition-opacity duration-300 group-hover:opacity-70" />
 
               <div className="relative z-10 flex items-center justify-between gap-6">
                 <div className="flex min-w-0 items-center gap-3">
@@ -894,7 +1032,7 @@ export default function LeaderboardPage() {
                 </div>
 
                 <div className="shrink-0 text-right">
-                  <div className="text-base font-bold tabular-nums text-[#39FF14]">
+                  <div className="text-base font-bold tabular-nums text-emerald-400">
                     {fmtX(trendingNow.multiplier)}
                   </div>
                   <div className="text-[10px] text-zinc-500">current</div>
@@ -906,46 +1044,93 @@ export default function LeaderboardPage() {
         </div>
       </section>
 
-      {/* USER PERFORMANCE */}
-      <div className="mt-10 rounded-xl border border-zinc-900 bg-[#050505]/60 p-5">
-        <div className="mb-3 text-xs font-semibold tracking-wide text-zinc-400">
-          User Performance
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
-            <div className="flex items-start justify-between gap-2">
-              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-                AVG CALL → ATH
-              </p>
-              <span className="text-base" aria-hidden />
+      {/* COMMUNITY — same shell pattern as McGBot; emerald accent vs sky */}
+      <section id="community-performance" className="relative mt-16 scroll-mt-28">
+        <div
+          className="pointer-events-none absolute -top-5 left-1/2 h-px w-[min(100%,48rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-emerald-500/35 to-transparent"
+          aria-hidden
+        />
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/25 via-[#070a08] to-zinc-950 shadow-[0_0_0_1px_rgba(16,185,129,0.12),0_28px_70px_-42px_rgba(0,0,0,0.92)] ring-1 ring-emerald-400/15">
+          <div
+            className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-400/90 via-emerald-500/60 to-teal-600/50"
+            aria-hidden
+          />
+          <div className="relative border-b border-emerald-500/15 bg-emerald-950/20 px-5 py-5 sm:px-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-100 ring-1 ring-emerald-400/35">
+                    Community
+                  </span>
+                  <span className="rounded-md bg-zinc-950/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 ring-1 ring-zinc-700/80">
+                    Manual calls
+                  </span>
+                </div>
+                <h2 className="mt-3 text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl">
+                  Community performance & leaderboards
+                </h2>
+                <p className="mt-2 max-w-2xl text-xs leading-relaxed text-emerald-100/45 sm:text-sm">
+                  Callers, timing aggregates, and ranked tables for human-sourced activity — same layout
+                  language as McGBot below (emerald vs sky).
+                </p>
+              </div>
             </div>
-            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
-              {USER_AVG_TO_ATH}
-            </p>
-            <p className="mt-1.5 text-xs text-zinc-500">Community calls (mocked)</p>
           </div>
 
-          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
-            <div className="flex items-start justify-between gap-2">
-              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-                AVG → 2X
+          <div className="relative space-y-8 px-5 py-6 sm:px-6">
+            <div className="flex flex-col gap-3 rounded-xl border border-emerald-500/15 bg-gradient-to-r from-emerald-950/35 via-emerald-950/10 to-transparent px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <p className="text-sm leading-snug text-zinc-300">
+                <span className="font-semibold text-zinc-50">Get your handle in lights.</span>{" "}
+                Ranks reward verified calls and clean risk — grind the terminal, then watch this row
+                flip to your name.
               </p>
-              <span className="text-base" aria-hidden />
+              <Link
+                href="/help"
+                className="inline-flex shrink-0 items-center justify-center rounded-lg border border-emerald-400/35 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-500/25"
+              >
+                How to qualify →
+              </Link>
             </div>
-            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
-              {USER_AVG_TO_2X}
-            </p>
-            <p className="mt-1.5 text-xs text-zinc-500">Community calls (mocked)</p>
-          </div>
-        </div>
 
+            <div id="user-snapshot" className="scroll-mt-28">
+              <h3 className={`${sectionTitle}`}>Snapshot KPIs</h3>
+              <p className="mt-0.5 text-xs text-emerald-100/40">
+                Community aggregate timing (sample).
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-emerald-500/15 bg-emerald-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                    Avg call → ATH
+                  </p>
+                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-emerald-300">
+                    {USER_AVG_TO_ATH}
+                  </p>
+                  <p className="mt-1.5 text-xs text-zinc-500">Community aggregate (sample)</p>
+                </div>
+                <div className="rounded-xl border border-emerald-500/15 bg-emerald-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                    Avg → 2x
+                  </p>
+                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-emerald-300">
+                    {USER_AVG_TO_2X}
+                  </p>
+                  <p className="mt-1.5 text-xs text-zinc-500">Community aggregate (sample)</p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              id="user-boards"
+              className="scroll-mt-28 space-y-8 border-t border-emerald-500/10 pt-8"
+            >
         {/* User Leaderboard */}
-        <section className="mt-6 space-y-4">
+        <section className="space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className={sectionTitle}>User Leaderboard</h2>
-              <p className="mt-0.5 text-xs text-zinc-600">Leaderboard table (mocked)</p>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                Avg / best multiple and win rate by caller — matches timeframe tabs.
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               {TIMEFRAMES.map((tf) => {
@@ -960,8 +1145,8 @@ export default function LeaderboardPage() {
                     }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       active
-                        ? "border-[#39FF14]/40 bg-[#0a0a0a] text-white"
-                        : "border-[#1a1a1a] bg-[#050505] text-zinc-500 hover:text-white"
+                        ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-50 shadow-[0_0_14px_-4px_rgba(16,185,129,0.35)]"
+                        : "border-emerald-500/10 bg-black/20 text-zinc-400 hover:border-emerald-500/30 hover:text-zinc-100"
                     }`}
                   >
                     {tf.label}
@@ -982,8 +1167,8 @@ export default function LeaderboardPage() {
                   onClick={() => setUserPage(p)}
                   className={`min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
                     active
-                      ? "border-[#39FF14]/45 bg-[#0a0a0a] text-[#39FF14]"
-                      : "border-[#1a1a1a] bg-[#050505] text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
+                      ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-100"
+                      : "border-emerald-500/10 bg-black/25 text-zinc-500 hover:border-emerald-500/25 hover:text-zinc-200"
                   }`}
                 >
                   {p}
@@ -999,8 +1184,8 @@ export default function LeaderboardPage() {
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className={sectionTitle}>Indiv. Call Leaderboard</h2>
-                <p className="mt-0.5 text-xs text-zinc-600">
-                  Top individual calls ranked by multiplier (mocked)
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                  Highest single-call multiples and time-to-ATH — ranked list.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -1016,8 +1201,8 @@ export default function LeaderboardPage() {
                     }}
                       className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                         active
-                          ? "border-[#39FF14]/40 bg-[#0a0a0a] text-white"
-                          : "border-[#1a1a1a] bg-[#050505] text-zinc-500 hover:text-white"
+                          ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-50 shadow-[0_0_14px_-4px_rgba(16,185,129,0.35)]"
+                          : "border-emerald-500/10 bg-black/20 text-zinc-400 hover:border-emerald-500/30 hover:text-zinc-100"
                       }`}
                     >
                       {tf.label}
@@ -1038,8 +1223,8 @@ export default function LeaderboardPage() {
                     onClick={() => setIndivPage(p)}
                     className={`min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
                       active
-                        ? "border-[#39FF14]/45 bg-[#0a0a0a] text-[#39FF14]"
-                        : "border-[#1a1a1a] bg-[#050505] text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
+                        ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-100"
+                        : "border-emerald-500/10 bg-black/25 text-zinc-500 hover:border-emerald-500/25 hover:text-zinc-200"
                     }`}
                   >
                     {p}
@@ -1049,43 +1234,87 @@ export default function LeaderboardPage() {
             </div>
           </section>
         </div>
-      </div>
-
-      {/* BOT PERFORMANCE */}
-      <div id="bot-performance" className="mt-16 rounded-xl border border-zinc-900 bg-[#050505]/60 p-5">
-        <div className="mb-3 text-xs font-semibold tracking-wide text-zinc-400">
-          Bot Performance
+            </div>
+          </div>
         </div>
+      </section>
 
+      {/* BOT — same layout pattern as community; sky accent */}
+      <section id="bot-performance" className="relative mt-16 scroll-mt-28">
+        <div
+          className="pointer-events-none absolute -top-5 left-1/2 h-px w-[min(100%,48rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-sky-500/35 to-transparent"
+          aria-hidden
+        />
+        <div className="relative overflow-hidden rounded-2xl border border-sky-500/25 bg-gradient-to-br from-sky-950/35 via-[#070c10] to-zinc-950 shadow-[0_0_0_1px_rgba(56,189,248,0.12),0_28px_70px_-42px_rgba(0,0,0,0.92)] ring-1 ring-sky-400/15">
+          <div
+            className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-sky-400/90 via-sky-500/60 to-cyan-600/50"
+            aria-hidden
+          />
+          <div className="relative border-b border-sky-500/15 bg-sky-950/20 px-5 py-5 sm:px-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-md bg-sky-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.22em] text-sky-100 ring-1 ring-sky-400/35">
+                    McGBot
+                  </span>
+                  <span className="rounded-md bg-zinc-950/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 ring-1 ring-zinc-700/80">
+                    Automated calls
+                  </span>
+                </div>
+                <h2 className="mt-3 text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl">
+                  Bot performance & call feed
+                </h2>
+                <p className="mt-2 max-w-2xl text-xs leading-relaxed text-sky-100/50 sm:text-sm">
+                  Everything here is bot-issued — compare directly with the community hub above using
+                  the same KPI cards, feeds, and ranked lists.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative space-y-6 px-5 py-6 sm:px-6">
+            <div className="flex flex-col gap-3 rounded-xl border border-sky-500/15 bg-gradient-to-r from-sky-950/35 via-sky-950/10 to-transparent px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <p className="text-sm leading-snug text-zinc-300">
+                <span className="font-semibold text-zinc-50">Automation has its own ladder.</span>{" "}
+                Same layout as community — compare your manual edge vs McGBot&apos;s consistency on
+                multiples, speed, and hit rate.
+              </p>
+              <Link
+                href="/settings"
+                className="inline-flex shrink-0 items-center justify-center rounded-lg border border-sky-400/35 bg-sky-500/15 px-3 py-2 text-xs font-semibold text-sky-50 transition hover:bg-sky-500/25"
+              >
+                Bot settings →
+              </Link>
+            </div>
         {/* Bot summary stats */}
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Best Bot Call (All-Time)
               </p>
               <span className="text-base" aria-hidden />
             </div>
-            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-sky-300">
               {fmtX(botSummary.bestMultiplier)}
             </p>
             <p className="mt-1.5 text-xs text-zinc-500">{botSummary.bestSymbol}</p>
           </div>
 
-          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Avg Multiplier
               </p>
               <span className="text-base" aria-hidden />
             </div>
-            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-sky-300">
               {fmtX(botSummary.avgMultiplier)}
             </p>
             <p className="mt-1.5 text-xs text-zinc-500">Across tracked bot calls</p>
           </div>
 
-          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Total Calls
@@ -1098,7 +1327,7 @@ export default function LeaderboardPage() {
             <p className="mt-1.5 text-xs text-zinc-500">All-time bot-issued calls</p>
           </div>
 
-          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Win Rate
@@ -1108,50 +1337,57 @@ export default function LeaderboardPage() {
             <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-100">
               {botSummary.winRate}%
             </p>
-            <p className="mt-1.5 text-xs text-zinc-500">Mock aggregate</p>
+            <p className="mt-1.5 text-xs text-zinc-500">Aggregate (sample)</p>
           </div>
 
-          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Avg → ATH
               </p>
               <span className="text-base" aria-hidden />
             </div>
-            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-sky-300">
               {botSummary.avgToAth}
             </p>
-            <p className="mt-1.5 text-xs text-zinc-500">Mean call → ATH (mocked)</p>
+            <p className="mt-1.5 text-xs text-zinc-500">Mean call → ATH (sample)</p>
           </div>
 
-          <div className="rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Avg → 2x
               </p>
               <span className="text-base" aria-hidden />
             </div>
-            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-[#39FF14]">
+            <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-sky-300">
               {botSummary.avgTo2x}
             </p>
-            <p className="mt-1.5 text-xs text-zinc-500">Mean call → 2x (mocked)</p>
+            <p className="mt-1.5 text-xs text-zinc-500">Mean call → 2x (sample)</p>
           </div>
         </div>
 
         {/* Activity */}
-        <div className="mt-6 grid grid-cols-2 gap-6 items-stretch">
+        <div className="mt-2 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
           {/* Recent Milestone Hits */}
-          <div className="h-full max-h-[340px] flex flex-col rounded-xl border border-zinc-900 bg-[#050505]/40 p-4">
-            <div className="mb-2">
-              <h3 className="text-sm font-semibold text-zinc-100">Recent Milestone Hits</h3>
-              <p className="mt-0.5 text-xs text-zinc-600">Call → milestone activity (mocked)</p>
+          <div className="flex h-full max-h-[340px] flex-col rounded-xl border border-sky-500/15 bg-sky-950/15 p-4 ring-1 ring-sky-500/10">
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">Recent Milestone Hits</h3>
+                <p className="mt-0.5 text-xs text-sky-100/40">
+                  Bot milestones (sample) — call → 2x / ATH timing
+                </p>
+              </div>
+              <span className="shrink-0 rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-200/90">
+                Bot
+              </span>
             </div>
-            <div className="flex-1 overflow-y-auto rounded-xl border border-[#1a1a1a]/60 bg-[#080808] p-3 opacity-[0.94] scrollbar-thin scrollbar-thumb-zinc-700/40 scrollbar-track-transparent">
+            <div className="flex-1 overflow-y-auto rounded-xl border border-sky-500/10 bg-black/30 p-3 scrollbar-thin scrollbar-thumb-sky-900/60 scrollbar-track-transparent">
               <ul className="space-y-0.5">
                 {MOCK_BOT_MILESTONES.map((row, idx) => (
                   <li
                     key={`${row.token}-${row.milestone}-${idx}`}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a]/60 bg-transparent px-3 py-1 transition-all duration-150 hover:bg-zinc-900/60"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/10 bg-sky-950/10 px-3 py-1.5 transition-all duration-150 hover:bg-sky-950/35"
                   >
                     <div className="min-w-0 flex-1 truncate text-[11px] text-zinc-200">
                       <span className="font-semibold text-zinc-100">{row.token}</span>{" "}
@@ -1161,7 +1397,7 @@ export default function LeaderboardPage() {
                       <span
                         className={[
                           "font-semibold tabular-nums",
-                          row.milestone === "ATH" ? "text-amber-300" : "text-[#39FF14]",
+                          row.milestone === "ATH" ? "text-amber-300" : "text-sky-300",
                         ].join(" ")}
                       >
                         {row.milestone}
@@ -1179,17 +1415,22 @@ export default function LeaderboardPage() {
           </div>
 
           {/* Live Bot Activity */}
-          <div className="h-full max-h-[340px] flex flex-col rounded-xl border border-zinc-900 bg-[#050505]/40 p-4">
-            <div className="mb-2">
-              <h3 className="text-sm font-semibold text-zinc-100">Live Bot Activity</h3>
-              <p className="mt-0.5 text-xs text-zinc-600">Recent bot calls (mocked)</p>
+          <div className="flex h-full max-h-[340px] flex-col rounded-xl border border-sky-500/15 bg-sky-950/15 p-4 ring-1 ring-sky-500/10">
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">Live Bot Activity</h3>
+                <p className="mt-0.5 text-xs text-sky-100/40">Latest McGBot entries (sample)</p>
+              </div>
+              <span className="shrink-0 rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-200/90">
+                Bot
+              </span>
             </div>
-            <div className="flex-1 overflow-y-auto rounded-xl border border-[#1a1a1a]/60 bg-[#080808] p-3 opacity-[0.94] scrollbar-thin scrollbar-thumb-zinc-700/40 scrollbar-track-transparent">
+            <div className="flex-1 overflow-y-auto rounded-xl border border-sky-500/10 bg-black/30 p-3 scrollbar-thin scrollbar-thumb-sky-900/60 scrollbar-track-transparent">
               <ul className="space-y-0.5">
                 {MOCK_LIVE_BOT_ACTIVITY.map((row, idx) => (
                   <li
                     key={`${row.token}-${row.ago}-${idx}`}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a]/60 bg-transparent px-3 py-1 transition-all duration-150 hover:bg-zinc-900/60"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/10 bg-sky-950/10 px-3 py-1.5 transition-all duration-150 hover:bg-sky-950/35"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[11px] font-semibold text-zinc-100">
@@ -1197,7 +1438,7 @@ export default function LeaderboardPage() {
                       </div>
                       <div className="truncate text-[10px] text-zinc-500">
                         McGBot called {row.token} @{" "}
-                        <span className="font-semibold tabular-nums text-[#39FF14]">
+                        <span className="font-semibold tabular-nums text-sky-300">
                           {fmtMC(row.mc)} MC
                         </span>
                       </div>
@@ -1213,12 +1454,12 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Top McGBot Calls */}
-        <div className="mt-6 rounded-xl border border-[#1a1a1a]/90 bg-[#060606] p-4 ring-1 ring-black/20">
+        <div className="mt-2 rounded-xl border border-sky-500/20 bg-sky-950/10 p-4 ring-1 ring-sky-500/10">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className={sectionTitle}>Top McGBot Calls</h2>
-              <span className="rounded border border-zinc-700/80 bg-zinc-900/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                Bot
+              <span className="rounded-md border border-sky-400/35 bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-100">
+                Bot only
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1234,8 +1475,8 @@ export default function LeaderboardPage() {
                     }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       active
-                        ? "border-[#39FF14]/40 bg-[#0a0a0a] text-white"
-                        : "border-[#1a1a1a] bg-[#050505] text-zinc-500 hover:text-white"
+                        ? "border-sky-400/50 bg-sky-500/15 text-sky-50 shadow-[0_0_14px_-4px_rgba(56,189,248,0.45)]"
+                        : "border-sky-500/10 bg-black/20 text-zinc-400 hover:border-sky-500/30 hover:text-zinc-100"
                     }`}
                   >
                     {tf.label}
@@ -1244,9 +1485,11 @@ export default function LeaderboardPage() {
               })}
             </div>
           </div>
-          <p className="mt-2 text-xs text-zinc-600">Automated call highlights (mocked)</p>
+          <p className="mt-2 text-xs text-zinc-500">
+            Automated call highlights — sample list; pair with live bot feed when wired.
+          </p>
           <div className="mt-6">
-            <TopCallsList rows={mcgbotRows} tone="muted" />
+            <TopCallsList rows={mcgbotRows} tone="bot" />
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
             {[1, 2, 3, 4, 5].map((p) => {
@@ -1259,8 +1502,8 @@ export default function LeaderboardPage() {
                   onClick={() => setMcgbotPage(p)}
                   className={`min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
                     active
-                      ? "border-[#39FF14]/45 bg-[#0a0a0a] text-[#39FF14]"
-                      : "border-[#1a1a1a] bg-[#050505] text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
+                      ? "border-sky-400/50 bg-sky-500/15 text-sky-100"
+                      : "border-sky-500/10 bg-black/25 text-zinc-500 hover:border-sky-500/25 hover:text-zinc-200"
                   }`}
                 >
                   {p}
@@ -1269,6 +1512,9 @@ export default function LeaderboardPage() {
             })}
           </div>
         </div>
+          </div>
+        </div>
+      </section>
       </div>
     </div>
   );
