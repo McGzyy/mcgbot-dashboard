@@ -6,6 +6,11 @@ export type DashboardAdminSettingsRow = {
   maintenance_message: string | null;
   paywall_subtitle: string | null;
   public_signups_paused: boolean;
+  announcement_enabled: boolean;
+  announcement_message: string | null;
+  paywall_title: string | null;
+  subscribe_button_label: string | null;
+  discord_invite_url: string | null;
   updated_at: string;
   updated_by_discord_id: string | null;
 };
@@ -18,6 +23,11 @@ function defaultRow(): DashboardAdminSettingsRow {
     maintenance_message: null,
     paywall_subtitle: null,
     public_signups_paused: false,
+    announcement_enabled: false,
+    announcement_message: null,
+    paywall_title: null,
+    subscribe_button_label: null,
+    discord_invite_url: null,
     updated_at: now,
     updated_by_discord_id: null,
   };
@@ -32,7 +42,24 @@ export async function getDashboardAdminSettings(): Promise<DashboardAdminSetting
     return null;
   }
   if (!data) return null;
-  return data as DashboardAdminSettingsRow;
+  return normalizeAdminSettingsRow(data as Record<string, unknown>);
+}
+
+function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSettingsRow {
+  return {
+    id: typeof r.id === "number" ? r.id : 1,
+    maintenance_enabled: r.maintenance_enabled === true,
+    maintenance_message: typeof r.maintenance_message === "string" ? r.maintenance_message : null,
+    paywall_subtitle: typeof r.paywall_subtitle === "string" ? r.paywall_subtitle : null,
+    public_signups_paused: r.public_signups_paused === true,
+    announcement_enabled: r.announcement_enabled === true,
+    announcement_message: typeof r.announcement_message === "string" ? r.announcement_message : null,
+    paywall_title: typeof r.paywall_title === "string" ? r.paywall_title : null,
+    subscribe_button_label: typeof r.subscribe_button_label === "string" ? r.subscribe_button_label : null,
+    discord_invite_url: typeof r.discord_invite_url === "string" ? r.discord_invite_url : null,
+    updated_at: typeof r.updated_at === "string" ? r.updated_at : new Date().toISOString(),
+    updated_by_discord_id: typeof r.updated_by_discord_id === "string" ? r.updated_by_discord_id : null,
+  };
 }
 
 export async function patchDashboardAdminSettings(input: {
@@ -40,6 +67,11 @@ export async function patchDashboardAdminSettings(input: {
   maintenance_message?: string | null;
   paywall_subtitle?: string | null;
   public_signups_paused?: boolean;
+  announcement_enabled?: boolean;
+  announcement_message?: string | null;
+  paywall_title?: string | null;
+  subscribe_button_label?: string | null;
+  discord_invite_url?: string | null;
   updatedByDiscordId: string;
 }): Promise<DashboardAdminSettingsRow | null> {
   const db = getSupabaseAdmin();
@@ -65,6 +97,27 @@ export async function patchDashboardAdminSettings(input: {
   if (typeof input.public_signups_paused === "boolean") {
     next.public_signups_paused = input.public_signups_paused;
   }
+  if (typeof input.announcement_enabled === "boolean") {
+    next.announcement_enabled = input.announcement_enabled;
+  }
+  if ("announcement_message" in input) {
+    const a = input.announcement_message;
+    next.announcement_message =
+      a == null || !String(a).trim() ? null : String(a).trim().slice(0, 2000);
+  }
+  if ("paywall_title" in input) {
+    const t = input.paywall_title;
+    next.paywall_title = t == null || !String(t).trim() ? null : String(t).trim().slice(0, 120);
+  }
+  if ("subscribe_button_label" in input) {
+    const b = input.subscribe_button_label;
+    next.subscribe_button_label =
+      b == null || !String(b).trim() ? null : String(b).trim().slice(0, 48);
+  }
+  if ("discord_invite_url" in input) {
+    const d = input.discord_invite_url;
+    next.discord_invite_url = d == null || !String(d).trim() ? null : String(d).trim().slice(0, 500);
+  }
 
   const { data, error } = await db
     .from("dashboard_admin_settings")
@@ -75,6 +128,11 @@ export async function patchDashboardAdminSettings(input: {
         maintenance_message: next.maintenance_message,
         paywall_subtitle: next.paywall_subtitle,
         public_signups_paused: next.public_signups_paused,
+        announcement_enabled: next.announcement_enabled,
+        announcement_message: next.announcement_message,
+        paywall_title: next.paywall_title,
+        subscribe_button_label: next.subscribe_button_label,
+        discord_invite_url: next.discord_invite_url,
         updated_at: next.updated_at,
         updated_by_discord_id: next.updated_by_discord_id,
       },
@@ -87,5 +145,5 @@ export async function patchDashboardAdminSettings(input: {
     console.error("[dashboardAdminSettings] patch", error);
     return null;
   }
-  return data as DashboardAdminSettingsRow;
+  return normalizeAdminSettingsRow(data as Record<string, unknown>);
 }

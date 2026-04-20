@@ -31,6 +31,16 @@ export default async function MaintenancePage() {
           Dashboard admins can still sign in and use the app. If you believe you should have access, contact staff in
           Discord.
         </p>
+        {row.discord_invite_url?.trim() ? (
+          <a
+            href={row.discord_invite_url.trim()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit items-center justify-center rounded-lg border border-[#5865F2]/50 bg-[#5865F2]/15 px-4 py-2.5 text-sm font-semibold text-[#949cf7] transition hover:border-[#5865F2] hover:bg-[#5865F2]/25"
+          >
+            Open Discord
+          </a>
+        ) : null}
       </main>
     </div>
   );

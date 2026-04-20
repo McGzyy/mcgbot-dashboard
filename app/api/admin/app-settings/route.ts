@@ -53,6 +53,40 @@ export async function PATCH(req: Request) {
   if ("paywall_subtitle" in o) {
     patch.paywall_subtitle = o.paywall_subtitle == null ? null : String(o.paywall_subtitle);
   }
+  if (typeof o.announcement_enabled === "boolean") {
+    patch.announcement_enabled = o.announcement_enabled;
+  }
+  if ("announcement_message" in o) {
+    patch.announcement_message =
+      o.announcement_message == null ? null : String(o.announcement_message);
+  }
+  if ("paywall_title" in o) {
+    patch.paywall_title = o.paywall_title == null ? null : String(o.paywall_title);
+  }
+  if ("subscribe_button_label" in o) {
+    patch.subscribe_button_label =
+      o.subscribe_button_label == null ? null : String(o.subscribe_button_label);
+  }
+  if ("discord_invite_url" in o) {
+    const raw = o.discord_invite_url;
+    if (raw == null || (typeof raw === "string" && !raw.trim())) {
+      patch.discord_invite_url = null;
+    } else if (typeof raw === "string") {
+      let u = raw.trim();
+      if (!/^https?:\/\//i.test(u)) {
+        u = `https://${u}`;
+      }
+      try {
+        const parsed = new URL(u);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          return Response.json({ success: false, error: "discord_invite_url must be http(s)" }, { status: 400 });
+        }
+        patch.discord_invite_url = u.slice(0, 500);
+      } catch {
+        return Response.json({ success: false, error: "Invalid discord_invite_url" }, { status: 400 });
+      }
+    }
+  }
 
   const row = await patchDashboardAdminSettings(patch);
   if (!row) {

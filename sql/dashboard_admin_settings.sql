@@ -7,6 +7,11 @@ create table if not exists public.dashboard_admin_settings (
   maintenance_message text,
   paywall_subtitle text,
   public_signups_paused boolean not null default false,
+  announcement_enabled boolean not null default false,
+  announcement_message text,
+  paywall_title text,
+  subscribe_button_label text,
+  discord_invite_url text,
   updated_at timestamptz not null default now(),
   updated_by_discord_id text
 );

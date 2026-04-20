@@ -26,6 +26,11 @@ type SiteFlags = {
   maintenance_message: string | null;
   paywall_subtitle: string | null;
   public_signups_paused: boolean;
+  announcement_enabled: boolean;
+  announcement_message: string | null;
+  paywall_title: string | null;
+  subscribe_button_label: string | null;
+  discord_invite_url: string | null;
 };
 
 function formatExpiry(iso: string): string {
@@ -69,6 +74,13 @@ export default function SubscribePage() {
             typeof json.maintenance_message === "string" ? json.maintenance_message : null,
           paywall_subtitle: typeof json.paywall_subtitle === "string" ? json.paywall_subtitle : null,
           public_signups_paused: Boolean(json.public_signups_paused),
+          announcement_enabled: Boolean(json.announcement_enabled),
+          announcement_message:
+            typeof json.announcement_message === "string" ? json.announcement_message : null,
+          paywall_title: typeof json.paywall_title === "string" ? json.paywall_title : null,
+          subscribe_button_label:
+            typeof json.subscribe_button_label === "string" ? json.subscribe_button_label : null,
+          discord_invite_url: typeof json.discord_invite_url === "string" ? json.discord_invite_url : null,
         });
       } catch {
         if (!cancelled) setSiteFlags(null);
@@ -213,6 +225,16 @@ export default function SubscribePage() {
           >
             Login with Discord
           </button>
+          {siteFlags?.discord_invite_url?.trim() ? (
+            <a
+              href={siteFlags.discord_invite_url.trim()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-fit text-sm font-medium text-[#949cf7] underline-offset-4 hover:underline"
+            >
+              Join the McGBot Discord
+            </a>
+          ) : null}
         </main>
       </div>
     );
@@ -290,7 +312,9 @@ export default function SubscribePage() {
 
       <main className="mx-auto flex max-w-2xl flex-col gap-10 px-6 py-12">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Choose a plan</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {siteFlags?.paywall_title?.trim() || "Choose a plan"}
+          </h1>
           <p className="mt-2 text-sm leading-relaxed text-zinc-400">
             Pay in SOL at checkout (USD amount is quoted from Jupiter and refreshes each time you start checkout).
             After you send payment, confirmation may take a minute while the server polls the chain.
@@ -356,7 +380,9 @@ export default function SubscribePage() {
             onClick={() => void startCheckout()}
             className="rounded-lg bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy ? "Preparing…" : "Start checkout"}
+            {busy
+              ? "Preparing…"
+              : siteFlags?.subscribe_button_label?.trim() || "Start checkout"}
           </button>
           {checkout ? (
             <button
@@ -370,6 +396,16 @@ export default function SubscribePage() {
             >
               Cancel quote
             </button>
+          ) : null}
+          {siteFlags?.discord_invite_url?.trim() ? (
+            <a
+              href={siteFlags.discord_invite_url.trim()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-[#949cf7] underline-offset-4 hover:underline"
+            >
+              Discord server
+            </a>
           ) : null}
         </div>
 

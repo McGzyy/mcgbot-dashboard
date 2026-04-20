@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AdminPanel, AdminMetric } from "@/app/admin/_components/adminUi";
 
 type Summary = {
@@ -19,9 +19,37 @@ type AppSettings = {
   maintenance_message: string | null;
   paywall_subtitle: string | null;
   public_signups_paused: boolean;
+  announcement_enabled: boolean;
+  announcement_message: string | null;
+  paywall_title: string | null;
+  subscribe_button_label: string | null;
+  discord_invite_url: string | null;
   updated_at?: string;
   updated_by_discord_id?: string | null;
 };
+
+function SettingsSection({
+  kicker,
+  title,
+  description,
+  children,
+}: {
+  kicker: string;
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-zinc-900/40 to-black/20 p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+      <header className="mb-5 border-b border-white/[0.06] pb-4">
+        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-violet-400/90">{kicker}</p>
+        <h3 className="mt-1.5 text-base font-semibold tracking-tight text-white">{title}</h3>
+        {description ? <p className="mt-2 text-xs leading-relaxed text-zinc-500">{description}</p> : null}
+      </header>
+      <div className="space-y-5">{children}</div>
+    </section>
+  );
+}
 
 export function SiteAdminClient() {
   const [data, setData] = useState<Summary | null>(null);
@@ -69,7 +97,7 @@ export function SiteAdminClient() {
       if (!res.ok || json.success !== true || !json.settings) {
         const hint =
           json.code === "no_table_or_supabase"
-            ? " Run `sql/dashboard_admin_settings.sql` in Supabase."
+            ? " Run `sql/dashboard_admin_settings.sql` (and `sql/dashboard_admin_settings_extend.sql` for new columns) in Supabase."
             : "";
         setSettingsError((typeof json.error === "string" ? json.error : "Failed to load settings.") + hint);
         setSettings(null);
@@ -107,6 +135,11 @@ export function SiteAdminClient() {
           maintenance_message: settings.maintenance_message,
           paywall_subtitle: settings.paywall_subtitle,
           public_signups_paused: settings.public_signups_paused,
+          announcement_enabled: settings.announcement_enabled,
+          announcement_message: settings.announcement_message,
+          paywall_title: settings.paywall_title,
+          subscribe_button_label: settings.subscribe_button_label,
+          discord_invite_url: settings.discord_invite_url,
         }),
       });
       const json = (await res.json().catch(() => ({}))) as {
@@ -143,21 +176,29 @@ export function SiteAdminClient() {
   ];
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-white">Dashboard app</h2>
-          <p className="mt-1 max-w-xl text-sm text-zinc-400">
-            Host fingerprint (read-only) and live settings stored in Supabase — wired below.
-          </p>
+    <div className="space-y-8">
+      <div className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/40 via-zinc-950/80 to-zinc-950 p-6 shadow-[0_0_40px_-12px_rgba(139,92,246,0.35)]">
+        <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/20 blur-2xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-violet-300/80">Dashboard app</p>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Control &amp; surface copy</h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">
+              Read-only deployment fingerprint below. Editable values live in{" "}
+              <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-xs text-violet-200/90">
+                dashboard_admin_settings
+              </code>{" "}
+              and apply to middleware, subscribe, and the global banner within a few seconds.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void refreshAll()}
+            className="rounded-lg border border-zinc-500/50 bg-zinc-900/80 px-4 py-2 text-xs font-semibold text-zinc-100 transition hover:border-violet-400/50 hover:text-white"
+          >
+            Refresh all
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => void refreshAll()}
-          className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-violet-500/40 hover:text-white"
-        >
-          Refresh all
-        </button>
       </div>
 
       {error ? (
@@ -166,57 +207,60 @@ export function SiteAdminClient() {
         </AdminPanel>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <AdminPanel className="p-5">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Deployment</h3>
-          {loading ? (
-            <p className="mt-3 text-sm text-zinc-500">Loading…</p>
-          ) : (
-            <dl className="mt-4 space-y-3">
-              <AdminMetric label="Node" value={dep?.nodeEnv ?? "—"} tone="neutral" />
-              <AdminMetric label="Git ref" value={dep?.vercelGitCommitRef ?? "—"} tone="neutral" />
-              <AdminMetric
-                label="Commit"
-                value={
-                  dep?.vercelGitCommitSha ? (
-                    <span className="font-mono text-xs text-violet-200/90">{dep.vercelGitCommitSha}</span>
-                  ) : (
-                    <span className="text-zinc-500">Not on Vercel or not injected</span>
-                  )
-                }
-                tone={dep?.vercelGitCommitSha ? "ok" : "warn"}
-              />
-              <AdminMetric label="Vercel env" value={dep?.vercelEnv ?? "—"} tone="neutral" />
-            </dl>
-          )}
-        </AdminPanel>
+      <div>
+        <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Environment</h3>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <AdminPanel className="p-5">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Deployment</h4>
+            {loading ? (
+              <p className="mt-3 text-sm text-zinc-500">Loading…</p>
+            ) : (
+              <dl className="mt-4 space-y-3">
+                <AdminMetric label="Node" value={dep?.nodeEnv ?? "—"} tone="neutral" />
+                <AdminMetric label="Git ref" value={dep?.vercelGitCommitRef ?? "—"} tone="neutral" />
+                <AdminMetric
+                  label="Commit"
+                  value={
+                    dep?.vercelGitCommitSha ? (
+                      <span className="font-mono text-xs text-violet-200/90">{dep.vercelGitCommitSha}</span>
+                    ) : (
+                      <span className="text-zinc-500">Not on Vercel or not injected</span>
+                    )
+                  }
+                  tone={dep?.vercelGitCommitSha ? "ok" : "warn"}
+                />
+                <AdminMetric label="Vercel env" value={dep?.vercelEnv ?? "—"} tone="neutral" />
+              </dl>
+            )}
+          </AdminPanel>
 
-        <AdminPanel className="p-5">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Integrations</h3>
-          {loading ? (
-            <p className="mt-3 text-sm text-zinc-500">Loading…</p>
-          ) : (
-            <ul className="mt-4 space-y-2">
-              {rows.map(({ key, label }) => (
-                <li key={key} className="flex items-center justify-between gap-3 rounded-lg bg-black/30 px-3 py-2">
-                  <span className="text-xs text-zinc-400">{label}</span>
-                  <span
-                    className={`text-xs font-semibold ${int[key] ? "text-emerald-400" : "text-red-400"}`}
+          <AdminPanel className="p-5">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Integrations</h4>
+            {loading ? (
+              <p className="mt-3 text-sm text-zinc-500">Loading…</p>
+            ) : (
+              <ul className="mt-4 max-h-[280px] space-y-1.5 overflow-y-auto pr-1">
+                {rows.map(({ key, label }) => (
+                  <li
+                    key={key}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.04] bg-black/25 px-3 py-2"
                   >
-                    {int[key] ? "On" : "Off"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </AdminPanel>
-      </div>
-
-      <div className="relative py-2">
-        <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
-        <p className="relative mx-auto w-max bg-[#050505] px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-300/90">
-          Live settings
-        </p>
+                    <span className="text-xs text-zinc-400">{label}</span>
+                    <span
+                      className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        int[key]
+                          ? "bg-emerald-500/15 text-emerald-300"
+                          : "bg-red-500/15 text-red-300"
+                      }`}
+                    >
+                      {int[key] ? "On" : "Off"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </AdminPanel>
+        </div>
       </div>
 
       {settingsError ? (
@@ -228,101 +272,179 @@ export function SiteAdminClient() {
         <p className="text-sm font-medium text-emerald-400/90">{saveOk}</p>
       ) : null}
 
-      <AdminPanel className="p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.06] pb-4">
+      <AdminPanel className="overflow-hidden p-0">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.06] bg-black/30 px-6 py-4">
           <div>
-            <h3 className="text-sm font-semibold text-white">Public experience</h3>
-            <p className="mt-1 text-xs text-zinc-500">
-              Stored in <code className="font-mono text-zinc-400">dashboard_admin_settings</code>. Maintenance and
-              checkout pause are enforced in middleware, <code className="font-mono text-zinc-400">/subscribe</code>,
-              and <code className="font-mono text-zinc-400">POST /api/subscription/checkout</code> (admins bypass
-              gates).
-            </p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Live settings</p>
+            <p className="text-sm font-medium text-white">Public experience</p>
           </div>
           <button
             type="button"
             disabled={saveBusy || settingsLoading || !settings}
             onClick={() => void saveSettings()}
-            className="rounded-lg bg-gradient-to-r from-violet-600 to-violet-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-violet-950/40 transition hover:from-violet-500 hover:to-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg bg-gradient-to-r from-violet-600 to-violet-500 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-violet-950/40 transition hover:from-violet-500 hover:to-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {saveBusy ? "Saving…" : "Save changes"}
           </button>
         </div>
 
-        {settingsLoading || !settings ? (
-          <p className="mt-6 text-sm text-zinc-500">Loading settings…</p>
-        ) : (
-          <div className="mt-6 space-y-6">
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/50"
-                checked={settings.maintenance_enabled}
-                onChange={(e) =>
-                  setSettings((s) => (s ? { ...s, maintenance_enabled: e.target.checked } : s))
-                }
-              />
-              <span>
-                <span className="block text-sm font-medium text-white">Maintenance mode</span>
-                <span className="mt-0.5 block text-xs text-zinc-500">
-                  Non-admins are redirected to <code className="font-mono text-zinc-400">/maintenance</code> and APIs
-                  return 503 except allowlisted routes.
-                </span>
-              </span>
-            </label>
+        <div className="space-y-6 p-6">
+          {settingsLoading || !settings ? (
+            <p className="text-sm text-zinc-500">Loading settings…</p>
+          ) : (
+            <>
+              <SettingsSection
+                kicker="Banner"
+                title="Global announcement"
+                description="Thin strip at the top of every page (including subscribe). Use for deploy notices, mint windows, or Discord events."
+              >
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/50"
+                    checked={settings.announcement_enabled}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, announcement_enabled: e.target.checked } : s))
+                    }
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-white">Show announcement bar</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">Turn off when the message is no longer relevant.</span>
+                  </span>
+                </label>
+                <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Message
+                  <textarea
+                    value={settings.announcement_message ?? ""}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, announcement_message: e.target.value } : s))
+                    }
+                    rows={3}
+                    placeholder="e.g. Leaderboard reset tonight 00:00 UTC — good luck."
+                    className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                  />
+                </label>
+              </SettingsSection>
 
-            <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
-              Maintenance message
-              <textarea
-                value={settings.maintenance_message ?? ""}
-                onChange={(e) =>
-                  setSettings((s) => (s ? { ...s, maintenance_message: e.target.value } : s))
-                }
-                rows={3}
-                placeholder="We’re upgrading — back in a few minutes."
-                className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
-              />
-            </label>
+              <SettingsSection
+                kicker="Operations"
+                title="Maintenance &amp; checkout"
+                description="Maintenance redirects non-admins to /maintenance (503 on most APIs). Paused checkouts still allow admins to test."
+              >
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/50"
+                    checked={settings.maintenance_enabled}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, maintenance_enabled: e.target.checked } : s))
+                    }
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-white">Maintenance mode</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      Non-admins see /maintenance; allowlisted routes stay up (auth, plans GET, public flags).
+                    </span>
+                  </span>
+                </label>
 
-            <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
-              Paywall subtitle (optional)
-              <input
-                value={settings.paywall_subtitle ?? ""}
-                onChange={(e) =>
-                  setSettings((s) => (s ? { ...s, paywall_subtitle: e.target.value } : s))
-                }
-                placeholder="Short line under the subscribe headline."
-                className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
-              />
-            </label>
+                <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Maintenance message
+                  <textarea
+                    value={settings.maintenance_message ?? ""}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, maintenance_message: e.target.value } : s))
+                    }
+                    rows={3}
+                    placeholder="We're upgrading — back in a few minutes."
+                    className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                  />
+                </label>
 
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/50"
-                checked={settings.public_signups_paused}
-                onChange={(e) =>
-                  setSettings((s) => (s ? { ...s, public_signups_paused: e.target.checked } : s))
-                }
-              />
-              <span>
-                <span className="block text-sm font-medium text-white">Pause new checkouts</span>
-                <span className="mt-0.5 block text-xs text-zinc-500">
-                  Blocks checkout for everyone except dashboard admins (same bypass as maintenance).
-                </span>
-              </span>
-            </label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/50"
+                    checked={settings.public_signups_paused}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, public_signups_paused: e.target.checked } : s))
+                    }
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-white">Pause new checkouts</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      Blocks POST /api/subscription/checkout for non-admins; subscribe page disables the button.
+                    </span>
+                  </span>
+                </label>
+              </SettingsSection>
 
-            {settings.updated_at ? (
-              <p className="text-[11px] text-zinc-600">
-                Last updated {new Date(settings.updated_at).toLocaleString()}
-                {settings.updated_by_discord_id ? (
-                  <span> · by {settings.updated_by_discord_id}</span>
-                ) : null}
-              </p>
-            ) : null}
-          </div>
-        )}
+              <SettingsSection
+                kicker="Subscribe"
+                title="Paywall copy &amp; Discord"
+                description="Shown on /subscribe (headline, subtitle, primary button label). Discord link appears on subscribe and the maintenance screen."
+              >
+                <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Paywall headline (optional)
+                  <input
+                    value={settings.paywall_title ?? ""}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, paywall_title: e.target.value } : s))
+                    }
+                    placeholder="Defaults to “Choose a plan”"
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                  />
+                </label>
+
+                <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Paywall subtitle (optional)
+                  <input
+                    value={settings.paywall_subtitle ?? ""}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, paywall_subtitle: e.target.value } : s))
+                    }
+                    placeholder="Short supporting line under the headline."
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                  />
+                </label>
+
+                <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Checkout button label (optional)
+                  <input
+                    value={settings.subscribe_button_label ?? ""}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, subscribe_button_label: e.target.value } : s))
+                    }
+                    placeholder="e.g. Pay with SOL"
+                    maxLength={48}
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                  />
+                </label>
+
+                <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Discord invite URL (optional)
+                  <input
+                    value={settings.discord_invite_url ?? ""}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, discord_invite_url: e.target.value } : s))
+                    }
+                    placeholder="https://discord.gg/…"
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                  />
+                </label>
+              </SettingsSection>
+
+              {settings.updated_at ? (
+                <p className="text-center text-[11px] text-zinc-600">
+                  Last updated {new Date(settings.updated_at).toLocaleString()}
+                  {settings.updated_by_discord_id ? (
+                    <span> · by {settings.updated_by_discord_id}</span>
+                  ) : null}
+                </p>
+              ) : null}
+            </>
+          )}
+        </div>
       </AdminPanel>
     </div>
   );

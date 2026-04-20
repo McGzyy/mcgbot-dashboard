@@ -1,5 +1,6 @@
 "use client";
 
+import { AnnouncementBar } from "@/app/components/AnnouncementBar";
 import { MainShell } from "@/app/components/MainShell";
 import { Sidebar } from "@/app/components/Sidebar";
 import { usePathname } from "next/navigation";
@@ -9,14 +10,17 @@ export function AppChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
   const bareLayout = pathname.startsWith("/subscribe") || pathname.startsWith("/auth");
 
-  if (bareLayout) {
-    return <div className="flex min-h-screen flex-col">{children}</div>;
-  }
-
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <MainShell>{children}</MainShell>
+    <div className="flex min-h-screen flex-col">
+      <AnnouncementBar />
+      {bareLayout ? (
+        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      ) : (
+        <div className="flex min-h-0 flex-1">
+          <Sidebar />
+          <MainShell>{children}</MainShell>
+        </div>
+      )}
     </div>
   );
 }

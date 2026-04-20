@@ -5,6 +5,11 @@ export type SiteOperationalState = {
   maintenance_message: string | null;
   paywall_subtitle: string | null;
   public_signups_paused: boolean;
+  announcement_enabled: boolean;
+  announcement_message: string | null;
+  paywall_title: string | null;
+  subscribe_button_label: string | null;
+  discord_invite_url: string | null;
 };
 
 let cache: { expires: number; value: SiteOperationalState } | null = null;
@@ -16,6 +21,11 @@ function defaults(): SiteOperationalState {
     maintenance_message: null,
     paywall_subtitle: null,
     public_signups_paused: false,
+    announcement_enabled: false,
+    announcement_message: null,
+    paywall_title: null,
+    subscribe_button_label: null,
+    discord_invite_url: null,
   };
 }
 
@@ -36,6 +46,11 @@ export async function getSiteOperationalState(): Promise<SiteOperationalState> {
         maintenance_message: row.maintenance_message,
         paywall_subtitle: row.paywall_subtitle,
         public_signups_paused: Boolean(row.public_signups_paused),
+        announcement_enabled: Boolean(row.announcement_enabled),
+        announcement_message: row.announcement_message,
+        paywall_title: row.paywall_title,
+        subscribe_button_label: row.subscribe_button_label,
+        discord_invite_url: row.discord_invite_url,
       }
     : defaults();
   cache = { expires: now + TTL_MS, value };
