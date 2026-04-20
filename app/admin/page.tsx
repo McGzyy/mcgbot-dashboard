@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import { adminChrome } from "@/lib/roleTierStyles";
 
 function OverviewCard({
   href,
@@ -14,14 +15,14 @@ function OverviewCard({
 }) {
   return (
     <Link href={href} className="group block">
-      <div className="rounded-2xl bg-gradient-to-br from-violet-500/25 via-violet-600/10 to-transparent p-[1px] transition group-hover:from-violet-400/35 group-hover:shadow-[0_0_32px_-8px_rgba(139,92,246,0.45)]">
+      <div className={adminChrome.overviewRing}>
         <AdminPanel className="h-full p-6 transition group-hover:bg-zinc-900/95">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold tracking-tight text-white">{title}</h3>
               <p className="mt-1 text-sm text-zinc-400">{subtitle}</p>
             </div>
-            <span className="shrink-0 text-violet-300/80 transition group-hover:translate-x-0.5 group-hover:text-violet-200" aria-hidden>
+            <span className={`shrink-0 transition group-hover:translate-x-0.5 ${adminChrome.overviewArrow}`} aria-hidden>
               →
             </span>
           </div>
@@ -49,14 +50,14 @@ export default function AdminOverviewPage() {
         />
         <OverviewCard
           href="/admin/bot"
-          title="Bot host"
-          subtitle="Hit the internal health endpoint; extend with scanner and mod APIs."
-          hint="Read-only · HTTP"
+          title="Bot controls"
+          subtitle="Health check plus scanner on/off (same effect as !scanner in Discord)."
+          hint="Bot API · HTTP"
         />
         <OverviewCard
           href="/admin/site"
-          title="Dashboard app"
-          subtitle="Deploy fingerprint, env presence checks, and editable app settings in Supabase."
+          title="Site & flags"
+          subtitle="Deploy fingerprint, env checks, and live Supabase settings (maintenance, banner, paywall)."
           hint="Writes · Supabase"
         />
       </div>

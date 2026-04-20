@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AdminPanel, AdminMetric } from "@/app/admin/_components/adminUi";
+import { adminChrome } from "@/lib/roleTierStyles";
 
 type Summary = {
   success?: boolean;
@@ -44,7 +45,7 @@ function SettingsSection({
   return (
     <section className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-zinc-900/40 to-black/20 p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
       <header className="mb-5 border-b border-white/[0.06] pb-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-violet-400/90">{kicker}</p>
+        <p className={`text-[10px] font-bold uppercase tracking-[0.22em] ${adminChrome.kicker}`}>{kicker}</p>
         <h3 className="mt-1.5 text-base font-semibold tracking-tight text-white">{title}</h3>
         {description ? <p className="mt-2 text-xs leading-relaxed text-zinc-500">{description}</p> : null}
       </header>
@@ -182,15 +183,17 @@ export function SiteAdminClient() {
 
   return (
     <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/40 via-zinc-950/80 to-zinc-950 p-6 shadow-[0_0_40px_-12px_rgba(139,92,246,0.35)]">
-        <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/20 blur-2xl" />
+      <div
+        className={`relative overflow-hidden rounded-2xl border ${adminChrome.borderSoft} bg-gradient-to-br ${adminChrome.heroFrom} ${adminChrome.heroVia} ${adminChrome.heroTo} p-6 ${adminChrome.glow}`}
+      >
+        <div className={`pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full ${adminChrome.blob} blur-2xl`} />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-violet-300/80">Dashboard app</p>
+            <p className={`text-[10px] font-bold uppercase tracking-[0.24em] ${adminChrome.kicker}`}>Dashboard app</p>
             <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Control &amp; surface copy</h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">
               Read-only deployment fingerprint below. Editable values live in{" "}
-              <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-xs text-violet-200/90">
+              <code className={`rounded bg-black/40 px-1.5 py-0.5 font-mono text-xs ${adminChrome.code}`}>
                 dashboard_admin_settings
               </code>{" "}
               middleware, subscribe, the global banner, and (when set) the stats cutover for leaderboards.
@@ -199,7 +202,7 @@ export function SiteAdminClient() {
           <button
             type="button"
             onClick={() => void refreshAll()}
-            className="rounded-lg border border-zinc-500/50 bg-zinc-900/80 px-4 py-2 text-xs font-semibold text-zinc-100 transition hover:border-violet-400/50 hover:text-white"
+            className={`rounded-lg border border-zinc-500/50 bg-zinc-900/80 px-4 py-2 text-xs font-semibold text-zinc-100 transition ${adminChrome.btnGhostHover} hover:text-white`}
           >
             Refresh all
           </button>
@@ -227,7 +230,7 @@ export function SiteAdminClient() {
                   label="Commit"
                   value={
                     dep?.vercelGitCommitSha ? (
-                      <span className="font-mono text-xs text-violet-200/90">{dep.vercelGitCommitSha}</span>
+                      <span className={`font-mono text-xs ${adminChrome.code}`}>{dep.vercelGitCommitSha}</span>
                     ) : (
                       <span className="text-zinc-500">Not on Vercel or not injected</span>
                     )
@@ -287,7 +290,7 @@ export function SiteAdminClient() {
             type="button"
             disabled={saveBusy || settingsLoading || !settings}
             onClick={() => void saveSettings()}
-            className="rounded-lg bg-gradient-to-r from-violet-600 to-violet-500 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-violet-950/40 transition hover:from-violet-500 hover:to-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className={adminChrome.btnPrimary}
           >
             {saveBusy ? "Saving…" : "Save changes"}
           </button>
@@ -311,7 +314,7 @@ export function SiteAdminClient() {
                       setSettings((s) => (s ? { ...s, stats_cutover_at: e.target.value || null } : s))
                     }
                     placeholder="e.g. 2026-04-20T00:00:00.000Z"
-                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   />
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -322,7 +325,7 @@ export function SiteAdminClient() {
                         s ? { ...s, stats_cutover_at: new Date().toISOString() } : s
                       )
                     }
-                    className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-violet-500/40 hover:text-white"
+                    className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-red-500/40 hover:text-white"
                   >
                     Set to now (UTC)
                   </button>
@@ -344,7 +347,7 @@ export function SiteAdminClient() {
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
                   <input
                     type="checkbox"
-                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/50"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-red-600 focus:ring-red-500/50"
                     checked={settings.announcement_enabled}
                     onChange={(e) =>
                       setSettings((s) => (s ? { ...s, announcement_enabled: e.target.checked } : s))
@@ -364,7 +367,7 @@ export function SiteAdminClient() {
                     }
                     rows={3}
                     placeholder="e.g. Leaderboard reset tonight 00:00 UTC — good luck."
-                    className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                    className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   />
                 </label>
               </SettingsSection>
@@ -377,7 +380,7 @@ export function SiteAdminClient() {
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
                   <input
                     type="checkbox"
-                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/50"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-red-600 focus:ring-red-500/50"
                     checked={settings.maintenance_enabled}
                     onChange={(e) =>
                       setSettings((s) => (s ? { ...s, maintenance_enabled: e.target.checked } : s))
@@ -400,14 +403,14 @@ export function SiteAdminClient() {
                     }
                     rows={3}
                     placeholder="We're upgrading — back in a few minutes."
-                    className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                    className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   />
                 </label>
 
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
                   <input
                     type="checkbox"
-                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-violet-500 focus:ring-violet-500/50"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-red-600 focus:ring-red-500/50"
                     checked={settings.public_signups_paused}
                     onChange={(e) =>
                       setSettings((s) => (s ? { ...s, public_signups_paused: e.target.checked } : s))
@@ -435,7 +438,7 @@ export function SiteAdminClient() {
                       setSettings((s) => (s ? { ...s, paywall_title: e.target.value } : s))
                     }
                     placeholder="Defaults to “Choose a plan”"
-                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   />
                 </label>
 
@@ -447,7 +450,7 @@ export function SiteAdminClient() {
                       setSettings((s) => (s ? { ...s, paywall_subtitle: e.target.value } : s))
                     }
                     placeholder="Short supporting line under the headline."
-                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   />
                 </label>
 
@@ -460,7 +463,7 @@ export function SiteAdminClient() {
                     }
                     placeholder="e.g. Pay with SOL"
                     maxLength={48}
-                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   />
                 </label>
 
@@ -472,7 +475,7 @@ export function SiteAdminClient() {
                       setSettings((s) => (s ? { ...s, discord_invite_url: e.target.value } : s))
                     }
                     placeholder="https://discord.gg/…"
-                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   />
                 </label>
               </SettingsSection>

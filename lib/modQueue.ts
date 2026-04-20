@@ -11,6 +11,14 @@ export type ModQueueCallApproval = {
   firstCallerUsername: string | null;
   callSourceType: string | null;
   chain: string | null;
+  /** ATH multiple from first print (same basis as bot approval ladder). */
+  athMultipleX?: number | null;
+  approvalTriggerX?: number | null;
+  /** Highest ladder rung the spot currently satisfies. */
+  eligibleTopMilestoneX?: number | null;
+  /** Milestone rung associated with this approval cycle when set. */
+  lastApprovalTriggerX?: number | null;
+  approvalMilestonesTriggered?: number[];
 };
 
 export type ModQueueDevSubmission = {
@@ -32,10 +40,14 @@ export type ModQueueDevSubmission = {
 
 export type ModQueuePayload = {
   success: boolean;
+  /** McGBot `bot_call` rows pending mod review (X posting gate). */
   callApprovals: ModQueueCallApproval[];
+  /** User/watch (non–bot_call) pendings still visible for staff parity with Discord. */
+  callApprovalsUser?: ModQueueCallApproval[];
   devSubmissions: ModQueueDevSubmission[];
   counts: {
     callApprovals: number;
+    callApprovalsUser?: number;
     devSubmissions: number;
     total: number;
   };

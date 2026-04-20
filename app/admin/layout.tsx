@@ -22,18 +22,18 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -left-6 -top-6 h-48 w-48 rounded-full bg-violet-600/15 blur-3xl"
+        className="pointer-events-none absolute -left-6 -top-6 h-48 w-48 rounded-full bg-red-600/15 blur-3xl"
         aria-hidden
       />
       <header className="relative border-b border-white/[0.06] pb-8">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-violet-300/80">Control plane</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-red-300/80">Control plane</p>
         <h1 className="mt-2 bg-gradient-to-r from-white via-zinc-100 to-zinc-400 bg-clip-text text-3xl font-bold tracking-tight text-transparent">
           Admin dashboard
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          High-trust surface for Discord + web operations. Subscription bypass and dashboard app settings (maintenance,
-          paywall copy, announcements) are live in Supabase once the SQL migrations are applied. Bot host remains
-          read-only until internal APIs exist.
+          High-trust surface for Discord + web operations: bot controls (scanner, health), dashboard app flags in
+          Supabase (maintenance, paywall copy, announcements), and subscription bypass. Prefer changing settings here
+          instead of hunting Discord commands.
         </p>
       </header>
       <AdminDashboardShell>{children}</AdminDashboardShell>

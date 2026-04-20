@@ -160,9 +160,11 @@ const btnExclude =
 function CallApprovalRow({
   c,
   onQueueChanged,
+  variant,
 }: {
   c: ModQueueCallApproval;
   onQueueChanged: () => void;
+  variant: "bot" | "user";
 }) {
   const { addNotification } = useNotifications();
   const copy = useCopyWithToast();
@@ -173,12 +175,21 @@ function CallApprovalRow({
   const dex = dexscreenerTokenUrl(c.chain, c.contractAddress);
   const solscan = solscanAccountUrl(c.contractAddress);
   const rel = formatRelativeTime(c.approvalRequestedAt);
+  const ath = c.athMultipleX != null && Number.isFinite(c.athMultipleX) ? c.athMultipleX : null;
+  const gate = c.approvalTriggerX != null && Number.isFinite(c.approvalTriggerX) ? c.approvalTriggerX : null;
+  const topRung = c.eligibleTopMilestoneX != null && Number.isFinite(c.eligibleTopMilestoneX) ? c.eligibleTopMilestoneX : null;
+  const cycleRung =
+    c.lastApprovalTriggerX != null && Number.isFinite(c.lastApprovalTriggerX) && c.lastApprovalTriggerX > 0
+      ? c.lastApprovalTriggerX
+      : null;
 
   const runDecision = async (decision: "approve" | "deny" | "exclude") => {
     if (typeof window === "undefined") return;
     const msg =
       decision === "approve"
-        ? "Approve this call? The #mod-approvals message will be finalized in Discord (and X may post if milestones qualify)."
+        ? variant === "bot"
+          ? "Mark this McGBot call as legit (not a rug) and approve it? The #mod-approvals message will be finalized in Discord, and McGBot may post to X when your X milestones qualify."
+          : "Approve this call? The #mod-approvals message will be finalized in Discord (and X may post if milestones qualify)."
         : decision === "deny"
           ? "Deny this call? The queue message will be finalized in Discord."
           : "Exclude this call from stats? The queue message will be finalized in Discord.";
@@ -253,7 +264,7 @@ function CallApprovalRow({
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200/95">
-            Pending
+            {variant === "bot" ? "McGBot · review" : "Pending"}
           </span>
           <span className="text-[11px] tabular-nums text-zinc-500" title={c.approvalRequestedAt ?? ""}>
             {rel}
@@ -289,8 +300,13 @@ function CallApprovalRow({
           className={btnApprove}
           disabled={busy !== null}
           onClick={() => void runDecision("approve")}
+          title={
+            variant === "bot"
+              ? "Legit coin — allow McGBot to treat this approval as cleared for X when milestones qualify."
+              : undefined
+          }
         >
-          {busy === "approve" ? "…" : "Approve"}
+          {busy === "approve" ? "…" : variant === "bot" ? "Legit · approve" : "Approve"}
         </button>
         <button
           type="button"
@@ -310,6 +326,33 @@ function CallApprovalRow({
         </button>
       </div>
       <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+        {variant === "bot" && (ath != null || gate != null || topRung != null || cycleRung != null) ? (
+          <span className="w-full text-pretty text-zinc-400">
+            {ath != null ? (
+              <>
+                Spot <span className="font-semibold text-zinc-300">~{ath}×</span> from first print
+              </>
+            ) : null}
+            {ath != null && (gate != null || topRung != null) ? <span className="text-zinc-600"> · </span> : null}
+            {gate != null ? (
+              <>
+                Min gate <span className="font-semibold text-zinc-300">{gate}×</span>
+              </>
+            ) : null}
+            {gate != null && topRung != null ? <span className="text-zinc-600"> · </span> : null}
+            {topRung != null ? (
+              <>
+                Ladder top satisfied <span className="font-semibold text-zinc-300">{topRung}×</span>
+              </>
+            ) : null}
+            {cycleRung != null ? (
+              <>
+                {(ath != null || gate != null || topRung != null) ? <span className="text-zinc-600"> · </span> : null}
+                This cycle <span className="font-semibold text-zinc-300">{cycleRung}×</span>
+              </>
+            ) : null}
+          </span>
+        ) : null}
         {c.chain ? (
           <span>
             Chain <span className="font-medium text-zinc-400">{c.chain}</span>
@@ -320,7 +363,7 @@ function CallApprovalRow({
             Caller <span className="font-medium text-zinc-400">{c.firstCallerUsername}</span>
           </span>
         ) : null}
-        {c.callSourceType ? (
+        {variant === "user" && c.callSourceType ? (
           <span>
             Source <span className="font-medium text-zinc-400">{c.callSourceType}</span>
           </span>
@@ -523,7 +566,21 @@ export default function ModerationPage() {
           return;
         }
         if (json.success && Array.isArray(json.callApprovals) && Array.isArray(json.devSubmissions)) {
-          setData(json);
+          const callApprovalsUser = Array.isArray(
+            (json as ModQueuePayload & { callApprovalsUser?: unknown }).callApprovalsUser
+          )
+            ? (json as ModQueuePayload & { callApprovalsUser: ModQueueCallApproval[] }).callApprovalsUser
+            : [];
+          const merged: ModQueuePayload = {
+            ...(json as ModQueuePayload),
+            callApprovalsUser,
+            counts: {
+              ...(json as ModQueuePayload).counts,
+              callApprovalsUser:
+                (json as ModQueuePayload).counts?.callApprovalsUser ?? callApprovalsUser.length,
+            },
+          };
+          setData(merged);
           setLastUpdatedAt(Date.now());
           setErr(null);
           setErrSteps(null);
@@ -655,10 +712,12 @@ export default function ModerationPage() {
   }
 
   const calls = data?.callApprovals ?? [];
+  const callsUser = data?.callApprovalsUser ?? [];
   const devs = data?.devSubmissions ?? [];
   const counts = data?.counts;
   const total = counts?.total ?? 0;
   const callN = counts?.callApprovals ?? calls.length;
+  const callOtherN = counts?.callApprovalsUser ?? callsUser.length;
   const devN = counts?.devSubmissions ?? devs.length;
 
   return (
@@ -671,9 +730,11 @@ export default function ModerationPage() {
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Moderation</h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
-              Same pending set as{" "}
-              <span className="font-medium text-zinc-400">#mod-approvals</span>. Approve, deny, or exclude
-              tracked calls from here; dev submissions open in Discord until a web flow exists.
+              <span className="font-medium text-zinc-400">McGBot</span> calls that hit your ATH milestone ladder
+              surface here for legitimacy review before McGBot can post them to{" "}
+              <span className="font-medium text-zinc-400">X</span>. The same items appear in{" "}
+              <span className="font-medium text-zinc-400">#mod-approvals</span>. Non-bot pending calls (if any)
+              stay listed for staff parity; dev intel stays in Discord until a web flow exists.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -697,15 +758,21 @@ export default function ModerationPage() {
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-2 sm:max-w-md">
+        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:max-w-2xl">
           <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2.5 text-center">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Total</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-zinc-100">{queueLoading ? "…" : total}</div>
           </div>
           <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2.5 text-center">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Calls</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">McGBot</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-amber-200/90">
               {queueLoading ? "…" : callN}
+            </div>
+          </div>
+          <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2.5 text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Other calls</div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-zinc-300">
+              {queueLoading ? "…" : callOtherN}
             </div>
           </div>
           <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2.5 text-center">
@@ -755,32 +822,62 @@ export default function ModerationPage() {
 
       {data ? (
         <div className="grid gap-5 lg:grid-cols-2">
-          <section>
-            <div className="mb-3 flex items-baseline justify-between gap-2">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-                Tracked call approvals
-              </h2>
-              <span className="text-xs tabular-nums text-zinc-600">{callN} open</span>
-            </div>
-            {calls.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-zinc-800/90 bg-zinc-950/30 px-4 py-10 text-center">
-                <p className="text-sm font-medium text-zinc-400">No call approvals waiting</p>
-                <p className="mx-auto mt-2 max-w-xs text-xs leading-relaxed text-zinc-600">
-                  When callers need review, items appear here and in Discord automatically.
-                </p>
+          <div className="space-y-8">
+            <section>
+              <div className="mb-3 flex items-baseline justify-between gap-2">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                  McGBot calls (X gate)
+                </h2>
+                <span className="text-xs tabular-nums text-zinc-600">{callN} open</span>
               </div>
-            ) : (
-              <ul className="space-y-3">
-                {calls.map((c) => (
-                  <CallApprovalRow
-                    key={`${c.contractAddress}-${c.approvalMessageId}`}
-                    c={c}
-                    onQueueChanged={() => void loadQueue()}
-                  />
-                ))}
-              </ul>
-            )}
-          </section>
+              {calls.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-zinc-800/90 bg-zinc-950/30 px-4 py-10 text-center">
+                  <p className="text-sm font-medium text-zinc-400">No McGBot calls waiting</p>
+                  <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-600">
+                    When a McGBot auto-call crosses your configured ATH milestone, it queues here and in{" "}
+                    <span className="font-medium text-zinc-500">#mod-approvals</span> for a legitimacy check before X
+                    can fire.
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {calls.map((c) => (
+                    <CallApprovalRow
+                      key={`${c.contractAddress}-${c.approvalMessageId}`}
+                      c={c}
+                      variant="bot"
+                      onQueueChanged={() => void loadQueue()}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {callsUser.length > 0 ? (
+              <section>
+                <div className="mb-3 flex items-baseline justify-between gap-2">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                    Other pending tracked calls
+                  </h2>
+                  <span className="text-xs tabular-nums text-zinc-600">{callOtherN} open</span>
+                </div>
+                <p className="mb-3 text-xs leading-relaxed text-zinc-600">
+                  User or watch-sourced rows still in the approval flow. Primary X gating above applies to McGBot
+                  calls only.
+                </p>
+                <ul className="space-y-3">
+                  {callsUser.map((c) => (
+                    <CallApprovalRow
+                      key={`${c.contractAddress}-${c.approvalMessageId}-user`}
+                      c={c}
+                      variant="user"
+                      onQueueChanged={() => void loadQueue()}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </div>
 
           <section>
             <div className="mb-3 flex items-baseline justify-between gap-2">

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { normalizeStaffRole, tierNavBarClass, tierStatusDotClass } from "@/lib/roleTierStyles";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -28,6 +29,7 @@ export function Sidebar() {
   /** Client refresh of `/api/me/help-role` (merged with server session from layout). */
   const [apiStaffNav, setApiStaffNav] = useState(false);
   const [apiAdminNav, setApiAdminNav] = useState(false);
+  const [apiRole, setApiRole] = useState<string | null>(null);
   /** Pending mod-queue count (from API); null = not loaded or not staff. */
   const [modPendingTotal, setModPendingTotal] = useState<number | null>(null);
 
@@ -46,6 +48,7 @@ export function Sidebar() {
     if (status !== "authenticated") {
       setApiStaffNav(false);
       setApiAdminNav(false);
+      setApiRole(null);
       setModPendingTotal(null);
       return;
     }
@@ -61,9 +64,11 @@ export function Sidebar() {
         if (!res.ok) {
           setApiAdminNav(false);
           setApiStaffNav(false);
+          setApiRole(null);
           return;
         }
         const r = json.role;
+        setApiRole(typeof r === "string" ? r : null);
         setApiAdminNav(r === "admin");
         const staff =
           typeof json.canModerate === "boolean"
@@ -74,6 +79,7 @@ export function Sidebar() {
         if (!cancelled) {
           setApiStaffNav(false);
           setApiAdminNav(false);
+          setApiRole(null);
         }
       }
     })();
@@ -84,6 +90,9 @@ export function Sidebar() {
 
   const staffNav = sessionStaffNav(session) || apiStaffNav;
   const adminNav = sessionAdminNav(session) || apiAdminNav;
+
+  const sessionTier = (session?.user as { helpTier?: string } | undefined)?.helpTier;
+  const viewerTier = normalizeStaffRole(apiRole ?? sessionTier ?? "user");
 
   useEffect(() => {
     if (status !== "authenticated" || !staffNav) {
@@ -116,7 +125,7 @@ export function Sidebar() {
   const navItem = (active: boolean) =>
     `relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150 hover:bg-zinc-900/60 ${
       active
-        ? "bg-zinc-800 text-white border border-zinc-700 shadow-[0_0_10px_rgba(34,197,94,0.15)]"
+        ? "bg-zinc-800 text-white border border-zinc-700 shadow-[0_0_10px_rgba(56,189,248,0.12)]"
         : "text-zinc-400 hover:text-white hover:bg-zinc-900"
     }`;
 
@@ -146,10 +155,7 @@ export function Sidebar() {
               <span className="text-[11px] font-medium uppercase tracking-[0.22em] text-zinc-500">
                 Terminal
               </span>
-              <span
-                className="h-1 w-1 rounded-full bg-green-400/70"
-                aria-hidden
-              />
+              <span className="h-1 w-1 rounded-full bg-sky-400/75 shadow-[0_0_6px_rgba(56,189,248,0.45)]" aria-hidden />
             </div>
           </div>
         </Link>
@@ -160,7 +166,7 @@ export function Sidebar() {
           <Link href="/" className={navItem(isActive(pathname, "/"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/") ? "bg-green-400 opacity-100" : "opacity-0"
+                isActive(pathname, "/") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
             <span>Dashboard</span>
@@ -169,7 +175,7 @@ export function Sidebar() {
           <Link href="/leaderboard" className={navItem(isActive(pathname, "/leaderboard"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/leaderboard") ? "bg-green-400 opacity-100" : "opacity-0"
+                isActive(pathname, "/leaderboard") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
             <span>Leaderboard</span>
@@ -178,7 +184,7 @@ export function Sidebar() {
           <Link href="/watchlist" className={navItem(isActive(pathname, "/watchlist"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/watchlist") ? "bg-green-400 opacity-100" : "opacity-0"
+                isActive(pathname, "/watchlist") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
             <span>Watchlist</span>
@@ -188,13 +194,13 @@ export function Sidebar() {
             <Link href="/moderation" className={navItem(isActive(pathname, "/moderation"))}>
               <div
                 className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                  isActive(pathname, "/moderation") ? "bg-amber-400 opacity-100" : "opacity-0"
+                  isActive(pathname, "/moderation") ? `${tierNavBarClass("mod")} opacity-100` : "opacity-0"
                 }`}
               />
               <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
                 <span className="truncate">Moderation</span>
                 {modPendingTotal != null && modPendingTotal > 0 ? (
-                  <span className="shrink-0 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-amber-200 ring-1 ring-amber-500/30">
+                  <span className="shrink-0 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-emerald-200 ring-1 ring-emerald-500/30">
                     {modPendingTotal > 99 ? "99+" : modPendingTotal}
                   </span>
                 ) : null}
@@ -206,7 +212,7 @@ export function Sidebar() {
             <Link href="/admin" className={navItem(isActive(pathname, "/admin"))}>
               <div
                 className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                  isActive(pathname, "/admin") ? "bg-violet-400 opacity-100" : "opacity-0"
+                  isActive(pathname, "/admin") ? `${tierNavBarClass("admin")} opacity-100` : "opacity-0"
                 }`}
               />
               <span>Admin</span>
@@ -223,7 +229,7 @@ export function Sidebar() {
         >
           <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-zinc-700 text-xs">
             {profileInitials}
-            <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-400" />
+            <div className={`absolute bottom-0 right-0 h-2 w-2 rounded-full ${tierStatusDotClass(viewerTier)}`} />
           </div>
           <div className="min-w-0">
             <div className="truncate text-sm text-white">{profileName}</div>

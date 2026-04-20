@@ -38,11 +38,11 @@ export function AnnouncementBar() {
   return (
     <div
       role="status"
-      className="shrink-0 border-b border-violet-500/25 bg-gradient-to-r from-violet-950/90 via-violet-900/35 to-zinc-950 px-4 py-2.5 text-center text-[13px] leading-snug text-violet-100/95 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]"
+      className="shrink-0 border-b border-sky-500/25 bg-gradient-to-r from-sky-950/90 via-sky-900/35 to-zinc-950 px-4 py-2.5 text-center text-[13px] leading-snug text-sky-100/95 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]"
     >
       <span className="inline-flex max-w-4xl items-start justify-center gap-2">
         <span
-          className="mt-0.5 hidden h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400 shadow-[0_0_8px_rgba(167,139,250,0.8)] sm:inline"
+          className="mt-0.5 hidden h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.75)] sm:inline"
           aria-hidden
         />
         <span className="text-pretty">{message}</span>
