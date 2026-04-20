@@ -135,6 +135,10 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
+    if (pathname === "/api/leaderboard/daily" && req.method === "GET") {
+      return NextResponse.next();
+    }
+
     if (pathname === "/api/subscription/plans" && req.method === "GET") {
       return NextResponse.next();
     }
