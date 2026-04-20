@@ -724,10 +724,7 @@ export default function ModerationPage() {
 
   return (
     <div className={modChrome.pageShell}>
-      <div className={`relative mx-auto max-w-[1440px] px-4 pb-20 sm:px-6 lg:px-8 ${modChrome.pageInner}`}>
-        <div className={modChrome.atmosphereGrid} aria-hidden />
-        <div className={modChrome.atmosphereGlow} aria-hidden />
-        <div className={modChrome.atmosphereGlowFar} aria-hidden />
+      <div className={`relative w-full min-w-0 pb-20 ${modChrome.pageInner}`}>
         <header className="relative border-b border-white/[0.06] pb-8 pt-2">
           <p className={`text-[10px] font-semibold uppercase tracking-[0.28em] ${modChrome.kicker}`}>
             Staff command center

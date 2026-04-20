@@ -103,13 +103,11 @@ export const modChrome = {
   /** Moderation page root (global shell provides bg — keep layout only here) */
   pageShell: "relative min-h-[calc(100vh-5rem)] overflow-x-hidden",
   pageInner: "relative z-[1]",
-  /** Matches admin layout atmosphere (grid + glow) in emerald */
-  atmosphereGrid:
-    "pointer-events-none absolute inset-0 -z-10 opacity-[0.34] [background-image:linear-gradient(rgba(255,255,255,0.038)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.038)_1px,transparent_1px)] [background-size:32px_32px]",
-  atmosphereGlow:
-    "pointer-events-none absolute -left-6 -top-4 h-48 w-48 rounded-full bg-emerald-500/16 blur-3xl [-webkit-mask-image:radial-gradient(closest-side,black,transparent)] [mask-image:radial-gradient(closest-side,black,transparent)]",
-  atmosphereGlowFar:
-    "pointer-events-none absolute -right-8 top-24 h-40 w-56 rounded-full bg-teal-500/10 blur-3xl [-webkit-mask-image:radial-gradient(closest-side,black,transparent)] [mask-image:radial-gradient(closest-side,black,transparent)]",
+  /** Full-bleed layer: same grid math as `app/admin/layout.tsx` (32px, 0.04 / 0.35 opacity). */
+  layoutGrid:
+    "pointer-events-none -z-10 opacity-[0.35] [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:32px_32px]",
+  /** Admin layout uses `bg-red-600/15`; staff queue uses emerald. */
+  layoutGlow: "pointer-events-none absolute -left-6 -top-6 h-48 w-48 rounded-full bg-emerald-500/14 blur-3xl",
   /** Admin-style headline, emerald accent on the end */
   heroTitle:
     "bg-gradient-to-r from-white via-zinc-100 to-emerald-300/85 bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(16,185,129,0.12)]",
