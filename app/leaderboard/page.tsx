@@ -4,15 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 type TimeframeId = "daily" | "weekly" | "monthly" | "all";
 
@@ -55,77 +46,6 @@ const TIMEFRAMES: { id: TimeframeId; label: string }[] = [
   { id: "monthly", label: "Monthly" },
   { id: "all", label: "All" },
 ];
-
-type PerfPoint = {
-  time: string;
-  avgMultiplier: number;
-  winRate: number;
-  calls: number;
-};
-
-const performanceDataMap: Record<"W" | "M" | "3M" | "A", PerfPoint[]> = {
-  W: [
-    { time: "Mon", avgMultiplier: 3.1, winRate: 52, calls: 8 },
-    { time: "Tue", avgMultiplier: 3.4, winRate: 55, calls: 10 },
-    { time: "Wed", avgMultiplier: 2.9, winRate: 49, calls: 7 },
-    { time: "Thu", avgMultiplier: 3.6, winRate: 58, calls: 12 },
-    { time: "Fri", avgMultiplier: 4.2, winRate: 61, calls: 9 },
-    { time: "Sat", avgMultiplier: 3.8, winRate: 56, calls: 6 },
-    { time: "Sun", avgMultiplier: 4.0, winRate: 59, calls: 11 },
-  ],
-  M: [
-    { time: "Week 1", avgMultiplier: 2.6, winRate: 46, calls: 48 },
-    { time: "Week 2", avgMultiplier: 3.0, winRate: 51, calls: 63 },
-    { time: "Week 3", avgMultiplier: 3.4, winRate: 54, calls: 58 },
-    { time: "Week 4", avgMultiplier: 3.2, winRate: 49, calls: 70 },
-  ],
-  "3M": [
-    { time: "Jan", avgMultiplier: 2.1, winRate: 41, calls: 180 },
-    { time: "Feb", avgMultiplier: 2.7, winRate: 47, calls: 220 },
-    { time: "Mar", avgMultiplier: 3.0, winRate: 50, calls: 205 },
-    { time: "Apr", avgMultiplier: 3.5, winRate: 55, calls: 260 },
-    { time: "May", avgMultiplier: 3.1, winRate: 52, calls: 240 },
-    { time: "Jun", avgMultiplier: 3.8, winRate: 58, calls: 280 },
-  ],
-  A: [
-    { time: "2022", avgMultiplier: 1.6, winRate: 34, calls: 520 },
-    { time: "2023", avgMultiplier: 2.4, winRate: 42, calls: 980 },
-    { time: "2024", avgMultiplier: 3.2, winRate: 51, calls: 1320 },
-    { time: "2025", avgMultiplier: 3.7, winRate: 56, calls: 1680 },
-  ],
-};
-
-const rankDataMap: Record<"W" | "M" | "Y" | "A", { time: string; rank: number }[]> = {
-  W: [
-    { time: "Mon", rank: 18 },
-    { time: "Tue", rank: 15 },
-    { time: "Wed", rank: 12 },
-    { time: "Thu", rank: 14 },
-    { time: "Fri", rank: 9 },
-    { time: "Sat", rank: 7 },
-    { time: "Sun", rank: 12 },
-  ],
-  M: [
-    { time: "Week 1", rank: 22 },
-    { time: "Week 2", rank: 18 },
-    { time: "Week 3", rank: 14 },
-    { time: "Week 4", rank: 10 },
-  ],
-  Y: [
-    { time: "Jan", rank: 40 },
-    { time: "Mar", rank: 32 },
-    { time: "May", rank: 25 },
-    { time: "Jul", rank: 18 },
-    { time: "Sep", rank: 12 },
-    { time: "Dec", rank: 8 },
-  ],
-  A: [
-    { time: "2022", rank: 80 },
-    { time: "2023", rank: 45 },
-    { time: "2024", rank: 20 },
-    { time: "2025", rank: 12 },
-  ],
-};
 
 function buildUserLeaderboard(tf: TimeframeId): LeaderRow[] {
   return Array.from({ length: 50 }, (_, i) => {
@@ -204,13 +124,6 @@ const MOCK_INDIV_CALLS: Record<TimeframeId, TopCallRow[]> = {
   all: buildTopCalls("all", "users"),
 };
 
-const trendingNow = {
-  symbol: "SOLX",
-  user: "user_1",
-  multiplier: 3.8,
-  timeAgo: "12m ago",
-};
-
 /** Mock “signed-in” caller — highlighted on the current timeframe’s page 1 */
 function mockViewerUsername(tf: TimeframeId): string {
   return `${tf}_caller_6`;
@@ -258,11 +171,6 @@ const MOCK_LEADERS: LeaderCard[] = [
     winRate: 55,
   },
 ];
-
-/** Mock: community avg time call → ATH */
-const USER_AVG_TO_ATH = "68m";
-/** Mock: community avg time call → 2x */
-const USER_AVG_TO_2X = "14m";
 
 type BotMilestoneRow = {
   token: string;
@@ -427,20 +335,6 @@ export default function LeaderboardPage() {
   const [indivPage, setIndivPage] = useState(1);
   const [mcgbotTimeframe, setMcgbotTimeframe] = useState<TimeframeId>("daily");
   const [mcgbotPage, setMcgbotPage] = useState(1);
-  const [range, setRange] = useState<"D" | "W" | "M" | "A">("D");
-  const [timeframe, setTimeframe] = useState<"W" | "M" | "Y" | "A">("W");
-
-  const timeframeLabel =
-    {
-      D: "24h",
-      W: "7d",
-      M: "30d",
-      A: "All time",
-    }[range] ?? "24h";
-
-  const rankDeltaToday = range === "D" ? 2 : range === "W" ? -1 : range === "M" ? 0 : 1;
-  const rankImproving = rankDeltaToday > 0;
-  void performanceDataMap;
 
   useEffect(() => {
     const scrollToHashSection = () => {
@@ -663,8 +557,10 @@ export default function LeaderboardPage() {
               Leaderboards
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-              The public scoreboard for callers and automation. Verified runs, clean multiples, and
-              rank that actually moves — built to make you want the top row.
+              The public scoreboard for callers and automation. Your own charts and row-by-row history
+              live on <Link href="/performance" className="text-cyan-200/90 underline-offset-2 hover:underline">Performance</Link>{" "}
+              and <Link href="/calls" className="text-cyan-200/90 underline-offset-2 hover:underline">Call tape</Link> — this
+              route is only the arena everyone shares.
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800/90 bg-black/35 px-3 py-1.5 text-[11px] text-zinc-400">
@@ -694,8 +590,8 @@ export default function LeaderboardPage() {
               <a href="#records" className={navPill}>
                 Records
               </a>
-              <a href="#rank" className={navPill}>
-                Rank trend
+              <a href="#your-terminal" className={navPill}>
+                Your pages
               </a>
               <a href="#community-performance" className={navPill}>
                 Community
@@ -710,64 +606,46 @@ export default function LeaderboardPage() {
           </div>
         </header>
 
-      <div id="rank" className="mb-2 scroll-mt-28 rounded-2xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/55 to-zinc-950/95 p-5 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.04] sm:p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <div className="text-sm text-zinc-400">Your Performance</div>
-            <div className="font-medium text-white">Rank Over Time</div>
-          </div>
-
-          <div className="flex gap-2">
-            {(["W", "M", "Y", "A"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTimeframe(t)}
-                className={`rounded-md border px-2 py-1 text-xs transition ${
-                  timeframe === t
-                    ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-200 shadow-[0_0_16px_-4px_rgba(34,211,238,0.35)]"
-                    : "border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+      <section
+        id="your-terminal"
+        className="mb-2 scroll-mt-28 rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-zinc-900/70 via-zinc-950 to-[#070708] p-5 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-cyan-500/15 sm:p-6"
+      >
+        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-400/85">Your terminal</p>
+        <h2 className="mt-2 text-lg font-semibold tracking-tight text-white sm:text-xl">Where your personal data lives</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+          <span className="font-medium text-zinc-200">Leaderboard</span> below is the public arena. Two other pages are
+          only about <span className="font-medium text-zinc-200">you</span> — so nothing here pretends to be your
+          analytics anymore.
+        </p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <Link
+            href="/calls"
+            className="group rounded-xl border border-zinc-800/80 bg-black/35 p-4 transition hover:border-cyan-500/35 hover:bg-zinc-900/50"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300/90">Call tape</p>
+            <p className="mt-2 text-sm font-semibold text-white">Every verified print</p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+              Contracts, multiples, Dex + Discord links — the audit trail, not charts.
+            </p>
+            <span className="mt-3 inline-flex text-xs font-semibold text-cyan-200/90 group-hover:underline">
+              Open call tape →
+            </span>
+          </Link>
+          <Link
+            href="/performance"
+            className="group rounded-xl border border-zinc-800/80 bg-black/35 p-4 transition hover:border-emerald-500/35 hover:bg-zinc-900/50"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-300/90">Performance lab</p>
+            <p className="mt-2 text-sm font-semibold text-white">Rollups & visuals</p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+              14-day activity, multiple mix, streaks, and rolling rank — built from your rows only.
+            </p>
+            <span className="mt-3 inline-flex text-xs font-semibold text-emerald-200/90 group-hover:underline">
+              Open performance lab →
+            </span>
+          </Link>
         </div>
-
-        <div className="h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={rankDataMap[timeframe]}>
-              <CartesianGrid stroke="#27272a" strokeDasharray="3 3" />
-              <XAxis
-                dataKey="time"
-                stroke="#71717a"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis reversed stroke="#71717a" fontSize={12} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#09090b",
-                  border: "1px solid #27272a",
-                  borderRadius: "8px",
-                }}
-                labelStyle={{ color: "#a1a1aa" }}
-              />
-              <Line
-                type="monotone"
-                dataKey="rank"
-                stroke="#22d3ee"
-                strokeWidth={2}
-                dot={false}
-                isAnimationActive={true}
-                style={{ filter: "drop-shadow(0 0 8px rgba(34,211,238,0.45))" }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      </section>
 
       {/* 1) Leaders */}
       <section id="leaders" className="scroll-mt-28 space-y-4">
@@ -838,8 +716,7 @@ export default function LeaderboardPage() {
           </p>
         </div>
         <div className="mb-6 rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
-            <div className="grid h-full grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <div className="relative rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
                 <div className="pr-16">
                   <div className="flex items-start justify-between gap-2">
@@ -941,106 +818,19 @@ export default function LeaderboardPage() {
                 </div>
               </div>
           </div>
-
-            <div className="mx-2 hidden w-px bg-zinc-800 lg:block" />
-
-            <div className="flex h-full flex-col gap-4">
-              <div
-                className={[
-                  "group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4",
-                  rankImproving
-                    ? "ring-1 ring-emerald-500/20 shadow-[0_0_18px_rgba(16,185,129,0.12)]"
-                    : "",
-                ].join(" ")}
-              >
-              <div className="pointer-events-none absolute inset-0 bg-zinc-500/5 blur-2xl opacity-35 transition-opacity duration-300 group-hover:opacity-55" />
-
-              <div className="relative z-10">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="text-sm text-zinc-400">Your Rank</div>
-                  <div className="flex gap-1">
-                    {(["D", "W", "M", "A"] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setRange(t)}
-                        className={`px-2 py-0.5 text-xs rounded border transition ${
-                          range === t
-                            ? "border-emerald-500/55 text-emerald-300"
-                            : "border-zinc-700 text-zinc-400 hover:border-emerald-500/40"
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-2 flex items-center justify-between">
-                  <div>
-                    <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-                      GLOBAL RANK
-                    </div>
-                    <div className="mt-0.5 text-4xl font-bold tracking-tight text-white drop-shadow-[0_0_6px_rgba(16,185,129,0.28)]">
-                      #12
-                    </div>
-                    <div
-                      className={`mt-1 text-xs ${
-                        rankDeltaToday > 0
-                          ? "text-emerald-400"
-                          : rankDeltaToday < 0
-                            ? "text-red-400"
-                            : "text-zinc-500"
-                      }`}
-                    >
-                      {rankDeltaToday > 0
-                        ? `↑ +${rankDeltaToday} today`
-                        : rankDeltaToday < 0
-                          ? `↓ ${rankDeltaToday} today`
-                          : "— today"}
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-sm text-zinc-500">Win Rate</div>
-                    <div className="font-medium text-zinc-200">58%</div>
-                  </div>
-                </div>
-
-                <div className="mt-2 text-xs text-zinc-500">18 calls • {timeframeLabel}</div>
-              </div>
-            </div>
-
-              <div className="group relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
-              <div className="pointer-events-none absolute inset-0 bg-emerald-500/10 blur-2xl opacity-40 transition-opacity duration-300 group-hover:opacity-70" />
-
-              <div className="relative z-10 flex items-center justify-between gap-6">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs text-zinc-300">
-                    {trendingNow.symbol.slice(0, 2)}
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="text-sm text-zinc-400">Trending Now (1h)</div>
-                    <div className="truncate text-base font-semibold text-zinc-100">
-                      {trendingNow.symbol}
-                    </div>
-                    <div className="text-xs text-zinc-500">
-                      {trendingNow.user} • {trendingNow.timeAgo}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="shrink-0 text-right">
-                  <div className="text-base font-bold tabular-nums text-emerald-400">
-                    {fmtX(trendingNow.multiplier)}
-                  </div>
-                  <div className="text-[10px] text-zinc-500">current</div>
-                </div>
-              </div>
-            </div>
+          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-zinc-800/80 bg-black/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm leading-snug text-zinc-400">
+              Personal charts, rank trend, and call-by-call history now live on{" "}
+              <Link href="/performance" className="font-semibold text-emerald-200/90 hover:underline">
+                Performance lab
+              </Link>{" "}
+              and{" "}
+              <Link href="/calls" className="font-semibold text-cyan-200/90 hover:underline">
+                Call tape
+              </Link>{" "}
+              — this page stays focused on the public boards.
+            </p>
           </div>
-        </div>
         </div>
       </section>
 
@@ -1090,33 +880,6 @@ export default function LeaderboardPage() {
               >
                 How to qualify →
               </Link>
-            </div>
-
-            <div id="user-snapshot" className="scroll-mt-28">
-              <h3 className={`${sectionTitle}`}>Snapshot KPIs</h3>
-              <p className="mt-0.5 text-xs text-emerald-100/40">
-                Community aggregate timing (sample).
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-emerald-500/15 bg-emerald-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-                    Avg call → ATH
-                  </p>
-                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-emerald-300">
-                    {USER_AVG_TO_ATH}
-                  </p>
-                  <p className="mt-1.5 text-xs text-zinc-500">Community aggregate (sample)</p>
-                </div>
-                <div className="rounded-xl border border-emerald-500/15 bg-emerald-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-                    Avg → 2x
-                  </p>
-                  <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-emerald-300">
-                    {USER_AVG_TO_2X}
-                  </p>
-                  <p className="mt-1.5 text-xs text-zinc-500">Community aggregate (sample)</p>
-                </div>
-              </div>
             </div>
 
             <div

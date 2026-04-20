@@ -179,6 +179,31 @@ export function Sidebar() {
             <span>Dashboard</span>
           </Link>
 
+          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">You</p>
+          <Link href="/calls" className={navItem(isActive(pathname, "/calls"))}>
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span className="flex flex-col gap-0.5">
+              <span>Call tape</span>
+              <span className="text-[10px] font-normal leading-tight text-zinc-600">Your prints and links</span>
+            </span>
+          </Link>
+          <Link href="/performance" className={navItem(isActive(pathname, "/performance"))}>
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/performance") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span className="flex flex-col gap-0.5">
+              <span>Performance</span>
+              <span className="text-[10px] font-normal leading-tight text-zinc-600">Charts and streaks</span>
+            </span>
+          </Link>
+
+          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Arena</p>
           <Link href="/leaderboard" className={navItem(isActive(pathname, "/leaderboard"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
