@@ -36,7 +36,7 @@ type WinRateRow = {
   winRate: number;
 };
 
-const CHART_HEIGHT_PX = 200;
+const CHART_HEIGHT_PX = 224;
 
 /** Primary performance line */
 const PERF_LINE = "#22c55e";
@@ -148,8 +148,8 @@ function buildWinRateRows(raw: SliceRow[]): WinRateRow[] {
   }));
 }
 
-const gridStroke = "rgba(39,39,42,0.32)";
-const axisTick = { fill: "rgba(161,161,170,0.55)", fontSize: 10 };
+const gridStroke = "rgba(63,63,70,0.22)";
+const axisTick = { fill: "rgba(161,161,170,0.62)", fontSize: 11 };
 
 export default function PerformanceChart() {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
@@ -200,21 +200,37 @@ export default function PerformanceChart() {
   const gradPerfBest = `perfBestFill-${uid}`;
   const gradWin = `winFill-${uid}`;
 
-  const chartMargin = { top: 8, right: 4, left: 0, bottom: 4 };
+  const chartMargin = { top: 10, right: 10, left: 0, bottom: 2 };
 
   return (
-    <div className="rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] py-8">
-      <div className="mx-auto w-full max-w-[1200px] px-6">
-        <div className="flex w-full items-start justify-between gap-4 pr-10">
-          <div className="min-w-0 pl-3">
-            <h2 className="text-lg font-semibold tracking-tight text-white">
-              Performance Overview
-            </h2>
-            <p className="mt-1 text-xs leading-snug text-zinc-500">
-              Track your trading performance over time
+    <div className="relative overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-950/40 py-7 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04] sm:py-8">
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,197,94,0.10),transparent_55%),radial-gradient(circle_at_85%_10%,rgba(45,212,191,0.08),transparent_60%)]"
+        aria-hidden
+      />
+      <div className="relative mx-auto w-full max-w-[1200px] px-5 sm:px-6">
+        <div className="flex w-full flex-col gap-4 pr-0 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+              Terminal performance
             </p>
+            <h2 className="mt-2 text-lg font-semibold tracking-tight text-white sm:text-xl">
+              Your edge, quantified
+            </h2>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-200/90">
+                Avg&nbsp;<span className="tabular-nums text-emerald-100">{currentPerf.toFixed(1)}×</span>
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 font-semibold text-cyan-200/90">
+                Win&nbsp;<span className="tabular-nums text-cyan-100">{Math.round(currentWin)}%</span>
+              </span>
+              <span className="text-zinc-500">
+                {range === "W" ? "Week view" : range === "M" ? "Month view" : range === "3M" ? "Quarter view" : "All time"}
+              </span>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
+
+          <div className="flex shrink-0 items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
             {(["W", "M", "3M", "A"] as const).map((t) => (
               <button
                 key={t}
@@ -222,8 +238,8 @@ export default function PerformanceChart() {
                 onClick={() => setRange(t)}
                 className={`rounded-md px-2 py-1 text-xs transition-all ${
                   range === t
-                    ? "border border-green-500/20 bg-green-500/10 font-semibold text-green-400"
-                    : "text-zinc-500 hover:bg-white/5 hover:text-white"
+                    ? "border border-emerald-500/25 bg-emerald-500/15 font-semibold text-emerald-200"
+                    : "text-zinc-500 hover:bg-white/5 hover:text-zinc-100"
                 }`}
               >
                 {t}
@@ -232,9 +248,9 @@ export default function PerformanceChart() {
           </div>
         </div>
 
-        <div className="mt-6 grid min-w-0 grid-cols-2 gap-6">
+        <div className="mt-6 grid min-w-0 grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Performance */}
-        <div className="flex min-h-0 min-w-0 flex-col gap-2 p-4">
+        <div className="flex min-h-0 min-w-0 flex-col gap-2 rounded-2xl border border-zinc-800/55 bg-black/20 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-5">
           <div className="flex min-h-[2rem] items-center justify-between gap-3">
             <h3 className="shrink-0 text-xs font-semibold tracking-tight text-zinc-400">
               Performance
@@ -271,24 +287,27 @@ export default function PerformanceChart() {
                     <stop offset="100%" stopColor={PERF_LINE} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
+                <CartesianGrid stroke={gridStroke} strokeDasharray="2 8" />
                 <XAxis
                   dataKey="name"
                   tick={axisTick}
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
+                  tickMargin={10}
                 />
                 <YAxis
-                  width={34}
+                  width={38}
                   tick={axisTick}
                   tickLine={false}
                   axisLine={false}
                   domain={["auto", "auto"]}
                   ticks={performanceTicks}
                   tickFormatter={(v: number) => `${v}x`}
+                  tickMargin={8}
                 />
                 <Tooltip
+                  cursor={{ stroke: "rgba(148,163,184,0.18)", strokeWidth: 1 }}
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
                     const row = payload[0]?.payload as PerformanceRow;
@@ -296,7 +315,7 @@ export default function PerformanceChart() {
                       ? `${row.originalName} · ${label}`
                       : String(label);
                     return (
-                      <div className="rounded-lg border border-zinc-800 bg-[#09090b] px-3 py-2 text-xs shadow-xl">
+                      <div className="rounded-xl border border-zinc-800/80 bg-black/80 px-3 py-2 text-xs shadow-2xl shadow-black/60 backdrop-blur">
                         <div className="mb-1.5 text-zinc-500">{heading}</div>
                         <div className="flex justify-between gap-6 tabular-nums">
                           <span className="text-zinc-500">Avg</span>
@@ -334,7 +353,7 @@ export default function PerformanceChart() {
                   stroke="rgba(34,197,94,0.28)"
                   strokeWidth={1.25}
                   dot={false}
-                  isAnimationActive
+                  isAnimationActive={false}
                 />
                 <Line
                   type="monotone"
@@ -365,7 +384,7 @@ export default function PerformanceChart() {
                           r={12}
                           fill={PERF_LINE}
                           fillOpacity={0.22}
-                          style={{ filter: "blur(4px)" }}
+                          style={{ filter: "blur(6px)" }}
                         />
                         <circle
                           cx={cx}
@@ -389,7 +408,7 @@ export default function PerformanceChart() {
                       </g>
                     );
                   }}
-                  isAnimationActive
+                  isAnimationActive={false}
                   style={{
                     filter: "drop-shadow(0 0 8px rgba(34,197,94,0.45))",
                   }}
@@ -400,7 +419,7 @@ export default function PerformanceChart() {
         </div>
 
         {/* Win rate */}
-        <div className="flex min-h-0 min-w-0 flex-col gap-2 border-l border-white/5 p-4 pl-6">
+        <div className="flex min-h-0 min-w-0 flex-col gap-2 rounded-2xl border border-zinc-800/55 bg-black/20 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-5">
           <div className="flex min-h-[2rem] items-center justify-between gap-3">
             <h3 className="shrink-0 text-xs font-semibold tracking-tight text-zinc-400">
               Win Rate
@@ -425,24 +444,27 @@ export default function PerformanceChart() {
                     <stop offset="100%" stopColor={WIN_LINE} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
+                <CartesianGrid stroke={gridStroke} strokeDasharray="2 8" />
                 <XAxis
                   dataKey="name"
                   tick={axisTick}
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
+                  tickMargin={10}
                 />
                 <YAxis
-                  width={34}
+                  width={38}
                   tick={axisTick}
                   tickLine={false}
                   axisLine={false}
                   domain={[0, 100]}
                   ticks={[0, 50, 100]}
                   tickFormatter={(v: number) => `${v}%`}
+                  tickMargin={8}
                 />
                 <Tooltip
+                  cursor={{ stroke: "rgba(148,163,184,0.18)", strokeWidth: 1 }}
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
                     const row = payload[0]?.payload as WinRateRow;
@@ -450,7 +472,7 @@ export default function PerformanceChart() {
                       ? `${row.originalName} · ${label}`
                       : String(label);
                     return (
-                      <div className="rounded-lg border border-zinc-800 bg-[#09090b] px-3 py-2 text-xs shadow-xl">
+                      <div className="rounded-xl border border-zinc-800/80 bg-black/80 px-3 py-2 text-xs shadow-2xl shadow-black/60 backdrop-blur">
                         <div className="mb-1 text-zinc-500">{heading}</div>
                         <div className="flex justify-between gap-6 tabular-nums">
                           <span className="text-zinc-500">Win rate</span>
@@ -498,7 +520,7 @@ export default function PerformanceChart() {
                           r={12}
                           fill={WIN_LINE}
                           fillOpacity={0.28}
-                          style={{ filter: "blur(4px)" }}
+                          style={{ filter: "blur(6px)" }}
                         />
                         <circle
                           cx={cx}
@@ -522,7 +544,7 @@ export default function PerformanceChart() {
                       </g>
                     );
                   }}
-                  isAnimationActive
+                  isAnimationActive={false}
                   style={{
                     filter: "drop-shadow(0 0 5px rgba(45,212,191,0.35))",
                   }}
