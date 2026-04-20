@@ -482,55 +482,52 @@ export function TopBar() {
 
       {/* MARKET STRIP ROW */}
       {showMarketWidget && (
-        <div className="border-t border-[#1a1a1a] bg-gradient-to-r from-[#070707] via-[#0a0a0a] to-[#070707] px-4 sm:px-6 py-2 text-xs text-zinc-500">
+        <div className={`${dashboardChrome.marketStrip} px-4 py-2 text-xs sm:px-6`}>
           {marketLoading ? (
-            <span className="text-zinc-600">Loading market...</span>
+            <div className="flex w-full justify-end">
+              <span className="text-zinc-600">Loading market…</span>
+            </div>
           ) : market ? (
-            <div className="flex items-center justify-between gap-3 whitespace-nowrap">
-              <div className="flex min-w-0 items-center gap-3 overflow-hidden">
-                <span
-                  className={[
-                    "flex items-center gap-1 rounded-md border border-transparent px-1.5 py-1 font-semibold tabular-nums transition-colors duration-300",
-                    market.change24h >= 0 ? "text-[color:var(--accent)]" : "text-red-400",
-                    priceFlash === "up"
-                      ? "bg-[color:var(--accent)]/10 border-[color:var(--accent)]/20"
-                      : priceFlash === "down"
-                        ? "bg-red-500/10 border-red-500/20"
-                        : "bg-zinc-900/20 border-zinc-800/40",
-                  ].join(" ")}
-                >
-                  <span>{market.change24h >= 0 ? "▲" : "▼"}</span>
-                  <span>
-                    SOL {formatSolUsd(market.solPrice)} ({formatPctChange(market.change24h)})
-                  </span>
+            <div className="flex w-full flex-wrap items-center justify-end gap-x-3 gap-y-1.5 text-zinc-500">
+              <span
+                className={[
+                  "flex shrink-0 items-center gap-1 rounded-md border border-transparent px-1.5 py-1 font-semibold tabular-nums transition-colors duration-300",
+                  market.change24h >= 0 ? "text-[color:var(--accent)]" : "text-red-400",
+                  priceFlash === "up"
+                    ? "bg-[color:var(--accent)]/10 border-[color:var(--accent)]/20"
+                    : priceFlash === "down"
+                      ? "bg-red-500/10 border-red-500/20"
+                      : "bg-zinc-900/30 border-zinc-800/50 backdrop-blur-sm",
+                ].join(" ")}
+              >
+                <span>{market.change24h >= 0 ? "▲" : "▼"}</span>
+                <span>
+                  SOL {formatSolUsd(market.solPrice)} ({formatPctChange(market.change24h)})
                 </span>
+              </span>
 
-                <span className="text-zinc-800/80">|</span>
+              <span className="hidden text-zinc-700 sm:inline" aria-hidden>
+                |
+              </span>
 
-                <span className="rounded-md border border-zinc-800/50 bg-zinc-900/20 px-2 py-1 text-zinc-400">
-                  PumpFun Vol{" "}
-                  <span className="font-medium text-zinc-200">
-                    {formatUsdCompact(market.pumpVolume)}
-                  </span>
-                </span>
+              <span className="rounded-md border border-zinc-800/50 bg-zinc-900/30 px-2 py-1 text-zinc-400 backdrop-blur-sm">
+                PumpFun Vol{" "}
+                <span className="font-medium text-zinc-200">{formatUsdCompact(market.pumpVolume)}</span>
+              </span>
 
-                <span className="rounded-md border border-zinc-800/50 bg-zinc-900/20 px-2 py-1 text-zinc-400">
-                  Traders{" "}
-                  <span className="font-medium text-zinc-200">
-                    {formatCount(market.activeTraders)}
-                  </span>
-                </span>
-              </div>
+              <span className="rounded-md border border-zinc-800/50 bg-zinc-900/30 px-2 py-1 text-zinc-400 backdrop-blur-sm">
+                Traders <span className="font-medium text-zinc-200">{formatCount(market.activeTraders)}</span>
+              </span>
 
-              <div className="shrink-0 text-zinc-500">
+              <span className="shrink-0 text-zinc-500">
                 Updated{" "}
-                <span className="font-medium tabular-nums text-zinc-300">
-                  {marketUpdatedLabel}
-                </span>
-              </div>
+                <span className="font-medium tabular-nums text-zinc-300">{marketUpdatedLabel}</span>
+              </span>
             </div>
           ) : (
-            <span className="text-zinc-600">Market unavailable</span>
+            <div className="flex w-full justify-end">
+              <span className="text-zinc-600">Market unavailable</span>
+            </div>
           )}
         </div>
       )}

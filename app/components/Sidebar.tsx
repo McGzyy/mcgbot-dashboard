@@ -136,7 +136,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-gradient-to-b from-black via-zinc-950 to-black ${dashboardChrome.sidebar}`}
+      className={`relative z-30 sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-gradient-to-b from-black via-zinc-950 to-black ${dashboardChrome.sidebar}`}
     >
       <div className="border-b border-zinc-800 px-4 py-4">
         <Link

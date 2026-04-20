@@ -66,6 +66,9 @@ export const dashboardChrome = {
   contentWell: "relative z-[1] mx-auto w-full max-w-[1680px] px-5 pb-12 pt-1 sm:px-8 sm:pb-14 sm:pt-2",
   topBar:
     "border-b border-zinc-800/75 bg-zinc-950/85 backdrop-blur-xl shadow-[0_1px_0_0_rgba(56,189,248,0.07),0_12px_40px_-20px_rgba(0,0,0,0.65)]",
+  /** Second row under TopBar — same glass language, content sits on the right */
+  marketStrip:
+    "border-t border-zinc-800/50 bg-zinc-950/40 backdrop-blur-md shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]",
   sidebar:
     "border-r border-zinc-800/65 bg-gradient-to-b from-[#040508] via-zinc-950 to-black shadow-[inset_-1px_0_0_rgba(56,189,248,0.06)]",
 } as const;
