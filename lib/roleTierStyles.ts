@@ -66,4 +66,15 @@ export const modChrome = {
   emptyState: "border border-dashed border-emerald-700/35 bg-emerald-950/10",
   refreshBtn:
     "border-emerald-800/40 bg-emerald-950/25 hover:border-emerald-500/45 hover:bg-emerald-900/35 focus-visible:ring-emerald-500/30",
+  /** Full-page moderation shell */
+  pageShell:
+    "relative min-h-[calc(100vh-5rem)] overflow-x-hidden bg-[#030806] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_85%_50%_at_50%_-20%,rgba(16,185,129,0.14),transparent_55%)] after:pointer-events-none after:absolute after:inset-0 after:bg-[linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.4)_100%)]",
+  pageInner: "relative z-[1]",
+  heroTitle:
+    "bg-gradient-to-br from-white via-emerald-50/95 to-emerald-400/80 bg-clip-text text-transparent drop-shadow-[0_0_28px_rgba(16,185,129,0.15)]",
+  heroUnderline: "h-1 w-14 rounded-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 shadow-[0_0_12px_rgba(52,211,153,0.45)]",
+  railPanel:
+    "rounded-2xl border border-emerald-500/20 bg-gradient-to-b from-emerald-950/35 via-zinc-950/80 to-black/90 p-4 shadow-[0_0_0_1px_rgba(16,185,129,0.06),0_24px_48px_-24px_rgba(0,0,0,0.85)] backdrop-blur-sm",
+  railKicker: "text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400/75",
+  railMetric: "rounded-xl border border-emerald-900/30 bg-black/35 px-3 py-2.5",
 } as const;
