@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AdminPanel } from "@/app/admin/_components/adminUi";
 
 type Row = {
   discord_id: string;
@@ -127,10 +128,8 @@ export function AdminPanelClient() {
         </p>
       </div>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-300">
-          Add exempt user
-        </h2>
+      <AdminPanel className="p-5">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">Add exempt user</h2>
         <p className="mt-1 text-xs text-zinc-500">
           Use the member&apos;s Discord user ID (Developer Mode → Copy User ID).
         </p>
@@ -168,10 +167,10 @@ export function AdminPanelClient() {
           </button>
         </div>
         {formError ? <p className="mt-3 text-sm text-red-400">{formError}</p> : null}
-      </section>
+      </AdminPanel>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-300">
+      <AdminPanel className="p-5">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
           Dashboard allowlist (database)
         </h2>
         {loadError ? (
@@ -209,11 +208,11 @@ export function AdminPanelClient() {
             ))}
           </ul>
         )}
-      </section>
+      </AdminPanel>
 
       {envIds.length > 0 ? (
-        <section className="rounded-xl border border-amber-900/40 bg-amber-950/20 p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-200/90">
+        <AdminPanel className="border-amber-500/20 bg-gradient-to-br from-amber-950/40 to-zinc-950/90 p-5">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/90">
             Also exempt via env (Vercel)
           </h2>
           <p className="mt-1 text-xs text-amber-200/60">
@@ -225,7 +224,7 @@ export function AdminPanelClient() {
               <li key={eid}>{eid}</li>
             ))}
           </ul>
-        </section>
+        </AdminPanel>
       ) : null}
     </div>
   );
