@@ -1,6 +1,7 @@
 "use client";
 
 import { useNotifications } from "@/app/contexts/NotificationsContext";
+import { dashboardChrome } from "@/lib/roleTierStyles";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -259,10 +260,7 @@ export function TopBar() {
 
   return (
     <>
-      <header
-        className="sticky top-0 z-50 border-b border-[#1a1a1a] bg-[#0a0a0a] backdrop-blur"
-        role="banner"
-      >
+      <header className={`sticky top-0 z-50 ${dashboardChrome.topBar}`} role="banner">
       {/* TOP ROW (existing header content) */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-2">
         <div className="min-w-0 flex-1" aria-hidden />

@@ -5,7 +5,12 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { normalizeStaffRole, tierNavBarClass, tierStatusDotClass } from "@/lib/roleTierStyles";
+import {
+  dashboardChrome,
+  normalizeStaffRole,
+  tierNavBarClass,
+  tierStatusDotClass,
+} from "@/lib/roleTierStyles";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -130,7 +135,9 @@ export function Sidebar() {
     }`;
 
   return (
-    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-zinc-800 bg-gradient-to-b from-black via-zinc-950 to-black">
+    <aside
+      className={`sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-gradient-to-b from-black via-zinc-950 to-black ${dashboardChrome.sidebar}`}
+    >
       <div className="border-b border-zinc-800 px-4 py-4">
         <Link
           href="/"

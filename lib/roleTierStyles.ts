@@ -52,6 +52,24 @@ export const adminChrome = {
   overviewArrow: "text-red-300/85 transition group-hover:translate-x-0.5 group-hover:text-red-200",
 } as const;
 
+/**
+ * Authenticated app shell — shared “McGBot Terminal” depth (sky + subtle grid).
+ * Page-specific themes (admin red, mod emerald) sit on top as panels, not second full-page fills.
+ */
+export const dashboardChrome = {
+  /** Main column below TopBar */
+  mainStage: "relative flex min-h-0 flex-1 flex-col overflow-x-hidden bg-[#030406]",
+  mainGlow:
+    "pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_110%_70%_at_50%_-25%,rgba(56,189,248,0.11),transparent_52%),radial-gradient(ellipse_55%_45%_at_100%_0%,rgba(16,185,129,0.06),transparent_42%),radial-gradient(ellipse_50%_50%_at_0%_100%,rgba(139,92,246,0.045),transparent_48%)]",
+  mainGrid:
+    "pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.028)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.028)_1px,transparent_1px)] bg-[length:44px_44px] opacity-[0.35] [mask-image:linear-gradient(to_bottom,black_0%,black_55%,transparent_100%)]",
+  contentWell: "relative z-[1] mx-auto w-full max-w-[1680px] px-5 pb-12 pt-1 sm:px-8 sm:pb-14 sm:pt-2",
+  topBar:
+    "border-b border-zinc-800/75 bg-zinc-950/85 backdrop-blur-xl shadow-[0_1px_0_0_rgba(56,189,248,0.07),0_12px_40px_-20px_rgba(0,0,0,0.65)]",
+  sidebar:
+    "border-r border-zinc-800/65 bg-gradient-to-b from-[#040508] via-zinc-950 to-black shadow-[inset_-1px_0_0_rgba(56,189,248,0.06)]",
+} as const;
+
 /** Staff / mod queue pages — emerald, same family as `tierNavBarClass("mod")` */
 export const modChrome = {
   kicker: "text-emerald-300/90",
@@ -66,9 +84,8 @@ export const modChrome = {
   emptyState: "border border-dashed border-emerald-700/35 bg-emerald-950/10",
   refreshBtn:
     "border-emerald-800/40 bg-emerald-950/25 hover:border-emerald-500/45 hover:bg-emerald-900/35 focus-visible:ring-emerald-500/30",
-  /** Full-page moderation shell */
-  pageShell:
-    "relative min-h-[calc(100vh-5rem)] overflow-x-hidden bg-[#030806] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_85%_50%_at_50%_-20%,rgba(16,185,129,0.14),transparent_55%)] after:pointer-events-none after:absolute after:inset-0 after:bg-[linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.4)_100%)]",
+  /** Moderation page root (global shell provides bg — keep layout only here) */
+  pageShell: "relative min-h-[calc(100vh-5rem)] overflow-x-hidden",
   pageInner: "relative z-[1]",
   heroTitle:
     "bg-gradient-to-br from-white via-emerald-50/95 to-emerald-400/80 bg-clip-text text-transparent drop-shadow-[0_0_28px_rgba(16,185,129,0.15)]",
