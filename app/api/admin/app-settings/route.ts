@@ -18,8 +18,7 @@ export async function GET() {
       {
         success: false,
         code: "no_table_or_supabase",
-        error:
-          "Could not load settings. Run `sql/dashboard_admin_settings.sql` in Supabase and confirm `SUPABASE_*` env vars.",
+        error: "Settings row missing or Supabase unreachable.",
       },
       { status: 503 }
     );

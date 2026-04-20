@@ -31,8 +31,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           Admin dashboard
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          High-trust surface for Discord + web operations. Subscription bypass is live; bot health and
-          host flags are read-only for now — we&apos;ll add writes as each subsystem gets an admin API.
+          High-trust surface for Discord + web operations. Subscription bypass and dashboard app settings (maintenance,
+          paywall copy, announcements) are live in Supabase once the SQL migrations are applied. Bot host remains
+          read-only until internal APIs exist.
         </p>
       </header>
       <AdminDashboardShell>{children}</AdminDashboardShell>

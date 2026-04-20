@@ -56,8 +56,8 @@ export default function AdminOverviewPage() {
         <OverviewCard
           href="/admin/site"
           title="Dashboard app"
-          subtitle="Deployment fingerprint and integration flags for this Vercel project."
-          hint="Read-only · Env"
+          subtitle="Deploy fingerprint, env presence checks, and editable app settings in Supabase."
+          hint="Writes · Supabase"
         />
       </div>
     </div>

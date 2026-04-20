@@ -95,11 +95,13 @@ export function SiteAdminClient() {
         code?: string;
       };
       if (!res.ok || json.success !== true || !json.settings) {
-        const hint =
-          json.code === "no_table_or_supabase"
-            ? " Run `sql/dashboard_admin_settings.sql` (and `sql/dashboard_admin_settings_extend.sql` for new columns) in Supabase."
-            : "";
-        setSettingsError((typeof json.error === "string" ? json.error : "Failed to load settings.") + hint);
+        if (json.code === "no_table_or_supabase") {
+          setSettingsError(
+            "Live settings need the Supabase table. In the SQL editor for this project, run `mcgbot-dashboard/sql/dashboard_admin_settings.sql`, then `sql/dashboard_admin_settings_extend.sql`. On Vercel, confirm `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` match that project."
+          );
+        } else {
+          setSettingsError(typeof json.error === "string" ? json.error : "Failed to load settings.");
+        }
         setSettings(null);
         return;
       }
