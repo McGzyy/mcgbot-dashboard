@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { filterCallRowsForStats, getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
 export const runtime = "nodejs";
@@ -19,12 +19,10 @@ function clampWindow(raw: string): WindowId {
 
 export async function GET(req: Request) {
   try {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
-    if (!url || !key) {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
       return Response.json({ success: false, error: "Supabase not configured" }, { status: 500 });
     }
-    const supabase = createClient(url, key);
 
     const nowMs = Date.now();
     const windowId = clampWindow(new URL(req.url).searchParams.get("window") ?? "");
@@ -35,7 +33,9 @@ export async function GET(req: Request) {
     const { data, error } = await supabase
       .from("call_performance")
       .select("username, call_time, excluded_from_stats")
-      .gte("call_time", new Date(minMs).toISOString());
+      .gte("call_time", new Date(minMs).toISOString())
+      .order("call_time", { ascending: false })
+      .limit(5000);
 
     if (error) {
       console.error("[leaderboard/daily] supabase:", error);
