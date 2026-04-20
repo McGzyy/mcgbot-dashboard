@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 
     const { data, error, count } = await supabase
       .from("call_performance")
-      .select("id, call_ca, ath_multiple, call_time, source, message_url, username", { count: "exact" })
+      .select("id, call_ca, ath_multiple, call_time, source, message_url, username, excluded_from_stats", { count: "exact" })
       .eq("discord_id", discordId)
       .gte("call_time", floor)
       .order("call_time", { ascending: false })
@@ -59,6 +59,7 @@ export async function GET(request: Request) {
       source: typeof r.source === "string" ? r.source : "user",
       messageUrl: typeof r.message_url === "string" ? r.message_url.trim() : null,
       username: typeof r.username === "string" ? r.username.trim() : "",
+      excludedFromStats: r.excluded_from_stats === true,
     }));
 
     return Response.json({

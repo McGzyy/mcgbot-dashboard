@@ -13,6 +13,7 @@ type TapeRow = {
   source: string;
   messageUrl: string | null;
   username: string;
+  excludedFromStats?: boolean;
 };
 
 function shortCa(ca: string) {

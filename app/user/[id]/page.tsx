@@ -26,6 +26,7 @@ type RecentCallRow = {
   token: string;
   multiple: number;
   time: unknown;
+  excludedFromStats?: boolean;
 };
 
 type ProfilePayload = {
@@ -554,6 +555,7 @@ function parseProfile(json: unknown): ProfilePayload | null {
         token: token || "Unknown",
         multiple,
         time: r.time,
+        excludedFromStats: r.excludedFromStats === true,
       });
     }
   }
@@ -630,6 +632,8 @@ export default function UserProfilePage() {
     typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
   const profileUserId = userId.trim();
   const { data: session } = useSession();
+  const isAdmin =
+    (session?.user as { helpTier?: string } | undefined)?.helpTier === "admin";
   const isOwnProfile =
     !!session?.user?.id?.trim() && session.user.id.trim() === profileUserId;
 
@@ -637,6 +641,8 @@ export default function UserProfilePage() {
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminOk, setAdminOk] = useState<string | null>(null);
   const [followStats, setFollowStats] = useState<{
     followers: number;
     following: number;
@@ -703,6 +709,85 @@ export default function UserProfilePage() {
       setLoading(false);
     }
   }, [profileUserId]);
+
+  const resetUserStats = useCallback(async () => {
+    if (!isAdmin || !profileUserId) return;
+    const ok = window.confirm(
+      "Reset this user’s stats?\n\nThis excludes ALL of their existing calls from leaderboards and performance stats (history is retained)."
+    );
+    if (!ok) return;
+    setAdminBusy(true);
+    setAdminOk(null);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/users/${encodeURIComponent(profileUserId)}/reset-stats`,
+        { method: "POST", credentials: "same-origin" }
+      );
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        excluded?: number | null;
+        error?: string;
+      };
+      if (!res.ok || json.success !== true) {
+        setError(
+          typeof json.error === "string" ? json.error : "Reset failed."
+        );
+        return;
+      }
+      const n = typeof json.excluded === "number" ? json.excluded : null;
+      setAdminOk(n == null ? "Reset complete." : `Reset complete. Excluded ${n} calls.`);
+      void fetchProfile();
+    } catch {
+      setError("Reset failed.");
+    } finally {
+      setAdminBusy(false);
+    }
+  }, [fetchProfile, isAdmin, profileUserId]);
+
+  const setCallExcluded = useCallback(
+    async (callId: string, excluded: boolean) => {
+      if (!isAdmin) return;
+      const id = callId.trim();
+      if (!id) return;
+      setAdminBusy(true);
+      setAdminOk(null);
+      setError(null);
+      try {
+        const res = await fetch(
+          `/api/admin/calls/${encodeURIComponent(id)}/exclusion`,
+          {
+            method: "PATCH",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              excluded,
+              reason: excluded ? "admin_profile_toggle" : "",
+            }),
+          }
+        );
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          error?: string;
+        };
+        if (!res.ok || json.success !== true) {
+          setError(
+            typeof json.error === "string"
+              ? json.error
+              : "Could not update exclusion."
+          );
+          return;
+        }
+        setAdminOk(excluded ? "Call excluded from stats." : "Call restored to stats.");
+        void fetchProfile();
+      } catch {
+        setError("Could not update exclusion.");
+      } finally {
+        setAdminBusy(false);
+      }
+    },
+    [fetchProfile, isAdmin]
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1503,6 +1588,30 @@ export default function UserProfilePage() {
                               Pin
                             </button>
                           ) : null}
+                          {isAdmin && call.id ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void setCallExcluded(
+                                  call.id!,
+                                  call.excludedFromStats !== true
+                                )
+                              }
+                              disabled={adminBusy}
+                              className={`ml-2 rounded-md border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide transition disabled:opacity-60 ${
+                                call.excludedFromStats === true
+                                  ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-200 hover:border-emerald-400/40"
+                                  : "border-red-500/25 bg-red-500/10 text-red-200 hover:border-red-400/40"
+                              }`}
+                              title={
+                                call.excludedFromStats === true
+                                  ? "Restore this call to stats"
+                                  : "Exclude this call from stats"
+                              }
+                            >
+                              {call.excludedFromStats === true ? "Restore" : "Exclude"}
+                            </button>
+                          ) : null}
                         </span>
                         <span
                           className={`shrink-0 text-right text-sm font-semibold tabular-nums ${multipleClass(
@@ -1527,6 +1636,28 @@ export default function UserProfilePage() {
 
         <aside className="col-span-12 lg:col-span-4">
           <div className="w-full max-w-sm space-y-4 lg:sticky lg:top-20 lg:z-10 lg:ml-auto lg:self-start">
+            {isAdmin ? (
+              <PanelCard title="Admin tools">
+                <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                  Exclude suspicious/outlier calls so they stop impacting global stats. Reset will exclude
+                  all historical calls for this user (history is retained).
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void resetUserStats()}
+                  disabled={adminBusy}
+                  className="mt-3 w-full rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-100 transition hover:border-red-400/45 hover:bg-red-500/15 disabled:opacity-60"
+                >
+                  {adminBusy ? "Working…" : "Reset user stats"}
+                </button>
+                {adminOk ? (
+                  <p className="mt-2 text-xs font-semibold text-emerald-300/90">
+                    {adminOk}
+                  </p>
+                ) : null}
+              </PanelCard>
+            ) : null}
+
             {isOwnProfile && !xVerified ? (
               <PanelCard title="X account">
                 <p className="mt-2 text-xs leading-relaxed text-zinc-500">

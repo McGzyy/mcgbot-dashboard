@@ -3890,6 +3890,56 @@ export default function Home() {
 
           {widgetEnabled(widgets, "live_tracked_calls") && <DailyLeaderboardPanel />}
 
+          {widgetEnabled(widgets, "recent_calls") ? (
+            <PanelCard title="Recent calls" titleClassName="normal-case">
+              <p className="mt-2 text-xs text-zinc-500">
+                Your last few verified calls.
+              </p>
+              {callsLoading ? (
+                <div className="flex min-h-[88px] items-center justify-center py-6">
+                  <p className="text-sm text-zinc-500">Loading calls...</p>
+                </div>
+              ) : recentCalls.length === 0 ? (
+                <div className="flex min-h-[88px] items-center justify-center py-6">
+                  <p className="text-sm text-zinc-500">No calls yet</p>
+                </div>
+              ) : (
+                <ul className="mt-3 space-y-0 divide-y divide-zinc-800/50 text-sm">
+                  {recentCalls.slice(0, 6).map((call, i) => (
+                    <li
+                      key={`${call.token}-${String(call.time)}-${i}`}
+                      className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-1.5 text-zinc-300"
+                    >
+                      <span className="min-w-0 font-medium text-zinc-100">
+                        {call.token}
+                        <span className="text-zinc-400"> → </span>
+                        <span
+                          className={`font-semibold tabular-nums ${multipleClass(
+                            call.multiple
+                          )}`}
+                        >
+                          {call.multiple.toFixed(1)}x
+                        </span>
+                      </span>
+                      <span className="ml-auto shrink-0 text-zinc-500">
+                        {formatJoinedAt(callTimeMs(call.time), nowMs)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-xs text-zinc-500">See the full list</p>
+                <Link
+                  href="/calls"
+                  className="text-xs font-semibold text-zinc-200 hover:text-white"
+                >
+                  Open call log →
+                </Link>
+              </div>
+            </PanelCard>
+          ) : null}
+
           <PanelCard title="Watchlist" titleClassName="normal-case">
             <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
               <span className="tabular-nums">
@@ -3972,58 +4022,6 @@ export default function Home() {
           )}
         </div>
       </div>
-
-      {widgetEnabled(widgets, "recent_calls") && (
-        <div className="mb-10">
-          <PanelCard title="Your Recent Calls">
-                  <p className="mt-2 text-sm text-zinc-500">
-                    <Link
-                      href={`/user/${encodeURIComponent(session.user.id)}`}
-                      className={PROFILE_LINK_CLASS}
-                    >
-                      {session.user.name ?? "Your profile"}
-                    </Link>
-                    <UserBadgeIcons
-                      badges={badgesByUser[session.user.id.trim()] ?? []}
-                      className="ml-1"
-                    />
-                  </p>
-                  {callsLoading ? (
-                    <div className="flex min-h-[88px] items-center justify-center py-6">
-                      <p className="text-sm text-zinc-500">Loading calls...</p>
-                    </div>
-                  ) : recentCalls.length === 0 ? (
-                    <div className="flex min-h-[88px] items-center justify-center py-6">
-                      <p className="text-sm text-zinc-500">No calls yet</p>
-                    </div>
-                  ) : (
-                    <ul className="mt-3 space-y-0 divide-y divide-zinc-800/50 text-sm">
-                      {recentCalls.map((call, i) => (
-                        <li
-                          key={`${call.token}-${String(call.time)}-${i}`}
-                          className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-1.5 text-zinc-300"
-                        >
-                          <span className="min-w-0 font-medium text-zinc-100">
-                            {call.token}
-                            <span className="text-zinc-400"> → </span>
-                            <span
-                              className={`font-semibold tabular-nums ${multipleClass(
-                                call.multiple
-                              )}`}
-                            >
-                              {call.multiple.toFixed(1)}x
-                            </span>
-                          </span>
-                          <span className="ml-auto shrink-0 text-zinc-500">
-                            {formatJoinedAt(callTimeMs(call.time), nowMs)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-          </PanelCard>
-        </div>
-      )}
 
       <ActivityPopup
         item={

@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     let query = supabase
       .from("call_performance")
       .select(
-        "username, discord_id, ath_multiple, call_time, source, call_ca, message_url"
+        "username, discord_id, ath_multiple, call_time, source, call_ca, message_url, excluded_from_stats"
       );
 
     const t = tier.toLowerCase().trim();

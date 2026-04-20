@@ -112,7 +112,7 @@ export async function GET(
     const [{ data, error }, userRowResult, cutoverMs] = await Promise.all([
       supabase
         .from("call_performance")
-        .select("id, username, call_ca, ath_multiple, call_time")
+        .select("id, username, call_ca, ath_multiple, call_time, excluded_from_stats")
         .eq("discord_id", discordId),
       supabase
         .from("users")
@@ -147,13 +147,14 @@ export async function GET(
         }
       | null;
     const rawRows = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
-    const rows = filterCallRowsForStats(rawRows, cutoverMs);
+    const statsRows = filterCallRowsForStats(rawRows, cutoverMs);
 
-    const username = pickLatestUsername(rows, discordId);
-    const stats = computeCallPerformanceUserStats(rows);
-    const recentCalls = recentCallsFromRows(rows, PROFILE_RECENT_CALLS_LIMIT);
-    const keyStats = computeKeyStats(rows);
-    const callDistribution = computeCallDistribution(rows);
+    const username = pickLatestUsername(statsRows, discordId);
+    const stats = computeCallPerformanceUserStats(statsRows);
+    // For moderation/debug: include excluded calls in the "recent calls" list, but keep stats clean.
+    const recentCalls = recentCallsFromRows(rawRows, PROFILE_RECENT_CALLS_LIMIT);
+    const keyStats = computeKeyStats(statsRows);
+    const callDistribution = computeCallDistribution(statsRows);
 
     return Response.json({
       username,

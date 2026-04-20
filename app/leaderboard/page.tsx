@@ -68,11 +68,12 @@ function buildUserLeaderboard(tf: TimeframeId): LeaderRow[] {
   });
 }
 
+// Mock boards removed: this page now renders only API-backed data (or empty states).
 const MOCK_USER_LEADERBOARD: Record<TimeframeId, LeaderRow[]> = {
-  daily: buildUserLeaderboard("daily"),
-  weekly: buildUserLeaderboard("weekly"),
-  monthly: buildUserLeaderboard("monthly"),
-  all: buildUserLeaderboard("all"),
+  daily: [],
+  weekly: [],
+  monthly: [],
+  all: [],
 };
 
 function buildTopCalls(tf: TimeframeId, who: "users" | "bot"): TopCallRow[] {
@@ -118,10 +119,10 @@ function buildTopCalls(tf: TimeframeId, who: "users" | "bot"): TopCallRow[] {
 }
 
 const MOCK_INDIV_CALLS: Record<TimeframeId, TopCallRow[]> = {
-  daily: buildTopCalls("daily", "users"),
-  weekly: buildTopCalls("weekly", "users"),
-  monthly: buildTopCalls("monthly", "users"),
-  all: buildTopCalls("all", "users"),
+  daily: [],
+  weekly: [],
+  monthly: [],
+  all: [],
 };
 
 /** Mock “signed-in” caller — highlighted on the current timeframe’s page 1 */
@@ -130,10 +131,10 @@ function mockViewerUsername(tf: TimeframeId): string {
 }
 
 const MOCK_MCGBOT_TOP_CALLS: Record<TimeframeId, TopCallRow[]> = {
-  daily: buildTopCalls("daily", "bot"),
-  weekly: buildTopCalls("weekly", "bot"),
-  monthly: buildTopCalls("monthly", "bot"),
-  all: buildTopCalls("all", "bot"),
+  daily: [],
+  weekly: [],
+  monthly: [],
+  all: [],
 };
 
 const MOCK_LEADERS: LeaderCard[] = [
@@ -335,6 +336,26 @@ export default function LeaderboardPage() {
   const [indivPage, setIndivPage] = useState(1);
   const [mcgbotTimeframe, setMcgbotTimeframe] = useState<TimeframeId>("daily");
   const [mcgbotPage, setMcgbotPage] = useState(1);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersBoards, setUsersBoards] = useState<Record<TimeframeId, LeaderRow[]>>({
+    daily: [],
+    weekly: [],
+    monthly: [],
+    all: [],
+  });
+  const [botLoading, setBotLoading] = useState(true);
+  const [botBoards, setBotBoards] = useState<Record<TimeframeId, LeaderRow[]>>({
+    daily: [],
+    weekly: [],
+    monthly: [],
+    all: [],
+  });
+  const [spotlightLoading, setSpotlightLoading] = useState(true);
+  const [spotlight, setSpotlight] = useState<{
+    daily: LeaderRow | null;
+    weekly: LeaderRow | null;
+    monthly: LeaderRow | null;
+  }>({ daily: null, weekly: null, monthly: null });
 
   useEffect(() => {
     const scrollToHashSection = () => {
@@ -349,92 +370,207 @@ export default function LeaderboardPage() {
     return () => window.removeEventListener("hashchange", scrollToHashSection);
   }, []);
 
-  const fullUserList = useMemo(
-    () => MOCK_USER_LEADERBOARD[usersTimeframe] ?? [],
-    [usersTimeframe]
-  );
+  const periodFor = (tf: TimeframeId): string => {
+    if (tf === "daily") return "today";
+    if (tf === "weekly") return "week";
+    if (tf === "monthly") return "30d";
+    return "all";
+  };
+
+  function normalizeBoardRows(raw: unknown): LeaderRow[] {
+    if (!Array.isArray(raw)) return [];
+    const out: LeaderRow[] = [];
+    for (const item of raw) {
+      if (!item || typeof item !== "object") continue;
+      const o = item as Record<string, unknown>;
+      const rank = typeof o.rank === "number" ? o.rank : Number(o.rank) || 0;
+      const username = typeof o.username === "string" ? o.username.trim() : "";
+      const avgX = typeof o.avgX === "number" ? o.avgX : Number(o.avgX) || 0;
+      const bestMultiple =
+        typeof o.bestMultiple === "number" ? o.bestMultiple : Number(o.bestMultiple) || 0;
+      const totalCalls =
+        typeof o.totalCalls === "number" ? o.totalCalls : Number(o.totalCalls) || 0;
+      const wins = typeof o.wins === "number" ? o.wins : Number(o.wins) || 0;
+      if (!rank || !username) continue;
+      out.push({
+        rank,
+        username,
+        avgX,
+        bestX: bestMultiple,
+        calls: totalCalls,
+        winRate: totalCalls > 0 ? Math.round((wins / totalCalls) * 100) : 0,
+      });
+    }
+    return out;
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    setUsersLoading(true);
+    void (async () => {
+      try {
+        const results = await Promise.all(
+          (["daily", "weekly", "monthly", "all"] as const).map(async (tf) => {
+            const res = await fetch(
+              `/api/leaderboard?type=user&period=${encodeURIComponent(periodFor(tf))}`,
+              { credentials: "same-origin" }
+            );
+            const json = (await res.json().catch(() => null)) as unknown;
+            return [tf, normalizeBoardRows(res.ok ? json : [])] as const;
+          })
+        );
+        if (cancelled) return;
+        setUsersBoards((prev) => {
+          const next = { ...prev };
+          for (const [tf, rows] of results) next[tf] = rows;
+          return next;
+        });
+      } catch {
+        if (!cancelled) {
+          setUsersBoards({ daily: [], weekly: [], monthly: [], all: [] });
+        }
+      } finally {
+        if (!cancelled) setUsersLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBotLoading(true);
+    void (async () => {
+      try {
+        const results = await Promise.all(
+          (["daily", "weekly", "monthly", "all"] as const).map(async (tf) => {
+            const res = await fetch(
+              `/api/leaderboard?type=bot&period=${encodeURIComponent(periodFor(tf))}`,
+              { credentials: "same-origin" }
+            );
+            const json = (await res.json().catch(() => null)) as unknown;
+            return [tf, normalizeBoardRows(res.ok ? json : [])] as const;
+          })
+        );
+        if (cancelled) return;
+        setBotBoards((prev) => {
+          const next = { ...prev };
+          for (const [tf, rows] of results) next[tf] = rows;
+          return next;
+        });
+      } catch {
+        if (!cancelled) {
+          setBotBoards({ daily: [], weekly: [], monthly: [], all: [] });
+        }
+      } finally {
+        if (!cancelled) setBotLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const userRows = useMemo(
-    () => fullUserList.slice((userPage - 1) * 10, userPage * 10),
-    [fullUserList, userPage]
+    () => (usersBoards[usersTimeframe] ?? []).slice((userPage - 1) * 10, userPage * 10),
+    [usersBoards, usersTimeframe, userPage]
   );
 
   const indivRows = useMemo(() => {
     const ITEMS_PER_PAGE = 10;
-    const calls = MOCK_INDIV_CALLS[indivTimeframe] ?? [];
+    const calls: TopCallRow[] = [];
     const start = (indivPage - 1) * ITEMS_PER_PAGE;
     const end = start + ITEMS_PER_PAGE;
     return calls.slice(start, end);
   }, [indivPage, indivTimeframe]);
   const mcgbotRows = useMemo(
-    () =>
-      (MOCK_MCGBOT_TOP_CALLS[mcgbotTimeframe] ?? []).slice(
-        (mcgbotPage - 1) * 10,
-        mcgbotPage * 10
-      ),
-    [mcgbotPage, mcgbotTimeframe]
+    () => (botBoards[mcgbotTimeframe] ?? []).slice((mcgbotPage - 1) * 10, mcgbotPage * 10),
+    [botBoards, mcgbotPage, mcgbotTimeframe]
   );
 
-  const botAllCalls = useMemo(() => MOCK_MCGBOT_TOP_CALLS.all ?? [], []);
-
   const botSummary = useMemo(() => {
-    const best = botAllCalls.reduce(
-      (top, c) => (c.multiplier > top.multiplier ? c : top),
-      botAllCalls[0] ?? {
-        symbol: "—",
-        multiplier: 0,
-        username: "McGBot",
-        timestamp: "—",
-        callToATH: "—",
-      }
-    );
-
-    const avgMultiplier =
-      botAllCalls.length > 0
-        ? botAllCalls.reduce((sum, c) => sum + c.multiplier, 0) / botAllCalls.length
-        : 0;
-
+    const all = botBoards.all ?? [];
+    const best = all[0] ?? null;
     return {
-      bestSymbol: best.symbol,
-      bestMultiplier: best.multiplier,
-      avgMultiplier,
-      totalCalls: 18420,
-      winRate: 54,
-      avgToAth: "52m",
-      avgTo2x: "14m",
+      bestSymbol: best ? best.username : "—",
+      bestMultiplier: best ? best.bestX : 0,
+      avgMultiplier: all.length > 0 ? all.reduce((sum, r) => sum + r.avgX, 0) / all.length : 0,
+      totalCalls: all.reduce((sum, r) => sum + r.calls, 0),
+      winRate: 0,
+      avgToAth: "—",
+      avgTo2x: "—",
     };
-  }, [botAllCalls]);
-
-  const allUsers = useMemo(() => MOCK_USER_LEADERBOARD.all ?? [], []);
+  }, [botBoards.all]);
 
   const allTimeRecords = useMemo(() => {
-    const highestMultiplierUser = allUsers.reduce(
-      (best, r) => (r.bestX > best.bestX ? r : best),
-      allUsers[0] ?? { rank: 0, username: "—", avgX: 0, bestX: 0, calls: 0 }
-    );
-
-    const bestAverageUser = allUsers.reduce(
-      (best, r) => (r.avgX > best.avgX ? r : best),
-      allUsers[0] ?? { rank: 0, username: "—", avgX: 0, bestX: 0, calls: 0 }
-    );
-
-    const mostCalls = allUsers.reduce(
-      (best, r) => (r.calls > best.calls ? r : best),
-      allUsers[0] ?? { rank: 0, username: "—", avgX: 0, bestX: 0, calls: 0 }
-    );
-
-    const bestWinRateUser = allUsers.reduce(
-      (best, r) => ((r.winRate ?? -1) > (best.winRate ?? -1) ? r : best),
-      allUsers[0] ?? { rank: 0, username: "—", avgX: 0, bestX: 0, calls: 0 }
-    );
+    // With a clean start, records are intentionally empty until data exists.
+    const empty = { rank: 0, username: "—", avgX: 0, bestX: 0, calls: 0 } as LeaderRow;
 
     return {
-      highestMultiplierUser,
-      bestAverageUser,
-      mostCalls,
-      bestWinRateUser,
+      highestMultiplierUser: empty,
+      bestAverageUser: empty,
+      mostCalls: empty,
+      bestWinRateUser: empty,
     };
-  }, [allUsers]);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSpotlightLoading(true);
+    void (async () => {
+      try {
+        const [dailyRes, weeklyRes, monthlyRes] = await Promise.all([
+          fetch(`/api/leaderboard?type=user&period=today`, { credentials: "same-origin" }),
+          fetch(`/api/leaderboard/weekly-leader?type=user`, { credentials: "same-origin" }),
+          fetch(`/api/leaderboard/monthly-leader?type=user`, { credentials: "same-origin" }),
+        ]);
+        const dailyJson = (await dailyRes.json().catch(() => null)) as unknown;
+        const weeklyJson = (await weeklyRes.json().catch(() => null)) as { leader?: unknown } | null;
+        const monthlyJson = (await monthlyRes.json().catch(() => null)) as { leader?: unknown } | null;
+
+        if (cancelled) return;
+        const dailyTop = normalizeBoardRows(dailyRes.ok ? dailyJson : [])[0] ?? null;
+        const weeklyTop = normalizeBoardRows(
+          weeklyRes.ok && weeklyJson && typeof weeklyJson === "object"
+            ? [
+                {
+                  rank: 1,
+                  username: (weeklyJson as any).leader?.username,
+                  avgX: (weeklyJson as any).leader?.avgX,
+                  bestMultiple: (weeklyJson as any).leader?.bestMultiple,
+                  totalCalls: (weeklyJson as any).leader?.totalCalls,
+                  wins: (weeklyJson as any).leader?.wins,
+                },
+              ]
+            : []
+        )[0] ?? null;
+        const monthlyTop = normalizeBoardRows(
+          monthlyRes.ok && monthlyJson && typeof monthlyJson === "object"
+            ? [
+                {
+                  rank: 1,
+                  username: (monthlyJson as any).leader?.username,
+                  avgX: (monthlyJson as any).leader?.avgX,
+                  bestMultiple: (monthlyJson as any).leader?.bestMultiple,
+                  totalCalls: (monthlyJson as any).leader?.totalCalls,
+                  wins: (monthlyJson as any).leader?.wins,
+                },
+              ]
+            : []
+        )[0] ?? null;
+
+        setSpotlight({ daily: dailyTop, weekly: weeklyTop, monthly: monthlyTop });
+      } catch {
+        if (!cancelled) setSpotlight({ daily: null, weekly: null, monthly: null });
+      } finally {
+        if (!cancelled) setSpotlightLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const podiumRowClass = (rank: number) => {
     if (rank === 1) {
@@ -449,7 +585,7 @@ export default function LeaderboardPage() {
     return "border-transparent";
   };
 
-  const Table = ({ rows }: { rows: LeaderRow[] }) => {
+  const Table = ({ rows, loading }: { rows: LeaderRow[]; loading: boolean }) => {
     const youHandle = mockViewerUsername(usersTimeframe);
     return (
       <div className="rounded-xl border border-emerald-500/15 bg-black/30 p-4 ring-1 ring-emerald-500/10">
@@ -465,7 +601,21 @@ export default function LeaderboardPage() {
             </div>
 
             <div className="space-y-1.5 pt-2">
-              {rows.map((r) => {
+              {loading ? (
+                <div className="flex items-center justify-center px-3 py-10">
+                  <p className="text-sm text-zinc-500">Loading…</p>
+                </div>
+              ) : rows.length === 0 ? (
+                <div className="flex items-center justify-center px-3 py-10">
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-zinc-200">No calls yet</p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Leaderboards will populate once calls start coming in.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                rows.map((r) => {
                 const isYou = r.username === youHandle;
                 return (
                   <div
@@ -530,7 +680,8 @@ export default function LeaderboardPage() {
                     </div>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           </div>
         </div>
@@ -657,53 +808,59 @@ export default function LeaderboardPage() {
           </p>
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
-          {MOCK_LEADERS.map((w) => (
-            <div
-              key={w.label}
-              className="group relative cursor-pointer transition-all"
-              onClick={() => router.push(`/profile/${w.username}`)}
-            >
-              <div className="relative rounded-xl border border-[#2a2415] bg-gradient-to-br from-[#161308] via-[#0c0c0c] to-[#0a0a0a] p-6 shadow-[0_0_28px_rgba(255,215,0,0.12)] transition-all hover:bg-zinc-900/60 hover:shadow-[0_0_36px_rgba(255,215,0,0.18)]">
-                <div className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/50 text-xs font-black tabular-nums text-zinc-200 shadow-inner backdrop-blur-sm">
-                  {w.label === "Daily Leader" ? "1" : w.label === "Weekly Leader" ? "2" : "3"}
-                </div>
-                <div className="pr-20 pl-12">
-                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-yellow-500/80">
-                    {w.label}
-                  </p>
-                  <p className="text-base font-medium text-zinc-100">{w.username}</p>
-                  <p className="mt-3 text-xs text-zinc-600">Best call</p>
-                  <div className="mt-1">
-                    <span className="text-sm font-medium text-zinc-200">{w.bestCall}</span>
-                  </div>
-                  {w.coin ? <p className="mt-3 text-xs text-zinc-600">Coin: {w.coin}</p> : null}
-                </div>
-
-                <div className="absolute right-6 top-5 h-10 w-10 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
-                  <Avatar src={w.avatarSrc} name={w.username} size="lg" />
-                </div>
-
-                <div className="absolute bottom-5 right-6">
-                  <span className="text-lg font-semibold tabular-nums text-emerald-400">
-                    {fmtX(w.multiplier)}
-                  </span>
-                </div>
-              </div>
-
+          {(
+            [
+              { label: "Daily Leader", row: spotlight.daily },
+              { label: "Weekly Leader", row: spotlight.weekly },
+              { label: "Monthly Leader", row: spotlight.monthly },
+            ] as const
+          ).map((slot, idx) => {
+            const w = slot.row;
+            const clickable = w != null && w.username && w.username !== "—";
+            return (
               <div
-                className="absolute z-50 hidden w-64 top-full mt-2 rounded-xl border border-zinc-800 bg-[#0a0a0a] p-4 shadow-lg transition-all duration-150 group-hover:block"
-                onClick={(e) => e.stopPropagation()}
+                key={slot.label}
+                className={`group relative transition-all ${clickable ? "cursor-pointer" : "cursor-default"}`}
+                onClick={() => {
+                  if (clickable) router.push(`/user/${encodeURIComponent(w.username)}`);
+                }}
               >
-                <div className="mb-2 text-sm font-medium text-zinc-100">{w.username}</div>
-                <div className="space-y-1 text-xs text-zinc-400">
-                  <div>Avg: {w.avg}x</div>
-                  <div>Best: {w.best}x</div>
-                  <div>Calls: {w.calls}</div>
-                  <div>Win Rate: {w.winRate}%</div>
+                <div className="relative rounded-xl border border-[#2a2415] bg-gradient-to-br from-[#161308] via-[#0c0c0c] to-[#0a0a0a] p-6 shadow-[0_0_28px_rgba(255,215,0,0.12)] transition-all hover:bg-zinc-900/60 hover:shadow-[0_0_36px_rgba(255,215,0,0.18)]">
+                  <div className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/50 text-xs font-black tabular-nums text-zinc-200 shadow-inner backdrop-blur-sm">
+                    {idx + 1}
+                  </div>
+                  <div className="pr-20 pl-12">
+                    <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-yellow-500/80">
+                      {slot.label}
+                    </p>
+                    <p className="text-base font-medium text-zinc-100">
+                      {spotlightLoading ? "Loading…" : w?.username ?? "—"}
+                    </p>
+                    <p className="mt-3 text-xs text-zinc-600">Best multiple</p>
+                    <div className="mt-1">
+                      <span className="text-sm font-medium text-zinc-200">
+                        {spotlightLoading ? "—" : fmtX(w?.bestX ?? 0)}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-xs text-zinc-600">Avg</p>
+                    <div className="mt-1 text-sm font-medium text-zinc-200">
+                      {spotlightLoading ? "—" : fmtX(w?.avgX ?? 0)}
+                    </div>
+                  </div>
+
+                  <div className="absolute right-6 top-5 h-10 w-10 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
+                    <Avatar src={w?.avatarSrc} name={w?.username ?? "—"} size="lg" />
+                  </div>
+
+                  <div className="absolute bottom-5 right-6">
+                    <span className="text-lg font-semibold tabular-nums text-emerald-400">
+                      {spotlightLoading ? "—" : fmtX(w?.avgX ?? 0)}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -918,7 +1075,7 @@ export default function LeaderboardPage() {
               })}
             </div>
           </div>
-          <Table rows={userRows} />
+          <Table rows={userRows} loading={usersLoading} />
           <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
             {[1, 2, 3, 4, 5].map((p) => {
               const active = userPage === p;
@@ -1138,7 +1295,7 @@ export default function LeaderboardPage() {
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">Recent Milestone Hits</h3>
                 <p className="mt-0.5 text-xs text-sky-100/40">
-                  Bot milestones (sample) — call → 2x / ATH timing
+                  No bot milestones yet — this will populate once McGBot calls are flowing.
                 </p>
               </div>
               <span className="shrink-0 rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-200/90">
@@ -1147,7 +1304,12 @@ export default function LeaderboardPage() {
             </div>
             <div className="flex-1 overflow-y-auto rounded-xl border border-sky-500/10 bg-black/30 p-3 scrollbar-thin scrollbar-thumb-sky-900/60 scrollbar-track-transparent">
               <ul className="space-y-0.5">
-                {MOCK_BOT_MILESTONES.map((row, idx) => (
+                {([] as BotMilestoneRow[]).length === 0 ? (
+                  <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">
+                    No entries yet
+                  </li>
+                ) : null}
+                {([] as BotMilestoneRow[]).map((row, idx) => (
                   <li
                     key={`${row.token}-${row.milestone}-${idx}`}
                     className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/10 bg-sky-950/10 px-3 py-1.5 transition-all duration-150 hover:bg-sky-950/35"
@@ -1182,7 +1344,9 @@ export default function LeaderboardPage() {
             <div className="mb-2 flex items-start justify-between gap-2">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">Live Bot Activity</h3>
-                <p className="mt-0.5 text-xs text-sky-100/40">Latest McGBot entries (sample)</p>
+                <p className="mt-0.5 text-xs text-sky-100/40">
+                  No bot activity yet — this will populate once McGBot calls are flowing.
+                </p>
               </div>
               <span className="shrink-0 rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-200/90">
                 Bot
@@ -1190,7 +1354,12 @@ export default function LeaderboardPage() {
             </div>
             <div className="flex-1 overflow-y-auto rounded-xl border border-sky-500/10 bg-black/30 p-3 scrollbar-thin scrollbar-thumb-sky-900/60 scrollbar-track-transparent">
               <ul className="space-y-0.5">
-                {MOCK_LIVE_BOT_ACTIVITY.map((row, idx) => (
+                {([] as LiveBotActivityRow[]).length === 0 ? (
+                  <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">
+                    No entries yet
+                  </li>
+                ) : null}
+                {([] as LiveBotActivityRow[]).map((row, idx) => (
                   <li
                     key={`${row.token}-${row.ago}-${idx}`}
                     className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/10 bg-sky-950/10 px-3 py-1.5 transition-all duration-150 hover:bg-sky-950/35"
@@ -1216,11 +1385,11 @@ export default function LeaderboardPage() {
           </div>
         </div>
 
-        {/* Top McGBot Calls */}
+        {/* McGBot board */}
         <div className="mt-2 rounded-xl border border-sky-500/20 bg-sky-950/10 p-4 ring-1 ring-sky-500/10">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className={sectionTitle}>Top McGBot Calls</h2>
+              <h2 className={sectionTitle}>McGBot board</h2>
               <span className="rounded-md border border-sky-400/35 bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-100">
                 Bot only
               </span>
@@ -1249,30 +1418,10 @@ export default function LeaderboardPage() {
             </div>
           </div>
           <p className="mt-2 text-xs text-zinc-500">
-            Automated call highlights — sample list; pair with live bot feed when wired.
+            Bot performance summary. With a clean start, this stays empty until bot calls land.
           </p>
           <div className="mt-6">
-            <TopCallsList rows={mcgbotRows} tone="bot" />
-          </div>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
-            {[1, 2, 3, 4, 5].map((p) => {
-              const active = mcgbotPage === p;
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  aria-current={active ? "page" : undefined}
-                  onClick={() => setMcgbotPage(p)}
-                  className={`min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
-                    active
-                      ? "border-sky-400/50 bg-sky-500/15 text-sky-100"
-                      : "border-sky-500/10 bg-black/25 text-zinc-500 hover:border-sky-500/25 hover:text-zinc-200"
-                  }`}
-                >
-                  {p}
-                </button>
-              );
-            })}
+            <Table rows={mcgbotRows} loading={botLoading} />
           </div>
         </div>
           </div>

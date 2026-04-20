@@ -6,6 +6,7 @@ export type RecentCallDto = {
   token: string;
   multiple: number;
   time: unknown;
+  excludedFromStats?: boolean;
 };
 
 /** Same rules as `/api/me/stats`: avg of `ath_multiple`, win = multiple ≥ 2. */
@@ -147,6 +148,7 @@ export function mapCallPerformanceRowToRecentCall(
     token,
     multiple: Number.isFinite(multiple) ? multiple : 0,
     time: row.call_time,
+    excludedFromStats: (row as any).excluded_from_stats === true,
   };
 }
 

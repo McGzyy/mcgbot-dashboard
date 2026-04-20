@@ -71,8 +71,9 @@ export async function GET(request: Request) {
       cutoverMs
     );
     const filtered = filterRowsByMinCallTimeUtc(rows, minCallTimeMs);
+    const eligible = filtered.filter((r) => (r as any).excluded_from_stats !== true);
 
-    const aggregated = aggregateCallPerformanceRows(filtered);
+    const aggregated = aggregateCallPerformanceRows(eligible);
     const ranked = rankTopN(aggregated, 10);
 
     return Response.json(ranked);

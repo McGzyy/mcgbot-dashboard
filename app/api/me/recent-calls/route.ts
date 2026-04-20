@@ -28,7 +28,7 @@ export async function GET() {
     const [{ data, error }, cutoverMs] = await Promise.all([
       supabase
         .from("call_performance")
-        .select("id, call_ca, ath_multiple, call_time")
+        .select("id, call_ca, ath_multiple, call_time, excluded_from_stats")
         .eq("discord_id", discordId)
         .order("call_time", { ascending: false })
         .limit(50),

@@ -41,6 +41,7 @@ export function filterCallRowsForStats(
   rows: Record<string, unknown>[],
   cutoverUtcMs: number | null
 ): Record<string, unknown>[] {
-  if (cutoverUtcMs == null) return rows;
-  return filterRowsByMinCallTimeUtc(rows, cutoverUtcMs);
+  const keepExcluded = rows.filter((r) => (r as any).excluded_from_stats !== true);
+  if (cutoverUtcMs == null) return keepExcluded;
+  return filterRowsByMinCallTimeUtc(keepExcluded, cutoverUtcMs);
 }

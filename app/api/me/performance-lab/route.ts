@@ -43,7 +43,7 @@ export async function GET() {
     const [{ data, error }, cutoverMs] = await Promise.all([
       supabase
         .from("call_performance")
-        .select("ath_multiple, call_time, call_ca")
+        .select("ath_multiple, call_time, call_ca, excluded_from_stats")
         .eq("discord_id", discordId),
       getStatsCutoverUtcMs(),
     ]);
@@ -76,7 +76,9 @@ export async function GET() {
     let rank7d: number | null = null;
     let totalRanked7d = 0;
     if (!allErr && allUserRows.length) {
-      const filtered = filterRowsByMinCallTimeUtc(allUserRows, minRolling);
+      const filtered = filterRowsByMinCallTimeUtc(allUserRows, minRolling).filter(
+        (r) => (r as any).excluded_from_stats !== true
+      );
       const ranked = aggregateCallPerformanceRows(filtered);
       totalRanked7d = ranked.length;
       const idx = ranked.findIndex((r) => r.discordId === discordId);

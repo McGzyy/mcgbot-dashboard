@@ -56,6 +56,7 @@ export function aggregateCallPerformanceRows(
   const map = new Map<string, Agg>();
 
   for (const row of sorted) {
+    if ((row as any).excluded_from_stats === true) continue;
     const discordId =
       typeof row.discord_id === "string"
         ? row.discord_id.trim()
