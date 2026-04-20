@@ -51,3 +51,19 @@ export const adminChrome = {
     "rounded-2xl bg-gradient-to-br from-red-500/25 via-red-600/10 to-transparent p-[1px] transition group-hover:from-red-400/35 group-hover:shadow-[0_0_32px_-8px_rgba(239,68,68,0.42)]",
   overviewArrow: "text-red-300/85 transition group-hover:translate-x-0.5 group-hover:text-red-200",
 } as const;
+
+/** Staff / mod queue pages — emerald, same family as `tierNavBarClass("mod")` */
+export const modChrome = {
+  kicker: "text-emerald-300/90",
+  borderSoft: "border-emerald-500/18",
+  borderMedium: "border-emerald-500/32",
+  headerBg:
+    "border-emerald-500/25 bg-gradient-to-br from-emerald-950/45 via-[#060806]/95 to-[#050505]/98 shadow-[0_0_40px_-12px_rgba(16,185,129,0.22)]",
+  h2: "text-emerald-400/88",
+  statTile: "border-emerald-900/35 bg-emerald-950/18",
+  card:
+    "border-emerald-500/15 bg-gradient-to-br from-emerald-950/22 to-zinc-950/55 shadow-sm shadow-black/25 transition hover:border-emerald-400/28 hover:from-emerald-950/30 hover:to-zinc-900/40",
+  emptyState: "border border-dashed border-emerald-700/35 bg-emerald-950/10",
+  refreshBtn:
+    "border-emerald-800/40 bg-emerald-950/25 hover:border-emerald-500/45 hover:bg-emerald-900/35 focus-visible:ring-emerald-500/30",
+} as const;

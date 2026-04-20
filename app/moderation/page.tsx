@@ -9,6 +9,7 @@ import {
   parseTagsList,
   solscanAccountUrl,
 } from "@/lib/modUiUtils";
+import { modChrome } from "@/lib/roleTierStyles";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -109,7 +110,7 @@ function ModQueueSkeleton() {
       {[0, 1].map((k) => (
         <div
           key={k}
-          className="h-52 rounded-xl border border-zinc-800/60 bg-gradient-to-br from-zinc-950/80 to-zinc-900/20"
+          className={`h-52 rounded-xl border ${modChrome.borderSoft} bg-gradient-to-br from-emerald-950/30 to-zinc-950/70`}
         />
       ))}
     </div>
@@ -254,7 +255,7 @@ function CallApprovalRow({
   };
 
   return (
-    <li className="group rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3.5 shadow-sm shadow-black/20 transition hover:border-zinc-700/90 hover:bg-zinc-900/25">
+    <li className={`group rounded-xl border p-3.5 ${modChrome.card}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold tracking-tight text-zinc-100">{title}</div>
@@ -386,7 +387,7 @@ function DevSubmissionRow({ d }: { d: ModQueueDevSubmission }) {
   const shownNotes = expanded || !longNotes ? notes : `${notes.slice(0, NOTE_PREVIEW)}…`;
 
   return (
-    <li className="group rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3.5 shadow-sm shadow-black/20 transition hover:border-zinc-700/90 hover:bg-zinc-900/25">
+    <li className={`group rounded-xl border p-3.5 ${modChrome.card}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold tracking-tight text-zinc-100">
@@ -722,10 +723,12 @@ export default function ModerationPage() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <div className="sticky top-0 z-20 mb-8 rounded-xl border border-zinc-800/90 bg-[#050505]/95 p-4 shadow-lg shadow-black/40 backdrop-blur-md">
+      <div
+        className={`sticky top-0 z-20 mb-8 rounded-xl p-4 backdrop-blur-md ${modChrome.headerBg}`}
+      >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${modChrome.kicker}`}>
               Staff
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Moderation</h1>
@@ -747,7 +750,7 @@ export default function ModerationPage() {
               type="button"
               onClick={() => void loadQueue({ toastOnOk: true })}
               disabled={queueLoading}
-              className="inline-flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-900/80 px-4 py-2 text-sm font-semibold text-zinc-100 shadow-sm transition hover:border-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold text-emerald-50 shadow-sm transition focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${modChrome.refreshBtn}`}
             >
               <span
                 className={queueLoading ? "inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent" : ""}
@@ -759,24 +762,24 @@ export default function ModerationPage() {
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:max-w-2xl">
-          <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2.5 text-center">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Total</div>
+          <div className={`rounded-lg border px-3 py-2.5 text-center ${modChrome.statTile}`}>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">Total</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-zinc-100">{queueLoading ? "…" : total}</div>
           </div>
-          <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2.5 text-center">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">McGBot</div>
+          <div className={`rounded-lg border px-3 py-2.5 text-center ${modChrome.statTile}`}>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">McGBot</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-amber-200/90">
               {queueLoading ? "…" : callN}
             </div>
           </div>
-          <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2.5 text-center">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Other calls</div>
+          <div className={`rounded-lg border px-3 py-2.5 text-center ${modChrome.statTile}`}>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">Other calls</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-zinc-300">
               {queueLoading ? "…" : callOtherN}
             </div>
           </div>
-          <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-2.5 text-center">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Devs</div>
+          <div className={`rounded-lg border px-3 py-2.5 text-center ${modChrome.statTile}`}>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">Devs</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-violet-200/90">
               {queueLoading ? "…" : devN}
             </div>
@@ -825,13 +828,13 @@ export default function ModerationPage() {
           <div className="space-y-8">
             <section>
               <div className="mb-3 flex items-baseline justify-between gap-2">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                <h2 className={`text-sm font-semibold uppercase tracking-wide ${modChrome.h2}`}>
                   McGBot calls (X gate)
                 </h2>
                 <span className="text-xs tabular-nums text-zinc-600">{callN} open</span>
               </div>
               {calls.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-zinc-800/90 bg-zinc-950/30 px-4 py-10 text-center">
+                <div className={`rounded-xl px-4 py-10 text-center ${modChrome.emptyState}`}>
                   <p className="text-sm font-medium text-zinc-400">No McGBot calls waiting</p>
                   <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-600">
                     When a McGBot auto-call crosses your configured ATH milestone, it queues here and in{" "}
@@ -856,7 +859,7 @@ export default function ModerationPage() {
             {callsUser.length > 0 ? (
               <section>
                 <div className="mb-3 flex items-baseline justify-between gap-2">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                  <h2 className={`text-sm font-semibold uppercase tracking-wide ${modChrome.h2}`}>
                     Other pending tracked calls
                   </h2>
                   <span className="text-xs tabular-nums text-zinc-600">{callOtherN} open</span>
@@ -881,13 +884,13 @@ export default function ModerationPage() {
 
           <section>
             <div className="mb-3 flex items-baseline justify-between gap-2">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+              <h2 className={`text-sm font-semibold uppercase tracking-wide ${modChrome.h2}`}>
                 Dev submissions
               </h2>
               <span className="text-xs tabular-nums text-zinc-600">{devN} open</span>
             </div>
             {devs.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-zinc-800/90 bg-zinc-950/30 px-4 py-10 text-center">
+              <div className={`rounded-xl px-4 py-10 text-center ${modChrome.emptyState}`}>
                 <p className="text-sm font-medium text-zinc-400">No dev submissions in queue</p>
                 <p className="mx-auto mt-2 max-w-xs text-xs leading-relaxed text-zinc-600">
                   New intel submissions show up here after they hit #mod-approvals.
