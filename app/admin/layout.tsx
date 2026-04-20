@@ -18,6 +18,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <div className="relative space-y-10">
       <div
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.35] [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:32px_32px]"
+        aria-hidden
+      />
+      <div
         className="pointer-events-none absolute -left-6 -top-6 h-48 w-48 rounded-full bg-violet-600/15 blur-3xl"
         aria-hidden
       />

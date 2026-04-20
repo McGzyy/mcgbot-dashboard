@@ -31,8 +31,8 @@ export function BotAdminClient() {
         body?: HealthBody;
         error?: string;
       };
-      if (!res.ok || json.success !== true) {
-        setError(typeof json.error === "string" ? json.error : "Request failed.");
+      if (json.success !== true) {
+        setError(typeof json.error === "string" ? json.error : res.status === 403 ? "Forbidden (sign in as admin?)" : "Request failed.");
         setReachable(false);
         setBody(null);
         setUrl(null);
@@ -43,6 +43,17 @@ export function BotAdminClient() {
       setHttpStatus(typeof json.httpStatus === "number" ? json.httpStatus : null);
       setUrl(typeof json.url === "string" ? json.url : null);
       setBody(json.body && typeof json.body === "object" ? (json.body as HealthBody) : null);
+      if (!json.reachable && typeof json.httpStatus === "number") {
+        const hint =
+          json.httpStatus === 403
+            ? " Bot may block this server’s IP or require allowlisting."
+            : json.httpStatus >= 500
+              ? " Bot host error."
+              : "";
+        setError(`HTTP ${json.httpStatus} from bot.${hint}`);
+      } else {
+        setError(null);
+      }
     } catch {
       setError("Could not load bot health.");
       setReachable(false);

@@ -6,6 +6,8 @@ import { fetchSolUsd } from "@/lib/subscription/jupiterSolUsd";
 import { lamportsToSolString, usdToLamports } from "@/lib/subscription/solQuote";
 import { createInvoiceRow, getPlanBySlug } from "@/lib/subscription/subscriptionDb";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { resolveHelpTierAsync } from "@/lib/helpRole";
+import { getSiteOperationalState } from "@/lib/siteOperationalState";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +23,31 @@ export async function POST(request: Request) {
 
   if (!getSupabaseAdmin()) {
     return Response.json({ success: false, error: "Database not configured" }, { status: 503 });
+  }
+
+  const op = await getSiteOperationalState();
+  const needBypass = op.maintenance_enabled || op.public_signups_paused;
+  const tier = needBypass ? await resolveHelpTierAsync(discordId).catch(() => "user" as const) : "user";
+  const isAdmin = tier === "admin";
+  if (op.maintenance_enabled && !isAdmin) {
+    return Response.json(
+      {
+        success: false,
+        error: "Checkout is paused during maintenance.",
+        code: "maintenance",
+      },
+      { status: 503 }
+    );
+  }
+  if (op.public_signups_paused && !isAdmin) {
+    return Response.json(
+      {
+        success: false,
+        error: "New checkouts are temporarily paused.",
+        code: "signups_paused",
+      },
+      { status: 403 }
+    );
   }
 
   const treasuryRaw = (process.env.SOLANA_TREASURY_PUBKEY ?? "").trim();

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { liveDashboardAccessForDiscordId } from "@/lib/dashboardGate";
+import { getSiteOperationalState } from "@/lib/siteOperationalState";
 
 function isStaticPath(pathname: string): boolean {
   if (pathname.startsWith("/_next")) return true;
@@ -24,6 +25,19 @@ function isAuthApi(pathname: string): boolean {
 
 function isCronApi(pathname: string): boolean {
   return pathname.startsWith("/api/cron/");
+}
+
+/** Paths that stay available when `maintenance_enabled` (non-admins). */
+function isMaintenanceExempt(pathname: string, method: string): boolean {
+  if (isStaticPath(pathname)) return true;
+  if (isAuthApi(pathname)) return true;
+  if (isCronApi(pathname)) return true;
+  if (pathname.startsWith("/auth")) return true;
+  if (pathname === "/maintenance") return true;
+  if (pathname === "/api/public/site-flags" && method === "GET") return true;
+  if (pathname === "/api/subscription/plans" && method === "GET") return true;
+  if (pathname === "/api/debug-env" && method === "GET") return true;
+  return false;
 }
 
 function isSubscriptionProtectedApi(pathname: string): boolean {
@@ -91,6 +105,25 @@ export async function middleware(req: NextRequest) {
   const token = secret
     ? ((await getToken({ req, secret })) as Record<string, unknown> | null)
     : null;
+
+  const op = await getSiteOperationalState();
+  const isDashboardAdmin = token?.helpTier === "admin";
+  if (op.maintenance_enabled && !isDashboardAdmin) {
+    if (!isMaintenanceExempt(pathname, req.method)) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: "Service temporarily unavailable", code: "maintenance" },
+          { status: 503 }
+        );
+      }
+      if (pathname !== "/maintenance") {
+        const url = req.nextUrl.clone();
+        url.pathname = "/maintenance";
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
+    }
+  }
 
   if (pathname.startsWith("/api/")) {
     if (pathname === "/api/debug-env" && req.method === "GET") {

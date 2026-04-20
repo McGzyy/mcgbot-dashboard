@@ -21,6 +21,13 @@ type CheckoutOk = {
   treasury: string;
 };
 
+type SiteFlags = {
+  maintenance_enabled: boolean;
+  maintenance_message: string | null;
+  paywall_subtitle: string | null;
+  public_signups_paused: boolean;
+};
+
 function formatExpiry(iso: string): string {
   const t = new Date(iso).getTime();
   if (!Number.isFinite(t)) return iso;
@@ -36,11 +43,41 @@ export default function SubscribePage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pollNote, setPollNote] = useState<string | null>(null);
+  const [siteFlags, setSiteFlags] = useState<SiteFlags | null>(null);
 
   const active = Boolean(session?.user?.hasActiveSubscription);
   const hasAccess = Boolean(session?.user?.hasDashboardAccess);
   const exempt = Boolean(session?.user?.subscriptionExempt);
   const periodEnd = session?.user?.subscriptionActiveUntil ?? null;
+  const sessionUser = session?.user as { helpTier?: string } | undefined;
+  const isDashboardAdmin = sessionUser?.helpTier === "admin";
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/public/site-flags");
+        const json = (await res.json().catch(() => null)) as Partial<SiteFlags> | null;
+        if (cancelled) return;
+        if (!res.ok || !json || typeof json !== "object") {
+          setSiteFlags(null);
+          return;
+        }
+        setSiteFlags({
+          maintenance_enabled: Boolean(json.maintenance_enabled),
+          maintenance_message:
+            typeof json.maintenance_message === "string" ? json.maintenance_message : null,
+          paywall_subtitle: typeof json.paywall_subtitle === "string" ? json.paywall_subtitle : null,
+          public_signups_paused: Boolean(json.public_signups_paused),
+        });
+      } catch {
+        if (!cancelled) setSiteFlags(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -163,6 +200,9 @@ export default function SubscribePage() {
         </header>
         <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-16">
           <h1 className="text-2xl font-semibold tracking-tight">Subscribe</h1>
+          {siteFlags?.paywall_subtitle ? (
+            <p className="text-sm leading-relaxed text-zinc-300">{siteFlags.paywall_subtitle}</p>
+          ) : null}
           <p className="text-sm leading-relaxed text-zinc-400">
             Sign in with Discord to continue. You need to be in the McGBot Discord server before checkout.
           </p>
@@ -255,7 +295,29 @@ export default function SubscribePage() {
             Pay in SOL at checkout (USD amount is quoted from Jupiter and refreshes each time you start checkout).
             After you send payment, confirmation may take a minute while the server polls the chain.
           </p>
+          {siteFlags?.paywall_subtitle ? (
+            <p className="mt-2 text-sm leading-relaxed text-zinc-300">{siteFlags.paywall_subtitle}</p>
+          ) : null}
         </div>
+
+        {siteFlags?.maintenance_enabled && isDashboardAdmin ? (
+          <p className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            Maintenance mode is on for everyone else. You can still use checkout as a dashboard admin.
+          </p>
+        ) : null}
+
+        {siteFlags?.public_signups_paused && !isDashboardAdmin ? (
+          <p className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            New checkouts are temporarily paused. You can review plans below; the checkout button stays disabled until
+            staff re-opens signups.
+          </p>
+        ) : null}
+
+        {siteFlags?.public_signups_paused && isDashboardAdmin ? (
+          <p className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/90">
+            New checkouts are paused for members, but your admin session can still start checkout for testing.
+          </p>
+        ) : null}
 
         {plansError ? (
           <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{plansError}</p>
@@ -290,7 +352,7 @@ export default function SubscribePage() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            disabled={busy || !selectedPlan}
+            disabled={busy || !selectedPlan || (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin)}
             onClick={() => void startCheckout()}
             className="rounded-lg bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
