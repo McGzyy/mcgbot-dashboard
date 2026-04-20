@@ -5,6 +5,44 @@ import { botUnreachableChecklist, describeBotApiFetchError } from "@/lib/botUpst
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type ScannerOk = {
+  success: true;
+  scannerEnabled: boolean;
+  discordReady?: boolean;
+  processUptimeSec?: number;
+  source?: "internal" | "health";
+  already?: boolean;
+};
+
+function tryParseJson(raw: string): Record<string, unknown> | null {
+  if (!raw || !raw.trim()) return null;
+  try {
+    const v = JSON.parse(raw) as unknown;
+    if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, unknown>;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function readScannerFromHealth(origin: string): Promise<ScannerOk | null> {
+  try {
+    const h = await fetch(`${origin}/health`, { method: "GET", cache: "no-store" });
+    const raw = await h.text();
+    const j = tryParseJson(raw);
+    if (!j || typeof j.scannerEnabled !== "boolean") return null;
+    return {
+      success: true,
+      scannerEnabled: j.scannerEnabled,
+      discordReady: typeof j.discordReady === "boolean" ? j.discordReady : undefined,
+      processUptimeSec: typeof j.processUptimeSec === "number" ? j.processUptimeSec : undefined,
+      source: "health",
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function forwardScanner(
   method: "GET" | "POST",
   discordId: string,
@@ -39,6 +77,10 @@ async function forwardScanner(
     });
   } catch (err) {
     const detail = describeBotApiFetchError(err);
+    if (method === "GET") {
+      const fb = await readScannerFromHealth(origin);
+      if (fb) return Response.json(fb, { status: 200 });
+    }
     return Response.json(
       {
         success: false,
@@ -51,23 +93,41 @@ async function forwardScanner(
   }
 
   const raw = await res.text();
-  let data: unknown = null;
-  if (raw) {
-    try {
-      data = JSON.parse(raw) as unknown;
-    } catch {
-      data = { success: false, error: "Bot returned non-JSON.", raw: raw.slice(0, 400) };
-    }
-  }
+  const data = tryParseJson(raw);
 
-  if (data && typeof data === "object" && !Array.isArray(data)) {
+  if (data && (res.status === 401 || res.status === 403)) {
     return Response.json(data, { status: res.status });
   }
 
-  return Response.json(
-    { success: false, error: `Bot API returned HTTP ${res.status} with unexpected body.` },
-    { status: 502 }
-  );
+  if (!data) {
+    if (method === "GET") {
+      const fb = await readScannerFromHealth(origin);
+      if (fb) return Response.json(fb, { status: 200 });
+    }
+    return Response.json(
+      {
+        success: false,
+        error:
+          method === "GET"
+            ? "Bot returned non-JSON for /internal/scanner-state and /health did not include scannerEnabled — deploy the latest bot (apiServer.js) or verify BOT_API_URL."
+            : "Bot returned non-JSON — deploy the latest bot so POST /internal/scanner-state exists, or use !scanner in Discord.",
+        httpStatus: res.status,
+        preview: raw.slice(0, 280),
+      },
+      { status: 502 }
+    );
+  }
+
+  if (method === "GET" && data.success === false) {
+    const fb = await readScannerFromHealth(origin);
+    if (fb) return Response.json(fb, { status: 200 });
+  }
+
+  if (method === "GET" && data.success === true) {
+    return Response.json({ ...data, source: "internal" } as Record<string, unknown>, { status: res.status });
+  }
+
+  return Response.json(data, { status: res.status });
 }
 
 export async function GET() {

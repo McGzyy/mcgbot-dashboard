@@ -18,6 +18,16 @@ type ScannerJson = {
   already?: boolean;
   error?: string;
   steps?: string[];
+  source?: "internal" | "health";
+  processUptimeSec?: number;
+};
+
+type ScannerSettingsPayload = {
+  success?: boolean;
+  settings?: Record<string, unknown>;
+  approvalTriggerX?: number;
+  approvalMilestoneLadder?: number[];
+  error?: string;
 };
 
 function AdminSection({
@@ -56,6 +66,19 @@ export function BotAdminClient() {
   const [scannerOn, setScannerOn] = useState<boolean | null>(null);
   const [discordReady, setDiscordReady] = useState<boolean | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
+  const [scanSource, setScanSource] = useState<string | null>(null);
+  const [scanUptimeSec, setScanUptimeSec] = useState<number | null>(null);
+
+  const [thrLoading, setThrLoading] = useState(true);
+  const [thrErr, setThrErr] = useState<string | null>(null);
+  const [thrSaveMsg, setThrSaveMsg] = useState<string | null>(null);
+  const [thrBusy, setThrBusy] = useState(false);
+  const [thrForm, setThrForm] = useState<Record<string, string>>({});
+  const [thrLadder, setThrLadder] = useState("");
+  const [thrEffective, setThrEffective] = useState<{ trigger: number | null; ladder: number[] }>({
+    trigger: null,
+    ladder: [],
+  });
 
   const loadHealth = useCallback(async () => {
     setLoading(true);
@@ -119,10 +142,14 @@ export function BotAdminClient() {
         setScanErr(msg);
         setScannerOn(null);
         setDiscordReady(null);
+        setScanSource(null);
+        setScanUptimeSec(null);
         return;
       }
       setScannerOn(typeof json.scannerEnabled === "boolean" ? json.scannerEnabled : null);
       setDiscordReady(typeof json.discordReady === "boolean" ? json.discordReady : null);
+      setScanSource(typeof json.source === "string" ? json.source : null);
+      setScanUptimeSec(typeof json.processUptimeSec === "number" ? json.processUptimeSec : null);
     } catch {
       setScanErr("Could not load scanner state.");
       setScannerOn(null);
@@ -132,9 +159,54 @@ export function BotAdminClient() {
     }
   }, []);
 
+  const loadThresholds = useCallback(async () => {
+    setThrLoading(true);
+    setThrErr(null);
+    setThrSaveMsg(null);
+    try {
+      const res = await fetch("/api/admin/bot-scanner-settings", { credentials: "same-origin" });
+      const json = (await res.json().catch(() => ({}))) as ScannerSettingsPayload;
+      if (!res.ok || json.success !== true) {
+        setThrErr(typeof json.error === "string" ? json.error : `HTTP ${res.status}`);
+        setThrForm({});
+        setThrLadder("");
+        setThrEffective({ trigger: null, ladder: [] });
+        return;
+      }
+      const s = json.settings || {};
+      const pick = (k: string) => (s[k] != null && s[k] !== "" ? String(s[k]) : "");
+      setThrForm({
+        minMarketCap: pick("minMarketCap"),
+        minLiquidity: pick("minLiquidity"),
+        minVolume5m: pick("minVolume5m"),
+        minVolume1h: pick("minVolume1h"),
+        minTxns5m: pick("minTxns5m"),
+        minTxns1h: pick("minTxns1h"),
+        approvalTriggerX: pick("approvalTriggerX"),
+        sanityMinMeaningfulMarketCap: pick("sanityMinMeaningfulMarketCap"),
+        sanityMinMeaningfulLiquidity: pick("sanityMinMeaningfulLiquidity"),
+        sanityMinLiquidityToMarketCapRatio: pick("sanityMinLiquidityToMarketCapRatio"),
+        sanityMaxLiquidityToMarketCapRatio: pick("sanityMaxLiquidityToMarketCapRatio"),
+        sanityMaxBuySellRatio5m: pick("sanityMaxBuySellRatio5m"),
+        sanityMaxBuySellRatio1h: pick("sanityMaxBuySellRatio1h"),
+      });
+      const lad = Array.isArray(json.approvalMilestoneLadder) ? json.approvalMilestoneLadder : [];
+      setThrLadder(lad.length ? lad.join(", ") : "");
+      setThrEffective({
+        trigger: typeof json.approvalTriggerX === "number" ? json.approvalTriggerX : null,
+        ladder: lad,
+      });
+    } catch {
+      setThrErr("Could not load scanner settings.");
+      setThrForm({});
+    } finally {
+      setThrLoading(false);
+    }
+  }, []);
+
   const refreshAll = useCallback(async () => {
-    await Promise.all([loadHealth(), loadScanner()]);
-  }, [loadHealth, loadScanner]);
+    await Promise.all([loadHealth(), loadScanner(), loadThresholds()]);
+  }, [loadHealth, loadScanner, loadThresholds]);
 
   useEffect(() => {
     void refreshAll();
@@ -164,6 +236,62 @@ export function BotAdminClient() {
       setScanBusy(false);
     }
   };
+
+  const saveThresholds = async () => {
+    setThrBusy(true);
+    setThrErr(null);
+    setThrSaveMsg(null);
+    try {
+      const patch: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(thrForm)) {
+        if (v.trim() === "") continue;
+        const n = Number(v);
+        if (!Number.isFinite(n)) {
+          setThrErr(`Invalid number for ${k}`);
+          setThrBusy(false);
+          return;
+        }
+        patch[k] = n;
+      }
+      if (thrLadder.trim()) {
+        patch.approvalMilestoneLadder = thrLadder;
+      }
+      if (!Object.keys(patch).length) {
+        setThrErr("Change at least one field, or set a milestone ladder.");
+        setThrBusy(false);
+        return;
+      }
+      const res = await fetch("/api/admin/bot-scanner-settings", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const json = (await res.json().catch(() => ({}))) as ScannerSettingsPayload;
+      if (!res.ok || json.success !== true) {
+        setThrErr(typeof json.error === "string" ? json.error : `HTTP ${res.status}`);
+        return;
+      }
+      setThrSaveMsg("Saved to scannerSettings.json on the bot host.");
+      await loadThresholds();
+    } catch {
+      setThrErr("Network error while saving.");
+    } finally {
+      setThrBusy(false);
+    }
+  };
+
+  const field = (key: string, label: string) => (
+    <label key={key} className="block text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+      {label}
+      <input
+        value={thrForm[key] ?? ""}
+        onChange={(e) => setThrForm((f) => ({ ...f, [key]: e.target.value }))}
+        inputMode="decimal"
+        className={`mt-1 w-full rounded-lg border border-zinc-700 bg-black/50 px-2 py-1.5 font-mono text-xs text-white ${adminChrome.inputFocus}`}
+      />
+    </label>
+  );
 
   return (
     <div className="space-y-10">
@@ -250,6 +378,18 @@ export function BotAdminClient() {
           </AdminPanel>
         ) : null}
 
+        {!scanLoading && scanSource === "health" ? (
+          <p className="mb-3 text-[11px] leading-relaxed text-sky-300/90">
+            Reading scanner state from <span className="font-medium">GET /health</span> (fallback). Toggle still requires{" "}
+            <span className="font-medium">POST /internal/scanner-state</span> on the bot — deploy latest <code className="font-mono text-zinc-500">apiServer.js</code> for full parity.
+          </p>
+        ) : null}
+        {!scanLoading && scanUptimeSec != null ? (
+          <p className="mb-3 text-[11px] text-zinc-500">
+            Bot process uptime: <span className="font-mono text-zinc-400">{Math.floor(scanUptimeSec / 3600)}h</span> since last restart.
+          </p>
+        ) : null}
+
         <div className="grid gap-4 sm:grid-cols-2">
           <AdminPanel className="p-4">
             <AdminMetric
@@ -303,9 +443,95 @@ export function BotAdminClient() {
       </AdminSection>
 
       <AdminSection
+        kicker="Thresholds"
+        title="Scanner settings"
+        description="Read: anyone with Manage Server (same as viewing queue health). Save: bot owner only (BOT_OWNER_ID), matching Discord !setminmc / !setapprovalladder. Writes scannerSettings.json on the bot host."
+      >
+        {thrErr ? (
+          <AdminPanel className="mb-4 border-red-500/25 bg-red-950/20 p-4">
+            <p className="text-sm text-red-200">{thrErr}</p>
+          </AdminPanel>
+        ) : null}
+        {thrSaveMsg ? <p className="mb-3 text-sm text-emerald-400/90">{thrSaveMsg}</p> : null}
+
+        {thrLoading ? (
+          <p className="text-sm text-zinc-500">Loading scanner settings…</p>
+        ) : (
+          <>
+            <div className="mb-4 rounded-lg border border-white/[0.06] bg-black/25 px-3 py-2 text-[11px] text-zinc-400">
+              <span className="text-zinc-500">Effective approval ladder (read-only):</span>{" "}
+              <span className="font-mono text-zinc-200">
+                {thrEffective.ladder.length ? thrEffective.ladder.join(", ") : "preset / defaults"}
+              </span>
+              {thrEffective.trigger != null ? (
+                <>
+                  {" "}
+                  · <span className="text-zinc-500">trigger</span>{" "}
+                  <span className="font-mono text-zinc-200">{thrEffective.trigger}×</span>
+                </>
+              ) : null}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {field("minMarketCap", "Min market cap")}
+              {field("minLiquidity", "Min liquidity")}
+              {field("minVolume5m", "Min 5m volume")}
+              {field("minVolume1h", "Min 1h volume")}
+              {field("minTxns5m", "Min 5m txns")}
+              {field("minTxns1h", "Min 1h txns")}
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {field("approvalTriggerX", "Approval trigger × (also clears custom ladder in Discord)")}
+              <label className="block text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                Approval milestone ladder (comma-separated)
+                <input
+                  value={thrLadder}
+                  onChange={(e) => setThrLadder(e.target.value)}
+                  placeholder="e.g. 4,5,8,12,20"
+                  className={`mt-1 w-full rounded-lg border border-zinc-700 bg-black/50 px-2 py-1.5 font-mono text-xs text-white ${adminChrome.inputFocus}`}
+                />
+              </label>
+            </div>
+
+            <details className="mt-4 rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-zinc-400">Sanity filters (advanced)</summary>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {field("sanityMinMeaningfulMarketCap", "Sanity min MC")}
+                {field("sanityMinMeaningfulLiquidity", "Sanity min liq")}
+                {field("sanityMinLiquidityToMarketCapRatio", "Sanity min liq/MC")}
+                {field("sanityMaxLiquidityToMarketCapRatio", "Sanity max liq/MC")}
+                {field("sanityMaxBuySellRatio5m", "Sanity max buy/sell 5m")}
+                {field("sanityMaxBuySellRatio1h", "Sanity max buy/sell 1h")}
+              </div>
+            </details>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={thrBusy}
+                onClick={() => void saveThresholds()}
+                className={adminChrome.btnPrimary}
+              >
+                {thrBusy ? "Saving…" : "Save scanner settings"}
+              </button>
+              <button
+                type="button"
+                disabled={thrBusy}
+                onClick={() => void loadThresholds()}
+                className={`rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 transition ${adminChrome.btnGhostHover} hover:text-white`}
+              >
+                Reload
+              </button>
+            </div>
+          </>
+        )}
+      </AdminSection>
+
+      <AdminSection
         kicker="Roadmap"
         title="Discord commands → dashboard"
-        description="Owner-only scanner tuning (!setminmc, approval ladder, sanity filters) is still Discord-only today — good candidates for a future “Scanner settings” form here."
+        description="Thresholds and ladder above cover the biggest Discord-only owner commands. Remaining ideas: monitor status / reset flows, export settings, and per-field audit logs."
       >
         <div className="grid gap-4 lg:grid-cols-2">
           <AdminPanel className="p-4">
@@ -313,7 +539,10 @@ export function BotAdminClient() {
             <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-zinc-400">
               <li>
                 <span className="font-medium text-zinc-300">Scanner on/off</span> — this page (parity with{" "}
-                <code className="font-mono text-zinc-500">!scanner</code>).
+                <code className="font-mono text-zinc-500">!scanner</code>); health fallback when internal route is missing.
+              </li>
+              <li>
+                <span className="font-medium text-zinc-300">Scanner thresholds + ladder + sanity</span> — form above (owner save).
               </li>
               <li>
                 <span className="font-medium text-zinc-300">Mod queue / approvals</span> —{" "}
@@ -329,20 +558,12 @@ export function BotAdminClient() {
             <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Strong candidates next</h4>
             <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-zinc-400">
               <li>
-                <code className="font-mono text-zinc-500">!setminmc</code>, <code className="font-mono text-zinc-500">!setminliq</code>,{" "}
-                <code className="font-mono text-zinc-500">!setminvol5m</code>, <code className="font-mono text-zinc-500">!setminvol1h</code>,{" "}
-                <code className="font-mono text-zinc-500">!setmintxns5m</code>, <code className="font-mono text-zinc-500">!setmintxns1h</code> — scanner thresholds.
+                <code className="font-mono text-zinc-500">!monitorstatus</code> / <code className="font-mono text-zinc-500">!resetmonitor</code> — live counts + destructive reset
+                (keep high-friction confirm).
               </li>
-              <li>
-                <code className="font-mono text-zinc-500">!setapprovalx</code>, <code className="font-mono text-zinc-500">!setapprovalladder</code> — X approval ladder.
-              </li>
-              <li>
-                <code className="font-mono text-zinc-500">!setsanityminmc</code> … <code className="font-mono text-zinc-500">!setsanitymaxratio1h</code> — sanity filters.
-              </li>
-              <li>
-                <code className="font-mono text-zinc-500">!monitorstatus</code>, <code className="font-mono text-zinc-500">!resetmonitor</code> — ops (destructive reset stays
-                high-friction).
-              </li>
+              <li>Import / export <span className="font-medium text-zinc-300">scannerSettings.json</span> as JSON for backups.</li>
+              <li>Per-field change log (who changed min MC, when) stored in Supabase.</li>
+              <li>Preset bundles: Conservative / Balanced / Aggressive one-click profiles.</li>
             </ul>
           </AdminPanel>
         </div>

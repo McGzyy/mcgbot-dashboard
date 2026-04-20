@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AdminOverviewStats } from "@/app/admin/_components/AdminOverviewStats";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import { adminChrome } from "@/lib/roleTierStyles";
 
@@ -40,6 +41,8 @@ export default function AdminOverviewPage() {
         <h2 className="text-lg font-semibold text-white">Overview</h2>
         <p className="mt-1 text-sm text-zinc-400">Jump into a section — left nav stays one click away.</p>
       </div>
+
+      <AdminOverviewStats />
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <OverviewCard
