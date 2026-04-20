@@ -483,6 +483,7 @@ export function TopBar() {
       {/* MARKET STRIP ROW */}
       {showMarketWidget && (
         <div className={dashboardChrome.marketStripRow}>
+          <div className={dashboardChrome.marketStripTopRule} aria-hidden />
           <div className={dashboardChrome.marketStripBackdrop} aria-hidden />
           <div className="relative z-10 px-4 py-2 text-xs sm:px-6">
             {marketLoading ? (
@@ -534,6 +535,7 @@ export function TopBar() {
           </div>
         </div>
       )}
+      <div className={dashboardChrome.topBarBottomRule} aria-hidden />
       </header>
 
       {mounted

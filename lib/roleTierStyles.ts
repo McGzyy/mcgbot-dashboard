@@ -52,6 +52,10 @@ export const adminChrome = {
   overviewArrow: "text-red-300/85 transition group-hover:translate-x-0.5 group-hover:text-red-200",
 } as const;
 
+/** Same horizontal fade as `marketStripBackdrop` — use for 1px rules so borders don’t cut across the whole column. */
+const marketStripEdgeMask =
+  "[mask-image:linear-gradient(to_right,transparent_0%,transparent_26%,rgba(0,0,0,0.55)_48%,black_72%,black_100%)] [-webkit-mask-image:linear-gradient(to_right,transparent_0%,transparent_26%,rgba(0,0,0,0.55)_48%,black_72%,black_100%)]";
+
 /**
  * Authenticated app shell — shared “McGBot Terminal” depth (sky + subtle grid).
  * Page-specific themes (admin red, mod emerald) sit on top as panels, not second full-page fills.
@@ -64,15 +68,17 @@ export const dashboardChrome = {
   mainGrid:
     "pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.028)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.028)_1px,transparent_1px)] bg-[length:44px_44px] opacity-[0.35] [mask-image:linear-gradient(to_bottom,black_0%,black_55%,transparent_100%)]",
   contentWell: "relative z-[1] mx-auto w-full max-w-[1680px] px-5 pb-12 pt-1 sm:px-8 sm:pb-14 sm:pt-2",
+  /** Bottom edge uses `topBarBottomRule` so the line fades left like the market strip (no full-width `border-b`). */
   topBar:
-    "border-b border-zinc-800/75 bg-zinc-950/85 backdrop-blur-xl shadow-[0_1px_0_0_rgba(56,189,248,0.07),0_12px_40px_-20px_rgba(0,0,0,0.65)]",
+    "relative bg-zinc-950/85 backdrop-blur-xl shadow-[0_1px_0_0_rgba(56,189,248,0.07),0_12px_40px_-20px_rgba(0,0,0,0.65)]",
+  topBarBottomRule: `pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-px bg-zinc-800/75 ${marketStripEdgeMask}`,
   /**
    * Second row under TopBar — frosted layer fades out to the left so page titles stay sharp;
    * chips stay on the right (see TopBar).
    */
-  marketStripRow: "relative overflow-hidden border-t border-zinc-800/50",
-  marketStripBackdrop:
-    "pointer-events-none absolute inset-0 bg-gradient-to-l from-zinc-950/80 via-zinc-950/28 to-transparent backdrop-blur-[12px] [mask-image:linear-gradient(to_right,transparent_0%,transparent_26%,rgba(0,0,0,0.55)_48%,black_72%,black_100%)] [-webkit-mask-image:linear-gradient(to_right,transparent_0%,transparent_26%,rgba(0,0,0,0.55)_48%,black_72%,black_100%)]",
+  marketStripRow: "relative overflow-hidden",
+  marketStripTopRule: `pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-zinc-800/50 ${marketStripEdgeMask}`,
+  marketStripBackdrop: `pointer-events-none absolute inset-0 bg-gradient-to-l from-zinc-950/80 via-zinc-950/28 to-transparent backdrop-blur-[12px] ${marketStripEdgeMask}`,
   sidebar:
     "border-r border-zinc-800/65 bg-gradient-to-b from-[#040508] via-zinc-950 to-black shadow-[inset_-1px_0_0_rgba(56,189,248,0.06)]",
 } as const;
