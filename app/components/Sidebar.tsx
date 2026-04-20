@@ -120,7 +120,7 @@ function SidebarBody({
                 isActive(pathname, "/performance") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
-            <span>Performance</span>
+            <span>Performance lab</span>
           </Link>
           <Link href="/watchlist" onClick={pick} className={getNavItemClass(isActive(pathname, "/watchlist"))}>
             <div
