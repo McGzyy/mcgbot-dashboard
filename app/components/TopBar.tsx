@@ -625,6 +625,7 @@ export function TopBar() {
 
 function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [selected, setSelected] = useState<number>(0.1);
+  const [customMode, setCustomMode] = useState(false);
   const [custom, setCustom] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [tip, setTip] = useState<TipStartOk | null>(null);
@@ -643,12 +644,15 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
     setBusy(false);
     setCustom("");
     setSelected(0.1);
+    setCustomMode(false);
   }, [open]);
 
   const amountSol = (() => {
-    const v = custom.trim() ? Number(custom) : selected;
+    const v = customMode ? Number(custom) : selected;
     return Number.isFinite(v) && v > 0 ? Math.round(v * 1e9) / 1e9 : null;
   })();
+
+  const amountLabel = amountSol == null ? "—" : `${amountSol.toFixed(amountSol >= 1 ? 2 : 3).replace(/\.?0+$/, "")} SOL`;
 
   useEffect(() => {
     if (!open || !tip?.reference || confirmed) return;
@@ -760,10 +764,11 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
                   onClick={() => {
                     setSelected(p);
                     setCustom("");
+                    setCustomMode(false);
                   }}
                   className={[
                     "rounded-lg border px-2 py-2 text-xs font-semibold tabular-nums transition",
-                    custom.trim() === "" && selected === p
+                    !customMode && selected === p
                       ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
                       : "border-zinc-800 bg-zinc-950/30 text-zinc-200 hover:border-zinc-700",
                   ].join(" ")}
@@ -774,19 +779,48 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
             </div>
 
             <div className="mt-3">
-              <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                Custom
-              </label>
-              <input
-                value={custom}
-                onChange={(e) => setCustom(e.target.value)}
-                placeholder="e.g. 0.1337"
-                inputMode="decimal"
-                className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
-              />
-              <p className="mt-1 text-[11px] text-zinc-500">
-                {amountSol == null ? "Enter a valid amount." : `You’re tipping ${amountSol} SOL.`}
-              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomMode(true);
+                  if (!custom.trim()) setCustom(String(selected));
+                }}
+                className={`w-full rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                  customMode
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
+                    : "border-zinc-800 bg-zinc-950/30 text-zinc-200 hover:border-zinc-700"
+                }`}
+              >
+                {customMode ? "Custom tip enabled" : "Set custom tip"}
+              </button>
+
+              <div className={`mt-2 ${customMode ? "" : "opacity-50"}`}>
+                <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Custom amount
+                </label>
+                <input
+                  value={custom}
+                  onChange={(e) => setCustom(e.target.value)}
+                  placeholder={customMode ? "e.g. 0.1337" : "Enable custom tip to enter"}
+                  inputMode="decimal"
+                  disabled={!customMode}
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2 disabled:cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-200/70">
+                  You’re tipping
+                </p>
+                <p className="mt-0.5 text-lg font-black tabular-nums text-emerald-100">
+                  {amountLabel}
+                </p>
+              </div>
+              <div className="hidden text-right text-[11px] text-emerald-100/70 sm:block">
+                Tip for McGBot
+              </div>
             </div>
 
             <button
@@ -809,6 +843,14 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
               Status
             </p>
+
+            <div className="mt-3 rounded-lg border border-zinc-800 bg-black/20 px-3 py-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-zinc-200">Tip amount</span>
+                <span className="text-sm font-black tabular-nums text-emerald-200">{amountLabel}</span>
+              </div>
+              <p className="mt-1 text-[11px] text-zinc-500">Tip for McGBot</p>
+            </div>
 
             {tip ? (
               <div className="mt-3 space-y-3">
