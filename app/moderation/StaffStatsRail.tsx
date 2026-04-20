@@ -60,6 +60,11 @@ export function StaffStatsRail() {
 
   const site = data?.site;
   const yours = data?.yours;
+  const ledgerQuiet =
+    site != null &&
+    site.month.total === 0 &&
+    site.allTime.total === 0 &&
+    (yours == null || (yours.month.total === 0 && yours.allTime.total === 0));
 
   return (
     <aside className={`lg:sticky lg:top-20 lg:self-start ${modChrome.railPanel}`}>
@@ -67,10 +72,16 @@ export function StaffStatsRail() {
         <div>
           <p className={modChrome.railKicker}>Action ledger</p>
           <h2 className="mt-1 text-sm font-semibold tracking-tight text-white">Staff throughput</h2>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
-            From <span className="font-medium text-zinc-400">modActions.json</span> on the bot host — coin approvals,
-            denies, excludes (30-day window = rolling last 30 days).
-          </p>
+          {ledgerQuiet ? (
+            <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
+              Ledger is live — counts stay at zero until the bot records approvals, denies, or excludes.
+            </p>
+          ) : (
+            <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
+              From <span className="font-medium text-zinc-400">modActions.json</span> on the bot host — coin approvals,
+              denies, excludes (30-day window = rolling last 30 days).
+            </p>
+          )}
         </div>
         <button
           type="button"

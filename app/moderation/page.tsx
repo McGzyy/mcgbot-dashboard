@@ -13,12 +13,28 @@ import { modChrome } from "@/lib/roleTierStyles";
 import { StaffStatsRail } from "@/app/moderation/StaffStatsRail";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 function shortAddr(ca: string) {
   const s = ca.trim();
   if (s.length <= 14) return s;
   return `${s.slice(0, 8)}…${s.slice(-4)}`;
+}
+
+function QueueEmptyCallout({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className={`rounded-xl px-5 py-8 text-center ${modChrome.emptyState}`}>
+      <div className="flex items-center justify-center gap-2">
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400/90 shadow-[0_0_10px_rgba(52,211,153,0.45)]"
+          aria-hidden
+        />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-500/75">All clear</span>
+      </div>
+      <p className="mt-3 text-sm font-semibold tracking-tight text-zinc-200">{title}</p>
+      <div className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-500">{children}</div>
+    </div>
+  );
 }
 
 function parseQueueErrorSteps(json: Record<string, unknown>): string[] | null {
@@ -798,10 +814,15 @@ export default function ModerationPage() {
             </div>
           </div>
         </div>
-        <p className="mt-3 text-[11px] text-zinc-600">
-          Tip: press <kbd className="rounded border border-emerald-900/50 bg-emerald-950/40 px-1.5 py-0.5 font-mono text-emerald-200/70">R</kbd>{" "}
-          outside inputs to refresh.
-        </p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[11px] text-zinc-600">
+            Tip: press <kbd className="rounded border border-emerald-900/50 bg-emerald-950/40 px-1.5 py-0.5 font-mono text-emerald-200/70">R</kbd>{" "}
+            outside inputs to refresh.
+          </p>
+          {data && total === 0 && !queueLoading ? (
+            <p className="text-[11px] font-medium text-emerald-200/55">Nothing to triage — queue is clear.</p>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-2 grid gap-8 lg:grid-cols-[1fr_minmax(280px,360px)] lg:items-start">
@@ -850,14 +871,13 @@ export default function ModerationPage() {
                 <span className="shrink-0 text-xs tabular-nums text-zinc-500">{callN} open</span>
               </div>
               {calls.length === 0 ? (
-                <div className={`rounded-xl px-4 py-10 text-center ${modChrome.emptyState}`}>
-                  <p className="text-sm font-medium text-zinc-400">No McGBot calls waiting</p>
-                  <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-600">
+                <QueueEmptyCallout title="No McGBot calls waiting">
+                  <p>
                     When a McGBot auto-call crosses your configured ATH milestone, it queues here and in{" "}
-                    <span className="font-medium text-zinc-500">#mod-approvals</span> for a legitimacy check before X
+                    <span className="font-medium text-zinc-400">#mod-approvals</span> for a legitimacy check before X
                     can fire.
                   </p>
-                </div>
+                </QueueEmptyCallout>
               ) : (
                 <ul className="space-y-3">
                   {calls.map((c) => (
@@ -908,12 +928,9 @@ export default function ModerationPage() {
               <span className="shrink-0 text-xs tabular-nums text-zinc-500">{devN} open</span>
             </div>
             {devs.length === 0 ? (
-              <div className={`rounded-xl px-4 py-10 text-center ${modChrome.emptyState}`}>
-                <p className="text-sm font-medium text-zinc-400">No dev submissions in queue</p>
-                <p className="mx-auto mt-2 max-w-xs text-xs leading-relaxed text-zinc-600">
-                  New intel submissions show up here after they hit #mod-approvals.
-                </p>
-              </div>
+              <QueueEmptyCallout title="No dev submissions in queue">
+                <p>New intel appears here after it hits #mod-approvals on Discord.</p>
+              </QueueEmptyCallout>
             ) : (
               <ul className="space-y-3">
                 {devs.map((d) => (
