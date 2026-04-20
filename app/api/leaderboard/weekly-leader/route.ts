@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getTopLeaderSince } from "@/lib/callPerformanceLeaderboard";
 import { hasAccess } from "@/lib/hasAccess";
 import { startOfWeekMondayUtcMs } from "@/lib/leaderboardTimeWindows";
+import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
 // WEEKLY LEADER = resets every Monday 00:00 UTC
 
@@ -35,9 +36,10 @@ export async function GET(request: Request) {
 
     const supabase = createClient(url, key);
     const now = Date.now();
-    const startWeek = startOfWeekMondayUtcMs(now);
+    const cutoverMs = await getStatsCutoverUtcMs();
+    const minMs = mergeStatsCutoverIntoMin(startOfWeekMondayUtcMs(now), cutoverMs);
 
-    const leader = await getTopLeaderSince(supabase, type, startWeek);
+    const leader = await getTopLeaderSince(supabase, type, minMs);
 
     return Response.json({ leader });
   } catch (e) {

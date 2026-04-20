@@ -6,6 +6,7 @@ import {
   rankTopN,
 } from "@/lib/callPerformanceLeaderboard";
 import { periodStartMsForTrophyTimeframe } from "@/lib/leaderboardTimeWindows";
+import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
 export type TrophyTimeframe = "daily" | "weekly" | "monthly";
 
@@ -37,8 +38,10 @@ export async function awardTrophies(
   const source = options?.source ?? "user";
   const periodStartMs = periodStartMsForTrophyTimeframe(timeframe, nowMs);
 
-  const { rows, error: fetchErr } =
-    await fetchCallPerformanceForSource(supabase, source);
+  const [{ rows, error: fetchErr }, cutoverMs] = await Promise.all([
+    fetchCallPerformanceForSource(supabase, source),
+    getStatsCutoverUtcMs(),
+  ]);
   if (fetchErr) {
     return {
       periodStartMs,
@@ -48,7 +51,8 @@ export async function awardTrophies(
     };
   }
 
-  const filtered = filterRowsByMinCallTimeUtc(rows, periodStartMs);
+  const minMs = mergeStatsCutoverIntoMin(periodStartMs, cutoverMs);
+  const filtered = filterRowsByMinCallTimeUtc(rows, minMs);
   const aggregated = aggregateCallPerformanceRows(filtered);
   const top3 = rankTopN(aggregated, 3);
 

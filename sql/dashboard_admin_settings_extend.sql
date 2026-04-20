@@ -14,3 +14,6 @@ alter table public.dashboard_admin_settings
 
 alter table public.dashboard_admin_settings
   add column if not exists discord_invite_url text;
+
+alter table public.dashboard_admin_settings
+  add column if not exists stats_cutover_at timestamptz;

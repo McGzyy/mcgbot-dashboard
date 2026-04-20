@@ -7,6 +7,7 @@ import {
   filterRowsByMinCallTimeUtc,
 } from "@/lib/callPerformanceLeaderboard";
 import { rollingSevenDaysStartUtcMs } from "@/lib/leaderboardTimeWindows";
+import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
 // RANKINGS = rolling window (last 7 days), UTC — same window as default /api/leaderboard rankings
 
@@ -31,10 +32,10 @@ export async function GET() {
 
     const supabase = createClient(url, key);
 
-    const { rows, error } = await fetchCallPerformanceForSource(
-      supabase,
-      "user"
-    );
+    const [{ rows, error }, cutoverMs] = await Promise.all([
+      fetchCallPerformanceForSource(supabase, "user"),
+      getStatsCutoverUtcMs(),
+    ]);
 
     if (error) {
       console.error("[me/leaderboard-rank] GET:", error);
@@ -45,7 +46,7 @@ export async function GET() {
     }
 
     const now = Date.now();
-    const minCallTimeMs = rollingSevenDaysStartUtcMs(now);
+    const minCallTimeMs = mergeStatsCutoverIntoMin(rollingSevenDaysStartUtcMs(now), cutoverMs);
     const filtered = filterRowsByMinCallTimeUtc(rows, minCallTimeMs);
 
     const results = aggregateCallPerformanceRows(filtered);

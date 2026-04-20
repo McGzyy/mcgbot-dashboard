@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { mapCallPerformanceRowToRecentCall } from "@/lib/callPerformanceUserStats";
+import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
 export async function GET() {
   try {
@@ -24,12 +25,15 @@ export async function GET() {
 
     const supabase = createClient(url, key);
 
-    const { data, error } = await supabase
-      .from("call_performance")
-      .select("id, call_ca, ath_multiple, call_time")
-      .eq("discord_id", discordId)
-      .order("call_time", { ascending: false })
-      .limit(10);
+    const [{ data, error }, cutoverMs] = await Promise.all([
+      supabase
+        .from("call_performance")
+        .select("id, call_ca, ath_multiple, call_time")
+        .eq("discord_id", discordId)
+        .order("call_time", { ascending: false })
+        .limit(50),
+      getStatsCutoverUtcMs(),
+    ]);
 
     if (error) {
       console.error("Supabase error:", error);
@@ -39,10 +43,8 @@ export async function GET() {
       );
     }
 
-    const rows = (Array.isArray(data) ? data : []) as Record<
-      string,
-      unknown
-    >[];
+    const rawRows = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
+    const rows = filterCallRowsForStats(rawRows, cutoverMs).slice(0, 10);
 
     return Response.json(rows.map(mapCallPerformanceRowToRecentCall));
   } catch (e) {

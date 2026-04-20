@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getTopLeaderSince } from "@/lib/callPerformanceLeaderboard";
 import { hasAccess } from "@/lib/hasAccess";
 import { startOfCalendarMonthUtcMs } from "@/lib/leaderboardTimeWindows";
+import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
 // MONTHLY LEADER = resets first day of month 00:00 UTC
 
@@ -35,9 +36,10 @@ export async function GET(request: Request) {
 
     const supabase = createClient(url, key);
     const now = Date.now();
-    const startMonth = startOfCalendarMonthUtcMs(now);
+    const cutoverMs = await getStatsCutoverUtcMs();
+    const minMs = mergeStatsCutoverIntoMin(startOfCalendarMonthUtcMs(now), cutoverMs);
 
-    const leader = await getTopLeaderSince(supabase, type, startMonth);
+    const leader = await getTopLeaderSince(supabase, type, minMs);
 
     return Response.json({ leader });
   } catch (e) {

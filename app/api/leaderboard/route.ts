@@ -9,6 +9,7 @@ import {
   rankTopN,
 } from "@/lib/callPerformanceLeaderboard";
 import { hasAccess } from "@/lib/hasAccess";
+import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
 // WEEKLY LEADER = resets every Monday 00:00 UTC → GET /api/leaderboard/weekly-leader
 // MONTHLY LEADER = resets first day of month 00:00 UTC → GET /api/leaderboard/monthly-leader
@@ -51,7 +52,10 @@ export async function GET(request: Request) {
 
     const supabase = createClient(url, key);
 
-    const { rows, error } = await fetchCallPerformanceForSource(supabase, type);
+    const [{ rows, error }, cutoverMs] = await Promise.all([
+      fetchCallPerformanceForSource(supabase, type),
+      getStatsCutoverUtcMs(),
+    ]);
 
     if (error) {
       console.error("Supabase error:", error);
@@ -62,7 +66,10 @@ export async function GET(request: Request) {
     }
 
     const now = Date.now();
-    const minCallTimeMs = minCallTimeMsForLeaderboardPeriod(period, now);
+    const minCallTimeMs = mergeStatsCutoverIntoMin(
+      minCallTimeMsForLeaderboardPeriod(period, now),
+      cutoverMs
+    );
     const filtered = filterRowsByMinCallTimeUtc(rows, minCallTimeMs);
 
     const aggregated = aggregateCallPerformanceRows(filtered);

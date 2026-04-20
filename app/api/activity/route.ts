@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getUserTier } from "@/lib/getUserTier";
+import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
 export async function GET(request: Request) {
   try {
@@ -71,9 +72,10 @@ export async function GET(request: Request) {
       query = query.in("discord_id", ids);
     }
 
-    const { data, error } = await query
-      .order("call_time", { ascending: false })
-      .limit(20);
+    const [{ data, error }, cutoverMs] = await Promise.all([
+      query.order("call_time", { ascending: false }).limit(40),
+      getStatsCutoverUtcMs(),
+    ]);
 
     if (error) {
       console.error("Supabase error:", error);
@@ -83,7 +85,8 @@ export async function GET(request: Request) {
       );
     }
 
-    const rows = Array.isArray(data) ? data : [];
+    const rawRows = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
+    const rows = filterCallRowsForStats(rawRows, cutoverMs).slice(0, 20);
 
     const events = rows.map((row) => {
       const r = row as Record<string, unknown>;

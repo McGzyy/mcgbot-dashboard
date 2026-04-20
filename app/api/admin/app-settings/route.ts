@@ -4,6 +4,7 @@ import {
   patchDashboardAdminSettings,
 } from "@/lib/dashboardAdminSettingsDb";
 import { invalidateSiteOperationalStateCache } from "@/lib/siteOperationalState";
+import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -86,6 +87,29 @@ export async function PATCH(req: Request) {
       }
     }
   }
+  if ("stats_cutover_at" in o) {
+    const raw = o.stats_cutover_at;
+    if (raw == null || raw === "") {
+      patch.stats_cutover_at = null;
+    } else if (typeof raw === "string") {
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        patch.stats_cutover_at = null;
+      } else {
+        const t = Date.parse(trimmed);
+        if (!Number.isFinite(t)) {
+          return Response.json(
+            {
+              success: false,
+              error: "Invalid stats_cutover_at — use ISO-8601 UTC (e.g. 2026-04-20T00:00:00.000Z).",
+            },
+            { status: 400 }
+          );
+        }
+        patch.stats_cutover_at = new Date(t).toISOString();
+      }
+    }
+  }
 
   const row = await patchDashboardAdminSettings(patch);
   if (!row) {
@@ -99,5 +123,6 @@ export async function PATCH(req: Request) {
     );
   }
   invalidateSiteOperationalStateCache();
+  invalidateStatsCutoverCache();
   return Response.json({ success: true, settings: row });
 }

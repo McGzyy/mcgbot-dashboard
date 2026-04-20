@@ -4,6 +4,7 @@ import {
   pickLatestUsername,
   recentCallsFromRows,
 } from "@/lib/callPerformanceUserStats";
+import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
 const PROFILE_RECENT_CALLS_LIMIT = 15;
 
@@ -108,7 +109,7 @@ export async function GET(
 
     const supabase = createClient(url, key);
 
-    const [{ data, error }, userRowResult] = await Promise.all([
+    const [{ data, error }, userRowResult, cutoverMs] = await Promise.all([
       supabase
         .from("call_performance")
         .select("id, username, call_ca, ath_multiple, call_time")
@@ -118,6 +119,7 @@ export async function GET(
         .select("id, discord_id, bio, banner_url, x_handle, x_verified, created_at, profile_visibility")
         .eq("discord_id", discordId)
         .maybeSingle(),
+      getStatsCutoverUtcMs(),
     ]);
 
     if (error) {
@@ -144,10 +146,8 @@ export async function GET(
           profile_visibility?: unknown;
         }
       | null;
-    const rows = (Array.isArray(data) ? data : []) as Record<
-      string,
-      unknown
-    >[];
+    const rawRows = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
+    const rows = filterCallRowsForStats(rawRows, cutoverMs);
 
     const username = pickLatestUsername(rows, discordId);
     const stats = computeCallPerformanceUserStats(rows);

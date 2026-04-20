@@ -11,6 +11,8 @@ export type DashboardAdminSettingsRow = {
   paywall_title: string | null;
   subscribe_button_label: string | null;
   discord_invite_url: string | null;
+  /** Inclusive UTC instant: stats APIs ignore `call_performance` rows with `call_time` before this. */
+  stats_cutover_at: string | null;
   updated_at: string;
   updated_by_discord_id: string | null;
 };
@@ -28,6 +30,7 @@ function defaultRow(): DashboardAdminSettingsRow {
     paywall_title: null,
     subscribe_button_label: null,
     discord_invite_url: null,
+    stats_cutover_at: null,
     updated_at: now,
     updated_by_discord_id: null,
   };
@@ -57,6 +60,7 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
     paywall_title: typeof r.paywall_title === "string" ? r.paywall_title : null,
     subscribe_button_label: typeof r.subscribe_button_label === "string" ? r.subscribe_button_label : null,
     discord_invite_url: typeof r.discord_invite_url === "string" ? r.discord_invite_url : null,
+    stats_cutover_at: typeof r.stats_cutover_at === "string" ? r.stats_cutover_at : null,
     updated_at: typeof r.updated_at === "string" ? r.updated_at : new Date().toISOString(),
     updated_by_discord_id: typeof r.updated_by_discord_id === "string" ? r.updated_by_discord_id : null,
   };
@@ -72,6 +76,7 @@ export async function patchDashboardAdminSettings(input: {
   paywall_title?: string | null;
   subscribe_button_label?: string | null;
   discord_invite_url?: string | null;
+  stats_cutover_at?: string | null;
   updatedByDiscordId: string;
 }): Promise<DashboardAdminSettingsRow | null> {
   const db = getSupabaseAdmin();
@@ -118,6 +123,10 @@ export async function patchDashboardAdminSettings(input: {
     const d = input.discord_invite_url;
     next.discord_invite_url = d == null || !String(d).trim() ? null : String(d).trim().slice(0, 500);
   }
+  if ("stats_cutover_at" in input) {
+    const s = input.stats_cutover_at;
+    next.stats_cutover_at = s == null || !String(s).trim() ? null : String(s).trim();
+  }
 
   const { data, error } = await db
     .from("dashboard_admin_settings")
@@ -133,6 +142,7 @@ export async function patchDashboardAdminSettings(input: {
         paywall_title: next.paywall_title,
         subscribe_button_label: next.subscribe_button_label,
         discord_invite_url: next.discord_invite_url,
+        stats_cutover_at: next.stats_cutover_at,
         updated_at: next.updated_at,
         updated_by_discord_id: next.updated_by_discord_id,
       },

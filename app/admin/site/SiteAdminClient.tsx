@@ -24,6 +24,8 @@ type AppSettings = {
   paywall_title: string | null;
   subscribe_button_label: string | null;
   discord_invite_url: string | null;
+  /** ISO-8601 UTC; stats APIs ignore call_performance before this instant. */
+  stats_cutover_at: string | null;
   updated_at?: string;
   updated_by_discord_id?: string | null;
 };
@@ -142,6 +144,7 @@ export function SiteAdminClient() {
           paywall_title: settings.paywall_title,
           subscribe_button_label: settings.subscribe_button_label,
           discord_invite_url: settings.discord_invite_url,
+          stats_cutover_at: settings.stats_cutover_at,
         }),
       });
       const json = (await res.json().catch(() => ({}))) as {
@@ -190,7 +193,7 @@ export function SiteAdminClient() {
               <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-xs text-violet-200/90">
                 dashboard_admin_settings
               </code>{" "}
-              and apply to middleware, subscribe, and the global banner within a few seconds.
+              middleware, subscribe, the global banner, and (when set) the stats cutover for leaderboards.
             </p>
           </div>
           <button
@@ -295,6 +298,44 @@ export function SiteAdminClient() {
             <p className="text-sm text-zinc-500">Loading settings…</p>
           ) : (
             <>
+              <SettingsSection
+                kicker="Stats"
+                title="Leaderboard &amp; profile stats cutover"
+                description="Calls with call_time strictly before this instant are ignored everywhere we aggregate performance: /api/leaderboard, your rank, weekly/monthly #1, profile stats, activity feed, and recent calls. Rows stay in the database; this is a stats-only floor. Cleared or changed values apply within about 15 seconds (server cache)."
+              >
+                <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Cutover (ISO-8601 UTC)
+                  <input
+                    value={settings.stats_cutover_at ?? ""}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, stats_cutover_at: e.target.value || null } : s))
+                    }
+                    placeholder="e.g. 2026-04-20T00:00:00.000Z"
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                  />
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSettings((s) =>
+                        s ? { ...s, stats_cutover_at: new Date().toISOString() } : s
+                      )
+                    }
+                    className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-violet-500/40 hover:text-white"
+                  >
+                    Set to now (UTC)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettings((s) => (s ? { ...s, stats_cutover_at: null } : s))}
+                    className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-amber-500/40 hover:text-white"
+                  >
+                    Clear cutover
+                  </button>
+                </div>
+              </SettingsSection>
+
               <SettingsSection
                 kicker="Banner"
                 title="Global announcement"

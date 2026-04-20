@@ -10,6 +10,7 @@ import {
   countCallsInPriorRollingWindow,
   computeActiveDaysStreakUtc,
 } from "@/lib/callPerformanceUserStats";
+import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
 const ROLLING_DAY_MS = 86400000;
 const ROLLING_30D_MS = 30 * 86400000;
@@ -35,20 +36,21 @@ export async function GET() {
 
     const supabase = createClient(url, key);
 
-    const { data, error } = await supabase
-      .from("call_performance")
-      .select("ath_multiple, call_time")
-      .eq("discord_id", discordId);
+    const [{ data, error }, cutoverMs] = await Promise.all([
+      supabase
+        .from("call_performance")
+        .select("ath_multiple, call_time")
+        .eq("discord_id", discordId),
+      getStatsCutoverUtcMs(),
+    ]);
 
     if (error) {
       console.error("Supabase error:", error);
       return Response.json({ error: "Failed to load stats" }, { status: 500 });
     }
 
-    const rows = (Array.isArray(data) ? data : []) as Record<
-      string,
-      unknown
-    >[];
+    const rawRows = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
+    const rows = filterCallRowsForStats(rawRows, cutoverMs);
 
     const { avgX, winRate, totalCalls } = computeCallPerformanceUserStats(rows);
     const medianX = computeMedianX(rows);

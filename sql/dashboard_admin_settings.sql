@@ -12,6 +12,7 @@ create table if not exists public.dashboard_admin_settings (
   paywall_title text,
   subscribe_button_label text,
   discord_invite_url text,
+  stats_cutover_at timestamptz,
   updated_at timestamptz not null default now(),
   updated_by_discord_id text
 );
