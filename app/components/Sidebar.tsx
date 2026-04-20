@@ -11,12 +11,23 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function sessionStaffNav(session: ReturnType<typeof useSession>["data"]): boolean {
+  const u = session?.user;
+  if (!u) return false;
+  if (u.canModerate === true) return true;
+  return u.helpTier === "admin" || u.helpTier === "mod";
+}
+
+function sessionAdminNav(session: ReturnType<typeof useSession>["data"]): boolean {
+  return session?.user?.helpTier === "admin";
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  /** Same source as `/api/me/help-role` (decoupled from mod-queue fetch so bot outages cannot hide nav). */
-  const [staffNav, setStaffNav] = useState(false);
-  const [adminNav, setAdminNav] = useState(false);
+  /** Client refresh of `/api/me/help-role` (merged with server session from layout). */
+  const [apiStaffNav, setApiStaffNav] = useState(false);
+  const [apiAdminNav, setApiAdminNav] = useState(false);
   /** Pending mod-queue count (from API); null = not loaded or not staff. */
   const [modPendingTotal, setModPendingTotal] = useState<number | null>(null);
 
@@ -33,8 +44,8 @@ export function Sidebar() {
 
   useEffect(() => {
     if (status !== "authenticated") {
-      setStaffNav(false);
-      setAdminNav(false);
+      setApiStaffNav(false);
+      setApiAdminNav(false);
       setModPendingTotal(null);
       return;
     }
@@ -47,17 +58,22 @@ export function Sidebar() {
           canModerate?: boolean;
         };
         if (cancelled) return;
+        if (!res.ok) {
+          setApiAdminNav(false);
+          setApiStaffNav(false);
+          return;
+        }
         const r = json.role;
-        setAdminNav(r === "admin");
+        setApiAdminNav(r === "admin");
         const staff =
           typeof json.canModerate === "boolean"
             ? json.canModerate
             : r === "mod" || r === "admin";
-        setStaffNav(staff);
+        setApiStaffNav(staff);
       } catch {
         if (!cancelled) {
-          setStaffNav(false);
-          setAdminNav(false);
+          setApiStaffNav(false);
+          setApiAdminNav(false);
         }
       }
     })();
@@ -65,6 +81,9 @@ export function Sidebar() {
       cancelled = true;
     };
   }, [status]);
+
+  const staffNav = sessionStaffNav(session) || apiStaffNav;
+  const adminNav = sessionAdminNav(session) || apiAdminNav;
 
   useEffect(() => {
     if (status !== "authenticated" || !staffNav) {
