@@ -724,7 +724,7 @@ export default function ModerationPage() {
 
   return (
     <div className={modChrome.pageShell}>
-      <div className={`relative w-full min-w-0 pb-20 ${modChrome.pageInner}`}>
+      <div className={`relative mx-auto w-full min-w-0 max-w-6xl pb-20 ${modChrome.pageInner}`}>
         <header className="relative border-b border-white/[0.06] pb-8 pt-2">
           <p className={`text-[10px] font-semibold uppercase tracking-[0.28em] ${modChrome.kicker}`}>
             Staff command center
@@ -774,7 +774,7 @@ export default function ModerationPage() {
             </div>
           </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:max-w-2xl">
+        <div className="mt-5 grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
           <div className={modChrome.statTile}>
             <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">Total</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-zinc-100">{queueLoading ? "…" : total}</div>
