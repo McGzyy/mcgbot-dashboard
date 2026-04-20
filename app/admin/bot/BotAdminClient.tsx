@@ -18,8 +18,9 @@ type ScannerJson = {
   already?: boolean;
   error?: string;
   steps?: string[];
-  source?: "internal" | "health";
+  source?: "internal" | "health" | "health_legacy";
   processUptimeSec?: number;
+  warning?: string;
 };
 
 type ScannerSettingsPayload = {
@@ -28,6 +29,8 @@ type ScannerSettingsPayload = {
   approvalTriggerX?: number;
   approvalMilestoneLadder?: number[];
   error?: string;
+  source?: string;
+  warning?: string;
 };
 
 function AdminSection({
@@ -64,13 +67,16 @@ export function BotAdminClient() {
   const [scanLoading, setScanLoading] = useState(true);
   const [scanErr, setScanErr] = useState<string | null>(null);
   const [scannerOn, setScannerOn] = useState<boolean | null>(null);
+  /** After a successful load: `true` / `false` from bot, or `null` when /health omitted discordReady (legacy). */
   const [discordReady, setDiscordReady] = useState<boolean | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
   const [scanSource, setScanSource] = useState<string | null>(null);
   const [scanUptimeSec, setScanUptimeSec] = useState<number | null>(null);
+  const [scanWarn, setScanWarn] = useState<string | null>(null);
 
   const [thrLoading, setThrLoading] = useState(true);
   const [thrErr, setThrErr] = useState<string | null>(null);
+  const [thrWarn, setThrWarn] = useState<string | null>(null);
   const [thrSaveMsg, setThrSaveMsg] = useState<string | null>(null);
   const [thrBusy, setThrBusy] = useState(false);
   const [thrForm, setThrForm] = useState<Record<string, string>>({});
@@ -140,18 +146,22 @@ export function BotAdminClient() {
               ? "Forbidden (dashboard admin only)."
               : `Request failed (${res.status}).`;
         setScanErr(msg);
+        setScanWarn(null);
         setScannerOn(null);
         setDiscordReady(null);
         setScanSource(null);
         setScanUptimeSec(null);
         return;
       }
+      setScanErr(null);
+      setScanWarn(typeof json.warning === "string" && json.warning.trim() ? json.warning.trim() : null);
       setScannerOn(typeof json.scannerEnabled === "boolean" ? json.scannerEnabled : null);
       setDiscordReady(typeof json.discordReady === "boolean" ? json.discordReady : null);
       setScanSource(typeof json.source === "string" ? json.source : null);
       setScanUptimeSec(typeof json.processUptimeSec === "number" ? json.processUptimeSec : null);
     } catch {
       setScanErr("Could not load scanner state.");
+      setScanWarn(null);
       setScannerOn(null);
       setDiscordReady(null);
     } finally {
@@ -162,6 +172,7 @@ export function BotAdminClient() {
   const loadThresholds = useCallback(async () => {
     setThrLoading(true);
     setThrErr(null);
+    setThrWarn(null);
     setThrSaveMsg(null);
     try {
       const res = await fetch("/api/admin/bot-scanner-settings", { credentials: "same-origin" });
@@ -173,6 +184,8 @@ export function BotAdminClient() {
         setThrEffective({ trigger: null, ladder: [] });
         return;
       }
+      setThrErr(null);
+      setThrWarn(typeof json.warning === "string" && json.warning.trim() ? json.warning.trim() : null);
       const s = json.settings || {};
       const pick = (k: string) => (s[k] != null && s[k] !== "" ? String(s[k]) : "");
       setThrForm({
@@ -198,6 +211,7 @@ export function BotAdminClient() {
       });
     } catch {
       setThrErr("Could not load scanner settings.");
+      setThrWarn(null);
       setThrForm({});
     } finally {
       setThrLoading(false);
@@ -229,6 +243,7 @@ export function BotAdminClient() {
       }
       setScannerOn(typeof json.scannerEnabled === "boolean" ? json.scannerEnabled : enabled);
       setDiscordReady(typeof json.discordReady === "boolean" ? json.discordReady : null);
+      await loadScanner();
       await loadHealth();
     } catch {
       setScanErr("Network error while updating scanner.");
@@ -377,10 +392,16 @@ export function BotAdminClient() {
             <p className="text-sm text-red-200">{scanErr}</p>
           </AdminPanel>
         ) : null}
+        {scanWarn && !scanErr ? (
+          <AdminPanel className="mb-4 border-amber-500/25 bg-amber-950/20 p-4">
+            <p className="text-sm text-amber-100/90">{scanWarn}</p>
+          </AdminPanel>
+        ) : null}
 
-        {!scanLoading && scanSource === "health" ? (
+        {!scanLoading && (scanSource === "health" || scanSource === "health_legacy") ? (
           <p className="mb-3 text-[11px] leading-relaxed text-sky-300/90">
-            Reading scanner state from <span className="font-medium">GET /health</span> (fallback). Toggle still requires{" "}
+            Reading scanner state from <span className="font-medium">GET /health</span>
+            {scanSource === "health_legacy" ? " (legacy: no scannerEnabled field yet)" : " (fallback)"}. Toggle still requires{" "}
             <span className="font-medium">POST /internal/scanner-state</span> on the bot — deploy latest <code className="font-mono text-zinc-500">apiServer.js</code> for full parity.
           </p>
         ) : null}
@@ -410,9 +431,23 @@ export function BotAdminClient() {
             <AdminMetric
               label="Discord client"
               value={
-                scanLoading ? "…" : discordReady ? <span className="text-emerald-300">Ready</span> : <span className="text-amber-200/90">Not ready</span>
+                scanLoading ? (
+                  "…"
+                ) : scanErr ? (
+                  "—"
+                ) : typeof discordReady === "boolean" ? (
+                  discordReady ? (
+                    <span className="text-emerald-300">Ready</span>
+                  ) : (
+                    <span className="text-amber-200/90">Not ready</span>
+                  )
+                ) : (
+                  <span className="text-zinc-400">Unknown</span>
+                )
               }
-              tone={scanLoading ? "neutral" : discordReady ? "ok" : "warn"}
+              tone={
+                scanLoading || scanErr ? "neutral" : typeof discordReady === "boolean" ? (discordReady ? "ok" : "warn") : "neutral"
+              }
             />
           </AdminPanel>
         </div>
@@ -450,6 +485,11 @@ export function BotAdminClient() {
         {thrErr ? (
           <AdminPanel className="mb-4 border-red-500/25 bg-red-950/20 p-4">
             <p className="text-sm text-red-200">{thrErr}</p>
+          </AdminPanel>
+        ) : null}
+        {thrWarn && !thrErr ? (
+          <AdminPanel className="mb-4 border-amber-500/25 bg-amber-950/20 p-4">
+            <p className="text-sm text-amber-100/90">{thrWarn}</p>
           </AdminPanel>
         ) : null}
         {thrSaveMsg ? <p className="mb-3 text-sm text-emerald-400/90">{thrSaveMsg}</p> : null}

@@ -1,9 +1,41 @@
 import { requireDashboardAdmin } from "@/lib/adminGate";
 import { botApiBaseUrl, botInternalSecret } from "@/lib/botInternal";
+import { DEFAULT_APPROVAL_MILESTONE_LADDER, DEFAULT_APPROVAL_TRIGGER_X } from "@/lib/scannerDefaults";
 import { botUnreachableChecklist, describeBotApiFetchError } from "@/lib/botUpstreamFetchError";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function tryParseJson(raw: string): Record<string, unknown> | null {
+  if (!raw || !raw.trim()) return null;
+  try {
+    const v = JSON.parse(raw) as unknown;
+    if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, unknown>;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function looksLikeHtml(raw: string): boolean {
+  const t = raw.trimStart().slice(0, 64).toLowerCase();
+  return t.startsWith("<!") || t.startsWith("<html") || t.startsWith("<head") || t.startsWith("<");
+}
+
+function readSettingsFallbackResponse(opts: { httpStatus: number; botDetail?: string }): Response {
+  const detail = opts.botDetail ? ` (${opts.botDetail})` : "";
+  return Response.json(
+    {
+      success: true,
+      settings: {},
+      approvalTriggerX: DEFAULT_APPROVAL_TRIGGER_X,
+      approvalMilestoneLadder: DEFAULT_APPROVAL_MILESTONE_LADDER,
+      source: "dashboard_fallback",
+      warning: `Could not load scanner settings from the bot (HTTP ${opts.httpStatus}${detail}). Showing preset ladder defaults only — values are not read from the host until you deploy apiServer.js with GET /internal/scanner-settings. Saving will still require that route.`,
+    },
+    { status: 200 }
+  );
+}
 
 async function forward(method: "GET" | "PATCH", discordId: string, body?: Record<string, unknown>) {
   const base = botApiBaseUrl();
@@ -31,6 +63,9 @@ async function forward(method: "GET" | "PATCH", discordId: string, body?: Record
     });
   } catch (err) {
     const detail = describeBotApiFetchError(err);
+    if (method === "GET") {
+      return readSettingsFallbackResponse({ httpStatus: 0, botDetail: detail });
+    }
     return Response.json(
       {
         success: false,
@@ -43,28 +78,47 @@ async function forward(method: "GET" | "PATCH", discordId: string, body?: Record
   }
 
   const raw = await res.text();
-  let data: unknown = null;
-  if (raw) {
-    try {
-      data = JSON.parse(raw) as unknown;
-    } catch {
-      return Response.json(
-        {
-          success: false,
-          error: "Bot returned non-JSON (often HTTP 404 HTML — deploy latest apiServer with /internal/scanner-settings).",
-          httpStatus: res.status,
-          preview: raw.slice(0, 280),
-        },
-        { status: 502 }
-      );
+  const data = tryParseJson(raw);
+
+  if (method === "GET") {
+    if (data && (res.status === 401 || res.status === 403)) {
+      return Response.json(data, { status: res.status });
     }
+    if (data && data.success === true) {
+      return Response.json(data, { status: res.status });
+    }
+    if (!data || looksLikeHtml(raw) || res.status === 404) {
+      const botDetail =
+        !data && raw
+          ? looksLikeHtml(raw)
+            ? "HTML response — wrong BOT_API_URL?"
+            : "non-JSON body"
+          : typeof data?.error === "string"
+            ? String(data.error)
+            : undefined;
+      return readSettingsFallbackResponse({ httpStatus: res.status, botDetail });
+    }
+    return readSettingsFallbackResponse({
+      httpStatus: res.status,
+      botDetail: typeof data?.error === "string" ? String(data.error) : "unexpected body",
+    });
   }
 
-  if (data && typeof data === "object" && !Array.isArray(data)) {
-    return Response.json(data, { status: res.status });
+  if (!data) {
+    return Response.json(
+      {
+        success: false,
+        error: looksLikeHtml(raw)
+          ? `Bot returned HTML (HTTP ${res.status}) — check BOT_API_URL points at the bot API, not the dashboard.`
+          : "Bot returned non-JSON.",
+        httpStatus: res.status,
+        preview: raw.slice(0, 280),
+      },
+      { status: 502 }
+    );
   }
 
-  return Response.json({ success: false, error: `Unexpected response (HTTP ${res.status}).` }, { status: 502 });
+  return Response.json(data, { status: res.status });
 }
 
 export async function GET() {
