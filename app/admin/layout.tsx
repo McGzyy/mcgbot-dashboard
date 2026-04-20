@@ -1,9 +1,16 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { AdminDashboardShell } from "@/app/admin/_components/AdminDashboardShell";
 import { authOptions } from "@/lib/auth";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
+
+export const metadata: Metadata = {
+  title: "Admin",
+  description: "McGBot control plane — bot settings, app flags, and subscription tools.",
+  robots: { index: false, follow: false },
+};
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession(authOptions);

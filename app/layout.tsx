@@ -16,9 +16,37 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+function resolveMetadataBase(): URL | undefined {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!raw) return undefined;
+  try {
+    const normalized = raw.endsWith("/") ? raw.slice(0, -1) : raw;
+    return new URL(normalized);
+  } catch {
+    return undefined;
+  }
+}
+
 export const metadata: Metadata = {
-  title: "McGBot Dashboard",
-  description: "Referrals and stats for McGBot",
+  metadataBase: resolveMetadataBase(),
+  applicationName: "McGBot Terminal",
+  title: {
+    default: "Dashboard",
+    template: "%s · McGBot Terminal",
+  },
+  description:
+    "McGBot Terminal — referrals, verified calls, leaderboards, and caller performance on Solana.",
+  openGraph: {
+    type: "website",
+    siteName: "McGBot Terminal",
+    title: "McGBot Terminal",
+    description:
+      "McGBot Terminal — referrals, verified calls, leaderboards, and caller performance on Solana.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "McGBot Terminal",
+  },
 };
 
 /** Session must be resolved on the server so staff/admin flags match JWT before client hydration. */

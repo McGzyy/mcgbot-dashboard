@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { modChrome } from "@/lib/roleTierStyles";
+
+export const metadata: Metadata = {
+  title: "Call tape",
+  description: "Your verified calls — contracts, ATH multiples, source, and jump links.",
+};
 
 /** Full-bleed grid (same as moderation/admin) + sky glow for user analytics routes. */
 export default function CallsLayout({ children }: { children: ReactNode }) {

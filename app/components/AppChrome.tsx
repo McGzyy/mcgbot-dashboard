@@ -3,6 +3,7 @@
 import { AnnouncementBar } from "@/app/components/AnnouncementBar";
 import { MainShell } from "@/app/components/MainShell";
 import { Sidebar } from "@/app/components/Sidebar";
+import { MobileSidebarProvider } from "@/app/contexts/MobileSidebarContext";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -16,10 +17,12 @@ export function AppChrome({ children }: { children: ReactNode }) {
       {bareLayout ? (
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       ) : (
-        <div className="flex min-h-0 flex-1">
-          <Sidebar />
-          <MainShell>{children}</MainShell>
-        </div>
+        <MobileSidebarProvider>
+          <div className="flex min-h-0 flex-1">
+            <Sidebar />
+            <MainShell>{children}</MainShell>
+          </div>
+        </MobileSidebarProvider>
       )}
     </div>
   );

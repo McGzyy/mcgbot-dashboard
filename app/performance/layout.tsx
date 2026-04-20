@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { modChrome } from "@/lib/roleTierStyles";
+
+export const metadata: Metadata = {
+  title: "Performance",
+  description: "Personal performance charts — averages, streaks, activity, and rank from your calls.",
+};
 
 /** Full-bleed grid + emerald glow — pairs visually with Performance lab copy. */
 export default function PerformanceLayout({ children }: { children: ReactNode }) {

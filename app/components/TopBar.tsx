@@ -1,6 +1,7 @@
 "use client";
 
 import { useNotifications } from "@/app/contexts/NotificationsContext";
+import { useMobileSidebar } from "@/app/contexts/MobileSidebarContext";
 import { dashboardChrome } from "@/lib/roleTierStyles";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -71,6 +72,7 @@ function formatTimeAgo(createdAt: number, nowMs: number): string {
 export function TopBar() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
+  const { setOpen: setMobileSidebarOpen } = useMobileSidebar();
   const { notifications } = useNotifications();
   const activeNotificationCount = notifications.filter((n) => !n.exiting).length;
   const [market, setMarket] = useState<MarketSnapshot | null>(null);
@@ -263,7 +265,18 @@ export function TopBar() {
       <header className={`sticky top-0 z-50 ${dashboardChrome.topBar}`} role="banner">
       {/* TOP ROW (existing header content) */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-2">
-        <div className="min-w-0 flex-1" aria-hidden />
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen(true)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-800/80 bg-zinc-900/40 text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800/60 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 lg:hidden"
+            aria-label="Open navigation menu"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden>
+              <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
 
         <div className="flex shrink-0 items-center gap-3">
           {status === "loading" ? (

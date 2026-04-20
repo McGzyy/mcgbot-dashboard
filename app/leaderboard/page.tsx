@@ -582,7 +582,7 @@ export default function LeaderboardPage() {
             </div>
             <nav
               className="mt-6 flex flex-wrap gap-2 border-t border-zinc-800/60 pt-5"
-              aria-label="Jump to leaderboard section"
+              aria-label="Jump to leaderboards section"
             >
               <a href="#leaders" className={navPill}>
                 Spotlight
@@ -613,7 +613,7 @@ export default function LeaderboardPage() {
         <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-400/85">Your terminal</p>
         <h2 className="mt-2 text-lg font-semibold tracking-tight text-white sm:text-xl">Where your personal data lives</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          <span className="font-medium text-zinc-200">Leaderboard</span> below is the public arena. Two other pages are
+          The <span className="font-medium text-zinc-200">Leaderboards</span> below are the public arena. Two other pages are
           only about <span className="font-medium text-zinc-200">you</span> — so nothing here pretends to be your
           analytics anymore.
         </p>
@@ -625,7 +625,7 @@ export default function LeaderboardPage() {
             <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300/90">Call tape</p>
             <p className="mt-2 text-sm font-semibold text-white">Your calls, one row each</p>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              Only your account — contracts, multiples, links. Not the public leaderboard.
+              Only your account — contracts, multiples, links. Not the public leaderboards.
             </p>
             <span className="mt-3 inline-flex text-xs font-semibold text-cyan-200/90 group-hover:underline">
               Open call tape →

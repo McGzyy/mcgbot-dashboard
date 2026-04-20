@@ -111,7 +111,7 @@ export default function CallTapePage() {
           </Link>
           ; for everyone’s rankings, open{" "}
           <Link href="/leaderboard" className="font-medium text-cyan-300/90 underline-offset-2 hover:underline">
-            Leaderboard
+            Leaderboards
           </Link>
           .
         </p>

@@ -141,7 +141,7 @@ export default function PerformanceLabPage() {
           </Link>{" "}
           is the line-by-line list;{" "}
           <Link href="/leaderboard" className="font-medium text-emerald-300/90 underline-offset-2 hover:underline">
-            Leaderboard
+            Leaderboards
           </Link>{" "}
           is still where the whole community competes.
         </p>

@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { modChrome } from "@/lib/roleTierStyles";
+
+export const metadata: Metadata = {
+  title: "Moderation",
+  description: "Staff moderation queue and tools for McGBot Terminal.",
+  robots: { index: false, follow: false },
+};
 
 /** Same depth treatment as `app/admin/layout.tsx` — full-bleed grid + accent glow (emerald for staff). */
 export default function ModerationLayout({ children }: { children: ReactNode }) {
