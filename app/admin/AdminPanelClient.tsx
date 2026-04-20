@@ -121,9 +121,9 @@ export function AdminPanelClient() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">Admin</h1>
+        <h2 className="text-lg font-semibold tracking-tight text-white">Subscription access</h2>
         <p className="mt-1 text-sm text-zinc-400">
-          Subscription bypass list (Supabase). Env-based IDs still apply — see below.
+          Bypass list in Supabase. Env-based IDs still apply — see below.
         </p>
       </div>
 
