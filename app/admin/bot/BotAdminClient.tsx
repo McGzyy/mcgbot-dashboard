@@ -33,6 +33,79 @@ type ScannerSettingsPayload = {
   warning?: string;
 };
 
+function AdminBotStatusPill({
+  bootLoading,
+  reachable,
+  error,
+  scanErr,
+  thrErr,
+}: {
+  bootLoading: boolean;
+  reachable: boolean | null;
+  error: string | null;
+  scanErr: string | null;
+  thrErr: string | null;
+}) {
+  if (bootLoading) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-600/60 bg-zinc-900/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400"
+        title="Loading health, scanner, and threshold data…"
+      >
+        <span className="relative flex h-1.5 w-1.5 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400/30 opacity-70" aria-hidden />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-400/85" aria-hidden />
+        </span>
+        Checking
+      </span>
+    );
+  }
+  const unreachable = reachable === false || (Boolean(error) && reachable !== true);
+  if (unreachable) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full border border-red-500/35 bg-red-950/25 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-red-200/90"
+        title={error ?? "Bot did not return a healthy response."}
+      >
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.45)]" aria-hidden />
+        Offline
+      </span>
+    );
+  }
+  if (reachable === true && (scanErr || thrErr)) {
+    const hint = [scanErr, thrErr].filter(Boolean).join(" · ");
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/35 bg-amber-950/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-100/90"
+        title={hint || "Some bot endpoints returned errors."}
+      >
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.35)]" aria-hidden />
+        Degraded
+      </span>
+    );
+  }
+  if (reachable === true) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-950/25 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-red-100/90"
+        title="Health check succeeded — BOT_API_URL is responding."
+      >
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.45)]" aria-hidden />
+        Bot OK
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700/60 bg-zinc-900/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500"
+      title="Status unknown — wait for the first load to finish."
+    >
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-600" aria-hidden />
+      Idle
+    </span>
+  );
+}
+
 function AdminSection({
   kicker,
   title,
@@ -308,11 +381,22 @@ export function BotAdminClient() {
     </label>
   );
 
+  const bootLoading = loading || scanLoading || thrLoading;
+
   return (
     <div className="space-y-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className={`text-[10px] font-bold uppercase tracking-[0.22em] ${adminChrome.kicker}`}>Discord host</p>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className={`text-[10px] font-bold uppercase tracking-[0.22em] ${adminChrome.kicker}`}>Discord host</p>
+            <AdminBotStatusPill
+              bootLoading={bootLoading}
+              reachable={reachable}
+              error={error}
+              scanErr={scanErr}
+              thrErr={thrErr}
+            />
+          </div>
           <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Bot controls</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
             Same process as the McGBot Discord client: health is a public <code className="rounded bg-black/50 px-1 py-0.5 font-mono text-[11px] text-zinc-400">GET /health</code> check.
