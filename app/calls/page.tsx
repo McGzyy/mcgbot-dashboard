@@ -102,16 +102,18 @@ export default function CallTapePage() {
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Your terminal</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Call tape</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          Every <span className="font-medium text-zinc-200">row-level print</span> tied to your Discord id: contract,
-          ATH multiple, source, and jump links. This is the audit trail — not the scoreboard (see{" "}
+          <span className="font-medium text-zinc-200">Your calls only</span> — not the whole server, not other
+          people’s history. Each row is one call credited to <span className="font-medium text-zinc-200">your</span>{" "}
+          account (the <span className="font-medium text-zinc-300">Source</span> column just says how it was logged,
+          e.g. you vs McGBot). Use Dex / Post when you want to jump out. For charts and totals from the same data, open{" "}
+          <Link href="/performance" className="font-medium text-cyan-300/90 underline-offset-2 hover:underline">
+            Performance
+          </Link>
+          ; for everyone’s rankings, open{" "}
           <Link href="/leaderboard" className="font-medium text-cyan-300/90 underline-offset-2 hover:underline">
             Leaderboard
           </Link>
-          ) and not aggregate analytics (see{" "}
-          <Link href="/performance" className="font-medium text-cyan-300/90 underline-offset-2 hover:underline">
-            Performance lab
-          </Link>
-          ).
+          .
         </p>
       </header>
 

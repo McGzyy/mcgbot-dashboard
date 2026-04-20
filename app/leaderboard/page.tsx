@@ -623,9 +623,9 @@ export default function LeaderboardPage() {
             className="group rounded-xl border border-zinc-800/80 bg-black/35 p-4 transition hover:border-cyan-500/35 hover:bg-zinc-900/50"
           >
             <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300/90">Call tape</p>
-            <p className="mt-2 text-sm font-semibold text-white">Every verified print</p>
+            <p className="mt-2 text-sm font-semibold text-white">Your calls, one row each</p>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              Contracts, multiples, Dex + Discord links — the audit trail, not charts.
+              Only your account — contracts, multiples, links. Not the public leaderboard.
             </p>
             <span className="mt-3 inline-flex text-xs font-semibold text-cyan-200/90 group-hover:underline">
               Open call tape →
@@ -636,9 +636,9 @@ export default function LeaderboardPage() {
             className="group rounded-xl border border-zinc-800/80 bg-black/35 p-4 transition hover:border-emerald-500/35 hover:bg-zinc-900/50"
           >
             <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-300/90">Performance lab</p>
-            <p className="mt-2 text-sm font-semibold text-white">Rollups & visuals</p>
+            <p className="mt-2 text-sm font-semibold text-white">Your stats in charts</p>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              14-day activity, multiple mix, streaks, and rolling rank — built from your rows only.
+              Same calls as Call tape, rolled up — not other people’s rows.
             </p>
             <span className="mt-3 inline-flex text-xs font-semibold text-emerald-200/90 group-hover:underline">
               Open performance lab →

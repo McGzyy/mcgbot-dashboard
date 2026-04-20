@@ -134,16 +134,16 @@ export default function PerformanceLabPage() {
           Performance lab
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          Charts and rollups built <span className="font-medium text-zinc-200">only from your calls</span> — averages,
-          hit rates, streaks, and how multiples bucket. Raw rows live on{" "}
+          <span className="font-medium text-zinc-200">Same data as Call tape</span>, but summarized: averages, win
+          rate, 14-day activity, how your multiples stack, and your spot on the weekly caller list.{" "}
           <Link href="/calls" className="font-medium text-emerald-300/90 underline-offset-2 hover:underline">
             Call tape
-          </Link>
-          ; community ranks stay on{" "}
+          </Link>{" "}
+          is the line-by-line list;{" "}
           <Link href="/leaderboard" className="font-medium text-emerald-300/90 underline-offset-2 hover:underline">
             Leaderboard
-          </Link>
-          .
+          </Link>{" "}
+          is still where the whole community competes.
         </p>
       </header>
 

@@ -186,10 +186,7 @@ export function Sidebar() {
                 isActive(pathname, "/calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
-            <span className="flex flex-col gap-0.5">
-              <span>Call tape</span>
-              <span className="text-[10px] font-normal leading-tight text-zinc-600">Your prints and links</span>
-            </span>
+            <span>Call tape</span>
           </Link>
           <Link href="/performance" className={navItem(isActive(pathname, "/performance"))}>
             <div
@@ -197,10 +194,7 @@ export function Sidebar() {
                 isActive(pathname, "/performance") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
-            <span className="flex flex-col gap-0.5">
-              <span>Performance</span>
-              <span className="text-[10px] font-normal leading-tight text-zinc-600">Charts and streaks</span>
-            </span>
+            <span>Performance</span>
           </Link>
 
           <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Arena</p>
