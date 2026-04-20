@@ -16,6 +16,15 @@ type MarketSnapshot = {
   activeTraders: number;
 };
 
+type TipStartOk = {
+  success: true;
+  solanaPayUrl: string;
+  reference: string;
+  treasury: string;
+  amountSol: string;
+  memo: string;
+};
+
 function discordSignInSafe() {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
@@ -88,8 +97,12 @@ export function TopBar() {
   const [showMarketWidget, setShowMarketWidget] = useState(true);
   const [open, setOpen] = useState(false);
   const [openNotifications, setOpenNotifications] = useState(false);
+  const [tipOpen, setTipOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const [inGuild, setInGuild] = useState<boolean | null>(null);
+
+  const hasAccess = Boolean(session?.user?.hasDashboardAccess || session?.user?.subscriptionExempt);
 
   const accountMenuItem = (active: boolean) =>
     `block w-full px-4 py-2.5 text-left text-sm transition hover:bg-zinc-800 ${
@@ -192,6 +205,31 @@ export function TopBar() {
   }, [status]);
 
   useEffect(() => {
+    if (status !== "authenticated" || !hasAccess) {
+      setInGuild(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/subscription/guild-status");
+        const json = (await res.json().catch(() => ({}))) as { success?: boolean; inGuild?: boolean | null };
+        if (cancelled) return;
+        if (!res.ok || json.success !== true) {
+          setInGuild(null);
+          return;
+        }
+        setInGuild(typeof json.inGuild === "boolean" ? json.inGuild : null);
+      } catch {
+        if (!cancelled) setInGuild(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasAccess, status]);
+
+  useEffect(() => {
     if (!open && !openNotifications) return;
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
@@ -209,6 +247,8 @@ export function TopBar() {
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [open, openNotifications]);
+
+  const canTip = status === "authenticated" && hasAccess && inGuild === true;
 
   const solLineClass =
     market != null && market.change24h >= 0
@@ -294,6 +334,15 @@ export function TopBar() {
                   /
                 </span>
               </button>
+              {canTip ? (
+                <button
+                  type="button"
+                  onClick={() => setTipOpen(true)}
+                  className="hidden h-9 items-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15 sm:inline-flex"
+                >
+                  Tip McGBot
+                </button>
+              ) : null}
               <div className="relative" ref={notifRef}>
                 <button
                   type="button"
@@ -563,7 +612,279 @@ export function TopBar() {
             document.body
           )
         : null}
+
+      {mounted
+        ? createPortal(
+            <TipMcgbotModal open={tipOpen} onClose={() => setTipOpen(false)} />,
+            document.body
+          )
+        : null}
     </>
+  );
+}
+
+function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [selected, setSelected] = useState<number>(0.1);
+  const [custom, setCustom] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  const [tip, setTip] = useState<TipStartOk | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState<{ signature: string; fromWallet: string | null } | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const presets = [0.05, 0.1, 0.25, 0.5, 1] as const;
+
+  useEffect(() => {
+    if (!open) return;
+    setTip(null);
+    setErr(null);
+    setConfirmed(null);
+    setChecking(false);
+    setBusy(false);
+    setCustom("");
+    setSelected(0.1);
+  }, [open]);
+
+  const amountSol = (() => {
+    const v = custom.trim() ? Number(custom) : selected;
+    return Number.isFinite(v) && v > 0 ? Math.round(v * 1e9) / 1e9 : null;
+  })();
+
+  useEffect(() => {
+    if (!open || !tip?.reference || confirmed) return;
+    let cancelled = false;
+    const id = window.setInterval(async () => {
+      try {
+        setChecking(true);
+        const res = await fetch(`/api/tips/status?reference=${encodeURIComponent(tip.reference)}`);
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          status?: string;
+          signature?: string;
+          fromWallet?: string | null;
+        };
+        if (cancelled || !res.ok || json.success !== true) return;
+        if (json.status === "confirmed" && typeof json.signature === "string" && json.signature.trim()) {
+          setConfirmed({
+            signature: json.signature.trim(),
+            fromWallet: typeof json.fromWallet === "string" ? json.fromWallet : null,
+          });
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    }, 2500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [confirmed, open, tip?.reference]);
+
+  const startTip = useCallback(async () => {
+    if (amountSol == null) return;
+    setBusy(true);
+    setErr(null);
+    setTip(null);
+    setConfirmed(null);
+    try {
+      const res = await fetch("/api/tips/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amountSol }),
+      });
+      const json = (await res.json().catch(() => ({}))) as (TipStartOk & {
+        success?: boolean;
+        error?: string;
+      });
+      if (!res.ok || json.success !== true || typeof json.solanaPayUrl !== "string") {
+        setErr(typeof (json as any).error === "string" ? (json as any).error : "Could not start tip.");
+        return;
+      }
+      setTip(json as TipStartOk);
+      try {
+        window.open(json.solanaPayUrl, "_blank", "noopener,noreferrer");
+      } catch {
+        /* ignore */
+      }
+    } catch {
+      setErr("Could not start tip.");
+    } finally {
+      setBusy(false);
+    }
+  }, [amountSol]);
+
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Tip McGBot"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-2xl rounded-2xl border border-zinc-800/70 bg-zinc-950/70 p-5 shadow-2xl shadow-black/60 backdrop-blur sm:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+              Support
+            </p>
+            <h3 className="mt-1 text-lg font-semibold text-zinc-100">Tip McGBot</h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              Send a tip when McGBot nails a call.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900/60"
+            aria-label="Close"
+          >
+            Esc
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-zinc-800/70 bg-black/20 p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+              Amount (SOL)
+            </p>
+            <div className="mt-3 grid grid-cols-5 gap-2">
+              {presets.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => {
+                    setSelected(p);
+                    setCustom("");
+                  }}
+                  className={[
+                    "rounded-lg border px-2 py-2 text-xs font-semibold tabular-nums transition",
+                    custom.trim() === "" && selected === p
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
+                      : "border-zinc-800 bg-zinc-950/30 text-zinc-200 hover:border-zinc-700",
+                  ].join(" ")}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3">
+              <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                Custom
+              </label>
+              <input
+                value={custom}
+                onChange={(e) => setCustom(e.target.value)}
+                placeholder="e.g. 0.1337"
+                inputMode="decimal"
+                className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
+              />
+              <p className="mt-1 text-[11px] text-zinc-500">
+                {amountSol == null ? "Enter a valid amount." : `You’re tipping ${amountSol} SOL.`}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void startTip()}
+              disabled={busy || amountSol == null}
+              className="mt-4 w-full rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {busy ? "Preparing…" : "Open in wallet"}
+            </button>
+
+            {err ? (
+              <p className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                {err}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="rounded-xl border border-zinc-800/70 bg-black/20 p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+              Status
+            </p>
+
+            {tip ? (
+              <div className="mt-3 space-y-3">
+                <div className="rounded-lg border border-zinc-800 bg-black/30 p-3">
+                  <p className="text-xs text-zinc-400">Tip link</p>
+                  <p className="mt-1 break-all font-mono text-[11px] text-zinc-200">
+                    {tip.solanaPayUrl}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(tip.solanaPayUrl);
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
+                      className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
+                    >
+                      Copy link
+                    </button>
+                    <a
+                      href={tip.solanaPayUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
+                    >
+                      Open again
+                    </a>
+                  </div>
+                </div>
+
+                {confirmed ? (
+                  <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-3">
+                    <p className="text-sm font-semibold text-emerald-100">McGBot received your tip.</p>
+                    <p className="mt-1 text-xs text-emerald-100/80">
+                      Signature:{" "}
+                      <a
+                        href={`https://solscan.io/tx/${encodeURIComponent(confirmed.signature)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono underline decoration-emerald-400/30 underline-offset-2 hover:decoration-emerald-300/60"
+                      >
+                        {confirmed.signature.slice(0, 8)}…{confirmed.signature.slice(-8)}
+                      </a>
+                    </p>
+                    {confirmed.fromWallet ? (
+                      <p className="mt-1 text-xs text-emerald-100/70">
+                        From:{" "}
+                        <span className="font-mono">
+                          {confirmed.fromWallet.slice(0, 6)}…{confirmed.fromWallet.slice(-6)}
+                        </span>
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-zinc-800 bg-black/30 p-3">
+                    <p className="text-sm font-semibold text-zinc-100">Waiting for confirmation…</p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {checking ? "Checking the chain…" : "This updates automatically."}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-3 flex min-h-[240px] items-center justify-center rounded-lg border border-zinc-800 bg-black/20 px-4 text-center">
+                <p className="text-sm text-zinc-500">
+                  Pick an amount and open in your wallet. We’ll confirm it here.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
