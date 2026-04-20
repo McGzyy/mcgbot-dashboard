@@ -1618,7 +1618,14 @@ export default function UserProfilePage() {
                             call.multiple
                           )}`}
                         >
-                          {call.multiple.toFixed(1)}x
+                          <span className="inline-flex items-center gap-2">
+                            {call.multiple.toFixed(1)}x
+                            {call.excludedFromStats ? (
+                              <span className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+                                Excluded
+                              </span>
+                            ) : null}
+                          </span>
                         </span>
                         <span className="shrink-0 text-right text-sm text-zinc-500">
                           {formatJoinedAt(callTimeMs(call.time), nowMs)}

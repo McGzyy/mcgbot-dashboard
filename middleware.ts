@@ -43,7 +43,8 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
 function isSubscriptionProtectedApi(pathname: string): boolean {
   return (
     pathname === "/api/subscription/status" ||
-    pathname === "/api/subscription/checkout"
+    pathname === "/api/subscription/checkout" ||
+    pathname === "/api/subscription/guild-status"
   );
 }
 
@@ -127,6 +128,10 @@ export async function middleware(req: NextRequest) {
 
   if (pathname.startsWith("/api/")) {
     if (pathname === "/api/debug-env" && req.method === "GET") {
+      return NextResponse.next();
+    }
+
+    if (pathname.startsWith("/api/public/") && req.method === "GET") {
       return NextResponse.next();
     }
 

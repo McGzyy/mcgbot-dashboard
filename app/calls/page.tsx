@@ -152,6 +152,7 @@ export default function CallTapePage() {
                 <th className="px-4 py-3">When</th>
                 <th className="px-4 py-3">Contract</th>
                 <th className="px-4 py-3 text-right">ATH ×</th>
+                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Source</th>
                 <th className="px-4 py-3 text-right">Links</th>
               </tr>
@@ -159,13 +160,13 @@ export default function CallTapePage() {
             <tbody className="divide-y divide-zinc-800/60">
               {loading && rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-zinc-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-zinc-500">
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-zinc-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-zinc-500">
                     No calls in this window yet.
                   </td>
                 </tr>
@@ -188,6 +189,17 @@ export default function CallTapePage() {
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-emerald-300">
                         {Number.isFinite(r.athMultiple) ? `${r.athMultiple.toFixed(2)}×` : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {r.excludedFromStats ? (
+                          <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+                            Excluded
+                          </span>
+                        ) : (
+                          <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200/90">
+                            Counted
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className="rounded-md border border-zinc-700/80 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">

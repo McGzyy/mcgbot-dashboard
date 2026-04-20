@@ -49,6 +49,7 @@ export default function SubscribePage() {
   const [busy, setBusy] = useState(false);
   const [pollNote, setPollNote] = useState<string | null>(null);
   const [siteFlags, setSiteFlags] = useState<SiteFlags | null>(null);
+  const [guildStatus, setGuildStatus] = useState<boolean | null>(null);
 
   const active = Boolean(session?.user?.hasActiveSubscription);
   const hasAccess = Boolean(session?.user?.hasDashboardAccess);
@@ -90,6 +91,31 @@ export default function SubscribePage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/subscription/guild-status");
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          inGuild?: boolean | null;
+        };
+        if (cancelled) return;
+        if (!res.ok || json.success !== true) {
+          setGuildStatus(null);
+          return;
+        }
+        setGuildStatus(typeof json.inGuild === "boolean" ? json.inGuild : null);
+      } catch {
+        if (!cancelled) setGuildStatus(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -311,6 +337,43 @@ export default function SubscribePage() {
       </header>
 
       <main className="mx-auto flex max-w-2xl flex-col gap-10 px-6 py-12">
+        <section className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+              Discord auth
+            </p>
+            <p className="mt-1 text-sm font-semibold text-zinc-100">Connected</p>
+            <p className="mt-1 text-xs text-zinc-500">Session active</p>
+          </div>
+          <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+              Discord server
+            </p>
+            <p className="mt-1 text-sm font-semibold text-zinc-100">
+              {guildStatus === null ? "Checking…" : guildStatus ? "Member" : "Not in server"}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">Required for checkout</p>
+          </div>
+          <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+              Subscription
+            </p>
+            <p className="mt-1 text-sm font-semibold text-zinc-100">
+              {active || exempt ? "Active" : "Not active"}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {periodEnd ? `Until ${formatExpiry(periodEnd)}` : "Unlock full access"}
+            </p>
+          </div>
+        </section>
+
+        {guildStatus === false ? (
+          <p className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            You’re signed in, but not in the Discord server yet. Join the server first, then come back and start
+            checkout.
+          </p>
+        ) : null}
+
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             {siteFlags?.paywall_title?.trim() || "Choose a plan"}
@@ -376,7 +439,12 @@ export default function SubscribePage() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            disabled={busy || !selectedPlan || (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin)}
+            disabled={
+              busy ||
+              !selectedPlan ||
+              (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin) ||
+              guildStatus === false
+            }
             onClick={() => void startCheckout()}
             className="rounded-lg bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
           >

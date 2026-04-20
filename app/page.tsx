@@ -336,7 +336,164 @@ type RecentCallRow = {
   token: string;
   multiple: number;
   time: unknown;
+  excludedFromStats?: boolean;
 };
+
+type PublicTeaserCall = {
+  token: string;
+  multiple: number;
+  username: string;
+  source: string;
+  time: unknown;
+};
+
+type PublicTeasers = {
+  week: { calls: number; avgX: number; topCalls: PublicTeaserCall[] };
+};
+
+function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
+  const [loading, setLoading] = useState(true);
+  const [teasers, setTeasers] = useState<PublicTeasers | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    setLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch("/api/public/terminal-teasers", { signal: controller.signal });
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          week?: PublicTeasers["week"];
+        };
+        if (cancelled) return;
+        if (!res.ok || json.success !== true || !json.week) {
+          setTeasers(null);
+          return;
+        }
+        setTeasers({ week: json.week });
+      } catch {
+        if (!cancelled) setTeasers(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
+
+  const weekCalls = teasers?.week.calls ?? 0;
+  const weekAvgX = teasers?.week.avgX ?? 0;
+  const topCalls = teasers?.week.topCalls ?? [];
+
+  return (
+    <div className="relative min-h-[calc(100vh-3rem)] px-4 py-10 sm:px-6">
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.12),transparent_55%),radial-gradient(circle_at_bottom,rgba(56,189,248,0.10),transparent_50%)]"
+        aria-hidden
+      />
+      <div className="relative mx-auto max-w-5xl">
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+          <section className="rounded-2xl border border-zinc-800/60 bg-zinc-950/50 p-6 shadow-2xl shadow-black/40 backdrop-blur sm:p-8">
+            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+              McGBot Terminal
+            </p>
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-zinc-100 sm:text-4xl">
+              Elite call tracking, performance, and community boards.
+            </h1>
+            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+              Log in with Discord to unlock your Call log, Performance lab, Watchlist, and pro-grade leaderboards.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={onLogin}
+                className="inline-flex items-center justify-center rounded-lg bg-[#5865F2] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+              >
+                Login with Discord
+              </button>
+              <Link
+                href="/subscribe"
+                className="inline-flex items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/40 px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-950/60"
+              >
+                View plans →
+              </Link>
+            </div>
+
+            <div className="mt-7 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  7d calls tracked
+                </p>
+                <p className="mt-1 text-2xl font-bold tabular-nums text-zinc-100">
+                  {loading ? "—" : weekCalls.toLocaleString("en-US")}
+                </p>
+              </div>
+              <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  7d avg multiple
+                </p>
+                <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-200">
+                  {loading ? "—" : `${weekAvgX.toFixed(2)}×`}
+                </p>
+              </div>
+              <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Access
+                </p>
+                <p className="mt-1 text-sm font-semibold text-zinc-200">
+                  Premium dashboard
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">Discord + subscription</p>
+              </div>
+            </div>
+          </section>
+
+          <aside className="rounded-2xl border border-zinc-800/60 bg-zinc-950/35 p-6 shadow-xl shadow-black/30 backdrop-blur">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-zinc-100">Top calls (7d)</h2>
+              <span className="text-[11px] text-zinc-500">Teaser</span>
+            </div>
+            <div className="mt-3 rounded-xl border border-zinc-900 bg-black/30 p-2">
+              {loading ? (
+                <div className="space-y-2 p-1" aria-busy>
+                  <div className="h-10 animate-pulse rounded-lg bg-zinc-900/35" />
+                  <div className="h-10 animate-pulse rounded-lg bg-zinc-900/25" />
+                  <div className="h-10 animate-pulse rounded-lg bg-zinc-900/20" />
+                </div>
+              ) : topCalls.length === 0 ? (
+                <div className="flex min-h-[120px] items-center justify-center px-3 py-10 text-center">
+                  <p className="text-sm text-zinc-500">No calls yet.</p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-zinc-800/40 text-sm">
+                  {topCalls.map((c, i) => (
+                    <li
+                      key={`${c.token}-${String(c.time)}-${i}`}
+                      className="flex items-center justify-between gap-3 py-2.5 first:pt-2 text-zinc-300"
+                    >
+                      <span className="min-w-0 truncate font-mono text-[13px] text-zinc-100">
+                        {c.token}
+                      </span>
+                      <span className="shrink-0 font-semibold tabular-nums text-emerald-300">
+                        {c.multiple.toFixed(1)}×
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <p className="mt-4 text-xs leading-relaxed text-zinc-500">
+              Unlock full history, filtering, performance breakdowns, and leaderboards by logging in and subscribing.
+            </p>
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type TopPerformerTodayRow = {
   rank: number;
@@ -3576,21 +3733,7 @@ export default function Home() {
 
   if (!session) {
     return (
-      <div className="flex min-h-[calc(100vh-3rem)] flex-col items-center justify-center px-4">
-        <div className="w-full max-w-md rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-10 text-center shadow-xl shadow-black/40 backdrop-blur-sm">
-          <h1 className="text-xl font-semibold text-zinc-100">McGBot Dashboard</h1>
-          <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-            Sign in with Discord to view your referral stats and link.
-          </p>
-          <button
-            type="button"
-            onClick={() => discordSignInSafe()}
-            className="mt-8 w-full rounded-lg bg-[#5865F2] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50"
-          >
-            Login with Discord
-          </button>
-        </div>
-      </div>
+      <UnauthedLanding onLogin={() => discordSignInSafe()} />
     );
   }
 
@@ -3920,6 +4063,11 @@ export default function Home() {
                         >
                           {call.multiple.toFixed(1)}x
                         </span>
+                        {call.excludedFromStats ? (
+                          <span className="ml-2 inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+                            Excluded
+                          </span>
+                        ) : null}
                       </span>
                       <span className="ml-auto shrink-0 text-zinc-500">
                         {formatJoinedAt(callTimeMs(call.time), nowMs)}
