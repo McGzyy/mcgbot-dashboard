@@ -256,7 +256,7 @@ function CallApprovalRow({
   };
 
   return (
-    <li className={`group rounded-xl border p-3.5 ${modChrome.card}`}>
+    <li className={`group ${modChrome.card}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold tracking-tight text-zinc-100">{title}</div>
@@ -388,7 +388,7 @@ function DevSubmissionRow({ d }: { d: ModQueueDevSubmission }) {
   const shownNotes = expanded || !longNotes ? notes : `${notes.slice(0, NOTE_PREVIEW)}…`;
 
   return (
-    <li className={`group rounded-xl border p-3.5 ${modChrome.card}`}>
+    <li className={`group ${modChrome.card}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold tracking-tight text-zinc-100">
@@ -724,15 +724,18 @@ export default function ModerationPage() {
 
   return (
     <div className={modChrome.pageShell}>
-      <div className={`mx-auto max-w-[1440px] px-4 pb-20 sm:px-6 lg:px-8 ${modChrome.pageInner}`}>
-        <header className="border-b border-emerald-950/40 pb-8 pt-2">
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${modChrome.kicker}`}>
+      <div className={`relative mx-auto max-w-[1440px] px-4 pb-20 sm:px-6 lg:px-8 ${modChrome.pageInner}`}>
+        <div className={modChrome.atmosphereGrid} aria-hidden />
+        <div className={modChrome.atmosphereGlow} aria-hidden />
+        <div className={modChrome.atmosphereGlowFar} aria-hidden />
+        <header className="relative border-b border-white/[0.06] pb-8 pt-2">
+          <p className={`text-[10px] font-semibold uppercase tracking-[0.28em] ${modChrome.kicker}`}>
             Staff command center
           </p>
           <div className="mt-3 flex flex-wrap items-end justify-between gap-6">
             <div className="min-w-0">
               <h1 className={`text-3xl font-bold tracking-tight sm:text-4xl ${modChrome.heroTitle}`}>Moderation</h1>
-              <div className={`mt-4 ${modChrome.heroUnderline}`} />
+              <div className={`mt-3 ${modChrome.heroUnderline}`} />
               <p className="mt-5 max-w-2xl text-sm leading-relaxed text-zinc-400">
                 <span className="font-medium text-emerald-200/80">McGBot</span> calls that hit your ATH milestone ladder
                 surface here for legitimacy review before McGBot can post them to{" "}
@@ -745,10 +748,10 @@ export default function ModerationPage() {
         </header>
 
         <div
-          className={`sticky top-0 z-20 mb-8 mt-8 rounded-2xl p-5 backdrop-blur-md ring-1 ring-emerald-500/15 ${modChrome.headerBg}`}
+          className={`sticky top-0 z-20 mb-8 mt-8 rounded-2xl p-5 backdrop-blur-md ${modChrome.headerBg}`}
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-500/70">Live queue</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400/75">Live queue</p>
             <div className="flex flex-wrap items-center gap-3">
               {lastUpdatedLabel ? (
                 <span className="text-xs tabular-nums text-zinc-500">
@@ -775,23 +778,23 @@ export default function ModerationPage() {
           </div>
 
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:max-w-2xl">
-          <div className={`rounded-lg border px-3 py-2.5 text-center ${modChrome.statTile}`}>
+          <div className={modChrome.statTile}>
             <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">Total</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-zinc-100">{queueLoading ? "…" : total}</div>
           </div>
-          <div className={`rounded-lg border px-3 py-2.5 text-center ${modChrome.statTile}`}>
+          <div className={modChrome.statTile}>
             <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">McGBot</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-amber-200/90">
               {queueLoading ? "…" : callN}
             </div>
           </div>
-          <div className={`rounded-lg border px-3 py-2.5 text-center ${modChrome.statTile}`}>
+          <div className={modChrome.statTile}>
             <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">Other calls</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-zinc-300">
               {queueLoading ? "…" : callOtherN}
             </div>
           </div>
-          <div className={`rounded-lg border px-3 py-2.5 text-center ${modChrome.statTile}`}>
+          <div className={modChrome.statTile}>
             <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">Devs</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-violet-200/90">
               {queueLoading ? "…" : devN}
@@ -842,11 +845,12 @@ export default function ModerationPage() {
         <div className="grid gap-6 xl:grid-cols-2">
           <div className="space-y-8">
             <section>
-              <div className="mb-3 flex items-baseline justify-between gap-2">
-                <h2 className={`text-sm font-semibold uppercase tracking-wide ${modChrome.h2}`}>
-                  McGBot calls (X gate)
-                </h2>
-                <span className="text-xs tabular-nums text-zinc-600">{callN} open</span>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className={modChrome.sectionAccent} aria-hidden />
+                  <h2 className={modChrome.h2}>McGBot calls (X gate)</h2>
+                </div>
+                <span className="shrink-0 text-xs tabular-nums text-zinc-500">{callN} open</span>
               </div>
               {calls.length === 0 ? (
                 <div className={`rounded-xl px-4 py-10 text-center ${modChrome.emptyState}`}>
@@ -873,11 +877,12 @@ export default function ModerationPage() {
 
             {callsUser.length > 0 ? (
               <section>
-                <div className="mb-3 flex items-baseline justify-between gap-2">
-                  <h2 className={`text-sm font-semibold uppercase tracking-wide ${modChrome.h2}`}>
-                    Other pending tracked calls
-                  </h2>
-                  <span className="text-xs tabular-nums text-zinc-600">{callOtherN} open</span>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className={modChrome.sectionAccent} aria-hidden />
+                    <h2 className={modChrome.h2}>Other pending tracked calls</h2>
+                  </div>
+                  <span className="shrink-0 text-xs tabular-nums text-zinc-500">{callOtherN} open</span>
                 </div>
                 <p className="mb-3 text-xs leading-relaxed text-zinc-600">
                   User or watch-sourced rows still in the approval flow. Primary X gating above applies to McGBot
@@ -898,11 +903,12 @@ export default function ModerationPage() {
           </div>
 
           <section>
-            <div className="mb-3 flex items-baseline justify-between gap-2">
-              <h2 className={`text-sm font-semibold uppercase tracking-wide ${modChrome.h2}`}>
-                Dev submissions
-              </h2>
-              <span className="text-xs tabular-nums text-zinc-600">{devN} open</span>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className={modChrome.sectionAccent} aria-hidden />
+                <h2 className={modChrome.h2}>Dev submissions</h2>
+              </div>
+              <span className="shrink-0 text-xs tabular-nums text-zinc-500">{devN} open</span>
             </div>
             {devs.length === 0 ? (
               <div className={`rounded-xl px-4 py-10 text-center ${modChrome.emptyState}`}>

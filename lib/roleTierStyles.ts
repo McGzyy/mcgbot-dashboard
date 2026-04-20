@@ -85,26 +85,39 @@ export const dashboardChrome = {
 
 /** Staff / mod queue pages — emerald, same family as `tierNavBarClass("mod")` */
 export const modChrome = {
-  kicker: "text-emerald-300/90",
+  kicker: "text-emerald-300/80",
   borderSoft: "border-emerald-500/18",
   borderMedium: "border-emerald-500/32",
+  /** Sticky queue summary — depth aligned with admin control-plane panels */
   headerBg:
-    "border-emerald-500/25 bg-gradient-to-br from-emerald-950/45 via-[#060806]/95 to-[#050505]/98 shadow-[0_0_40px_-12px_rgba(16,185,129,0.22)]",
-  h2: "text-emerald-400/88",
-  statTile: "border-emerald-900/35 bg-emerald-950/18",
+    "border border-emerald-500/22 bg-gradient-to-br from-emerald-950/50 via-[#060806]/96 to-[#030403]/98 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_0_48px_-20px_rgba(16,185,129,0.28)]",
+  h2: "text-[13px] font-semibold tracking-tight text-emerald-100/90",
+  statTile:
+    "rounded-xl border border-emerald-900/35 bg-gradient-to-b from-emerald-950/25 to-black/40 px-3 py-2.5 text-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]",
   card:
-    "border-emerald-500/15 bg-gradient-to-br from-emerald-950/22 to-zinc-950/55 shadow-sm shadow-black/25 transition hover:border-emerald-400/28 hover:from-emerald-950/30 hover:to-zinc-900/40",
-  emptyState: "border border-dashed border-emerald-700/35 bg-emerald-950/10",
+    "rounded-xl border border-emerald-500/16 bg-gradient-to-br from-emerald-950/28 via-zinc-950/70 to-black/55 p-3.5 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.75),inset_0_1px_0_0_rgba(255,255,255,0.04)] transition hover:border-emerald-400/30 hover:from-emerald-950/36 hover:via-zinc-900/75 hover:to-black/60",
+  emptyState:
+    "border border-dashed border-emerald-600/28 bg-gradient-to-b from-emerald-950/15 to-zinc-950/40",
   refreshBtn:
-    "border-emerald-800/40 bg-emerald-950/25 hover:border-emerald-500/45 hover:bg-emerald-900/35 focus-visible:ring-emerald-500/30",
+    "border-emerald-700/45 bg-emerald-950/35 hover:border-emerald-400/55 hover:bg-emerald-900/40 focus-visible:ring-emerald-500/35",
   /** Moderation page root (global shell provides bg — keep layout only here) */
   pageShell: "relative min-h-[calc(100vh-5rem)] overflow-x-hidden",
   pageInner: "relative z-[1]",
+  /** Matches admin layout atmosphere (grid + glow) in emerald */
+  atmosphereGrid:
+    "pointer-events-none absolute inset-0 -z-10 opacity-[0.34] [background-image:linear-gradient(rgba(255,255,255,0.038)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.038)_1px,transparent_1px)] [background-size:32px_32px]",
+  atmosphereGlow:
+    "pointer-events-none absolute -left-6 -top-4 h-48 w-48 rounded-full bg-emerald-500/16 blur-3xl [-webkit-mask-image:radial-gradient(closest-side,black,transparent)] [mask-image:radial-gradient(closest-side,black,transparent)]",
+  atmosphereGlowFar:
+    "pointer-events-none absolute -right-8 top-24 h-40 w-56 rounded-full bg-teal-500/10 blur-3xl [-webkit-mask-image:radial-gradient(closest-side,black,transparent)] [mask-image:radial-gradient(closest-side,black,transparent)]",
+  /** Admin-style headline, emerald accent on the end */
   heroTitle:
-    "bg-gradient-to-br from-white via-emerald-50/95 to-emerald-400/80 bg-clip-text text-transparent drop-shadow-[0_0_28px_rgba(16,185,129,0.15)]",
-  heroUnderline: "h-1 w-14 rounded-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 shadow-[0_0_12px_rgba(52,211,153,0.45)]",
+    "bg-gradient-to-r from-white via-zinc-100 to-emerald-300/85 bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(16,185,129,0.12)]",
+  heroUnderline: "h-px w-20 rounded-full bg-gradient-to-r from-emerald-400/90 via-teal-500/50 to-transparent shadow-[0_0_14px_rgba(52,211,153,0.35)]",
+  sectionAccent: "mt-0.5 h-4 w-0.5 shrink-0 rounded-full bg-gradient-to-b from-emerald-400 to-teal-600 shadow-[0_0_10px_rgba(52,211,153,0.4)]",
   railPanel:
-    "rounded-2xl border border-emerald-500/20 bg-gradient-to-b from-emerald-950/35 via-zinc-950/80 to-black/90 p-4 shadow-[0_0_0_1px_rgba(16,185,129,0.06),0_24px_48px_-24px_rgba(0,0,0,0.85)] backdrop-blur-sm",
+    "rounded-2xl border border-emerald-500/22 bg-gradient-to-b from-emerald-950/40 via-zinc-950/85 to-black/90 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_24px_48px_-24px_rgba(0,0,0,0.88)] backdrop-blur-sm",
   railKicker: "text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400/75",
-  railMetric: "rounded-xl border border-emerald-900/30 bg-black/35 px-3 py-2.5",
+  railMetric:
+    "rounded-xl border border-emerald-900/32 bg-black/40 px-3 py-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]",
 } as const;
