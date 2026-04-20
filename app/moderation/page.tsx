@@ -21,6 +21,88 @@ function shortAddr(ca: string) {
   return `${s.slice(0, 8)}…${s.slice(-4)}`;
 }
 
+function ModQueueLinkPill({
+  queueLoading,
+  err,
+  errVariant,
+  data,
+}: {
+  queueLoading: boolean;
+  err: string | null;
+  errVariant: "network" | "config" | "simple";
+  data: ModQueuePayload | null;
+}) {
+  if (queueLoading) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-600/60 bg-zinc-900/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400"
+        title="Talking to the dashboard API…"
+      >
+        <span className="relative flex h-1.5 w-1.5 shrink-0">
+          <span
+            className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400/35 opacity-70"
+            aria-hidden
+          />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400/80" aria-hidden />
+        </span>
+        Checking
+      </span>
+    );
+  }
+  if (err) {
+    const cfg =
+      errVariant === "network"
+        ? {
+            label: "Bot unreachable",
+            title: err,
+            dot: "bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.45)]",
+            ring: "border-red-500/35 bg-red-950/25 text-red-200/90",
+          }
+        : errVariant === "config"
+          ? {
+              label: "Setup required",
+              title: err,
+              dot: "bg-violet-400 shadow-[0_0_8px_rgba(167,139,250,0.4)]",
+              ring: "border-violet-500/35 bg-violet-950/20 text-violet-200/90",
+            }
+          : {
+              label: "Queue error",
+              title: err,
+              dot: "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.35)]",
+              ring: "border-amber-500/35 bg-amber-950/20 text-amber-100/90",
+            };
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${cfg.ring}`}
+        title={cfg.title}
+      >
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${cfg.dot}`} aria-hidden />
+        {cfg.label}
+      </span>
+    );
+  }
+  if (data) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-600/30 bg-emerald-950/30 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-100/90"
+        title="Last queue fetch succeeded — bot API returned JSON."
+      >
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.45)]"
+          aria-hidden
+        />
+        Bot OK
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700/60 bg-zinc-900/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-600" aria-hidden />
+      Idle
+    </span>
+  );
+}
+
 function QueueEmptyCallout({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className={`rounded-xl px-5 py-8 text-center ${modChrome.emptyState}`}>
@@ -764,7 +846,15 @@ export default function ModerationPage() {
           className={`sticky top-0 z-20 mb-8 mt-8 rounded-2xl p-5 backdrop-blur-md ${modChrome.headerBg}`}
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400/75">Live queue</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400/75">Live queue</p>
+              <ModQueueLinkPill
+                queueLoading={queueLoading}
+                err={err}
+                errVariant={errVariant}
+                data={data}
+              />
+            </div>
             <div className="flex flex-wrap items-center gap-3">
               {lastUpdatedLabel ? (
                 <span className="text-xs tabular-nums text-zinc-500">
