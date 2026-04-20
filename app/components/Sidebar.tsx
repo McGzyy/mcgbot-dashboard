@@ -14,9 +14,9 @@ function isActive(pathname: string, href: string) {
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  /** Staff tier comes from the session JWT (same refresh as subscription) — not the mod-queue API. */
-  const staffNav = session?.user?.canModerate === true;
-  const adminNav = session?.user?.helpTier === "admin";
+  /** Same source as `/api/me/help-role` (decoupled from mod-queue fetch so bot outages cannot hide nav). */
+  const [staffNav, setStaffNav] = useState(false);
+  const [adminNav, setAdminNav] = useState(false);
   /** Pending mod-queue count (from API); null = not loaded or not staff. */
   const [modPendingTotal, setModPendingTotal] = useState<number | null>(null);
 
@@ -30,6 +30,41 @@ export function Sidebar() {
     .replace(/[^a-z0-9]/gi, "")
     .slice(0, 2)
     .toUpperCase() || "MC";
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setStaffNav(false);
+      setAdminNav(false);
+      setModPendingTotal(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/help-role", { credentials: "same-origin" });
+        const json = (await res.json().catch(() => ({}))) as {
+          role?: string;
+          canModerate?: boolean;
+        };
+        if (cancelled) return;
+        const r = json.role;
+        setAdminNav(r === "admin");
+        const staff =
+          typeof json.canModerate === "boolean"
+            ? json.canModerate
+            : r === "mod" || r === "admin";
+        setStaffNav(staff);
+      } catch {
+        if (!cancelled) {
+          setStaffNav(false);
+          setAdminNav(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   useEffect(() => {
     if (status !== "authenticated" || !staffNav) {

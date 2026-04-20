@@ -84,7 +84,15 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      const discordId = (token.discord_id as string | undefined)?.trim();
+      const fromSub =
+        typeof token.sub === "string" && /^[1-9]\d{9,21}$/.test(token.sub.trim())
+          ? token.sub.trim()
+          : "";
+      const fromExplicit = (token.discord_id as string | undefined)?.trim() ?? "";
+      if (!fromExplicit && fromSub) {
+        token.discord_id = fromSub;
+      }
+      const discordId = (fromExplicit || fromSub).trim();
       const sessionObj = session && typeof session === "object" ? (session as { refreshSubscription?: boolean }) : null;
       const refreshSubscriptionFlag = Boolean(sessionObj?.refreshSubscription);
       const SUB_REFRESH_MS = 3 * 60 * 1000;
@@ -106,19 +114,31 @@ export const authOptions: NextAuthOptions = {
         subscriptionGateStale;
 
       if (discordId && shouldRefreshAccess) {
-        const [end, exempt, helpTier] = await Promise.all([
-          getSubscriptionEnd(discordId),
-          computeSubscriptionExempt(discordId),
-          resolveHelpTierAsync(discordId).catch((e) => {
-            console.warn("[auth] resolveHelpTierAsync:", e);
-            return "user" as const;
-          }),
-        ]);
-        token.subscriptionActiveUntil = end;
-        token.subscriptionExempt = exempt;
-        token.helpTier = helpTier;
-        token.canModerate = meetsModerationMinTier(helpTier);
-        token.subscriptionRefreshAt = Date.now();
+        try {
+          const [end, exempt, helpTier] = await Promise.all([
+            getSubscriptionEnd(discordId),
+            computeSubscriptionExempt(discordId),
+            resolveHelpTierAsync(discordId).catch((e) => {
+              console.warn("[auth] resolveHelpTierAsync:", e);
+              return "user" as const;
+            }),
+          ]);
+          token.subscriptionActiveUntil = end;
+          token.subscriptionExempt = exempt;
+          token.helpTier = helpTier;
+          token.canModerate = meetsModerationMinTier(helpTier);
+          token.subscriptionRefreshAt = Date.now();
+        } catch (e) {
+          console.error("[auth] subscription/staff refresh:", e);
+          try {
+            const helpTier = await resolveHelpTierAsync(discordId).catch(() => "user" as const);
+            token.helpTier = helpTier;
+            token.canModerate = meetsModerationMinTier(helpTier);
+          } catch {
+            token.helpTier = "user";
+            token.canModerate = false;
+          }
+        }
       }
 
       return token;
