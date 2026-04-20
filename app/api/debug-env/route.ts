@@ -8,6 +8,9 @@ export async function GET() {
   const discTok = !!(process.env.DISCORD_TOKEN ?? "").trim();
   return NextResponse.json({
     NODE_ENV: process.env.NODE_ENV ?? null,
+    /** Set by Vercel on each deployment — compare to GitHub’s latest commit on `main`. */
+    vercelGitCommitSha: (process.env.VERCEL_GIT_COMMIT_SHA ?? "").trim() || null,
+    vercelGitCommitRef: (process.env.VERCEL_GIT_COMMIT_REF ?? "").trim() || null,
     BOT_API_URL: !!process.env.BOT_API_URL,
     BOT_API_URL_LOCAL: !!(process.env.BOT_API_URL_LOCAL ?? "").trim(),
     botApiBaseUrlConfigured: Boolean(botApiBaseUrl()),
