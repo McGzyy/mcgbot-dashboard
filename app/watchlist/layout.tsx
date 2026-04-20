@@ -4,7 +4,8 @@ import { modChrome } from "@/lib/roleTierStyles";
 
 export const metadata: Metadata = {
   title: "Watchlist",
-  description: "Track Solana mints privately or publish them to the shared dashboard watchlist.",
+  description:
+    "Track Solana contract addresses privately or publish them to the shared dashboard watchlist.",
 };
 
 export default function WatchlistLayout({ children }: { children: ReactNode }) {

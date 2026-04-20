@@ -1045,14 +1045,69 @@ function NotesPanel() {
 function TrendingPanel() {
   const [timeframe, setTimeframe] = useState<"5m" | "1h" | "24h">("1h");
   const [source, setSource] = useState<"All" | TrendingTokenRow["source"]>("All");
+  const [apiRows, setApiRows] = useState<TrendingTokenRow[]>([]);
+  const [apiLoading, setApiLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setApiLoading(true);
+    const src = source === "All" ? "All" : source;
+    fetch(
+      `/api/trending?timeframe=${encodeURIComponent(timeframe)}&source=${encodeURIComponent(src)}`,
+      { credentials: "same-origin" }
+    )
+      .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
+      .then(({ ok, json }) => {
+        if (cancelled) return;
+        const rowsRaw =
+          ok && json && typeof json === "object" && Array.isArray((json as any).rows)
+            ? ((json as any).rows as unknown[])
+            : [];
+        const parsed: TrendingTokenRow[] = [];
+        for (const r of rowsRaw) {
+          if (!r || typeof r !== "object") continue;
+          const o = r as Record<string, unknown>;
+          const symbol = typeof o.symbol === "string" ? o.symbol.trim() : "";
+          const mint = typeof o.mint === "string" ? o.mint.trim() : "";
+          if (!symbol || !mint) continue;
+          parsed.push({
+            symbol,
+            mint,
+            priceUsd: Number(o.priceUsd ?? 0) || 0,
+            changePct: Number(o.changePct ?? 0) || 0,
+            liquidityUsd: Number(o.liquidityUsd ?? 0) || 0,
+            volumeUsd: Number(o.volumeUsd ?? 0) || 0,
+            holders: Math.max(0, Number(o.holders ?? 0) || 0),
+            source:
+              typeof o.source === "string" && o.source
+                ? (o.source as TrendingTokenRow["source"])
+                : "Dexscreener",
+            timeframe:
+              typeof o.timeframe === "string" && o.timeframe
+                ? (o.timeframe as TrendingTokenRow["timeframe"])
+                : timeframe,
+          });
+        }
+        setApiRows(parsed);
+      })
+      .catch(() => {
+        if (!cancelled) setApiRows([]);
+      })
+      .finally(() => {
+        if (!cancelled) setApiLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [source, timeframe]);
 
   const rows = useMemo(() => {
-    return TRENDING_TOKENS_ELITE_MOCK.filter((r) => {
+    return apiRows.filter((r) => {
       if (r.timeframe !== timeframe) return false;
       if (source !== "All" && r.source !== source) return false;
       return true;
     });
-  }, [source, timeframe]);
+  }, [apiRows, source, timeframe]);
 
   const chipClass = (active: boolean) =>
     `rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
@@ -1106,7 +1161,7 @@ function TrendingPanel() {
         </div>
 
         <div className="text-[11px] text-zinc-500">
-          Mocked • ready to wire to sources
+          {apiLoading ? "Loading…" : "Live • feed wired"}
         </div>
       </div>
 
@@ -1743,18 +1798,57 @@ function FollowingFeedPanel() {
 
 function SocialsFeedPanel() {
   const [tab, setTab] = useState<"all" | SocialPlatform>("all");
-  const [items, setItems] = useState<SocialFeedItem[]>(() => SOCIAL_FEED_MOCK);
+  const [items, setItems] = useState<SocialFeedItem[]>([]);
   const [flashId, setFlashId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const intervalMs = 6500;
-    const interval = window.setInterval(() => {
-      const next = makeNewSocialPost(tab === "all" ? undefined : tab);
-      setItems((prev) => [next, ...prev].slice(0, 60));
-      setFlashId(next.id);
-      window.setTimeout(() => setFlashId(null), 2200);
-    }, intervalMs);
-    return () => window.clearInterval(interval);
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/social-feed?platform=${encodeURIComponent(tab)}`, { credentials: "same-origin" })
+      .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
+      .then(({ ok, json }) => {
+        if (cancelled) return;
+        const rowsRaw =
+          ok && json && typeof json === "object" && Array.isArray((json as any).rows)
+            ? ((json as any).rows as unknown[])
+            : [];
+        const parsed: SocialFeedItem[] = [];
+        for (const r of rowsRaw) {
+          if (!r || typeof r !== "object") continue;
+          const o = r as Record<string, unknown>;
+          const id = typeof o.id === "string" ? o.id.trim() : "";
+          const platform = typeof o.platform === "string" ? o.platform : "";
+          const authorName = typeof o.authorName === "string" ? o.authorName.trim() : "";
+          const authorHandle = typeof o.authorHandle === "string" ? o.authorHandle.trim() : "";
+          const postedAtLabel = typeof o.postedAtLabel === "string" ? o.postedAtLabel.trim() : "";
+          const text = typeof o.text === "string" ? o.text.trim() : "";
+          if (!id || !authorName || !postedAtLabel || !text) continue;
+          parsed.push({
+            id,
+            platform: (platform as SocialFeedItem["platform"]) || "x",
+            authorName,
+            authorHandle,
+            postedAtLabel,
+            text,
+            metricLabel: typeof o.metricLabel === "string" ? o.metricLabel : undefined,
+          });
+        }
+        setItems(parsed);
+        if (parsed.length > 0) {
+          setFlashId(parsed[0].id);
+          window.setTimeout(() => setFlashId(null), 900);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setItems([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [tab]);
 
   const rows = useMemo(() => {
@@ -1805,13 +1899,23 @@ function SocialsFeedPanel() {
             Instagram
           </button>
         </div>
-        <div className="text-[11px] text-zinc-500">Curated • mocked for now</div>
+        <div className="text-[11px] text-zinc-500">
+          {loading ? "Loading…" : "Live • feed wired"}
+        </div>
       </div>
 
       <div className="mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
         <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">
-          <ul className="space-y-1">
-          {rows.map((item) => (
+          {rows.length === 0 ? (
+            <div className="flex h-full items-center justify-center px-3 py-10">
+              <div className="text-center">
+                <p className="text-sm font-semibold text-zinc-200">No posts yet</p>
+                <p className="mt-1 text-xs text-zinc-500">This feed is wired — waiting on sources.</p>
+              </div>
+            </div>
+          ) : (
+            <ul className="space-y-1">
+              {rows.map((item) => (
             <li
               key={item.id}
               className={`rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 transition-colors hover:bg-zinc-900/35 ${
@@ -1853,8 +1957,9 @@ function SocialsFeedPanel() {
                 ) : null}
               </div>
             </li>
-          ))}
-          </ul>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </PanelCard>
@@ -1968,14 +2073,66 @@ const OPPORTUNITIES_MOCK: OpportunitySetup[] = [
 function OpportunitiesPanel() {
   const [timeframe, setTimeframe] = useState<SetupTimeframe>("5m");
   const [market, setMarket] = useState<"All" | SetupMarket>("All");
+  const [apiRows, setApiRows] = useState<OpportunitySetup[]>([]);
+  const [apiLoading, setApiLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setApiLoading(true);
+    fetch(
+      `/api/opportunities?timeframe=${encodeURIComponent(timeframe)}&market=${encodeURIComponent(market)}`,
+      { credentials: "same-origin" }
+    )
+      .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
+      .then(({ ok, json }) => {
+        if (cancelled) return;
+        const rowsRaw =
+          ok && json && typeof json === "object" && Array.isArray((json as any).rows)
+            ? ((json as any).rows as unknown[])
+            : [];
+        const parsed: OpportunitySetup[] = [];
+        for (const r of rowsRaw) {
+          if (!r || typeof r !== "object") continue;
+          const o = r as Record<string, unknown>;
+          const id = typeof o.id === "string" ? o.id.trim() : "";
+          const symbol = typeof o.symbol === "string" ? o.symbol.trim() : "";
+          const mint = typeof o.mint === "string" ? o.mint.trim() : "";
+          if (!id || !symbol || !mint) continue;
+          parsed.push({
+            id,
+            symbol,
+            mint,
+            setup: (o.setup as any) ?? "Breakout",
+            score: Number(o.score ?? 0) || 0,
+            timeframe: (o.timeframe as any) ?? timeframe,
+            market: (o.market as any) ?? "Majors",
+            trigger: typeof o.trigger === "string" ? o.trigger : "",
+            invalidation: typeof o.invalidation === "string" ? o.invalidation : "",
+            liquidityUsd: Number(o.liquidityUsd ?? 0) || 0,
+            volumeUsd: Number(o.volumeUsd ?? 0) || 0,
+            note: typeof o.note === "string" ? o.note : "",
+          });
+        }
+        setApiRows(parsed);
+      })
+      .catch(() => {
+        if (!cancelled) setApiRows([]);
+      })
+      .finally(() => {
+        if (!cancelled) setApiLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [market, timeframe]);
 
   const rows = useMemo(() => {
-    return OPPORTUNITIES_MOCK.filter((r) => {
+    return apiRows.filter((r) => {
       if (r.timeframe !== timeframe) return false;
       if (market !== "All" && r.market !== market) return false;
       return true;
     }).sort((a, b) => b.score - a.score);
-  }, [market, timeframe]);
+  }, [apiRows, market, timeframe]);
 
   const chipClass = (active: boolean) =>
     `rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
@@ -2022,7 +2179,9 @@ function OpportunitiesPanel() {
             ))}
           </div>
         </div>
-        <div className="text-[11px] text-zinc-500">Mocked • actionable layout</div>
+        <div className="text-[11px] text-zinc-500">
+          {apiLoading ? "Loading…" : "Live • feed wired"}
+        </div>
       </div>
 
       <div className="mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
@@ -2821,6 +2980,10 @@ export default function Home() {
   const [widgets, setWidgets] = useState<WidgetsEnabled | null>(null);
   const [submitCallOpen, setSubmitCallOpen] = useState(false);
   const [addWatchlistOpen, setAddWatchlistOpen] = useState(false);
+  const [watchlistPrivate, setWatchlistPrivate] = useState<string[]>([]);
+  const [watchlistPublic, setWatchlistPublic] = useState<string[]>([]);
+  const [watchlistLoading, setWatchlistLoading] = useState(true);
+  const [watchlistUpdatedAt, setWatchlistUpdatedAt] = useState<number | null>(null);
   const [submitCallValue, setSubmitCallValue] = useState("");
   const [submitCallSubmitting, setSubmitCallSubmitting] = useState(false);
   const [submitCallFeedback, setSubmitCallFeedback] = useState<
@@ -3131,6 +3294,50 @@ export default function Home() {
       cancelled = true;
     };
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id?.trim()) {
+      setWatchlistPrivate([]);
+      setWatchlistPublic([]);
+      setWatchlistUpdatedAt(null);
+      setWatchlistLoading(false);
+      return;
+    }
+
+    // refresh after closing the add-to-watchlist modal
+    if (addWatchlistOpen) return;
+
+    let cancelled = false;
+    setWatchlistLoading(true);
+    fetch("/api/me/watchlist", { credentials: "same-origin" })
+      .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
+      .then(({ ok, json }) => {
+        if (cancelled) return;
+        if (!ok || !json || typeof json !== "object") {
+          setWatchlistPrivate([]);
+          setWatchlistPublic([]);
+          return;
+        }
+        const privRaw = (json as any).private;
+        const pubRaw = (json as any).public;
+        setWatchlistPrivate(Array.isArray(privRaw) ? (privRaw as string[]).filter(Boolean) : []);
+        setWatchlistPublic(Array.isArray(pubRaw) ? (pubRaw as string[]).filter(Boolean) : []);
+        setWatchlistUpdatedAt(Date.now());
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWatchlistPrivate([]);
+          setWatchlistPublic([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setWatchlistLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addWatchlistOpen, session?.user?.id]);
 
   useEffect(() => {
     if (!session?.user?.id?.trim()) {
@@ -3469,7 +3676,7 @@ export default function Home() {
                 <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
                   {stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
                 </div>
-                <div className="mt-1 text-xs text-green-400">+0.6x today ↑</div>
+                <div className="mt-1 text-xs text-zinc-500">From your verified calls</div>
               </div>
 
               <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -3492,12 +3699,12 @@ export default function Home() {
 
               <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
-                  BEST CALL (24H)
+                  TOTAL CALLS
                 </div>
-                <div className="mt-2 text-sm font-medium text-zinc-200">SOLX</div>
-                <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
-                  8.2x
+                <div className="mt-2 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
+                  {stats === null ? "—" : stats.totalCalls.toLocaleString("en-US")}
                 </div>
+                <div className="mt-1 text-xs text-zinc-500">All time</div>
               </div>
 
               <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -3537,11 +3744,17 @@ export default function Home() {
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   LAST CALL
                 </div>
-                <div className="mt-2 text-sm font-medium text-zinc-200">SOLX</div>
-                <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
-                  4.2x
+                <div className="mt-2 text-sm font-medium text-zinc-200">
+                  {callsLoading || recentCalls.length === 0 ? "—" : recentCalls[0].token}
                 </div>
-                <div className="mt-1 text-xs text-zinc-500">+12m</div>
+                <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
+                  {callsLoading || recentCalls.length === 0 ? "—" : `${recentCalls[0].multiple.toFixed(1)}x`}
+                </div>
+                <div className="mt-1 text-xs text-zinc-500">
+                  {callsLoading || recentCalls.length === 0
+                    ? "Waiting for your first call"
+                    : formatJoinedAt(callTimeMs(recentCalls[0].time), nowMs)}
+                </div>
               </div>
             </div>
 
@@ -3680,75 +3893,71 @@ export default function Home() {
           <PanelCard title="Watchlist" titleClassName="normal-case">
             <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
               <span className="tabular-nums">
-                Pinned <span className="font-semibold text-zinc-300">4</span>
+                Saved{" "}
+                <span className="font-semibold text-zinc-300">
+                  {watchlistLoading
+                    ? "—"
+                    : (watchlistPrivate.length + watchlistPublic.length).toLocaleString("en-US")}
+                </span>
               </span>
               <span>
                 Updated{" "}
                 <span className="font-medium tabular-nums text-zinc-300">
-                  just now
+                  {watchlistUpdatedAt == null ? "—" : formatJoinedAt(watchlistUpdatedAt, nowMs)}
                 </span>
               </span>
             </div>
             <div className="mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              <ul className="space-y-1">
-                {[
-                  { symbol: "WIF", change: "+8.2%", mcap: "$312.4M" },
-                  { symbol: "JUP", change: "-1.4%", mcap: "$1.2B" },
-                  { symbol: "BONK", change: "+3.0%", mcap: "$1.8B" },
-                  { symbol: "PYTH", change: "+0.9%", mcap: "$612.0M" },
-                ]
-                  .slice(0, 3)
-                  .map((row) => (
-                    <li
-                      key={row.symbol}
-                      className="group flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-1.5 transition-colors hover:bg-zinc-900/35"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-zinc-100">
-                          {row.symbol}
+              {watchlistLoading ? (
+                <div className="space-y-2 p-1">
+                  <div className="h-9 animate-pulse rounded-lg bg-zinc-900/35" />
+                  <div className="h-9 animate-pulse rounded-lg bg-zinc-900/25" />
+                  <div className="h-9 animate-pulse rounded-lg bg-zinc-900/20" />
+                </div>
+              ) : watchlistPrivate.length + watchlistPublic.length === 0 ? (
+                <div className="flex items-center justify-center px-3 py-10">
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-zinc-200">No contracts yet</p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Add contract addresses to build your list.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <ul className="space-y-1">
+                  {[...watchlistPublic, ...watchlistPrivate].slice(0, 3).map((ca) => (
+                    <li key={ca}>
+                      <a
+                        href={`https://dexscreener.com/solana/${encodeURIComponent(ca)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-zinc-100">
+                              {shortenCa(ca)}
+                            </span>
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
+                              CA
+                            </span>
+                          </div>
+                          <div className="mt-0.5 font-mono text-[11px] text-zinc-500">
+                            {ca}
+                          </div>
                         </div>
-                        <div
-                          className={`text-xs tabular-nums ${
-                            row.change.startsWith("+")
-                              ? "text-[color:var(--accent)]"
-                              : row.change.startsWith("-")
-                                ? "text-red-400"
-                                : "text-zinc-500"
-                          }`}
-                        >
-                          {row.change}
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <div className="hidden items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 sm:flex">
-                          <button
-                            type="button"
-                            onClick={() => notifyComingSoon("Pin / Unpin")}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-800/70 bg-zinc-900/30 text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
-                            aria-label="Pin / unpin (coming soon)"
-                          >
-                            ☆
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => notifyComingSoon("Alert")}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-800/70 bg-zinc-900/30 text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
-                            aria-label="Create alert (coming soon)"
-                          >
-                            🔔
-                          </button>
-                        </div>
-                        <span className="shrink-0 rounded-full border border-zinc-700/60 bg-zinc-900/40 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-zinc-200">
-                          {row.mcap}
+                        <span className="ml-2 hidden text-xs text-zinc-500 group-hover:inline">
+                          ↗
                         </span>
-                      </div>
+                      </a>
                     </li>
                   ))}
-              </ul>
+                </ul>
+              )}
             </div>
 
             <div className="mt-3 flex items-center justify-between">
-              <p className="text-xs text-zinc-500">Market cap</p>
+              <p className="text-xs text-zinc-500">Your saved contracts</p>
               <Link
                 href="/watchlist"
                 className="text-xs font-semibold text-zinc-200 hover:text-white"

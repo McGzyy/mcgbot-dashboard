@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { modChrome } from "@/lib/roleTierStyles";
 
 export const metadata: Metadata = {
-  title: "Call tape",
+  title: "Call log",
   description: "Your verified calls — contracts, ATH multiples, source, and jump links.",
 };
 

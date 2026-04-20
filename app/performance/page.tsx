@@ -134,10 +134,10 @@ export default function PerformanceLabPage() {
           Performance lab
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          <span className="font-medium text-zinc-200">Same data as Call tape</span>, but summarized: averages, win
+          <span className="font-medium text-zinc-200">Same data as Call log</span>, but summarized: averages, win
           rate, 14-day activity, how your multiples stack, and your spot on the weekly caller list.{" "}
           <Link href="/calls" className="font-medium text-emerald-300/90 underline-offset-2 hover:underline">
-            Call tape
+            Call log
           </Link>{" "}
           is the line-by-line list;{" "}
           <Link href="/leaderboard" className="font-medium text-emerald-300/90 underline-offset-2 hover:underline">

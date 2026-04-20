@@ -112,7 +112,7 @@ function SidebarBody({
                 isActive(pathname, "/calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
-            <span>Call tape</span>
+            <span>Call log</span>
           </Link>
           <Link href="/performance" onClick={pick} className={getNavItemClass(isActive(pathname, "/performance"))}>
             <div

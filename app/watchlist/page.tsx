@@ -11,26 +11,26 @@ type WatchlistPayload = {
 
 type Scope = "private" | "public";
 
-function isValidMint(mint: string): boolean {
-  const s = mint.trim();
+function isValidContractAddress(contractAddress: string): boolean {
+  const s = contractAddress.trim();
   if (s.length < 20 || s.length > 60) return false;
   return /^[1-9A-HJ-NP-Za-km-z]+$/.test(s);
 }
 
-function MintRow({
-  mint,
+function ContractAddressRow({
+  contractAddress,
   scope,
   onRemove,
 }: {
-  mint: string;
+  contractAddress: string;
   scope: Scope;
-  onRemove: (mint: string, scope: Scope) => void;
+  onRemove: (contractAddress: string, scope: Scope) => void;
 }) {
-  const href = `https://dexscreener.com/solana/${encodeURIComponent(mint)}`;
+  const href = `https://dexscreener.com/solana/${encodeURIComponent(contractAddress)}`;
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800/80 bg-black/30 px-3 py-2.5">
       <div className="min-w-0">
-        <p className="truncate font-mono text-[12px] text-zinc-200">{mint}</p>
+        <p className="truncate font-mono text-[12px] text-zinc-200">{contractAddress}</p>
         <a
           href={href}
           target="_blank"
@@ -42,7 +42,7 @@ function MintRow({
       </div>
       <button
         type="button"
-        onClick={() => onRemove(mint, scope)}
+        onClick={() => onRemove(contractAddress, scope)}
         className="shrink-0 rounded-lg border border-zinc-700/80 bg-zinc-900/30 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
       >
         Remove
@@ -55,7 +55,7 @@ export default function WatchlistPage() {
   const { status } = useSession();
   const [data, setData] = useState<WatchlistPayload | null>(null);
   const [scope, setScope] = useState<Scope>("private");
-  const [mint, setMint] = useState("");
+  const [contractAddress, setContractAddress] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export default function WatchlistPage() {
   }, [data, scope]);
 
   const submit = useCallback(
-    async (action: "add" | "remove", targetMint: string, targetScope: Scope) => {
+    async (action: "add" | "remove", targetContractAddress: string, targetScope: Scope) => {
       if (status !== "authenticated") return;
       setSaving(true);
       setErr(null);
@@ -100,7 +100,11 @@ export default function WatchlistPage() {
           method: "POST",
           headers: { "content-type": "application/json" },
           credentials: "same-origin",
-          body: JSON.stringify({ action, scope: targetScope, mint: targetMint }),
+          body: JSON.stringify({
+            action,
+            scope: targetScope,
+            mint: targetContractAddress,
+          }),
         });
         const json = (await res.json().catch(() => ({}))) as {
           success?: boolean;
@@ -125,16 +129,16 @@ export default function WatchlistPage() {
     [status, data?.private, data?.public]
   );
 
-  const canAdd = isValidMint(mint) && !saving;
+  const canAdd = isValidContractAddress(contractAddress) && !saving;
   const add = useCallback(async () => {
-    const m = mint.trim();
-    if (!isValidMint(m)) {
-      setErr("Paste a valid Solana mint address.");
+    const ca = contractAddress.trim();
+    if (!isValidContractAddress(ca)) {
+      setErr("Paste a valid Solana contract address.");
       return;
     }
-    await submit("add", m, scope);
-    setMint("");
-  }, [mint, scope, submit]);
+    await submit("add", ca, scope);
+    setContractAddress("");
+  }, [contractAddress, scope, submit]);
 
   if (status === "loading") {
     return (
@@ -173,7 +177,8 @@ export default function WatchlistPage() {
             Watchlist
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-            Keep mints on deck. <span className="font-medium text-zinc-200">Private</span> stays just for you;{" "}
+            Keep contract addresses on deck.{" "}
+            <span className="font-medium text-zinc-200">Private</span> stays just for you;{" "}
             <span className="font-medium text-zinc-200">Public</span> is your shared list for the dashboard.
           </p>
         </div>
@@ -215,9 +220,9 @@ export default function WatchlistPage() {
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
           <input
-            value={mint}
-            onChange={(e) => setMint(e.target.value)}
-            placeholder="Paste a Solana mint address…"
+            value={contractAddress}
+            onChange={(e) => setContractAddress(e.target.value)}
+            placeholder="Paste a Solana contract address…"
             className="flex-1 rounded-xl border border-zinc-800/80 bg-zinc-950/70 px-4 py-2.5 text-sm text-zinc-100 outline-none ring-fuchsia-500/20 focus:ring-2"
             spellCheck={false}
           />
@@ -227,11 +232,11 @@ export default function WatchlistPage() {
             disabled={!canAdd}
             className="rounded-xl bg-gradient-to-r from-fuchsia-500 to-cyan-500 px-5 py-2.5 text-sm font-bold text-black shadow-lg shadow-black/40 transition hover:from-fuchsia-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Add mint"}
+            {saving ? "Saving…" : "Add contract"}
           </button>
         </div>
         <p className="mt-2 text-xs text-zinc-500">
-          Tip: paste a mint, then hit Add. We’ll de-dupe and keep your newest items at the top.
+          Tip: paste a contract address, then hit Add. We’ll de-dupe and keep your newest items at the top.
         </p>
 
         {err ? (
@@ -244,7 +249,7 @@ export default function WatchlistPage() {
       <section className="rounded-2xl border border-zinc-800/70 bg-black/20 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-zinc-100">
-            {scope === "private" ? "Private mints" : "Public mints"}{" "}
+            {scope === "private" ? "Private contracts" : "Public contracts"}{" "}
             <span className="ml-2 rounded-full border border-zinc-800/80 bg-zinc-950/70 px-2 py-0.5 text-[11px] font-semibold text-zinc-400">
               {loading ? "…" : list.length}
             </span>
@@ -268,14 +273,19 @@ export default function WatchlistPage() {
             </div>
           ) : list.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-800/80 bg-zinc-950/40 p-6 text-center">
-              <p className="text-sm font-semibold text-zinc-200">No mints yet</p>
+              <p className="text-sm font-semibold text-zinc-200">No contracts yet</p>
               <p className="mt-1 text-xs text-zinc-500">
-                Add a mint above to start building your {scope} watchlist.
+                Add a contract address above to start building your {scope} watchlist.
               </p>
             </div>
           ) : (
             list.map((m) => (
-              <MintRow key={`${scope}:${m}`} mint={m} scope={scope} onRemove={(mm, sc) => void submit("remove", mm, sc)} />
+              <ContractAddressRow
+                key={`${scope}:${m}`}
+                contractAddress={m}
+                scope={scope}
+                onRemove={(mm, sc) => void submit("remove", mm, sc)}
+              />
             ))
           )}
         </div>

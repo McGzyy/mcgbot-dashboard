@@ -559,7 +559,7 @@ export default function LeaderboardPage() {
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
               The public scoreboard for callers and automation. Your own charts and row-by-row history
               live on <Link href="/performance" className="text-cyan-200/90 underline-offset-2 hover:underline">Performance</Link>{" "}
-              and <Link href="/calls" className="text-cyan-200/90 underline-offset-2 hover:underline">Call tape</Link> — this
+              and <Link href="/calls" className="text-cyan-200/90 underline-offset-2 hover:underline">Call log</Link> — this
               route is only the arena everyone shares.
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -622,13 +622,13 @@ export default function LeaderboardPage() {
             href="/calls"
             className="group rounded-xl border border-zinc-800/80 bg-black/35 p-4 transition hover:border-cyan-500/35 hover:bg-zinc-900/50"
           >
-            <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300/90">Call tape</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300/90">Call log</p>
             <p className="mt-2 text-sm font-semibold text-white">Your calls, one row each</p>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
               Only your account — contracts, multiples, links. Not the public leaderboards.
             </p>
             <span className="mt-3 inline-flex text-xs font-semibold text-cyan-200/90 group-hover:underline">
-              Open call tape →
+              Open call log →
             </span>
           </Link>
           <Link
@@ -638,7 +638,7 @@ export default function LeaderboardPage() {
             <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-300/90">Performance lab</p>
             <p className="mt-2 text-sm font-semibold text-white">Your stats in charts</p>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              Same calls as Call tape, rolled up — not other people’s rows.
+              Same calls as Call log, rolled up — not other people’s rows.
             </p>
             <span className="mt-3 inline-flex text-xs font-semibold text-emerald-200/90 group-hover:underline">
               Open performance lab →
@@ -826,7 +826,7 @@ export default function LeaderboardPage() {
               </Link>{" "}
               and{" "}
               <Link href="/calls" className="font-semibold text-cyan-200/90 hover:underline">
-                Call tape
+                Call log
               </Link>{" "}
               — this page stays focused on the public boards.
             </p>
