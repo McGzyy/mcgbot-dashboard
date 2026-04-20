@@ -130,6 +130,18 @@ function SidebarBody({
             />
             <span>Watchlist</span>
           </Link>
+          <Link
+            href="/pnl-showcase"
+            onClick={pick}
+            className={getNavItemClass(isActive(pathname, "/pnl-showcase"))}
+          >
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/pnl-showcase") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span>PnL Showcase</span>
+          </Link>
 
           <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Arena</p>
           <Link href="/leaderboard" onClick={pick} className={getNavItemClass(isActive(pathname, "/leaderboard"))}>
