@@ -30,16 +30,45 @@ export async function GET(req: Request) {
     const cutoverMs = await getStatsCutoverUtcMs();
     const minMs = mergeStatsCutoverIntoMin(minMsBase, cutoverMs);
 
-    const { data, error } = await supabase
-      .from("call_performance")
-      .select("username, call_time, excluded_from_stats")
-      .gte("call_time", new Date(minMs).toISOString())
-      .order("call_time", { ascending: false })
-      .limit(5000);
+    const minIso = new Date(minMs).toISOString();
 
-    if (error) {
-      console.error("[leaderboard/daily] supabase:", error);
-      return Response.json({ success: false, error: "Failed to load leaderboard" }, { status: 500 });
+    // Be tolerant if the `excluded_from_stats` migration hasn't been applied yet.
+    // In that case, we still want the widget to work (it just won't be able to exclude rows).
+    let data: unknown[] | null = null;
+    {
+      const r = await supabase
+        .from("call_performance")
+        .select("username, call_time, excluded_from_stats")
+        .gte("call_time", minIso)
+        .order("call_time", { ascending: false })
+        .limit(5000);
+      if (!r.error) {
+        data = (Array.isArray(r.data) ? r.data : []) as unknown[];
+      } else {
+        const msg = String((r.error as any).message ?? "");
+        if (msg.toLowerCase().includes("excluded_from_stats")) {
+          const fallback = await supabase
+            .from("call_performance")
+            .select("username, call_time")
+            .gte("call_time", minIso)
+            .order("call_time", { ascending: false })
+            .limit(5000);
+          if (fallback.error) {
+            console.error("[leaderboard/daily] supabase fallback:", fallback.error);
+            return Response.json(
+              { success: false, error: "Failed to load leaderboard" },
+              { status: 500 }
+            );
+          }
+          data = (Array.isArray(fallback.data) ? fallback.data : []) as unknown[];
+        } else {
+          console.error("[leaderboard/daily] supabase:", r.error);
+          return Response.json(
+            { success: false, error: "Failed to load leaderboard" },
+            { status: 500 }
+          );
+        }
+      }
     }
 
     const raw = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
