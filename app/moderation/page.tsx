@@ -19,6 +19,90 @@ function shortAddr(ca: string) {
   return `${s.slice(0, 8)}…${s.slice(-4)}`;
 }
 
+function parseQueueErrorSteps(json: Record<string, unknown>): string[] | null {
+  const steps = json.steps;
+  if (Array.isArray(steps) && steps.length > 0 && steps.every((x) => typeof x === "string")) {
+    return steps as string[];
+  }
+  const hint = json.hint;
+  if (typeof hint === "string" && hint.trim()) {
+    return [hint.trim()];
+  }
+  return null;
+}
+
+function ModQueueErrorPanel({
+  title,
+  steps,
+  detail,
+  botApiBase,
+  onRetry,
+  retrying,
+  variant,
+}: {
+  title: string;
+  steps: string[] | null;
+  detail: string | null;
+  botApiBase: string | null;
+  onRetry: () => void;
+  retrying: boolean;
+  variant: "network" | "config";
+}) {
+  const border =
+    variant === "network"
+      ? "border-amber-500/35 bg-gradient-to-b from-amber-950/40 to-zinc-950/30"
+      : "border-violet-500/30 bg-gradient-to-b from-violet-950/25 to-zinc-950/30";
+  const kicker =
+    variant === "network" ? (
+      <span className="text-amber-400/95">Bot connection</span>
+    ) : (
+      <span className="text-violet-300/90">Configuration</span>
+    );
+
+  return (
+    <div role="alert" className={`mb-6 rounded-2xl border p-5 ${border}`}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">{kicker}</p>
+          <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-zinc-50">{title}</h2>
+          {botApiBase ? (
+            <p className="mt-2 break-all font-mono text-[11px] leading-relaxed text-zinc-500">
+              <span className="text-zinc-600">Target</span> {botApiBase}
+            </p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={() => onRetry()}
+          disabled={retrying}
+          className="shrink-0 rounded-lg border border-zinc-600 bg-zinc-900/90 px-4 py-2 text-xs font-semibold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {retrying ? "Retrying…" : "Retry"}
+        </button>
+      </div>
+      {steps && steps.length > 0 ? (
+        <ol className="mt-4 list-decimal space-y-2.5 pl-4 text-sm leading-relaxed text-zinc-300">
+          {steps.map((s, i) => (
+            <li key={i} className="text-pretty">
+              {s}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      {detail ? (
+        <details className="mt-4 rounded-lg border border-zinc-800/80 bg-black/25">
+          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-zinc-500 transition hover:text-zinc-400">
+            Technical detail
+          </summary>
+          <pre className="max-h-36 overflow-auto whitespace-pre-wrap border-t border-zinc-800/60 p-3 font-mono text-[11px] leading-relaxed text-zinc-500">
+            {detail}
+          </pre>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
 function ModQueueSkeleton() {
   return (
     <div className="grid animate-pulse gap-4 lg:grid-cols-2">
@@ -370,7 +454,10 @@ export default function ModerationPage() {
   const [data, setData] = useState<ModQueuePayload | null>(null);
   const [queueLoading, setQueueLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [errHint, setErrHint] = useState<string | null>(null);
+  const [errSteps, setErrSteps] = useState<string[] | null>(null);
+  const [errDetail, setErrDetail] = useState<string | null>(null);
+  const [errBotBase, setErrBotBase] = useState<string | null>(null);
+  const [errVariant, setErrVariant] = useState<"network" | "config" | "simple">("simple");
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
 
   useEffect(() => {
@@ -388,8 +475,8 @@ export default function ModerationPage() {
         };
         if (cancelled) return;
         const r = json.role;
-        if (json.canModerate === true && (r === "mod" || r === "admin")) {
-          setTier(r);
+        if (json.canModerate === true) {
+          setTier(r === "admin" || r === "mod" ? r : "mod");
         } else {
           setTier("user");
         }
@@ -407,27 +494,41 @@ export default function ModerationPage() {
   const loadQueue = useCallback(
     async (opts?: { toastOnOk?: boolean }) => {
       setQueueLoading(true);
-      setErr(null);
-      setErrHint(null);
       try {
         const res = await fetch("/api/mod/queue?limit=200");
-        const json = (await res.json().catch(() => ({}))) as ModQueuePayload & {
-          error?: string;
-          hint?: string;
-        };
+        const json = (await res.json().catch(() => ({}))) as ModQueuePayload &
+          Record<string, unknown> & {
+            error?: string;
+            hint?: string;
+            code?: string;
+            detail?: string;
+            botApiBase?: string;
+          };
         if (!res.ok) {
-          setData(null);
           const msg =
             typeof json.error === "string"
               ? json.error
               : `Request failed (${res.status}).`;
           setErr(msg);
-          setErrHint(typeof json.hint === "string" ? json.hint : null);
+          setErrSteps(parseQueueErrorSteps(json));
+          setErrDetail(typeof json.detail === "string" ? json.detail : null);
+          setErrBotBase(typeof json.botApiBase === "string" ? json.botApiBase : null);
+          if (json.code === "BOT_NOT_CONFIGURED" || res.status === 503) {
+            setErrVariant("config");
+          } else if (json.code === "BOT_UNREACHABLE" || res.status === 502) {
+            setErrVariant("network");
+          } else {
+            setErrVariant("simple");
+          }
           return;
         }
         if (json.success && Array.isArray(json.callApprovals) && Array.isArray(json.devSubmissions)) {
           setData(json);
           setLastUpdatedAt(Date.now());
+          setErr(null);
+          setErrSteps(null);
+          setErrDetail(null);
+          setErrBotBase(null);
           if (opts?.toastOnOk) {
             const n = json.counts?.total ?? 0;
             addNotification({
@@ -443,12 +544,17 @@ export default function ModerationPage() {
           const msg =
             typeof json.error === "string" ? json.error : "Unexpected response from mod queue.";
           setErr(msg);
-          setErrHint(typeof json.hint === "string" ? json.hint : null);
+          setErrSteps(parseQueueErrorSteps(json));
+          setErrDetail(typeof json.detail === "string" ? json.detail : null);
+          setErrBotBase(typeof json.botApiBase === "string" ? json.botApiBase : null);
+          setErrVariant("simple");
         }
       } catch {
-        setData(null);
         setErr("Could not load mod queue.");
-        setErrHint(null);
+        setErrSteps(null);
+        setErrDetail(null);
+        setErrBotBase(null);
+        setErrVariant("simple");
         addNotification({
           id: crypto.randomUUID(),
           text: "Could not load mod queue.",
@@ -565,9 +671,9 @@ export default function ModerationPage() {
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Moderation</h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
-              Live view of the same queue as{" "}
-              <span className="font-medium text-zinc-400">#mod-approvals</span>. Use Discord buttons
-              to approve or deny until web actions ship.
+              Same pending set as{" "}
+              <span className="font-medium text-zinc-400">#mod-approvals</span>. Approve, deny, or exclude
+              tracked calls from here; dev submissions open in Discord until a web flow exists.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -615,13 +721,33 @@ export default function ModerationPage() {
         </p>
       </div>
 
-      {err && !queueLoading ? (
+      {err && !queueLoading && (errVariant === "network" || errVariant === "config") ? (
+        <ModQueueErrorPanel
+          title={err}
+          steps={errSteps}
+          detail={errDetail}
+          botApiBase={errBotBase}
+          variant={errVariant}
+          retrying={queueLoading}
+          onRetry={() => {
+            void loadQueue();
+          }}
+        />
+      ) : null}
+
+      {err && !queueLoading && errVariant === "simple" ? (
         <div
           role="alert"
-          className="mb-6 space-y-2 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm leading-relaxed text-red-200/95"
+          className="mb-6 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm leading-relaxed text-red-200/95"
         >
           <p>{err}</p>
-          {errHint ? <p className="text-xs leading-relaxed text-zinc-400">{errHint}</p> : null}
+          {errSteps?.length ? (
+            <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-zinc-400">
+              {errSteps.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       ) : null}
 

@@ -46,15 +46,18 @@ export function describeBotApiFetchError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-/**
- * Shown as `hint` on 502 from the dashboard → bot hop (especially when `npm run dev` is on another network than the VPS).
- */
-export function botApiUnreachableHint(botApiOrigin: string): string {
+/** Ordered checklist for the moderation UI when the dashboard cannot reach the bot HTTP API. */
+export function botUnreachableChecklist(botApiOrigin: string): string[] {
   const base = botApiOrigin.replace(/\/+$/, "");
   const health = `${base}/health`;
-  return (
-    `1) Open ${health} in your browser on this PC — if it fails, the tunnel or bot is down. ` +
-    "2) Keep the SSH window open (the one with -L 3001:127.0.0.1:3001). " +
-    "3) On the server, run the bot API on port 3001 (pm2 / apiServer.js) and restart `npm run dev` after any .env change."
-  );
+  return [
+    `Open ${health} from the same environment that runs this dashboard (your PC for local dev, or production’s egress for Vercel).`,
+    "Local dev with SSH: keep the tunnel up and set BOT_API_URL_LOCAL=http://127.0.0.1:3001 in .env.local (BOT_API_URL can stay pointed at the VPS for deploy parity).",
+    "On the VPS: confirm apiServer.js is bound to the port in BOT_API_URL, PM2 is online, and any firewall allows inbound from your dashboard host if you are not using a tunnel.",
+  ];
+}
+
+/** Plain-text join for logs or legacy consumers. */
+export function botApiUnreachableHint(botApiOrigin: string): string {
+  return botUnreachableChecklist(botApiOrigin).join(" ");
 }

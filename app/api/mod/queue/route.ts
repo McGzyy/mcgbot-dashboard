@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { botApiBaseUrl } from "@/lib/botInternal";
-import { botApiUnreachableHint, describeBotApiFetchError } from "@/lib/botUpstreamFetchError";
+import { botUnreachableChecklist, describeBotApiFetchError } from "@/lib/botUpstreamFetchError";
 import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 
 export const runtime = "nodejs";
@@ -25,8 +25,12 @@ export async function GET(request: Request) {
       return Response.json(
         {
           success: false,
-          error:
-            "Mod queue is not configured (missing BOT_API_URL). In local dev with an SSH tunnel, set BOT_API_URL_LOCAL=http://127.0.0.1:3001 or point BOT_API_URL at that origin.",
+          code: "BOT_NOT_CONFIGURED",
+          error: "Bot API URL is not configured.",
+          steps: [
+            "Set BOT_API_URL on the dashboard host to the bot origin (no path), e.g. http://YOUR_VPS_IP:3001.",
+            "For local dev with ssh -L 3001:127.0.0.1:3001, add BOT_API_URL_LOCAL=http://127.0.0.1:3001 to .env.local and restart next dev.",
+          ],
         },
         { status: 503 }
       );
@@ -61,8 +65,11 @@ export async function GET(request: Request) {
       return Response.json(
         {
           success: false,
-          error:
-            "Mod queue is not configured (missing CALL_INTERNAL_SECRET). Set the same secret on the bot host and in this dashboard.",
+          code: "BOT_NOT_CONFIGURED",
+          error: "CALL_INTERNAL_SECRET is not set on the dashboard host.",
+          steps: [
+            "Add CALL_INTERNAL_SECRET to Vercel (or .env.local) — same value the bot uses for Authorization: Bearer on internal routes.",
+          ],
         },
         { status: 503 }
       );
@@ -97,8 +104,11 @@ export async function GET(request: Request) {
       return Response.json(
         {
           success: false,
-          error: `Could not reach bot API. ${detail} Check BOT_API_URL (try opening ${base}/health in a browser on this same machine).`,
-          hint: botApiUnreachableHint(base),
+          code: "BOT_UNREACHABLE",
+          error: "Could not connect to the bot API.",
+          botApiBase: base,
+          detail,
+          steps: botUnreachableChecklist(base),
         },
         { status: 502 }
       );

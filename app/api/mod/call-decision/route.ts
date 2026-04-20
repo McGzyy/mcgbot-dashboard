@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { botApiBaseUrl } from "@/lib/botInternal";
+import { botUnreachableChecklist, describeBotApiFetchError } from "@/lib/botUpstreamFetchError";
 import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 
 export const runtime = "nodejs";
@@ -69,10 +70,17 @@ export async function POST(request: Request) {
         body: JSON.stringify({ userId, contractAddress, decision }),
       });
     } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
+      const detail = describeBotApiFetchError(err);
       console.error("[api/mod/call-decision] fetch failed:", detail);
       return Response.json(
-        { success: false, error: `Could not reach bot API: ${detail}` },
+        {
+          success: false,
+          code: "BOT_UNREACHABLE",
+          error: "Could not connect to the bot API.",
+          botApiBase: base,
+          detail,
+          steps: botUnreachableChecklist(base),
+        },
         { status: 502 }
       );
     }
