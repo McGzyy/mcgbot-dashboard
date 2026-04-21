@@ -30,8 +30,7 @@ export async function GET(req: Request) {
     const cutoverMs = await getStatsCutoverUtcMs();
     const minMs = mergeStatsCutoverIntoMin(minMsBase, cutoverMs);
 
-    const minIso = new Date(minMs).toISOString();
-
+    // `call_performance.call_time` is BIGINT (epoch ms) in this project — compare with numbers, not ISO strings.
     // Be tolerant if the `excluded_from_stats` migration hasn't been applied yet.
     // In that case, we still want the widget to work (it just won't be able to exclude rows).
     let data: unknown[] | null = null;
@@ -39,7 +38,7 @@ export async function GET(req: Request) {
       const r = await supabase
         .from("call_performance")
         .select("username, call_time, excluded_from_stats")
-        .gte("call_time", minIso)
+        .gte("call_time", minMs)
         .order("call_time", { ascending: false })
         .limit(5000);
       if (!r.error) {
@@ -50,7 +49,7 @@ export async function GET(req: Request) {
           const fallback = await supabase
             .from("call_performance")
             .select("username, call_time")
-            .gte("call_time", minIso)
+            .gte("call_time", minMs)
             .order("call_time", { ascending: false })
             .limit(5000);
           if (fallback.error) {

@@ -22,12 +22,11 @@ export async function GET() {
     const weekMinBase = nowMs - 7 * DAY;
     const cutoverMs = await getStatsCutoverUtcMs();
     const weekMinMs = mergeStatsCutoverIntoMin(weekMinBase, cutoverMs);
-    const weekMinIso = new Date(weekMinMs).toISOString();
 
     const { data, error } = await db
       .from("call_performance")
       .select("id, username, call_ca, ath_multiple, call_time, source, excluded_from_stats")
-      .gte("call_time", weekMinIso)
+      .gte("call_time", weekMinMs)
       .order("call_time", { ascending: false })
       .limit(5000);
 
