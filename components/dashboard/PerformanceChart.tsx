@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import type { DailyCallBucket } from "@/lib/performanceSeries";
 import {
   Area,
   CartesianGrid,
@@ -44,37 +46,77 @@ const PERF_LINE = "#22c55e";
 const WIN_LINE = "#2dd4bf";
 const WIN_LINE_BRIGHT = "#5eead4";
 
-const DATASETS: Record<Range, RawPoint[]> = {
-  W: [
-    { name: "Mon", multiplier: 2.4, winRate: 52, calls: 12 },
-    { name: "Tue", multiplier: 3.1, winRate: 60, calls: 18 },
-    { name: "Wed", multiplier: 2.8, winRate: 55, calls: 14 },
-    { name: "Thu", multiplier: 3.9, winRate: 66, calls: 22 },
-    { name: "Fri", multiplier: 4.6, winRate: 71, calls: 16 },
-    { name: "Sat", multiplier: 3.7, winRate: 63, calls: 9 },
-    { name: "Sun", multiplier: 4.2, winRate: 68, calls: 19 },
-  ],
-  M: [
-    { name: "W1", multiplier: 2.2, winRate: 48, calls: 9 },
-    { name: "W2", multiplier: 2.9, winRate: 54, calls: 15 },
-    { name: "W3", multiplier: 3.6, winRate: 58, calls: 12 },
-    { name: "W4", multiplier: 3.1, winRate: 52, calls: 20 },
-  ],
-  "3M": [
-    { name: "Jan", multiplier: 2.1, winRate: 44, calls: 11 },
-    { name: "Feb", multiplier: 2.8, winRate: 49, calls: 17 },
-    { name: "Mar", multiplier: 3.4, winRate: 57, calls: 13 },
-    { name: "Apr", multiplier: 3.0, winRate: 53, calls: 21 },
-    { name: "May", multiplier: 4.1, winRate: 66, calls: 18 },
-    { name: "Jun", multiplier: 3.7, winRate: 61, calls: 24 },
-  ],
-  A: [
-    { name: "2022", multiplier: 2.0, winRate: 41, calls: 8 },
-    { name: "2023", multiplier: 2.6, winRate: 46, calls: 14 },
-    { name: "2024", multiplier: 3.2, winRate: 55, calls: 19 },
-    { name: "2025", multiplier: 3.8, winRate: 62, calls: 23 },
-  ],
-};
+const UTC_DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+const EMPTY_POINT: RawPoint = { name: "—", multiplier: 0, winRate: 0, calls: 0 };
+
+function aggregateBuckets(parts: DailyCallBucket[], label: string): RawPoint {
+  const calls = parts.reduce((s, p) => s + p.calls, 0);
+  if (!calls) return { name: label, multiplier: 0, winRate: 0, calls: 0 };
+  let sumWeighted = 0;
+  let wins = 0;
+  let best = 0;
+  for (const p of parts) {
+    sumWeighted += p.avgX * p.calls;
+    wins += p.wins;
+    if (p.bestX > best) best = p.bestX;
+  }
+  return {
+    name: label,
+    multiplier: sumWeighted / calls,
+    winRate: (wins / calls) * 100,
+    calls,
+  };
+}
+
+/** Turn `/api/me/performance-lab` `series14d` into chart datasets (14d is all we have server-side). */
+function buildDatasetsFromSeries(series: DailyCallBucket[]): Record<Range, RawPoint[]> {
+  if (!Array.isArray(series) || series.length === 0) {
+    return {
+      W: [{ ...EMPTY_POINT }],
+      M: [{ ...EMPTY_POINT }],
+      "3M": [{ ...EMPTY_POINT }],
+      A: [{ ...EMPTY_POINT }],
+    };
+  }
+
+  const last7 = series.slice(-7).map((b) => {
+    const d = new Date(Number(b.dayKey));
+    const name = UTC_DOW[d.getUTCDay()] ?? b.label;
+    return {
+      name,
+      multiplier: b.avgX,
+      winRate: b.winRate,
+      calls: b.calls,
+    };
+  });
+
+  const last14 = series.slice(-14);
+  const mid = Math.max(1, Math.floor(last14.length / 2));
+  const monthPts: RawPoint[] = [];
+  if (last14.length) {
+    monthPts.push(aggregateBuckets(last14.slice(0, mid), "Early"));
+    monthPts.push(aggregateBuckets(last14.slice(mid), "Late"));
+  }
+
+  const qPts: RawPoint[] = [];
+  const chunks = 3;
+  const n = last14.length;
+  const step = Math.max(1, Math.ceil(n / chunks));
+  for (let i = 0; i < chunks; i++) {
+    const chunk = last14.slice(i * step, (i + 1) * step);
+    if (chunk.length) qPts.push(aggregateBuckets(chunk, `P${i + 1}`));
+  }
+
+  const allPt = last14.length ? [aggregateBuckets(last14, "14d")] : [{ ...EMPTY_POINT }];
+
+  return {
+    W: last7.length ? last7 : [{ ...EMPTY_POINT }],
+    M: monthPts.length ? monthPts : [{ ...EMPTY_POINT }],
+    "3M": qPts.length ? qPts : monthPts.length ? monthPts : [{ ...EMPTY_POINT }],
+    A: allPt,
+  };
+}
 
 /** Index of the latest included bucket (inclusive). Anchored to calendar "now". */
 function getSliceEndIndex(range: Range, now: Date, len: number): number {
@@ -151,19 +193,53 @@ function buildWinRateRows(raw: SliceRow[]): WinRateRow[] {
 const gridStroke = "rgba(63,63,70,0.22)";
 const axisTick = { fill: "rgba(161,161,170,0.62)", fontSize: 11 };
 
-export default function PerformanceChart() {
+export default function PerformanceChart({
+  refreshNonce = 0,
+}: {
+  /** Bump from parent after submit-call etc. so charts refetch. */
+  refreshNonce?: number;
+}) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const { status } = useSession();
   const [range, setRange] = useState<Range>("W");
   const [clock, setClock] = useState(0);
+  const [datasets, setDatasets] = useState<Record<Range, RawPoint[]> | null>(null);
+
+  const loadSeries = useCallback(async () => {
+    if (status !== "authenticated") {
+      setDatasets(null);
+      return;
+    }
+    try {
+      const res = await fetch("/api/me/performance-lab", { credentials: "same-origin" });
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        series14d?: DailyCallBucket[];
+      };
+      if (!res.ok || json.success !== true || !Array.isArray(json.series14d)) {
+        setDatasets(null);
+        return;
+      }
+      setDatasets(buildDatasetsFromSeries(json.series14d));
+    } catch {
+      setDatasets(null);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    void loadSeries();
+  }, [loadSeries, refreshNonce]);
 
   useEffect(() => {
     const id = window.setInterval(() => setClock((c) => c + 1), 30_000);
     return () => window.clearInterval(id);
   }, []);
 
+  const fullForRange = datasets?.[range] ?? [{ ...EMPTY_POINT }];
+
   const visibleSlice = useMemo(
-    () => buildVisibleSliceRows(DATASETS[range], range, new Date()),
-    [range, clock],
+    () => buildVisibleSliceRows(fullForRange, range, new Date()),
+    [fullForRange, range, clock],
   );
 
   const performanceData = useMemo(

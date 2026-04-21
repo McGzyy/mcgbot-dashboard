@@ -17,7 +17,15 @@ import {
   YAxis,
 } from "recharts";
 
-type DailyBucket = { dayKey: string; label: string; calls: number; avgX: number; bestX: number };
+type DailyBucket = {
+  dayKey: string;
+  label: string;
+  calls: number;
+  avgX: number;
+  bestX: number;
+  wins?: number;
+  winRate?: number;
+};
 type Distribution = { under2: number; twoToFive: number; fivePlus: number; total: number };
 
 type LabPayload = {

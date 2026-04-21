@@ -15,7 +15,12 @@ import PerformanceChart from "@/components/dashboard/PerformanceChart";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
-import { callTimeMs, formatJoinedAt, multipleClass } from "@/lib/callDisplayFormat";
+import {
+  abbreviateCa,
+  callTimeMs,
+  formatJoinedAt,
+  multipleClass,
+} from "@/lib/callDisplayFormat";
 import type { HelpTier } from "@/lib/helpRole";
 import {
   DASHBOARD_CHAT_AUTHOR_COLOR,
@@ -1433,9 +1438,11 @@ function TrendingPanel() {
 function RankPanel({
   yourRankLoading,
   yourWeekRank,
+  stats,
 }: {
   yourRankLoading: boolean;
   yourWeekRank: number | null;
+  stats: MeStats | null;
 }) {
   /** Same D / W / M / A control as `app/leaderboard/page.tsx` "Your Rank" card. */
   const [range, setRange] = useState<"D" | "W" | "M" | "A">("D");
@@ -1447,9 +1454,6 @@ function RankPanel({
       M: "30d",
       A: "All time",
     }[range] ?? "24h";
-
-  const rankDeltaToday = range === "D" ? 2 : range === "W" ? -1 : range === "M" ? 0 : 1;
-  const rankImproving = rankDeltaToday > 0;
 
   const emptyRankHint =
     range === "D"
@@ -1463,10 +1467,7 @@ function RankPanel({
   /** Weekly rank from API; shown for every range until multi-period API exists. */
   const displayRank = yourWeekRank;
 
-  const shellRing =
-    !yourRankLoading && displayRank !== null && rankImproving
-      ? "ring-1 ring-green-500/20 shadow-[0_0_18px_rgba(34,197,94,0.12)]"
-      : "";
+  const shellRing = "";
 
   return (
     <div
@@ -1526,31 +1527,25 @@ function RankPanel({
                 <div className="mt-0.5 text-4xl font-bold tracking-tight text-white drop-shadow-[0_0_6px_rgba(34,197,94,0.3)]">
                   #{displayRank}
                 </div>
-                <div
-                  className={`mt-1 text-xs ${
-                    rankDeltaToday > 0
-                      ? "text-green-400"
-                      : rankDeltaToday < 0
-                        ? "text-red-400"
-                        : "text-zinc-500"
-                  }`}
-                >
-                  {rankDeltaToday > 0
-                    ? `↑ +${rankDeltaToday} today`
-                    : rankDeltaToday < 0
-                      ? `↓ ${rankDeltaToday} today`
-                      : "— today"}
+                <div className="mt-1 text-xs text-zinc-500">
+                  Rolling 7d callerboard
                 </div>
               </div>
 
               <div className="text-right">
-                <div className="text-sm text-zinc-500">Win Rate</div>
-                <div className="font-medium text-zinc-200">58%</div>
+                <div className="text-sm text-zinc-500">Win rate</div>
+                <div className="font-medium text-zinc-200">
+                  {stats === null ? "—" : `${stats.winRate.toFixed(0)}%`}
+                </div>
               </div>
             </div>
 
             <div className="mt-2 text-xs text-zinc-500">
-              18 calls • {timeframeLabel}
+              {stats === null
+                ? "—"
+                : range === "D"
+                  ? `${stats.callsToday} call${stats.callsToday === 1 ? "" : "s"} today • ${timeframeLabel}`
+                  : `${stats.totalCalls} verified call${stats.totalCalls === 1 ? "" : "s"} • same window as Personal Stats`}
             </div>
           </>
         )}
@@ -3814,7 +3809,7 @@ export default function Home() {
   return (
     <div className="mx-auto max-w-[1200px] px-1 sm:px-0">
       <div className="mb-8">
-        <PerformanceChart />
+        <PerformanceChart refreshNonce={homeDataRefreshNonce} />
       </div>
 
       <section className="mb-8 space-y-4">
@@ -3834,7 +3829,7 @@ export default function Home() {
         </div>
         <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   AVG X
@@ -3910,8 +3905,17 @@ export default function Home() {
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   LAST CALL
                 </div>
-                <div className="mt-2 text-sm font-medium text-zinc-200">
-                  {callsLoading || recentCalls.length === 0 ? "—" : recentCalls[0].token}
+                <div
+                  className="mt-2 min-w-0 truncate text-sm font-medium text-zinc-200"
+                  title={
+                    callsLoading || recentCalls.length === 0
+                      ? undefined
+                      : recentCalls[0].token
+                  }
+                >
+                  {callsLoading || recentCalls.length === 0
+                    ? "—"
+                    : abbreviateCa(recentCalls[0].token)}
                 </div>
                 <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   {callsLoading || recentCalls.length === 0 ? "—" : `${recentCalls[0].multiple.toFixed(1)}x`}
@@ -3931,6 +3935,7 @@ export default function Home() {
                   <RankPanel
                     yourRankLoading={yourRankLoading}
                     yourWeekRank={yourWeekRank}
+                    stats={stats}
                   />
                 ) : null}
                 <PanelCard
@@ -4076,8 +4081,8 @@ export default function Home() {
                       key={`${call.token}-${String(call.time)}-${i}`}
                       className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-1.5 text-zinc-300"
                     >
-                      <span className="min-w-0 font-medium text-zinc-100">
-                        {call.token}
+                      <span className="min-w-0 font-medium text-zinc-100" title={call.token}>
+                        {abbreviateCa(call.token)}
                         <span className="text-zinc-400"> → </span>
                         <span
                           className={`font-semibold tabular-nums ${multipleClass(

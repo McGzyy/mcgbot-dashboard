@@ -111,11 +111,18 @@ function formatDateJoined(createdAt: unknown): string | null {
   })}`;
 }
 
-function computeBestCall(calls: { multiple: number; token?: string }[]) {
-  if (!calls || calls.length === 0) return { best: null, token: null };
+function callsEligibleForSnapshot(
+  calls: { multiple: number; token?: string; excludedFromStats?: boolean }[]
+) {
+  return (calls || []).filter((c) => c.excludedFromStats !== true);
+}
+
+function computeBestCall(calls: { multiple: number; token?: string; excludedFromStats?: boolean }[]) {
+  const list = callsEligibleForSnapshot(calls);
+  if (!list.length) return { best: null, token: null };
   let best: number | null = null;
   let token: string | null = null;
-  for (const c of calls) {
+  for (const c of list) {
     if (!c || typeof c.multiple !== "number" || !Number.isFinite(c.multiple)) {
       continue;
     }
@@ -132,12 +139,15 @@ function computeBestCall(calls: { multiple: number; token?: string }[]) {
   return { best, token };
 }
 
-function computeHitRates(calls: { multiple: number }[]) {
-  if (!calls || calls.length === 0) {
+function computeHitRates(
+  calls: { multiple: number; excludedFromStats?: boolean }[]
+) {
+  const list = callsEligibleForSnapshot(calls);
+  if (!list.length) {
     return { rate2x: null, rate3x: null };
   }
 
-  const multiples = calls.map(c => c.multiple).filter(n => typeof n === "number");
+  const multiples = list.map(c => c.multiple).filter(n => typeof n === "number");
 
   if (multiples.length === 0) {
     return { rate2x: null, rate3x: null };
@@ -154,10 +164,11 @@ function computeHitRates(calls: { multiple: number }[]) {
   };
 }
 
-function getRecentForm(calls: { multiple: number }[]) {
-  if (!calls || calls.length === 0) return [];
+function getRecentForm(calls: { multiple: number; excludedFromStats?: boolean }[]) {
+  const list = callsEligibleForSnapshot(calls);
+  if (!list.length) return [];
 
-  return calls.slice(0, 5).map(c => {
+  return list.slice(0, 5).map(c => {
     const m = c.multiple;
 
     if (m >= 2) return "green";

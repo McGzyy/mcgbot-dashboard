@@ -6,6 +6,9 @@ export type DailyCallBucket = {
   calls: number;
   avgX: number;
   bestX: number;
+  wins: number;
+  /** % of calls that day with multiple ≥ 2 */
+  winRate: number;
 };
 
 function startOfUtcDayMs(ms: number): number {
@@ -26,9 +29,9 @@ export function buildDailyCallBuckets(
     keys.push(String(todayStart - i * dayMs));
   }
 
-  const byDay = new Map<string, { sum: number; n: number; best: number }>();
+  const byDay = new Map<string, { sum: number; n: number; best: number; wins: number }>();
   for (const k of keys) {
-    byDay.set(k, { sum: 0, n: 0, best: 0 });
+    byDay.set(k, { sum: 0, n: 0, best: 0, wins: 0 });
   }
 
   for (const r of rows) {
@@ -42,6 +45,7 @@ export function buildDailyCallBuckets(
     const b = byDay.get(key)!;
     b.n += 1;
     b.sum += x;
+    if (x >= 2) b.wins += 1;
     if (x > b.best) b.best = x;
   }
 
@@ -55,6 +59,8 @@ export function buildDailyCallBuckets(
       calls: b.n,
       avgX: b.n > 0 ? b.sum / b.n : 0,
       bestX: b.best,
+      wins: b.wins,
+      winRate: b.n > 0 ? (b.wins / b.n) * 100 : 0,
     };
   });
 }

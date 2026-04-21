@@ -5,6 +5,14 @@ export function callTimeMs(t: unknown): number {
   return rowCallTimeUtcMs({ call_time: t });
 }
 
+/** Shorten mint / CA strings for dense UI (e.g. `8cyR…pump`). */
+export function abbreviateCa(ca: string, headChars = 4, tailChars = 4): string {
+  const s = String(ca ?? "").trim();
+  if (!s) return "—";
+  if (s.length <= headChars + tailChars + 1) return s;
+  return `${s.slice(0, headChars)}…${s.slice(-tailChars)}`;
+}
+
 export function multipleClass(multiple: number): string {
   if (multiple >= 2) return "text-[#39FF14]";
   if (multiple < 1) return "text-red-400";
