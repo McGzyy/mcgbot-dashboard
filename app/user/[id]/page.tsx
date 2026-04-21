@@ -1565,7 +1565,7 @@ export default function UserProfilePage() {
 
   return (
     <div className="min-w-0">
-      <div className="mx-auto max-w-4xl animate-fade-in px-2 sm:px-0 lg:max-w-5xl">
+      <div className="mx-auto max-w-4xl animate-fade-in px-2 pb-16 sm:px-0 lg:max-w-5xl">
       <div className="relative mb-6 h-36 w-full overflow-hidden rounded-2xl border border-zinc-800/70 bg-zinc-950 shadow-lg shadow-black/40 sm:mb-7 sm:h-40">
         {profile?.banner_url ? (
           <img

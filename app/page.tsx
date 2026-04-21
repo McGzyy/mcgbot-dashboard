@@ -2558,6 +2558,7 @@ function DashboardChatPanel({
   const [tab, setTab] = useState<DashboardChatTab>("general");
   const [messages, setMessages] = useState<ChatMessagePayload[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chatError, setChatError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [draftByTab, setDraftByTab] = useState<{ general: string; mod: string }>({
     general: "",
@@ -2634,6 +2635,15 @@ function DashboardChatPanel({
           const qs = new URLSearchParams({ channel: tab });
           const res = await fetch(`/api/chat/messages?${qs.toString()}`);
           const json: any = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            const msg =
+              typeof json?.error === "string"
+                ? json.error
+                : `Chat request failed (${res.status}).`;
+            if (mode === "full") setChatError(msg);
+            return;
+          }
+          if (mode === "full") setChatError(null);
           const list = Array.isArray(json?.messages) ? (json.messages as any[]) : [];
           const parsed: ChatMessagePayload[] = list
             .filter((m) => m && typeof m === "object")
@@ -2699,6 +2709,7 @@ function DashboardChatPanel({
             .sort((a, b) => a.createdAt - b.createdAt);
           setMessages(parsed.slice(-60));
         } catch {
+          if (mode === "full") setChatError("Could not load chat.");
           // ignore; keep last good list
         } finally {
           if (mode === "full") setLoading(false);
@@ -2827,7 +2838,14 @@ function DashboardChatPanel({
           onScroll={handleScrollerScroll}
           className={`${scrollerClass} overflow-y-auto pr-1 text-sm no-scrollbar`}
         >
-          {loading ? (
+          {chatError ? (
+            <div className="flex h-full min-h-[200px] items-center justify-center px-4">
+              <div className="max-w-md text-center">
+                <p className="text-sm font-semibold text-red-200">Chat unavailable</p>
+                <p className="mt-1 text-xs leading-relaxed text-red-200/80">{chatError}</p>
+              </div>
+            </div>
+          ) : loading ? (
             <div className="flex h-full min-h-[200px] items-center justify-center">
               <p className="text-sm text-zinc-500">Loading chat…</p>
             </div>

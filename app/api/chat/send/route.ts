@@ -16,6 +16,10 @@ function requireEnv(name: string): string {
   return v;
 }
 
+function resolveDiscordBotToken(): string {
+  return requireEnv("DISCORD_TOKEN") || requireEnv("DISCORD_BOT_TOKEN") || "";
+}
+
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id?.trim() ?? "";
@@ -91,7 +95,7 @@ export async function POST(request: Request) {
   }
 
   const channelId = resolveDashboardChatChannelId(kind);
-  const token = requireEnv("DISCORD_TOKEN");
+  const token = resolveDiscordBotToken();
 
   if (!channelId) {
     return Response.json(
@@ -106,7 +110,7 @@ export async function POST(request: Request) {
   }
   if (!token) {
     return Response.json(
-      { error: "Chat is not configured (missing DISCORD_TOKEN)." },
+      { error: "Chat is not configured (missing DISCORD_TOKEN or DISCORD_BOT_TOKEN)." },
       { status: 503 }
     );
   }
