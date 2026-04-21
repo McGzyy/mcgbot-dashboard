@@ -28,6 +28,7 @@ function HelpPageContent() {
   const [bugTitle, setBugTitle] = useState("");
   const [bugDescription, setBugDescription] = useState("");
   const [bugSteps, setBugSteps] = useState("");
+  const [bugImages, setBugImages] = useState<File[]>([]);
   const [bugSubmitting, setBugSubmitting] = useState(false);
 
   useEffect(() => {
@@ -304,6 +305,28 @@ function HelpPageContent() {
                     />
                   </div>
 
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400">
+                      Screenshots (optional, up to 5)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      disabled={bugSubmitting}
+                      onChange={(e) => {
+                        const list = Array.from(e.target.files ?? []);
+                        setBugImages(list.slice(0, 5));
+                      }}
+                      className="mt-1 block w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-200 hover:file:bg-zinc-800 disabled:opacity-60"
+                    />
+                    {bugImages.length ? (
+                      <p className="mt-1 text-[11px] text-zinc-500">
+                        {bugImages.length} image{bugImages.length === 1 ? "" : "s"} selected
+                      </p>
+                    ) : null}
+                  </div>
+
                   <div className="flex items-center justify-end gap-2 pt-1">
                     <button
                       type="button"
@@ -331,6 +354,37 @@ function HelpPageContent() {
                         }
                         setBugSubmitting(true);
                         try {
+                          const screenshotUrls: string[] = [];
+                          for (const file of bugImages.slice(0, 5)) {
+                            const ct = file.type || "image/png";
+                            const uRes = await fetch("/api/report/bug/upload-url", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              credentials: "same-origin",
+                              body: JSON.stringify({
+                                filename: file.name || "screenshot.png",
+                                contentType: ct,
+                              }),
+                            });
+                            const uJson = await uRes.json().catch(() => ({}));
+                            if (!uRes.ok || !uJson || uJson.success !== true || typeof uJson.uploadUrl !== "string") {
+                              throw new Error(typeof uJson?.error === "string" ? uJson.error : "Upload init failed");
+                            }
+                            const uploadUrl = String(uJson.uploadUrl);
+                            const publicUrl = typeof uJson.publicUrl === "string" ? uJson.publicUrl : null;
+
+                            const put = await fetch(uploadUrl, {
+                              method: "PUT",
+                              headers: { "Content-Type": ct },
+                              body: file,
+                            });
+                            if (!put.ok) {
+                              const txt = await put.text().catch(() => "");
+                              throw new Error(`Upload failed (${put.status}) ${txt}`.trim());
+                            }
+                            if (publicUrl) screenshotUrls.push(publicUrl);
+                          }
+
                           const res = await fetch("/api/report/bug", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
@@ -340,7 +394,7 @@ function HelpPageContent() {
                               description: d,
                               reproductionSteps: bugSteps.trim() || null,
                               pageUrl: typeof window !== "undefined" ? window.location.href : null,
-                              screenshotUrls: [],
+                              screenshotUrls,
                             }),
                           });
                           const json = await res.json().catch(() => ({}));
@@ -365,6 +419,7 @@ function HelpPageContent() {
                           setBugTitle("");
                           setBugDescription("");
                           setBugSteps("");
+                          setBugImages([]);
                         } catch {
                           addNotification({
                             id: crypto.randomUUID(),

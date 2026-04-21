@@ -71,12 +71,12 @@ function SidebarBody({
           className="group flex items-center gap-3 rounded-xl p-1 transition-colors hover:bg-white/[0.03]"
           aria-label="Go to dashboard"
         >
-          <div className="relative h-12 w-12 bg-transparent">
+          <div className="relative h-14 w-14 bg-transparent">
             <Image
               src="/brand/mcgbot-logo-v2.png"
               alt="McGBot"
               fill
-              sizes="48px"
+              sizes="56px"
               priority
               className="object-contain"
             />

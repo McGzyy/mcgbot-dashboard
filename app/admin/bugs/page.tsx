@@ -20,6 +20,15 @@ type BugRow = {
   closed_by_discord_id: string | null;
 };
 
+function screenshotUrls(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((x) => typeof x === "string")
+    .map((s) => String(s).trim())
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
 function statusBadge(status: string): string {
   if (status === "open") return "border-rose-500/30 bg-rose-500/10 text-rose-200";
   if (status === "triaged") return "border-sky-500/30 bg-sky-500/10 text-sky-200";
@@ -171,6 +180,7 @@ export default function AdminBugsPage() {
                 ) : (
                   rows.map((r) => {
                     const draft = notesDraft[r.id] ?? "";
+                    const shots = screenshotUrls(r.screenshot_urls);
                     return (
                       <tr key={r.id} className="align-top hover:bg-zinc-900/30">
                         <td className="px-4 py-3">
@@ -184,6 +194,29 @@ export default function AdminBugsPage() {
                             <div className="text-xs leading-relaxed text-zinc-400">
                               {r.description}
                             </div>
+                            {shots.length ? (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {shots.map((u) => (
+                                  <a
+                                    key={u}
+                                    href={u}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group relative block h-14 w-14 overflow-hidden rounded-lg border border-zinc-800 bg-black/30"
+                                    title="Open screenshot"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={u}
+                                      alt=""
+                                      className="h-full w-full object-cover transition group-hover:scale-105"
+                                      loading="lazy"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  </a>
+                                ))}
+                              </div>
+                            ) : null}
                             {r.page_url ? (
                               <div className="text-[11px] text-zinc-500">
                                 Page:{" "}

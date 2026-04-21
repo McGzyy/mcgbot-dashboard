@@ -10,7 +10,7 @@ function normalizeUrls(raw: unknown): string[] {
     const s = typeof u === "string" ? u.trim() : "";
     if (!s) continue;
     out.push(s.slice(0, 800));
-    if (out.length >= 8) break;
+    if (out.length >= 5) break;
   }
   return out;
 }
