@@ -29,7 +29,7 @@ export async function GET() {
       supabase
         .from("call_performance")
         .select(
-          "id, call_ca, ath_multiple, call_time, excluded_from_stats, token_name, token_ticker, call_market_cap_usd"
+          "id, call_ca, ath_multiple, call_time, excluded_from_stats, token_name, token_ticker, call_market_cap_usd, token_image_url"
         )
         .eq("discord_id", discordId)
         .order("call_time", { ascending: false })

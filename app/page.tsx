@@ -20,6 +20,7 @@ import {
   callTimeMs,
   formatCalledSnapshotLine,
   formatJoinedAt,
+  formatNameAndTickerLine,
   multipleClass,
 } from "@/lib/callDisplayFormat";
 import type { HelpTier } from "@/lib/helpRole";
@@ -346,10 +347,20 @@ type RecentCallRow = {
   tokenName?: string | null;
   tokenTicker?: string | null;
   callMarketCapUsd?: number | null;
+  tokenImageUrl?: string | null;
 };
 
 function homeRecentCallSummary(call: RecentCallRow): string {
   return formatCalledSnapshotLine({
+    tokenName: call.tokenName,
+    tokenTicker: call.tokenTicker,
+    callMarketCapUsd: call.callMarketCapUsd ?? null,
+    callCa: call.token,
+  });
+}
+
+function homeLastCallHeadline(call: RecentCallRow): string {
+  return formatNameAndTickerLine({
     tokenName: call.tokenName,
     tokenTicker: call.tokenTicker,
     callMarketCapUsd: call.callMarketCapUsd ?? null,
@@ -757,6 +768,7 @@ type ActivityItem = {
   link_post: string | null;
   multiple: number;
   discordId: string;
+  tokenImageUrl?: string | null;
 };
 
 type NotificationPrefs = {
@@ -956,7 +968,7 @@ function renderActivityFeedLine(
             {name}
           </Link>
           <UserBadgeIcons badges={badges} className="ml-1" />
-          {" "}called {renderTextSegmentWithCa(tail, dex)}
+          {" "}called {tail}
         </>
       );
     }
@@ -1874,6 +1886,16 @@ function ActivityFeedPanel({
                       onFollowingChange={(next) => setFollowing(item.discordId, next)}
                       className="mt-0.5"
                     />
+                    {item.tokenImageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.tokenImageUrl}
+                        alt=""
+                        className="mt-0.5 h-8 w-8 shrink-0 rounded-md border border-zinc-700/60 object-cover"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : null}
                     <span
                       className="mt-0.5 flex w-8 shrink-0 justify-center text-base leading-none opacity-[0.88]"
                       aria-hidden
@@ -3175,6 +3197,15 @@ export default function Home() {
   /** Bumps after submit-call success so stats / lists refetch without a full page reload. */
   const [homeDataRefreshNonce, setHomeDataRefreshNonce] = useState(0);
   const [helpTier, setHelpTier] = useState<HelpTier>("user");
+
+  /** Refetch stats / charts / rank while monitoring updates Supabase in the background. */
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.user?.id?.trim()) return;
+    const id = window.setInterval(() => {
+      setHomeDataRefreshNonce((n) => n + 1);
+    }, 20_000);
+    return () => window.clearInterval(id);
+  }, [status, session?.user?.id]);
   const [modChatConfigured, setModChatConfigured] = useState(false);
 
   useEffect(() => {
@@ -3313,6 +3344,11 @@ export default function Home() {
             typeof usernameRaw === "string" && usernameRaw.trim() !== ""
               ? usernameRaw.trim()
               : "";
+          const imgRaw = o.tokenImageUrl ?? o.token_image_url;
+          const tokenImageUrl =
+            typeof imgRaw === "string" && imgRaw.trim() !== ""
+              ? imgRaw.trim()
+              : null;
           parsed.push({
             type: o.type,
             text,
@@ -3322,6 +3358,7 @@ export default function Home() {
             link_post,
             multiple,
             discordId,
+            tokenImageUrl,
           });
         }
 
@@ -3472,6 +3509,11 @@ export default function Home() {
             const mcRaw = o.callMarketCapUsd;
             const mcNum =
               typeof mcRaw === "number" ? mcRaw : Number(mcRaw ?? NaN);
+            const imgRaw = o.tokenImageUrl ?? o.token_image_url;
+            const tokenImageUrl =
+              typeof imgRaw === "string" && imgRaw.trim()
+                ? imgRaw.trim()
+                : null;
             parsed.push({
               token: token || "Unknown",
               multiple,
@@ -3481,6 +3523,7 @@ export default function Home() {
               tokenTicker,
               callMarketCapUsd:
                 Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
+              tokenImageUrl,
             });
           }
           setRecentCalls(parsed);
@@ -3961,12 +4004,12 @@ export default function Home() {
                   title={
                     callsLoading || recentCalls.length === 0
                       ? undefined
-                      : `${homeRecentCallSummary(recentCalls[0])}\n${recentCalls[0].token}`
+                      : homeLastCallHeadline(recentCalls[0])
                   }
                 >
                   {callsLoading || recentCalls.length === 0
                     ? "—"
-                    : homeRecentCallSummary(recentCalls[0])}
+                    : homeLastCallHeadline(recentCalls[0])}
                 </div>
                 <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   {callsLoading || recentCalls.length === 0 ? "—" : `${recentCalls[0].multiple.toFixed(1)}x`}
@@ -4134,10 +4177,22 @@ export default function Home() {
                     >
                       <span
                         className="min-w-0 font-medium text-zinc-100"
-                        title={`${homeRecentCallSummary(call)}\n${call.token}`}
+                        title={homeRecentCallSummary(call)}
                       >
-                        <span className="block min-w-0 truncate text-zinc-100">
-                          {homeRecentCallSummary(call)}
+                        <span className="flex min-w-0 items-start gap-2">
+                          {call.tokenImageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={call.tokenImageUrl}
+                              alt=""
+                              className="mt-0.5 h-7 w-7 shrink-0 rounded-md border border-zinc-700/50 object-cover"
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : null}
+                          <span className="min-w-0 flex-1 truncate text-zinc-100">
+                            {homeRecentCallSummary(call)}
+                          </span>
                         </span>
                         <span className="mt-0.5 inline-flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
                           <span

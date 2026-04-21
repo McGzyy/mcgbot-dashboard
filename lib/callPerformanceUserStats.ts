@@ -11,6 +11,7 @@ export type RecentCallDto = {
   tokenName?: string | null;
   tokenTicker?: string | null;
   callMarketCapUsd?: number | null;
+  tokenImageUrl?: string | null;
 };
 
 /** Same rules as `/api/me/stats`: avg of `ath_multiple`, win = multiple ≥ 2. */
@@ -151,6 +152,9 @@ export function mapCallPerformanceRowToRecentCall(
   const tt = (row as Record<string, unknown>).token_ticker;
   const mcRaw = (row as Record<string, unknown>).call_market_cap_usd;
   const mcNum = typeof mcRaw === "number" ? mcRaw : Number(mcRaw);
+  const imgRaw = (row as Record<string, unknown>).token_image_url;
+  const tokenImageUrl =
+    typeof imgRaw === "string" && imgRaw.trim() ? imgRaw.trim().slice(0, 800) : null;
   return {
     id: id || undefined,
     token,
@@ -161,6 +165,7 @@ export function mapCallPerformanceRowToRecentCall(
     tokenTicker: typeof tt === "string" && tt.trim() ? tt.trim() : null,
     callMarketCapUsd:
       Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
+    tokenImageUrl,
   };
 }
 

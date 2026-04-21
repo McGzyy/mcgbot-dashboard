@@ -18,13 +18,8 @@ type TapeRow = {
   tokenName?: string | null;
   tokenTicker?: string | null;
   callMarketCapUsd?: number | null;
+  tokenImageUrl?: string | null;
 };
-
-function shortCa(ca: string) {
-  const s = ca.trim();
-  if (s.length <= 14) return s || "—";
-  return `${s.slice(0, 6)}…${s.slice(-4)}`;
-}
 
 const WINDOWS = [
   { id: "7d", label: "7 days" },
@@ -189,7 +184,18 @@ export default function CallTapePage() {
                         {iso ? formatRelativeTime(iso) : "—"}
                       </td>
                       <td className="max-w-[min(360px,55vw)] px-4 py-3 text-xs text-zinc-200">
-                        <div className="min-w-0 space-y-0.5">
+                        <div className="flex min-w-0 gap-2">
+                          {r.tokenImageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={r.tokenImageUrl}
+                              alt=""
+                              className="mt-0.5 h-8 w-8 shrink-0 rounded-md border border-zinc-700/50 object-cover"
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : null}
+                          <div className="min-w-0 flex-1 space-y-0.5">
                           <div className="font-medium leading-snug text-zinc-100">
                             {formatCalledSnapshotLine({
                               tokenName: r.tokenName,
@@ -203,12 +209,13 @@ export default function CallTapePage() {
                               href={dex ?? "#"}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-block font-mono text-[11px] text-cyan-400/90 hover:underline"
-                              title={r.callCa}
+                              className="inline-block text-[11px] font-medium text-cyan-400/90 hover:underline"
+                              title="Open chart on Dexscreener"
                             >
-                              {shortCa(r.callCa)}
+                              Dex
                             </a>
                           ) : null}
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-emerald-300">

@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     let query = supabase
       .from("call_performance")
       .select(
-        "username, discord_id, ath_multiple, call_time, source, call_ca, message_url, excluded_from_stats, token_name, token_ticker, call_market_cap_usd"
+        "username, discord_id, ath_multiple, call_time, source, call_ca, message_url, excluded_from_stats, token_name, token_ticker, call_market_cap_usd, token_image_url"
       );
 
     const t = tier.toLowerCase().trim();
@@ -129,6 +129,12 @@ export async function GET(request: Request) {
           ? r.token_ticker.trim()
           : null;
       const mcNum = Number(r.call_market_cap_usd);
+      const imgRaw = r.token_image_url;
+      const tokenImageUrl =
+        typeof imgRaw === "string" && imgRaw.trim() !== ""
+          ? imgRaw.trim().slice(0, 800)
+          : null;
+
       const meta = {
         tokenName: tn,
         tokenTicker: tt,
@@ -147,6 +153,7 @@ export async function GET(request: Request) {
           link_post,
           multiple,
           discordId,
+          tokenImageUrl,
         };
       }
 
@@ -159,6 +166,7 @@ export async function GET(request: Request) {
         link_post,
         multiple,
         discordId,
+        tokenImageUrl,
       };
     });
 

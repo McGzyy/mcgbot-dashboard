@@ -590,7 +590,7 @@ async function applyScannerEnabledFromDashboard(enabled) {
   const botChannel = firstGuild ? getBotCallsChannel(firstGuild) : null;
 
   if (want) {
-    startMonitoring(botChannel, 60000);
+    startMonitoring(botChannel, { userIntervalMs: 30000, botIntervalMs: 60000 });
     startAutoCallLoop(botChannel);
   } else {
     stopMonitoring();
@@ -1942,7 +1942,7 @@ console.log(`📡 Alerts will post in: #${botChannel.name}`);
   console.log(`[DevTracker] Loaded ${trackedDevs.length} tracked dev(s).`);
 
   if (SCANNER_ENABLED) {
-  startMonitoring(botChannel, 60000);
+  startMonitoring(botChannel, { userIntervalMs: 30000, botIntervalMs: 60000 });
   startAutoCallLoop(botChannel);
 }
 

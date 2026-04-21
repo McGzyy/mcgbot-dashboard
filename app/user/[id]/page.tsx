@@ -32,6 +32,7 @@ type RecentCallRow = {
   tokenName?: string | null;
   tokenTicker?: string | null;
   callMarketCapUsd?: number | null;
+  tokenImageUrl?: string | null;
 };
 
 type ProfilePayload = {
@@ -581,6 +582,9 @@ function parseProfile(json: unknown): ProfilePayload | null {
       const mcRaw = r.callMarketCapUsd ?? r.call_market_cap_usd;
       const mcNum =
         typeof mcRaw === "number" ? mcRaw : Number(mcRaw ?? NaN);
+      const imgRaw = r.tokenImageUrl ?? r.token_image_url;
+      const tokenImageUrl =
+        typeof imgRaw === "string" && imgRaw.trim() ? imgRaw.trim() : null;
       recentCalls.push({
         id: id || undefined,
         token: token || "Unknown",
@@ -591,6 +595,7 @@ function parseProfile(json: unknown): ProfilePayload | null {
         tokenTicker,
         callMarketCapUsd:
           Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
+        tokenImageUrl,
       });
     }
   }
@@ -1704,7 +1709,18 @@ export default function UserProfilePage() {
                         className="group grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 py-2.5 text-zinc-300 transition first:pt-2 hover:bg-zinc-800/25 sm:gap-x-4"
                       >
                         <span className="min-w-0 text-[13px] leading-snug">
-                          <div className="min-w-0">
+                          <div className="flex min-w-0 items-start gap-2">
+                            {call.tokenImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={call.tokenImageUrl}
+                                alt=""
+                                className="mt-0.5 h-7 w-7 shrink-0 rounded-md border border-zinc-700/50 object-cover"
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : null}
+                            <div className="min-w-0 flex-1">
                             {dexUrl ? (
                               <a
                                 href={dexUrl}
@@ -1728,6 +1744,7 @@ export default function UserProfilePage() {
                                 {abbreviateCa(ca)}
                               </span>
                             ) : null}
+                            </div>
                           </div>
                           <div className="mt-1.5 flex flex-wrap gap-1">
                             {isOwnProfile && call.id ? (

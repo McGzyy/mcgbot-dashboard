@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     const { data, error, count } = await supabase
       .from("call_performance")
       .select(
-        "id, call_ca, ath_multiple, call_time, source, message_url, username, excluded_from_stats, token_name, token_ticker, call_market_cap_usd",
+        "id, call_ca, ath_multiple, call_time, source, message_url, username, excluded_from_stats, token_name, token_ticker, call_market_cap_usd, token_image_url",
         { count: "exact" }
       )
       .eq("discord_id", discordId)
@@ -59,6 +59,9 @@ export async function GET(request: Request) {
       const mcNum = typeof mcRaw === "number" ? mcRaw : Number(mcRaw);
       const tn = r.token_name;
       const tt = r.token_ticker;
+      const imgRaw = r.token_image_url;
+      const tokenImageUrl =
+        typeof imgRaw === "string" && imgRaw.trim() ? imgRaw.trim().slice(0, 800) : null;
       return {
         id: r.id != null ? String(r.id) : "",
         callCa: typeof r.call_ca === "string" ? r.call_ca.trim() : String(r.call_ca ?? ""),
@@ -72,6 +75,7 @@ export async function GET(request: Request) {
         tokenTicker: typeof tt === "string" && tt.trim() ? tt.trim() : null,
         callMarketCapUsd:
           Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
+        tokenImageUrl,
       };
     });
 
