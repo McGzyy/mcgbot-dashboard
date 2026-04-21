@@ -19,7 +19,15 @@ async function sessionUserId(): Promise<string | null> {
 }
 
 const PROFILE_SELECT =
-  "bio, banner_url, x_handle, x_verified, profile_visibility, x_milestone_tag_enabled, x_milestone_tag_min_multiple";
+  "bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, profile_visibility, x_milestone_tag_enabled, x_milestone_tag_min_multiple";
+
+function parseCropPercent(raw: unknown): number | null {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return null;
+  const v = Math.round(n);
+  if (v < 0 || v > 100) return null;
+  return v;
+}
 
 function parseProfileVisibility(raw: unknown): Record<string, unknown> {
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
@@ -53,6 +61,8 @@ export async function GET() {
 
     const bio = row && typeof row.bio === "string" ? row.bio : "";
     const banner_url = row && typeof row.banner_url === "string" ? row.banner_url : "";
+    const banner_crop_x = parseCropPercent(row?.banner_crop_x);
+    const banner_crop_y = parseCropPercent(row?.banner_crop_y);
     const x_handle = row && typeof row.x_handle === "string" ? row.x_handle : "";
     const profile_visibility = parseProfileVisibility(row?.profile_visibility);
 
@@ -72,6 +82,8 @@ export async function GET() {
     return Response.json({
       bio,
       banner_url,
+      banner_crop_x,
+      banner_crop_y,
       x_handle,
       x_verified,
       profile_visibility,
@@ -120,6 +132,8 @@ export async function POST(request: Request) {
       discord_id: discordId,
       bio: row && typeof row.bio === "string" ? row.bio : "",
       banner_url: row && typeof row.banner_url === "string" ? row.banner_url : "",
+      banner_crop_x: parseCropPercent(row?.banner_crop_x),
+      banner_crop_y: parseCropPercent(row?.banner_crop_y),
       x_handle: row && typeof row.x_handle === "string" ? row.x_handle : "",
       x_verified: Boolean(
         row &&
@@ -154,6 +168,16 @@ export async function POST(request: Request) {
         const s = typeof raw === "string" ? raw : String(raw);
         merged.banner_url = s.length > 2048 ? s.slice(0, 2048) : s;
       }
+    }
+
+    if ("banner_crop_x" in body || "bannerCropX" in body) {
+      const raw = (body as any).banner_crop_x ?? (body as any).bannerCropX;
+      merged.banner_crop_x = parseCropPercent(raw);
+    }
+
+    if ("banner_crop_y" in body || "bannerCropY" in body) {
+      const raw = (body as any).banner_crop_y ?? (body as any).bannerCropY;
+      merged.banner_crop_y = parseCropPercent(raw);
     }
 
     if ("x_handle" in body || "xHandle" in body) {

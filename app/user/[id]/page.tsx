@@ -10,6 +10,12 @@ import {
   multipleClass,
 } from "@/lib/callDisplayFormat";
 import { looksLikeDiscordSnowflake } from "@/lib/discordIdentity";
+import {
+  callClubMilestoneEmoji,
+  callClubMilestoneLabel,
+  compareMilestoneKeys,
+} from "@/lib/milestoneTrophies";
+import { useNotifications } from "@/app/contexts/NotificationsContext";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -45,6 +51,8 @@ type ProfilePayload = {
   bio: string | null;
   created_at?: unknown;
   banner_url: string | null;
+  banner_crop_x?: number | null;
+  banner_crop_y?: number | null;
   x_handle?: string | null;
   x_verified?: boolean;
   callDistribution?: {
@@ -80,12 +88,24 @@ type TrophyRow = {
   createdAt: string | null;
 };
 
+type MilestoneTrophyRow = {
+  id: string;
+  milestoneKey: string;
+  createdAt: string | null;
+};
+
 type TrophiesByTimeframe = Record<TrophyTimeframe, TrophyRow[]>;
 
 type EditableProfile = {
   bio: string | null;
   banner_url: string | null;
 };
+
+function clampCropPercent(raw: unknown, fallback: number = 50): number {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
 
 const BIO_MAX = 200;
 
@@ -342,6 +362,92 @@ function parseTrophiesPayload(json: unknown): TrophiesByTimeframe | null {
     }
   }
   return out;
+}
+
+function parseMilestoneTrophiesPayload(json: unknown): MilestoneTrophyRow[] {
+  if (!json || typeof json !== "object" || "error" in json) return [];
+  const o = json as Record<string, unknown>;
+  const raw = o.milestones;
+  if (!Array.isArray(raw)) return [];
+  const out: MilestoneTrophyRow[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const id = typeof r.id === "string" ? r.id : String(r.id ?? "");
+    const mkRaw =
+      typeof r.milestoneKey === "string"
+        ? r.milestoneKey
+        : typeof r.milestone_key === "string"
+          ? r.milestone_key
+          : "";
+    const milestoneKey = mkRaw.trim();
+    const ca = r.createdAt ?? r.created_at;
+    const createdAt =
+      ca == null
+        ? null
+        : typeof ca === "string"
+          ? ca
+          : String(ca);
+    if (!id || !milestoneKey) continue;
+    out.push({ id, milestoneKey, createdAt });
+  }
+  out.sort((a, b) => compareMilestoneKeys(a.milestoneKey, b.milestoneKey));
+  return out;
+}
+
+function formatMilestoneJoinedTooltip(createdAt: string | null): string {
+  if (!createdAt) return "Call club — earned once per account";
+  const d = new Date(createdAt);
+  if (isNaN(d.getTime())) return "Call club — earned once per account";
+  const when = d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return `Joined ${when} (UTC)`;
+}
+
+function MilestoneClubStrip({ items }: { items: MilestoneTrophyRow[] }) {
+  return (
+    <div className="overflow-visible">
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+        Call clubs
+      </p>
+      <p className="mb-2 text-[11px] leading-snug text-zinc-600">
+        One badge per club when any of your eligible dashboard calls hits the
+        multiple (lifetime).
+      </p>
+      <div className="flex flex-wrap items-center gap-2 overflow-visible sm:gap-2.5">
+        {items.length === 0 ? (
+          <span className="text-sm text-zinc-600">None yet</span>
+        ) : (
+          items.map((m) => {
+            const label = callClubMilestoneLabel(m.milestoneKey);
+            const tip = `${label} — ${formatMilestoneJoinedTooltip(m.createdAt)}`;
+            return (
+              <span
+                key={m.id}
+                className="group relative inline-flex shrink-0 cursor-default select-none rounded-md bg-gradient-to-b from-violet-950/50 to-zinc-950/90 px-2 py-1 text-xs font-medium text-violet-100 ring-1 ring-violet-500/35 shadow-md shadow-black/30"
+                aria-label={tip}
+              >
+                <span className="mr-1.5" aria-hidden>
+                  {callClubMilestoneEmoji(m.milestoneKey)}
+                </span>
+                {label}
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 max-w-[220px] -translate-x-1/2 whitespace-pre-wrap rounded bg-zinc-800 px-2 py-1 text-left text-[11px] leading-snug text-zinc-200 opacity-0 shadow transition-opacity delay-75 duration-150 group-hover:opacity-100"
+                >
+                  {tip}
+                </span>
+              </span>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
 }
 
 function TrophyTierRow({
@@ -626,6 +732,14 @@ function parseProfile(json: unknown): ProfilePayload | null {
         : typeof (o.banner_url ?? o.bannerUrl) === "string"
           ? String(o.banner_url ?? o.bannerUrl)
           : String(o.banner_url ?? o.bannerUrl),
+    banner_crop_x:
+      (o.banner_crop_x ?? o.bannerCropX) == null
+        ? null
+        : clampCropPercent(o.banner_crop_x ?? o.bannerCropX, 50),
+    banner_crop_y:
+      (o.banner_crop_y ?? o.bannerCropY) == null
+        ? null
+        : clampCropPercent(o.banner_crop_y ?? o.bannerCropY, 50),
     x_handle:
       (o.x_handle ?? o.xHandle) == null
         ? null
@@ -682,6 +796,7 @@ export default function UserProfilePage() {
     typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
   const profileUserId = userId.trim();
   const { data: session } = useSession();
+  const { addNotification } = useNotifications();
   const isAdmin =
     (session?.user as { helpTier?: string } | undefined)?.helpTier === "admin";
 
@@ -699,6 +814,9 @@ export default function UserProfilePage() {
     isFollowing: boolean;
   } | null>(null);
   const [trophies, setTrophies] = useState<TrophiesByTimeframe | null>(null);
+  const [milestoneTrophies, setMilestoneTrophies] = useState<MilestoneTrophyRow[]>(
+    []
+  );
   const [trophiesLoading, setTrophiesLoading] = useState(true);
   const [badges, setBadges] = useState<string[]>([]);
   const [editOpen, setEditOpen] = useState(false);
@@ -706,8 +824,15 @@ export default function UserProfilePage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editBio, setEditBio] = useState("");
   const [editBannerUrl, setEditBannerUrl] = useState("");
+  const [editBannerCropX, setEditBannerCropX] = useState<number>(50);
+  const [editBannerCropY, setEditBannerCropY] = useState<number>(50);
   const [editXHandle, setEditXHandle] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("rugs");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportEvidence, setReportEvidence] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const [pinnedCall, setPinnedCall] = useState<{
     id: string;
     token: string;
@@ -1038,6 +1163,8 @@ export default function UserProfilePage() {
           if (!cancelled) {
             setEditBio("");
             setEditBannerUrl("");
+            setEditBannerCropX(50);
+            setEditBannerCropY(50);
             setEditXHandle("");
           }
           return;
@@ -1049,6 +1176,8 @@ export default function UserProfilePage() {
         const o = data as Record<string, unknown>;
         const bio = o.bio;
         const banner = o.banner_url ?? o.bannerUrl;
+        const cropX = o.banner_crop_x ?? o.bannerCropX;
+        const cropY = o.banner_crop_y ?? o.bannerCropY;
         const xh = o.x_handle ?? o.xHandle;
 
         if (cancelled) return;
@@ -1056,6 +1185,8 @@ export default function UserProfilePage() {
         setEditBannerUrl(
           typeof banner === "string" ? banner : banner == null ? "" : String(banner)
         );
+        setEditBannerCropX(clampCropPercent(cropX, 50));
+        setEditBannerCropY(clampCropPercent(cropY, 50));
         setEditXHandle(
           typeof xh === "string"
             ? xh.replace(/^@+/, "")
@@ -1068,6 +1199,8 @@ export default function UserProfilePage() {
         if (!cancelled) {
           setEditBio("");
           setEditBannerUrl("");
+          setEditBannerCropX(50);
+          setEditBannerCropY(50);
           setEditXHandle("");
         }
       } finally {
@@ -1149,24 +1282,34 @@ export default function UserProfilePage() {
     if (!resolvedSnowflake) {
       setTrophiesLoading(false);
       setTrophies(null);
+      setMilestoneTrophies([]);
       return;
     }
 
     let cancelled = false;
     setTrophiesLoading(true);
-    const url = `/api/user/${encodeURIComponent(resolvedSnowflake)}/trophies`;
-    fetch(url)
-      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
-      .then(({ ok, data }) => {
+    const base = `/api/user/${encodeURIComponent(resolvedSnowflake)}`;
+
+    Promise.all([
+      fetch(`${base}/trophies`).then((res) =>
+        res.json().then((data) => ({ ok: res.ok, data }))
+      ),
+      fetch(`${base}/milestone-trophies`).then((res) =>
+        res.json().then((data) => ({ ok: res.ok, data }))
+      ),
+    ])
+      .then(([{ ok: okT, data: dataT }, { ok: okM, data: dataM }]) => {
         if (cancelled) return;
-        if (!ok) {
-          setTrophies(null);
-          return;
-        }
-        setTrophies(parseTrophiesPayload(data));
+        if (okT) setTrophies(parseTrophiesPayload(dataT));
+        else setTrophies(null);
+        if (okM) setMilestoneTrophies(parseMilestoneTrophiesPayload(dataM));
+        else setMilestoneTrophies([]);
       })
       .catch(() => {
-        if (!cancelled) setTrophies(null);
+        if (!cancelled) {
+          setTrophies(null);
+          setMilestoneTrophies([]);
+        }
       })
       .finally(() => {
         if (!cancelled) setTrophiesLoading(false);
@@ -1201,6 +1344,67 @@ export default function UserProfilePage() {
     } catch (e) {
     }
   }, [resolvedSnowflake]);
+
+  const submitProfileReport = useCallback(async () => {
+    const target = resolvedSnowflake;
+    if (!target) return;
+    if (reportSubmitting) return;
+    const reason = reportReason.trim();
+    if (!reason) return;
+    setReportSubmitting(true);
+    try {
+      const evidenceUrls = reportEvidence
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 8);
+      const res = await fetch("/api/report/profile", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetUserId: target,
+          reason,
+          details: reportDetails.trim() || null,
+          evidenceUrls,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json || json.success !== true) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text:
+            typeof (json as any).error === "string"
+              ? (json as any).error
+              : "Failed to submit report.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+        return;
+      }
+      addNotification({
+        id: crypto.randomUUID(),
+        text: "Report submitted. Thank you.",
+        type: "call",
+        createdAt: Date.now(),
+        priority: "medium",
+      });
+      setReportOpen(false);
+      setReportDetails("");
+      setReportEvidence("");
+    } catch {
+      addNotification({
+        id: crypto.randomUUID(),
+        text: "Failed to submit report.",
+        type: "call",
+        createdAt: Date.now(),
+        priority: "low",
+      });
+    } finally {
+      setReportSubmitting(false);
+    }
+  }, [addNotification, reportDetails, reportEvidence, reportReason, reportSubmitting, resolvedSnowflake]);
 
   const nowMs = Date.now();
   const snowflakeForFollow = resolvedSnowflake;
@@ -1292,6 +1496,8 @@ export default function UserProfilePage() {
         body: JSON.stringify({
           bio,
           banner_url,
+          banner_crop_x: editBannerCropX,
+          banner_crop_y: editBannerCropY,
           x_handle: xHandle,
         }),
       });
@@ -1365,7 +1571,10 @@ export default function UserProfilePage() {
           <img
             src={profile.banner_url}
             alt="Profile Banner"
-            className="h-full w-full object-cover object-center"
+            className="h-full w-full object-cover"
+            style={{
+              objectPosition: `${clampCropPercent(profile.banner_crop_x, 50)}% ${clampCropPercent(profile.banner_crop_y, 50)}%`,
+            }}
           />
         ) : (
           <div className="h-full w-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950" />
@@ -1414,19 +1623,28 @@ export default function UserProfilePage() {
                   Edit Profile
                 </button>
               ) : (
-                <FollowButton
-                  targetDiscordId={snowflakeForFollow}
-                  following={followingState}
-                  onFollowingChange={(next) => {
-                    if (!snowflakeForFollow) return;
-                    setFollowing(snowflakeForFollow, next);
-                    setFollowStats((prev) =>
-                      prev ? { ...prev, isFollowing: next } : prev
-                    );
-                  }}
-                  onCountsRefresh={refreshFollowStats}
-                  className="px-3 py-1.5 text-xs sm:ml-auto"
-                />
+                <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                  <FollowButton
+                    targetDiscordId={snowflakeForFollow}
+                    following={followingState}
+                    onFollowingChange={(next) => {
+                      if (!snowflakeForFollow) return;
+                      setFollowing(snowflakeForFollow, next);
+                      setFollowStats((prev) =>
+                        prev ? { ...prev, isFollowing: next } : prev
+                      );
+                    }}
+                    onCountsRefresh={refreshFollowStats}
+                    className="px-3 py-1.5 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setReportOpen(true)}
+                    className="rounded-lg border border-zinc-700/70 bg-zinc-900/40 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
+                  >
+                    Report
+                  </button>
+                </div>
               )}
             </div>
             {!loading && (bioText || joinedText) ? (
@@ -1592,53 +1810,63 @@ export default function UserProfilePage() {
           <section className="mb-4">
             <PanelCard title="Trophy Case" className="overflow-visible">
               {trophiesLoading ? (
-                <div
-                  className="mt-3 grid gap-3 sm:grid-cols-3"
-                  aria-busy
-                  aria-label="Loading trophies"
-                >
-                  {(["Daily", "Weekly", "Monthly"] as const).map((label) => (
-                    <div
-                      key={label}
-                      className="rounded-lg border border-zinc-800/40 bg-zinc-950/30 px-3 py-3"
-                    >
-                      <div className="mb-2 h-3 w-14 animate-pulse rounded bg-zinc-800/90" />
-                      <div className="flex flex-wrap gap-2">
-                        {Array.from({ length: 5 }, (_, j) => (
-                          <div
-                            key={j}
-                            className="h-7 w-7 shrink-0 animate-pulse rounded-md bg-zinc-800/80"
-                          />
-                        ))}
+                <div className="mt-3 space-y-4" aria-busy aria-label="Loading trophies">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {(["Daily", "Weekly", "Monthly"] as const).map((label) => (
+                      <div
+                        key={label}
+                        className="rounded-lg border border-zinc-800/40 bg-zinc-950/30 px-3 py-3"
+                      >
+                        <div className="mb-2 h-3 w-14 animate-pulse rounded bg-zinc-800/90" />
+                        <div className="flex flex-wrap gap-2">
+                          {Array.from({ length: 5 }, (_, j) => (
+                            <div
+                              key={j}
+                              className="h-7 w-7 shrink-0 animate-pulse rounded-md bg-zinc-800/80"
+                            />
+                          ))}
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                  <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/30 px-3 py-3">
+                    <div className="mb-2 h-3 w-24 animate-pulse rounded bg-zinc-800/90" />
+                    <div className="flex flex-wrap gap-2">
+                      <div className="h-8 w-28 shrink-0 animate-pulse rounded-md bg-zinc-800/80" />
+                      <div className="h-8 w-28 shrink-0 animate-pulse rounded-md bg-zinc-800/80" />
                     </div>
-                  ))}
+                  </div>
                 </div>
               ) : trophies ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-3 sm:gap-3">
-                  <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
-                    <TrophyTierRow
-                      label="Daily"
-                      timeframe="daily"
-                      items={trophies.daily}
-                      size="sm"
-                    />
+                <div className="mt-3 space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-3 sm:gap-3">
+                    <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
+                      <TrophyTierRow
+                        label="Daily"
+                        timeframe="daily"
+                        items={trophies.daily}
+                        size="sm"
+                      />
+                    </div>
+                    <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
+                      <TrophyTierRow
+                        label="Weekly"
+                        timeframe="weekly"
+                        items={trophies.weekly}
+                        size="md"
+                      />
+                    </div>
+                    <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
+                      <TrophyTierRow
+                        label="Monthly"
+                        timeframe="monthly"
+                        items={trophies.monthly}
+                        size="lg"
+                      />
+                    </div>
                   </div>
-                  <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
-                    <TrophyTierRow
-                      label="Weekly"
-                      timeframe="weekly"
-                      items={trophies.weekly}
-                      size="md"
-                    />
-                  </div>
-                  <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
-                    <TrophyTierRow
-                      label="Monthly"
-                      timeframe="monthly"
-                      items={trophies.monthly}
-                      size="lg"
-                    />
+                  <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3 sm:py-3">
+                    <MilestoneClubStrip items={milestoneTrophies} />
                   </div>
                 </div>
               ) : (
@@ -2144,6 +2372,90 @@ export default function UserProfilePage() {
                   className="mt-1 w-full rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
                   placeholder="https://…"
                 />
+                <div className="mt-3 space-y-3">
+                  <div className="relative h-24 w-full overflow-hidden rounded-xl border border-zinc-800/70 bg-zinc-950/60 shadow-inner shadow-black/30">
+                    {editBannerUrl.trim() ? (
+                      <>
+                        <img
+                          src={editBannerUrl.trim()}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          style={{
+                            objectPosition: `${editBannerCropX}% ${editBannerCropY}%`,
+                          }}
+                        />
+                        <div className="pointer-events-none absolute inset-0 ring-1 ring-cyan-400/20" />
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+                      </>
+                    ) : (
+                      <div className="h-full w-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950" />
+                    )}
+                    <div className="pointer-events-none absolute inset-0 opacity-70">
+                      <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-cyan-400/20" />
+                      <div className="absolute top-1/2 left-0 h-px w-full -translate-y-1/2 bg-cyan-400/20" />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-medium text-zinc-500">
+                          Crop X
+                        </label>
+                        <span className="text-[11px] tabular-nums text-zinc-600">
+                          {editBannerCropX}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={editBannerCropX}
+                        onChange={(e) =>
+                          setEditBannerCropX(clampCropPercent(e.target.value, 50))
+                        }
+                        disabled={editLoading || editSaving}
+                        className="mt-1 w-full accent-cyan-400 disabled:opacity-60"
+                        aria-label="Banner crop x"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-medium text-zinc-500">
+                          Crop Y
+                        </label>
+                        <span className="text-[11px] tabular-nums text-zinc-600">
+                          {editBannerCropY}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={editBannerCropY}
+                        onChange={(e) =>
+                          setEditBannerCropY(clampCropPercent(e.target.value, 50))
+                        }
+                        disabled={editLoading || editSaving}
+                        className="mt-1 w-full accent-cyan-400 disabled:opacity-60"
+                        aria-label="Banner crop y"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditBannerCropX(50);
+                      setEditBannerCropY(50);
+                    }}
+                    disabled={editLoading || editSaving}
+                    className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                  >
+                    Reset crop
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -2176,6 +2488,100 @@ export default function UserProfilePage() {
                   className="rounded-md bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-sky-400 disabled:opacity-60"
                 >
                   {editSaving ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {reportOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Report user"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setReportOpen(false);
+          }}
+        >
+          <div className="w-full max-w-lg rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">Report user</h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Optional evidence helps. Screenshots/links are welcome but not required.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReportOpen(false)}
+                className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+                aria-label="Close"
+              >
+                Esc
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="text-xs font-medium text-zinc-400">Reason</label>
+                <select
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  disabled={reportSubmitting}
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-red-500/20 focus:ring-2 disabled:opacity-60"
+                >
+                  <option value="rugs">Sharing rugs / scam promos (proof optional)</option>
+                  <option value="harassment">Harassment / FUD in chat (screenshots optional)</option>
+                  <option value="impersonation">Impersonation</option>
+                  <option value="spam">Spam</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-zinc-400">Details (optional)</label>
+                <textarea
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  rows={4}
+                  disabled={reportSubmitting}
+                  className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-red-500/20 focus:ring-2 disabled:opacity-60"
+                  placeholder="What happened? Where? Any context that helps moderators review."
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-zinc-400">
+                  Evidence URLs (optional, one per line)
+                </label>
+                <textarea
+                  value={reportEvidence}
+                  onChange={(e) => setReportEvidence(e.target.value)}
+                  rows={3}
+                  disabled={reportSubmitting}
+                  className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 font-mono text-[12px] text-zinc-100 outline-none ring-red-500/20 focus:ring-2 disabled:opacity-60"
+                  placeholder={"https://discord.com/channels/...\nhttps://imgur.com/..."}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setReportOpen(false)}
+                  disabled={reportSubmitting}
+                  className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void submitProfileReport()}
+                  disabled={reportSubmitting}
+                  className="rounded-md bg-gradient-to-r from-red-500 to-rose-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-black/30 transition hover:from-red-400 hover:to-rose-400 disabled:opacity-60"
+                >
+                  {reportSubmitting ? "Submitting…" : "Submit report"}
                 </button>
               </div>
             </div>

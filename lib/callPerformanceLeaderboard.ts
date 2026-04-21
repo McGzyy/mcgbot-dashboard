@@ -46,6 +46,23 @@ export function filterRowsByMinCallTimeUtc(
   });
 }
 
+/** `call_time` in `[minCallTimeMs, endMsExclusive)` (UTC epoch ms). */
+export function filterRowsByCallTimeWindow(
+  rows: Record<string, unknown>[],
+  minCallTimeMs: number,
+  endMsExclusive: number
+): Record<string, unknown>[] {
+  return rows.filter((row) => {
+    const t = rowCallTimeUtcMs(row);
+    return (
+      t > 0 &&
+      t >= minCallTimeMs &&
+      t < endMsExclusive &&
+      Number.isFinite(endMsExclusive)
+    );
+  });
+}
+
 export function aggregateCallPerformanceRows(
   rows: Record<string, unknown>[]
 ): AggregatedLeader[] {

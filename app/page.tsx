@@ -3782,8 +3782,30 @@ export default function Home() {
     try {
       const res = await submitCall(ca);
       if (res.ok) {
-        setSubmitCallFeedback("success");
         const data = res.data as Record<string, unknown> | null;
+        const alreadyCalled =
+          !!data &&
+          typeof data === "object" &&
+          (data as any).alreadyCalled === true;
+
+        if (alreadyCalled) {
+          setSubmitCallFeedback("already_exists");
+          addNotification({
+            id: crypto.randomUUID(),
+            text: "This coin has already been called.",
+            type: "call",
+            createdAt: Date.now(),
+            priority: "low",
+          });
+          window.setTimeout(() => {
+            setSubmitCallOpen(false);
+            setSubmitCallValue("");
+            setSubmitCallFeedback(null);
+          }, 600);
+          return;
+        }
+
+        setSubmitCallFeedback("success");
         const sm = data?.statsMirror as Record<string, unknown> | undefined;
         if (sm && sm.ok === false) {
           const reason =

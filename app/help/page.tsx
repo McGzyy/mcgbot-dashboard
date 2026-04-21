@@ -11,9 +11,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { useNotifications } from "@/app/contexts/NotificationsContext";
 
 function HelpPageContent() {
   const { status } = useSession();
+  const { addNotification } = useNotifications();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [tier, setTier] = useState<HelpTier | null>(null);
@@ -22,6 +24,11 @@ function HelpPageContent() {
   /** When opening from `?doc=&section=`, which anchor to select + scroll to (cleared on modal close). */
   const [initialSectionId, setInitialSectionId] = useState<string | null>(null);
   const docOpenerRef = useRef<HTMLElement | null>(null);
+  const [bugOpen, setBugOpen] = useState(false);
+  const [bugTitle, setBugTitle] = useState("");
+  const [bugDescription, setBugDescription] = useState("");
+  const [bugSteps, setBugSteps] = useState("");
+  const [bugSubmitting, setBugSubmitting] = useState(false);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -125,6 +132,25 @@ function HelpPageContent() {
         <p className="text-sm text-zinc-500">Resolving your access…</p>
       ) : (
         <>
+          <section aria-label="Report a bug" className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Support</p>
+                <h2 className="mt-1 text-sm font-semibold text-zinc-100">Report a bug</h2>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                  Found something broken? Send a quick report — admin will review and you’ll get a bell notification when it’s closed.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBugOpen(true)}
+                className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white"
+              >
+                Submit bug
+              </button>
+            </div>
+          </section>
+
           <section aria-label="Documentation for your role">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -217,6 +243,150 @@ function HelpPageContent() {
               <HelpQuickLinksPanel />
             </div>
           </section>
+
+          {bugOpen ? (
+            <div
+              className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Submit bug report"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setBugOpen(false);
+              }}
+            >
+              <div className="mt-10 w-full max-w-xl rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-100">Submit bug</h3>
+                    <p className="mt-1 text-xs text-zinc-500">Short and specific is best.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBugOpen(false)}
+                    className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+                    aria-label="Close"
+                  >
+                    Esc
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400">Title</label>
+                    <input
+                      value={bugTitle}
+                      onChange={(e) => setBugTitle(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
+                      placeholder="e.g. Bot calls page shows blank"
+                      disabled={bugSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400">What happened?</label>
+                    <textarea
+                      value={bugDescription}
+                      onChange={(e) => setBugDescription(e.target.value)}
+                      rows={4}
+                      className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
+                      placeholder="Describe the bug and what you expected instead."
+                      disabled={bugSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400">Steps to reproduce (optional)</label>
+                    <textarea
+                      value={bugSteps}
+                      onChange={(e) => setBugSteps(e.target.value)}
+                      rows={3}
+                      className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
+                      placeholder="1) … 2) … 3) …"
+                      disabled={bugSubmitting}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setBugOpen(false)}
+                      disabled={bugSubmitting}
+                      className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (bugSubmitting) return;
+                        const t = bugTitle.trim();
+                        const d = bugDescription.trim();
+                        if (!t || !d) {
+                          addNotification({
+                            id: crypto.randomUUID(),
+                            text: "Please add a title and description.",
+                            type: "call",
+                            createdAt: Date.now(),
+                            priority: "low",
+                          });
+                          return;
+                        }
+                        setBugSubmitting(true);
+                        try {
+                          const res = await fetch("/api/report/bug", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "same-origin",
+                            body: JSON.stringify({
+                              title: t,
+                              description: d,
+                              reproductionSteps: bugSteps.trim() || null,
+                              pageUrl: typeof window !== "undefined" ? window.location.href : null,
+                              screenshotUrls: [],
+                            }),
+                          });
+                          const json = await res.json().catch(() => ({}));
+                          if (!res.ok || !json || json.success !== true) {
+                            addNotification({
+                              id: crypto.randomUUID(),
+                              text: typeof (json as any).error === "string" ? (json as any).error : "Bug report failed.",
+                              type: "call",
+                              createdAt: Date.now(),
+                              priority: "low",
+                            });
+                            return;
+                          }
+                          addNotification({
+                            id: crypto.randomUUID(),
+                            text: "Bug submitted. Thank you.",
+                            type: "call",
+                            createdAt: Date.now(),
+                            priority: "medium",
+                          });
+                          setBugOpen(false);
+                          setBugTitle("");
+                          setBugDescription("");
+                          setBugSteps("");
+                        } catch {
+                          addNotification({
+                            id: crypto.randomUUID(),
+                            text: "Bug report failed.",
+                            type: "call",
+                            createdAt: Date.now(),
+                            priority: "low",
+                          });
+                        } finally {
+                          setBugSubmitting(false);
+                        }
+                      }}
+                      disabled={bugSubmitting}
+                      className="rounded-md bg-gradient-to-r from-emerald-500 to-cyan-500 px-3 py-1.5 text-xs font-semibold text-black shadow-lg shadow-black/30 transition hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-60"
+                    >
+                      {bugSubmitting ? "Submitting…" : "Submit"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </>
       )}
     </div>

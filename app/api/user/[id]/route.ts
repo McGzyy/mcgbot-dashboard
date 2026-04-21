@@ -139,7 +139,7 @@ export async function GET(
     const [userRowResult, cutoverMs] = await Promise.all([
       supabase
         .from("users")
-        .select("id, discord_id, bio, banner_url, x_handle, x_verified, created_at, profile_visibility")
+        .select("id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, created_at, profile_visibility")
         .eq("discord_id", discordId)
         .maybeSingle(),
       getStatsCutoverUtcMs(),
@@ -198,6 +198,14 @@ export async function GET(
           : typeof userRow.banner_url === "string"
             ? userRow.banner_url
             : String(userRow.banner_url),
+      banner_crop_x:
+        userRow && (userRow as any).banner_crop_x == null
+          ? null
+          : Number((userRow as any).banner_crop_x),
+      banner_crop_y:
+        userRow && (userRow as any).banner_crop_y == null
+          ? null
+          : Number((userRow as any).banner_crop_y),
       x_handle:
         userRow?.x_handle == null
           ? null

@@ -46,8 +46,6 @@ export async function GET(
           .order("created_at", { ascending: false })
           .limit(TROPHY_DISPLAY_LIMIT);
 
-        console.log("TROPHIES:", data, error);
-
         if (error) {
           return { timeframe, error, rows: [] as TrophyRowDto[] };
         }

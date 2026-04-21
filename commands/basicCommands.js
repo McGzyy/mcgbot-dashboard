@@ -1235,10 +1235,29 @@ async function handleCallCommand(message, contractAddress, source = 'command') {
     chartPending: callChartPending
   });
 
+  const alreadyCalled = !wasNewCall && !wasReactivated;
+  const replyContent = wasNewCall
+    ? '🆕 First call — coin is now being tracked.'
+    : wasReactivated
+      ? '♻️ Reactivated — coin is being tracked again.'
+      : '🧠 This coin has already been called.';
+
   const reply = await message.reply({
-    content: '📍 Coin officially called and now being tracked.',
+    content: replyContent,
     embeds: [embed]
   });
+
+  if (reply && typeof reply === 'object') {
+    try {
+      reply.callMeta = {
+        wasNewCall: Boolean(wasNewCall),
+        wasReactivated: Boolean(wasReactivated),
+        alreadyCalled
+      };
+    } catch (_) {
+      /* ignore */
+    }
+  }
 
   hydrateCallWatchChartMessage(reply, embedScan, { showTrackedMeta: true }).catch(err => {
     console.error('[CallWatchChart]', embedScan?.contractAddress, err.message);

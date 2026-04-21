@@ -15,6 +15,39 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
+type ProfileReportRow = {
+  id: string;
+  reporter_user_id: string;
+  target_user_id: string;
+  reason: string;
+  details: string | null;
+  evidence_urls: unknown;
+  status: string;
+  staff_notes: string | null;
+  created_at: string;
+};
+
+type CallReportRow = {
+  id: string;
+  reporter_user_id: string;
+  call_performance_id: string;
+  reason: string;
+  details: string | null;
+  evidence_urls: unknown;
+  status: string;
+  staff_notes: string | null;
+  created_at: string;
+  call_performance?: {
+    id: string;
+    call_ca: string | null;
+    username: string | null;
+    call_time: number | null;
+    ath_multiple: number | null;
+    source: string | null;
+    excluded_from_stats: boolean | null;
+  } | null;
+};
+
 function shortAddr(ca: string) {
   const s = ca.trim();
   if (s.length <= 14) return s;
@@ -602,6 +635,12 @@ export default function ModerationPage() {
   const [errBotBase, setErrBotBase] = useState<string | null>(null);
   const [errVariant, setErrVariant] = useState<"network" | "config" | "simple">("simple");
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [profileReports, setProfileReports] = useState<ProfileReportRow[]>([]);
+  const [callReports, setCallReports] = useState<CallReportRow[]>([]);
+  const [reportsErr, setReportsErr] = useState<string | null>(null);
+  const [reportBusyId, setReportBusyId] = useState<string | null>(null);
+  const [reportNotes, setReportNotes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -731,6 +770,141 @@ export default function ModerationPage() {
     if (tier !== "mod" && tier !== "admin") return;
     void loadQueue();
   }, [status, tier, loadQueue]);
+
+  const loadReports = useCallback(async () => {
+    if (status !== "authenticated") return;
+    if (tier !== "mod" && tier !== "admin") return;
+    setReportsLoading(true);
+    setReportsErr(null);
+    try {
+      const [pRes, cRes] = await Promise.all([
+        fetch("/api/mod/reports/profile?status=open&limit=80", { credentials: "same-origin" }),
+        fetch("/api/mod/reports/call?status=open&limit=80", { credentials: "same-origin" }),
+      ]);
+
+      const pJson = (await pRes.json().catch(() => ({}))) as any;
+      const cJson = (await cRes.json().catch(() => ({}))) as any;
+
+      if (pRes.ok && pJson && pJson.success === true) {
+        const rows = Array.isArray(pJson.rows) ? (pJson.rows as ProfileReportRow[]) : [];
+        setProfileReports(rows);
+        setReportNotes((prev) => {
+          const next = { ...prev };
+          for (const r of rows) if (typeof next[r.id] !== "string") next[r.id] = r.staff_notes ?? "";
+          return next;
+        });
+      } else {
+        setProfileReports([]);
+        setReportsErr(typeof pJson?.error === "string" ? pJson.error : "Failed to load profile reports.");
+      }
+
+      if (cRes.ok && cJson && cJson.success === true) {
+        const rows = Array.isArray(cJson.rows) ? (cJson.rows as CallReportRow[]) : [];
+        setCallReports(rows);
+        setReportNotes((prev) => {
+          const next = { ...prev };
+          for (const r of rows) if (typeof next[r.id] !== "string") next[r.id] = r.staff_notes ?? "";
+          return next;
+        });
+      } else {
+        setCallReports([]);
+        setReportsErr(typeof cJson?.error === "string" ? cJson.error : "Failed to load call reports.");
+      }
+    } catch {
+      setReportsErr("Network error.");
+    } finally {
+      setReportsLoading(false);
+    }
+  }, [status, tier]);
+
+  const patchReport = useCallback(
+    async (kind: "profile" | "call", id: string, patch: { status?: string; staffNotes?: string }) => {
+      if (reportBusyId) return;
+      setReportBusyId(id);
+      try {
+        const res = await fetch(kind === "profile" ? "/api/mod/reports/profile" : "/api/mod/reports/call", {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, ...patch }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json || json.success !== true) {
+          addNotification({
+            id: crypto.randomUUID(),
+            text: typeof (json as any).error === "string" ? (json as any).error : "Update failed.",
+            type: "call",
+            createdAt: Date.now(),
+            priority: "low",
+          });
+          return;
+        }
+        await loadReports();
+      } catch {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Network error.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      } finally {
+        setReportBusyId(null);
+      }
+    },
+    [addNotification, loadReports, reportBusyId]
+  );
+
+  const excludeCallForReport = useCallback(
+    async (callId: string, reason: string) => {
+      if (reportBusyId) return;
+      setReportBusyId(callId);
+      try {
+        const res = await fetch(`/api/mod/calls/${encodeURIComponent(callId)}/exclusion`, {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ excluded: true, reason }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json || json.success !== true) {
+          addNotification({
+            id: crypto.randomUUID(),
+            text: typeof (json as any).error === "string" ? (json as any).error : "Exclude failed.",
+            type: "call",
+            createdAt: Date.now(),
+            priority: "low",
+          });
+          return;
+        }
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Call excluded from stats.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "medium",
+        });
+        await loadReports();
+      } catch {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Network error.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      } finally {
+        setReportBusyId(null);
+      }
+    },
+    [addNotification, loadReports, reportBusyId]
+  );
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (tier !== "mod" && tier !== "admin") return;
+    void loadReports();
+  }, [status, tier, loadReports]);
 
   useEffect(() => {
     if (tier !== "mod" && tier !== "admin") return;
@@ -1032,6 +1206,232 @@ export default function ModerationPage() {
         </div>
       ) : null}
         </div>
+
+        <section className="mt-10">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className={modChrome.sectionAccent} aria-hidden />
+              <div>
+                <h2 className={modChrome.h2}>Reports</h2>
+                <p className="mt-1 text-xs text-zinc-600">
+                  User-submitted reports for profiles and calls. Exclude reported calls to remove them from stats.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadReports()}
+              disabled={reportsLoading}
+              className="rounded-lg border border-zinc-700/80 bg-zinc-950/40 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 disabled:opacity-60"
+            >
+              {reportsLoading ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
+
+          {reportsErr ? (
+            <div className="mb-4 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">
+              {reportsErr}
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-zinc-100">Profile reports</h3>
+                <span className="text-xs tabular-nums text-zinc-500">{profileReports.length} open</span>
+              </div>
+              <div className="mt-3 space-y-3">
+                {reportsLoading ? (
+                  <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+                    Loading…
+                  </div>
+                ) : profileReports.length === 0 ? (
+                  <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+                    No open profile reports.
+                  </div>
+                ) : (
+                  profileReports.map((r) => {
+                    const draft = reportNotes[r.id] ?? "";
+                    return (
+                      <div key={r.id} className="rounded-xl border border-zinc-800/80 bg-black/20 p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-zinc-100">{r.reason}</p>
+                            <p className="mt-1 text-[11px] text-zinc-500">
+                              Reporter <span className="font-mono">{r.reporter_user_id}</span> · Target{" "}
+                              <Link
+                                className="underline decoration-zinc-700 underline-offset-2 hover:decoration-zinc-500"
+                                href={`/user/${encodeURIComponent(r.target_user_id)}`}
+                              >
+                                <span className="font-mono">{r.target_user_id}</span>
+                              </Link>
+                            </p>
+                            {r.details ? (
+                              <p className="mt-2 text-xs leading-relaxed text-zinc-400">{r.details}</p>
+                            ) : null}
+                          </div>
+                          <span className="text-[11px] tabular-nums text-zinc-500" title={r.created_at}>
+                            {formatRelativeTime(r.created_at)}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 grid gap-2">
+                          <textarea
+                            value={draft}
+                            onChange={(e) => setReportNotes((p) => ({ ...p, [r.id]: e.target.value }))}
+                            rows={2}
+                            className="w-full resize-none rounded-lg border border-zinc-800 bg-black/25 px-3 py-2 text-xs text-zinc-100 outline-none ring-amber-500/20 focus:ring-2"
+                            placeholder="Staff notes…"
+                            disabled={reportBusyId === r.id}
+                          />
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              className={btnGhost}
+                              disabled={reportBusyId === r.id}
+                              onClick={() => void patchReport("profile", r.id, { staffNotes: draft })}
+                            >
+                              Save notes
+                            </button>
+                            <button
+                              type="button"
+                              className={btnApprove}
+                              disabled={reportBusyId === r.id}
+                              onClick={() =>
+                                void patchReport("profile", r.id, { status: "resolved", staffNotes: draft })
+                              }
+                            >
+                              Resolve
+                            </button>
+                            <button
+                              type="button"
+                              className={btnDeny}
+                              disabled={reportBusyId === r.id}
+                              onClick={() =>
+                                void patchReport("profile", r.id, { status: "rejected", staffNotes: draft })
+                              }
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-zinc-100">Call reports</h3>
+                <span className="text-xs tabular-nums text-zinc-500">{callReports.length} open</span>
+              </div>
+              <div className="mt-3 space-y-3">
+                {reportsLoading ? (
+                  <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+                    Loading…
+                  </div>
+                ) : callReports.length === 0 ? (
+                  <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+                    No open call reports.
+                  </div>
+                ) : (
+                  callReports.map((r) => {
+                    const draft = reportNotes[r.id] ?? "";
+                    const cp = r.call_performance ?? null;
+                    const callId = cp?.id ?? r.call_performance_id;
+                    const ca = cp?.call_ca ?? "";
+                    const excluded = cp?.excluded_from_stats === true;
+                    return (
+                      <div key={r.id} className="rounded-xl border border-zinc-800/80 bg-black/20 p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-zinc-100">{r.reason}</p>
+                            <p className="mt-1 text-[11px] text-zinc-500">
+                              Reporter <span className="font-mono">{r.reporter_user_id}</span>
+                              {ca ? (
+                                <>
+                                  {" "}
+                                  · CA <span className="font-mono">{shortAddr(ca)}</span>
+                                </>
+                              ) : null}
+                              {excluded ? (
+                                <span className="ml-2 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+                                  Excluded
+                                </span>
+                              ) : null}
+                            </p>
+                            {r.details ? (
+                              <p className="mt-2 text-xs leading-relaxed text-zinc-400">{r.details}</p>
+                            ) : null}
+                          </div>
+                          <span className="text-[11px] tabular-nums text-zinc-500" title={r.created_at}>
+                            {formatRelativeTime(r.created_at)}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 grid gap-2">
+                          <textarea
+                            value={draft}
+                            onChange={(e) => setReportNotes((p) => ({ ...p, [r.id]: e.target.value }))}
+                            rows={2}
+                            className="w-full resize-none rounded-lg border border-zinc-800 bg-black/25 px-3 py-2 text-xs text-zinc-100 outline-none ring-amber-500/20 focus:ring-2"
+                            placeholder="Staff notes…"
+                            disabled={reportBusyId === r.id || reportBusyId === callId}
+                          />
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              className={btnGhost}
+                              disabled={reportBusyId === r.id}
+                              onClick={() => void patchReport("call", r.id, { staffNotes: draft })}
+                            >
+                              Save notes
+                            </button>
+                            <button
+                              type="button"
+                              className={btnExclude}
+                              disabled={excluded || reportBusyId === callId}
+                              onClick={() =>
+                                void excludeCallForReport(
+                                  callId,
+                                  `report:${r.reason}${draft ? ` · ${draft}` : ""}`
+                                )
+                              }
+                            >
+                              {excluded ? "Excluded" : reportBusyId === callId ? "…" : "Exclude call"}
+                            </button>
+                            <button
+                              type="button"
+                              className={btnApprove}
+                              disabled={reportBusyId === r.id}
+                              onClick={() =>
+                                void patchReport("call", r.id, { status: "resolved", staffNotes: draft })
+                              }
+                            >
+                              Resolve
+                            </button>
+                            <button
+                              type="button"
+                              className={btnDeny}
+                              disabled={reportBusyId === r.id}
+                              onClick={() =>
+                                void patchReport("call", r.id, { status: "rejected", staffNotes: draft })
+                              }
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
 
         <StaffStatsRail />
       </div>

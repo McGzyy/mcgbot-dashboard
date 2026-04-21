@@ -52,6 +52,18 @@ const NAV: {
       </svg>
     ),
   },
+  {
+    href: "/admin/bugs",
+    label: "Bug reports",
+    description: "Triage & close",
+    icon: (a) => (
+      <svg className={`h-4 w-4 ${a ? adminChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 12h.01M8 12h.01M16 12h.01" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 3.75h6A2.25 2.25 0 0117.25 6v1.25H6.75V6A2.25 2.25 0 019 3.75z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.25h10.5v8.5A3.25 3.25 0 0114 19H10a3.25 3.25 0 01-3.25-3.25v-8.5z" />
+      </svg>
+    ),
+  },
 ];
 
 function navClass(active: boolean) {

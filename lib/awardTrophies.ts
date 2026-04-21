@@ -2,10 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   aggregateCallPerformanceRows,
   fetchCallPerformanceForSource,
-  filterRowsByMinCallTimeUtc,
+  filterRowsByCallTimeWindow,
   rankTopN,
 } from "@/lib/callPerformanceLeaderboard";
-import { periodStartMsForTrophyTimeframe } from "@/lib/leaderboardTimeWindows";
+import { closedTrophyWindowUtcMs } from "@/lib/leaderboardTimeWindows";
 import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
 export type TrophyTimeframe = "daily" | "weekly" | "monthly";
@@ -25,9 +25,13 @@ export type AwardTrophiesResult = {
 };
 
 /**
- * Inserts top-3 leaderboard trophies for a timeframe (same windows as weekly/monthly leader APIs).
+ * Inserts top-3 leaderboard trophies for the **last completed** UTC period
+ * (calendar day / Monday week / calendar month). Uses the same `call_time`
+ * buckets as the weekly-leader / monthly-leader / today-strip logic, with an
+ * exclusive upper bound so a new period’s calls are not included.
  *
- * TODO: run automatically via cron job (e.g. after UTC day / week / month closes).
+ * Intended to run from a secured cron shortly after each boundary (see
+ * `/api/cron/award-leaderboard-trophies`).
  */
 export async function awardTrophies(
   supabase: SupabaseClient,
@@ -36,7 +40,16 @@ export async function awardTrophies(
 ): Promise<AwardTrophiesResult> {
   const nowMs = options?.nowMs ?? Date.now();
   const source = options?.source ?? "user";
-  const periodStartMs = periodStartMsForTrophyTimeframe(timeframe, nowMs);
+  const window = closedTrophyWindowUtcMs(timeframe, nowMs);
+  if (!window) {
+    return {
+      periodStartMs: 0,
+      inserted: 0,
+      leaders: [],
+      error: new Error("Could not resolve trophy window"),
+    };
+  }
+  const { periodStartMs, endMsExclusive } = window;
 
   const [{ rows, error: fetchErr }, cutoverMs] = await Promise.all([
     fetchCallPerformanceForSource(supabase, source),
@@ -52,7 +65,7 @@ export async function awardTrophies(
   }
 
   const minMs = mergeStatsCutoverIntoMin(periodStartMs, cutoverMs);
-  const filtered = filterRowsByMinCallTimeUtc(rows, minMs);
+  const filtered = filterRowsByCallTimeWindow(rows, minMs, endMsExclusive);
   const aggregated = aggregateCallPerformanceRows(filtered);
   const top3 = rankTopN(aggregated, 3);
 

@@ -53,3 +53,51 @@ export function periodStartMsForTrophyTimeframe(
       return startOfCalendarMonthUtcMs(nowMs);
   }
 }
+
+/** Inclusive start and exclusive end for `call_time` filtering (UTC epoch ms). */
+export type TrophyCallTimeWindow = {
+  periodStartMs: number;
+  endMsExclusive: number;
+};
+
+/** Calendar day that ended most recently (yesterday 00:00 UTC → today 00:00 UTC exclusive). */
+export function priorClosedDailyWindowUtcMs(
+  nowMs: number = Date.now()
+): TrophyCallTimeWindow | null {
+  const endMsExclusive = startOfCalendarDayUtcMs(nowMs);
+  const periodStartMs = endMsExclusive - 24 * 60 * 60 * 1000;
+  if (periodStartMs < 0) return null;
+  return { periodStartMs, endMsExclusive };
+}
+
+/** Monday-aligned week that ended most recently (previous Monday 00:00 → this Monday 00:00 exclusive). */
+export function priorClosedWeeklyWindowUtcMs(
+  nowMs: number = Date.now()
+): TrophyCallTimeWindow | null {
+  const thisMondayStart = startOfWeekMondayUtcMs(nowMs);
+  const periodStartMs = startOfWeekMondayUtcMs(thisMondayStart - 1);
+  return { periodStartMs, endMsExclusive: thisMondayStart };
+}
+
+/** Calendar month that ended most recently (1st 00:00 → next month 1st 00:00 exclusive). */
+export function priorClosedMonthlyWindowUtcMs(
+  nowMs: number = Date.now()
+): TrophyCallTimeWindow | null {
+  const thisMonthStart = startOfCalendarMonthUtcMs(nowMs);
+  const periodStartMs = startOfCalendarMonthUtcMs(thisMonthStart - 1);
+  return { periodStartMs, endMsExclusive: thisMonthStart };
+}
+
+export function closedTrophyWindowUtcMs(
+  timeframe: "daily" | "weekly" | "monthly",
+  nowMs: number = Date.now()
+): TrophyCallTimeWindow | null {
+  switch (timeframe) {
+    case "daily":
+      return priorClosedDailyWindowUtcMs(nowMs);
+    case "weekly":
+      return priorClosedWeeklyWindowUtcMs(nowMs);
+    case "monthly":
+      return priorClosedMonthlyWindowUtcMs(nowMs);
+  }
+}

@@ -63,6 +63,12 @@ export default function AdminOverviewPage() {
           subtitle="Deploy fingerprint, env checks, and live Supabase settings (maintenance, banner, paywall)."
           hint="Writes · Supabase"
         />
+        <OverviewCard
+          href="/admin/bugs"
+          title="Bug reports"
+          subtitle="Review user-submitted bugs, add notes, and close (sends bell notification)."
+          hint="Workflow · Inbox ping"
+        />
       </div>
     </div>
   );
