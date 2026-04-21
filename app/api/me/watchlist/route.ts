@@ -97,6 +97,9 @@ export async function POST(request: Request) {
       return Response.json({ error: "Invalid mint" }, { status: 400 });
     }
 
+    const botApiUrl = String(process.env.BOT_API_URL || "").trim();
+    const internalSecret = String(process.env.CALL_INTERNAL_SECRET || "").trim();
+
     const supabase = createDashboardAdminClient();
     if (!supabase) return Response.json({ error: "Supabase not configured" }, { status: 500 });
 
@@ -121,6 +124,45 @@ export async function POST(request: Request) {
     } else {
       const idx = target.indexOf(mint);
       if (idx >= 0) target.splice(idx, 1);
+    }
+
+    /**
+     * IMPORTANT: "Public" watchlist acts like Discord `!watch`.
+     * If adding to public and the bot host is not reachable/configured, fail the request
+     * so the UI doesn't claim a watch that isn't actually being tracked.
+     */
+    if (action === "add" && scope === "public") {
+      if (!botApiUrl || !internalSecret) {
+        return Response.json(
+          {
+            error: "Bot watch is not configured (BOT_API_URL / CALL_INTERNAL_SECRET).",
+          },
+          { status: 503 }
+        );
+      }
+      const watchRes = await fetch(`${botApiUrl.replace(/\/$/, "")}/internal/watch`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${internalSecret}`,
+        },
+        body: JSON.stringify({ userId: discordId, ca: mint }),
+      });
+      const watchJson = (await watchRes.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+      };
+      if (!watchRes.ok || watchJson.success !== true) {
+        return Response.json(
+          {
+            error:
+              typeof watchJson.error === "string" && watchJson.error.trim()
+                ? watchJson.error
+                : "Could not submit watch to Discord.",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const { error: writeErr } = await supabase

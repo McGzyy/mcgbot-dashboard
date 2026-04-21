@@ -42,10 +42,15 @@ export function AddToWatchlistModal({
 
     try {
       if (visibility === "private") {
-        const res = await fetch("/api/me/private-watchlist", {
+        const res = await fetch("/api/me/watchlist", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ca: trimmed }),
+          credentials: "same-origin",
+          body: JSON.stringify({
+            action: "add",
+            scope: "private",
+            mint: trimmed,
+          }),
         });
         const data = (await res.json().catch(() => ({}))) as {
           success?: boolean;
@@ -63,24 +68,15 @@ export function AddToWatchlistModal({
         return;
       }
 
-      const res = await fetch("/api/watch", {
+      const rec = await fetch("/api/me/watchlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ca: trimmed }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        success?: boolean;
-        error?: string;
-      };
-      if (!res.ok) {
-        setError(data.error || "Could not submit public watch");
-        return;
-      }
-
-      const rec = await fetch("/api/me/public-dashboard-watchlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ca: trimmed }),
+        credentials: "same-origin",
+        body: JSON.stringify({
+          action: "add",
+          scope: "public",
+          mint: trimmed,
+        }),
       });
       const recJson = (await rec.json().catch(() => ({}))) as {
         success?: boolean;

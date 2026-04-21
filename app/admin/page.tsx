@@ -69,6 +69,12 @@ export default function AdminOverviewPage() {
           subtitle="Review user-submitted bugs, add notes, and close (sends bell notification)."
           hint="Workflow · Inbox ping"
         />
+        <OverviewCard
+          href="/admin/feature-requests"
+          title="Feature requests"
+          subtitle="Review user ideas, triage, and close (sends bell notification)."
+          hint="Workflow · Inbox ping"
+        />
       </div>
     </div>
   );

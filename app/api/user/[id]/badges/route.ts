@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { TOP_CALLER_BADGE_KEY, topCallerBadgeToken } from "@/lib/topCallerBadgeDisplay";
 
 export async function GET(
   _request: Request,
@@ -26,10 +27,8 @@ export async function GET(
 
     const { data, error } = await supabase
       .from("user_badges")
-      .select("badge")
+      .select("badge, times_awarded")
       .eq("user_id", profileUserId);
-
-    console.log("BADGES:", data, error);
 
     if (error) {
       console.error("[user badges API] GET:", error);
@@ -44,7 +43,21 @@ export async function GET(
       .map((r) => {
         const row = r as Record<string, unknown>;
         const b = row.badge;
-        return typeof b === "string" ? b.trim() : String(b ?? "").trim();
+        const badge = typeof b === "string" ? b.trim() : String(b ?? "").trim();
+        if (!badge) return "";
+        const timesRaw = row.times_awarded;
+        const times =
+          typeof timesRaw === "number" && Number.isFinite(timesRaw)
+            ? timesRaw
+            : Number(timesRaw);
+        if (
+          badge === TOP_CALLER_BADGE_KEY &&
+          Number.isFinite(times) &&
+          times >= 1
+        ) {
+          return topCallerBadgeToken(times);
+        }
+        return badge;
       })
       .filter(Boolean);
 

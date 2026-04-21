@@ -64,6 +64,17 @@ const NAV: {
       </svg>
     ),
   },
+  {
+    href: "/admin/feature-requests",
+    label: "Feature requests",
+    description: "Ideas & roadmap",
+    icon: (a) => (
+      <svg className={`h-4 w-4 ${a ? adminChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6 6 0 110-12 6 6 0 010 12z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v3m0 12v3M3 12h3m12 0h3" />
+      </svg>
+    ),
+  },
 ];
 
 function navClass(active: boolean) {

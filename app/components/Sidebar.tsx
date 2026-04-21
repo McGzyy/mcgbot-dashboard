@@ -131,28 +131,8 @@ function SidebarBody({
             />
             <span>Watchlist</span>
           </Link>
-          <Link
-            href="/pnl-showcase"
-            onClick={pick}
-            className={getNavItemClass(isActive(pathname, "/pnl-showcase"))}
-          >
-            <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/pnl-showcase") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-              }`}
-            />
-            <span>PnL Showcase</span>
-          </Link>
 
           <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Arena</p>
-          <Link href="/leaderboard" onClick={pick} className={getNavItemClass(isActive(pathname, "/leaderboard"))}>
-            <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/leaderboard") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-              }`}
-            />
-            <span>Leaderboards</span>
-          </Link>
           <Link href="/bot-calls" onClick={pick} className={getNavItemClass(isActive(pathname, "/bot-calls"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
@@ -166,34 +146,65 @@ function SidebarBody({
               </span>
             </span>
           </Link>
+          <Link href="/leaderboard" onClick={pick} className={getNavItemClass(isActive(pathname, "/leaderboard"))}>
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/leaderboard") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span>Leaderboards</span>
+          </Link>
+          <Link
+            href="/pnl-showcase"
+            onClick={pick}
+            className={getNavItemClass(isActive(pathname, "/pnl-showcase"))}
+          >
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/pnl-showcase") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span>PnL Showcase</span>
+          </Link>
 
-          {staffNav ? (
-            <Link href="/moderation" onClick={pick} className={getNavItemClass(isActive(pathname, "/moderation"))}>
-              <div
-                className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                  isActive(pathname, "/moderation") ? `${tierNavBarClass("mod")} opacity-100` : "opacity-0"
-                }`}
-              />
-              <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                <span className="truncate">Moderation</span>
-                {modPendingTotal != null && modPendingTotal > 0 ? (
-                  <span className="shrink-0 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-emerald-200 ring-1 ring-emerald-500/30">
-                    {modPendingTotal > 99 ? "99+" : modPendingTotal}
+          {staffNav || adminNav ? (
+            <>
+              <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
+                Staff
+              </p>
+              {staffNav ? (
+                <Link
+                  href="/moderation"
+                  onClick={pick}
+                  className={getNavItemClass(isActive(pathname, "/moderation"))}
+                >
+                  <div
+                    className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                      isActive(pathname, "/moderation") ? `${tierNavBarClass("mod")} opacity-100` : "opacity-0"
+                    }`}
+                  />
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                    <span className="truncate">Moderation</span>
+                    {modPendingTotal != null && modPendingTotal > 0 ? (
+                      <span className="shrink-0 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-emerald-200 ring-1 ring-emerald-500/30">
+                        {modPendingTotal > 99 ? "99+" : modPendingTotal}
+                      </span>
+                    ) : null}
                   </span>
-                ) : null}
-              </span>
-            </Link>
-          ) : null}
+                </Link>
+              ) : null}
 
-          {adminNav ? (
-            <Link href="/admin" onClick={pick} className={getNavItemClass(isActive(pathname, "/admin"))}>
-              <div
-                className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                  isActive(pathname, "/admin") ? `${tierNavBarClass("admin")} opacity-100` : "opacity-0"
-                }`}
-              />
-              <span>Admin</span>
-            </Link>
+              {adminNav ? (
+                <Link href="/admin" onClick={pick} className={getNavItemClass(isActive(pathname, "/admin"))}>
+                  <div
+                    className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                      isActive(pathname, "/admin") ? `${tierNavBarClass("admin")} opacity-100` : "opacity-0"
+                    }`}
+                  />
+                  <span>Admin</span>
+                </Link>
+              ) : null}
+            </>
           ) : null}
         </div>
       </nav>

@@ -1,4 +1,5 @@
 import { awardTrophies } from "@/lib/awardTrophies";
+import { awardMonthlyTopCallerBadge } from "@/lib/awardMonthlyTopCaller";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -62,7 +63,30 @@ export async function POST(request: Request) {
     return Response.json({ success: false, runs }, { status: 500 });
   }
 
-  return Response.json({ success: true, runs });
+  let topCaller: {
+    periodStartMs: number;
+    winnerId: string | null;
+    awarded: boolean;
+    timesAwarded: number | null;
+    error?: string;
+  } | null = null;
+
+  if (dom === 1) {
+    const tc = await awardMonthlyTopCallerBadge(db, { nowMs });
+    topCaller = {
+      periodStartMs: tc.periodStartMs,
+      winnerId: tc.winnerId,
+      awarded: tc.awarded,
+      timesAwarded: tc.timesAwarded,
+      ...(tc.error ? { error: tc.error.message } : {}),
+    };
+    if (tc.error) {
+      console.error("[cron/award-leaderboard-trophies] top caller:", tc.error);
+      return Response.json({ success: false, runs, topCaller }, { status: 500 });
+    }
+  }
+
+  return Response.json({ success: true, runs, topCaller });
 }
 
 export async function GET(request: Request) {

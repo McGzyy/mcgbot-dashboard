@@ -30,6 +30,12 @@ function HelpPageContent() {
   const [bugSteps, setBugSteps] = useState("");
   const [bugImages, setBugImages] = useState<File[]>([]);
   const [bugSubmitting, setBugSubmitting] = useState(false);
+  const [featureOpen, setFeatureOpen] = useState(false);
+  const [featureTitle, setFeatureTitle] = useState("");
+  const [featureDescription, setFeatureDescription] = useState("");
+  const [featureUseCase, setFeatureUseCase] = useState("");
+  const [featureImages, setFeatureImages] = useState<File[]>([]);
+  const [featureSubmitting, setFeatureSubmitting] = useState(false);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -133,24 +139,44 @@ function HelpPageContent() {
         <p className="text-sm text-zinc-500">Resolving your access…</p>
       ) : (
         <>
-          <section aria-label="Report a bug" className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Support</p>
-                <h2 className="mt-1 text-sm font-semibold text-zinc-100">Report a bug</h2>
-                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                  Found something broken? Send a quick report — admin will review and you’ll get a bell notification when it’s closed.
-                </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <section aria-label="Report a bug" className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Support</p>
+                  <h2 className="mt-1 text-sm font-semibold text-zinc-100">Report a bug</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                    Found something broken? Admin will review and you’ll get a bell notification when it’s closed.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBugOpen(true)}
+                  className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white"
+                >
+                  Submit bug
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setBugOpen(true)}
-                className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white"
-              >
-                Submit bug
-              </button>
-            </div>
-          </section>
+            </section>
+            <section aria-label="Request a feature" className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Feedback</p>
+                  <h2 className="mt-1 text-sm font-semibold text-zinc-100">Feature request</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                    Have an idea for the dashboard or bot? Tell us what you want and why it matters to you.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFeatureOpen(true)}
+                  className="rounded-lg border border-violet-600/40 bg-violet-950/40 px-3 py-1.5 text-xs font-semibold text-violet-100 transition hover:border-violet-500/60 hover:bg-violet-950/60"
+                >
+                  Submit idea
+                </button>
+              </div>
+            </section>
+          </div>
 
           <section aria-label="Documentation for your role">
             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -436,6 +462,207 @@ function HelpPageContent() {
                       className="rounded-md bg-gradient-to-r from-emerald-500 to-cyan-500 px-3 py-1.5 text-xs font-semibold text-black shadow-lg shadow-black/30 transition hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-60"
                     >
                       {bugSubmitting ? "Submitting…" : "Submit"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {featureOpen ? (
+            <div
+              className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Submit feature request"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setFeatureOpen(false);
+              }}
+            >
+              <div className="mt-10 w-full max-w-xl rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-100">Feature request</h3>
+                    <p className="mt-1 text-xs text-zinc-500">One clear idea per submission works best.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFeatureOpen(false)}
+                    className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+                    aria-label="Close"
+                  >
+                    Esc
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400">Title</label>
+                    <input
+                      value={featureTitle}
+                      onChange={(e) => setFeatureTitle(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-violet-500/20 focus:ring-2"
+                      placeholder="e.g. Filter bot calls by caller"
+                      disabled={featureSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400">Describe the feature</label>
+                    <textarea
+                      value={featureDescription}
+                      onChange={(e) => setFeatureDescription(e.target.value)}
+                      rows={4}
+                      className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-violet-500/20 focus:ring-2"
+                      placeholder="What should it do? Where in the app would it live?"
+                      disabled={featureSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400">Why / use case (optional)</label>
+                    <textarea
+                      value={featureUseCase}
+                      onChange={(e) => setFeatureUseCase(e.target.value)}
+                      rows={3}
+                      className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-violet-500/20 focus:ring-2"
+                      placeholder="How would this help your workflow?"
+                      disabled={featureSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-zinc-400">
+                      Reference images (optional, up to 5)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      disabled={featureSubmitting}
+                      onChange={(e) => {
+                        const list = Array.from(e.target.files ?? []);
+                        setFeatureImages(list.slice(0, 5));
+                      }}
+                      className="mt-1 block w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-200 hover:file:bg-zinc-800 disabled:opacity-60"
+                    />
+                    {featureImages.length ? (
+                      <p className="mt-1 text-[11px] text-zinc-500">
+                        {featureImages.length} image{featureImages.length === 1 ? "" : "s"} selected
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setFeatureOpen(false)}
+                      disabled={featureSubmitting}
+                      className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (featureSubmitting) return;
+                        const t = featureTitle.trim();
+                        const d = featureDescription.trim();
+                        if (!t || !d) {
+                          addNotification({
+                            id: crypto.randomUUID(),
+                            text: "Please add a title and description.",
+                            type: "call",
+                            createdAt: Date.now(),
+                            priority: "low",
+                          });
+                          return;
+                        }
+                        setFeatureSubmitting(true);
+                        try {
+                          const screenshotUrls: string[] = [];
+                          for (const file of featureImages.slice(0, 5)) {
+                            const ct = file.type || "image/png";
+                            const uRes = await fetch("/api/report/feature/upload-url", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              credentials: "same-origin",
+                              body: JSON.stringify({
+                                filename: file.name || "mockup.png",
+                                contentType: ct,
+                              }),
+                            });
+                            const uJson = await uRes.json().catch(() => ({}));
+                            if (!uRes.ok || !uJson || uJson.success !== true || typeof uJson.uploadUrl !== "string") {
+                              throw new Error(typeof uJson?.error === "string" ? uJson.error : "Upload init failed");
+                            }
+                            const uploadUrl = String(uJson.uploadUrl);
+                            const publicUrl = typeof uJson.publicUrl === "string" ? uJson.publicUrl : null;
+
+                            const put = await fetch(uploadUrl, {
+                              method: "PUT",
+                              headers: { "Content-Type": ct },
+                              body: file,
+                            });
+                            if (!put.ok) {
+                              const txt = await put.text().catch(() => "");
+                              throw new Error(`Upload failed (${put.status}) ${txt}`.trim());
+                            }
+                            if (publicUrl) screenshotUrls.push(publicUrl);
+                          }
+
+                          const res = await fetch("/api/report/feature", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "same-origin",
+                            body: JSON.stringify({
+                              title: t,
+                              description: d,
+                              useCase: featureUseCase.trim() || null,
+                              pageUrl: typeof window !== "undefined" ? window.location.href : null,
+                              screenshotUrls,
+                            }),
+                          });
+                          const json = await res.json().catch(() => ({}));
+                          if (!res.ok || !json || json.success !== true) {
+                            addNotification({
+                              id: crypto.randomUUID(),
+                              text:
+                                typeof (json as { error?: string }).error === "string"
+                                  ? (json as { error: string }).error
+                                  : "Feature request failed.",
+                              type: "call",
+                              createdAt: Date.now(),
+                              priority: "low",
+                            });
+                            return;
+                          }
+                          addNotification({
+                            id: crypto.randomUUID(),
+                            text: "Feature request submitted. Thank you.",
+                            type: "call",
+                            createdAt: Date.now(),
+                            priority: "medium",
+                          });
+                          setFeatureOpen(false);
+                          setFeatureTitle("");
+                          setFeatureDescription("");
+                          setFeatureUseCase("");
+                          setFeatureImages([]);
+                        } catch {
+                          addNotification({
+                            id: crypto.randomUUID(),
+                            text: "Feature request failed.",
+                            type: "call",
+                            createdAt: Date.now(),
+                            priority: "low",
+                          });
+                        } finally {
+                          setFeatureSubmitting(false);
+                        }
+                      }}
+                      disabled={featureSubmitting}
+                      className="rounded-md bg-gradient-to-r from-violet-500 to-fuchsia-600 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-black/30 transition hover:from-violet-400 hover:to-fuchsia-500 disabled:opacity-60"
+                    >
+                      {featureSubmitting ? "Submitting…" : "Submit"}
                     </button>
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { TOP_CALLER_BADGE_KEY, topCallerBadgeToken } from "@/lib/topCallerBadgeDisplay";
 
 function parseUserIds(body: unknown): string[] {
   if (!body || typeof body !== "object") return [];
@@ -43,10 +44,8 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase
       .from("user_badges")
-      .select("user_id, badge")
+      .select("user_id, badge, times_awarded")
       .in("user_id", userIds);
-
-    console.log("BADGES:", data, error);
 
     if (error) {
       console.error("[badges API] POST:", error);
@@ -66,7 +65,16 @@ export async function POST(request: Request) {
           ? row.badge.trim()
           : String(row.badge ?? "").trim();
       if (!uid || !badge) continue;
-      (out[uid] ??= []).push(badge);
+      const timesRaw = row.times_awarded;
+      const times =
+        typeof timesRaw === "number" && Number.isFinite(timesRaw)
+          ? timesRaw
+          : Number(timesRaw);
+      const token =
+        badge === TOP_CALLER_BADGE_KEY && Number.isFinite(times) && times >= 1
+          ? topCallerBadgeToken(times)
+          : badge;
+      (out[uid] ??= []).push(token);
     }
     return Response.json(out);
   } catch (e) {

@@ -15,6 +15,7 @@ import {
   callClubMilestoneLabel,
   compareMilestoneKeys,
 } from "@/lib/milestoneTrophies";
+import { parseTopCallerTimesFromBadges } from "@/lib/topCallerBadgeDisplay";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -1429,7 +1430,8 @@ export default function UserProfilePage() {
         ? followingIds.has(snowflakeForFollow)
         : false;
 
-  const isTopCaller = badges.includes("top_caller");
+  const topCallerTimes = parseTopCallerTimesFromBadges(badges);
+  const isTopCaller = topCallerTimes > 0;
   const isTrustedPro = badges.includes("trusted_pro");
 
   const bannerUrl = profile?.banner_url?.trim() || "";
@@ -1607,6 +1609,9 @@ export default function UserProfilePage() {
                     🔥
                   </span>
                   Top Caller
+                  {topCallerTimes > 1 ? (
+                    <span className="font-extrabold text-amber-200">{topCallerTimes}×</span>
+                  ) : null}
                 </span>
               ) : null}
               {!loading && isTrustedPro ? (
