@@ -3678,6 +3678,25 @@ export default function Home() {
       const res = await submitCall(ca);
       if (res.ok) {
         setSubmitCallFeedback("success");
+        const data = res.data as Record<string, unknown> | null;
+        const sm = data?.statsMirror as Record<string, unknown> | undefined;
+        if (sm && sm.ok === false) {
+          const reason =
+            typeof sm.reason === "string" ? sm.reason : "";
+          const errText =
+            typeof sm.error === "string" ? sm.error : "";
+          const msg =
+            reason === "missing_supabase_service_role"
+              ? "Call posted, but stats did not sync: set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY on the bot VPS (same project as the dashboard)."
+              : `Call posted, but stats did not sync${errText ? `: ${errText}` : reason ? ` (${reason})` : ""}.`;
+          addNotification({
+            id: crypto.randomUUID(),
+            text: msg,
+            type: "call",
+            createdAt: Date.now(),
+            priority: "high",
+          });
+        }
         setHomeDataRefreshNonce((n) => n + 1);
         loadActivity();
         window.setTimeout(() => {
