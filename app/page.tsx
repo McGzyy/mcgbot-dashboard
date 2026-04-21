@@ -3146,6 +3146,8 @@ export default function Home() {
   const [submitCallFeedback, setSubmitCallFeedback] = useState<
     "success" | "already_exists" | null
   >(null);
+  /** Bumps after submit-call success so stats / lists refetch without a full page reload. */
+  const [homeDataRefreshNonce, setHomeDataRefreshNonce] = useState(0);
   const [helpTier, setHelpTier] = useState<HelpTier>("user");
   const [modChatConfigured, setModChatConfigured] = useState(false);
 
@@ -3408,7 +3410,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, homeDataRefreshNonce]);
 
   useEffect(() => {
     if (!session?.user?.id?.trim()) {
@@ -3450,7 +3452,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, homeDataRefreshNonce]);
 
   useEffect(() => {
     if (!session?.user?.id?.trim()) {
@@ -3550,7 +3552,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, homeDataRefreshNonce]);
 
   useEffect(() => {
     const ids = new Set<string>();
@@ -3627,7 +3629,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, homeDataRefreshNonce]);
 
   useEffect(() => {
     loadActivity();
@@ -3676,6 +3678,8 @@ export default function Home() {
       const res = await submitCall(ca);
       if (res.ok) {
         setSubmitCallFeedback("success");
+        setHomeDataRefreshNonce((n) => n + 1);
+        loadActivity();
         window.setTimeout(() => {
           setSubmitCallOpen(false);
           setSubmitCallValue("");
@@ -3715,7 +3719,7 @@ export default function Home() {
     } finally {
       setSubmitCallSubmitting(false);
     }
-  }, [addNotification, submitCallSubmitting, submitCallValue]);
+  }, [addNotification, loadActivity, submitCallSubmitting, submitCallValue]);
 
   if (status === "loading") {
     return (
