@@ -9,7 +9,10 @@ type TimeframeId = "daily" | "weekly" | "monthly" | "all";
 
 type LeaderRow = {
   rank: number;
+  /** Display label (may differ in casing from Discord login). */
   username: string;
+  /** Discord snowflake for `/user/...` links. */
+  discordId?: string;
   avatarSrc?: string;
   avgX: number;
   bestX: number;
@@ -385,6 +388,11 @@ export default function LeaderboardPage() {
       const o = item as Record<string, unknown>;
       const rank = typeof o.rank === "number" ? o.rank : Number(o.rank) || 0;
       const username = typeof o.username === "string" ? o.username.trim() : "";
+      const discordRaw = o.discordId ?? o.discord_id;
+      const discordId =
+        typeof discordRaw === "string" && discordRaw.trim()
+          ? discordRaw.trim()
+          : "";
       const avgX = typeof o.avgX === "number" ? o.avgX : Number(o.avgX) || 0;
       const bestMultiple =
         typeof o.bestMultiple === "number" ? o.bestMultiple : Number(o.bestMultiple) || 0;
@@ -395,6 +403,7 @@ export default function LeaderboardPage() {
       out.push({
         rank,
         username,
+        discordId: discordId || undefined,
         avgX,
         bestX: bestMultiple,
         calls: totalCalls,
@@ -537,6 +546,7 @@ export default function LeaderboardPage() {
                 {
                   rank: 1,
                   username: (weeklyJson as any).leader?.username,
+                  discordId: (weeklyJson as any).leader?.discordId,
                   avgX: (weeklyJson as any).leader?.avgX,
                   bestMultiple: (weeklyJson as any).leader?.bestMultiple,
                   totalCalls: (weeklyJson as any).leader?.totalCalls,
@@ -551,6 +561,7 @@ export default function LeaderboardPage() {
                 {
                   rank: 1,
                   username: (monthlyJson as any).leader?.username,
+                  discordId: (monthlyJson as any).leader?.discordId,
                   avgX: (monthlyJson as any).leader?.avgX,
                   bestMultiple: (monthlyJson as any).leader?.bestMultiple,
                   totalCalls: (monthlyJson as any).leader?.totalCalls,
@@ -816,13 +827,18 @@ export default function LeaderboardPage() {
             ] as const
           ).map((slot, idx) => {
             const w = slot.row;
-            const clickable = w != null && w.username && w.username !== "—";
+            const profileSeg =
+              w?.username && w.username !== "—"
+                ? w.username.trim()
+                : w?.discordId?.trim() || "";
+            const clickable = Boolean(profileSeg);
             return (
               <div
                 key={slot.label}
                 className={`group relative transition-all ${clickable ? "cursor-pointer" : "cursor-default"}`}
                 onClick={() => {
-                  if (clickable) router.push(`/user/${encodeURIComponent(w.username)}`);
+                  if (clickable)
+                    router.push(`/user/${encodeURIComponent(profileSeg)}`);
                 }}
               >
                 <div className="relative rounded-xl border border-[#2a2415] bg-gradient-to-br from-[#161308] via-[#0c0c0c] to-[#0a0a0a] p-6 shadow-[0_0_28px_rgba(255,215,0,0.12)] transition-all hover:bg-zinc-900/60 hover:shadow-[0_0_36px_rgba(255,215,0,0.18)]">

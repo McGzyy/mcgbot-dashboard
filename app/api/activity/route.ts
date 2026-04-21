@@ -6,6 +6,11 @@ import {
   formatNewCallActivityLine,
   formatWinActivityLine,
 } from "@/lib/callDisplayFormat";
+import {
+  CP_ACTIVITY_LEGACY,
+  CP_ACTIVITY_WITH_SNAPSHOT,
+  selectCallPerformanceWithSnapshotFallback,
+} from "@/lib/callPerformanceColumnFallback";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
 export async function GET(request: Request) {
@@ -31,19 +36,18 @@ export async function GET(request: Request) {
 
     const supabase = createClient(url, key);
 
-    let query = supabase
-      .from("call_performance")
-      .select(
-        "username, discord_id, ath_multiple, call_time, source, call_ca, message_url, excluded_from_stats, token_name, token_ticker, call_market_cap_usd, token_image_url"
-      );
+    const buildBaseQuery = (columns: string) => {
+      let q = supabase.from("call_performance").select(columns);
+      const t = tier.toLowerCase().trim();
+      if (t === "free") {
+        q = q.eq("source", "user");
+      } else if (t === "pro") {
+        q = q.in("source", ["user", "bot"]);
+      }
+      return q;
+    };
 
-    const t = tier.toLowerCase().trim();
-    if (t === "free") {
-      query = query.eq("source", "user");
-    } else if (t === "pro") {
-      query = query.in("source", ["user", "bot"]);
-    }
-
+    let followingIds: string[] | null = null;
     if (mode === "following") {
       if (!userId) {
         return Response.json([]);
@@ -72,12 +76,24 @@ export async function GET(request: Request) {
       if (ids.length === 0) {
         return Response.json([]);
       }
-
-      query = query.in("discord_id", ids);
+      followingIds = ids;
     }
 
     const [{ data, error }, cutoverMs] = await Promise.all([
-      query.order("call_time", { ascending: false }).limit(40),
+      selectCallPerformanceWithSnapshotFallback({
+        columnsWithSnapshot: CP_ACTIVITY_WITH_SNAPSHOT,
+        columnsLegacy: CP_ACTIVITY_LEGACY,
+        run: async (columns) => {
+          let q = buildBaseQuery(columns);
+          if (followingIds) {
+            q = q.in("discord_id", followingIds);
+          }
+          const res = await q
+            .order("call_time", { ascending: false })
+            .limit(40);
+          return { data: res.data, error: res.error };
+        },
+      }),
       getStatsCutoverUtcMs(),
     ]);
 

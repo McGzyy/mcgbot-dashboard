@@ -1,6 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  CP_TAPE_LEGACY,
+  CP_TAPE_WITH_SNAPSHOT,
+  selectCallPerformanceWithSnapshotFallback,
+} from "@/lib/callPerformanceColumnFallback";
 import { mergeStatsCutoverIntoMin, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
 const DAY = 86_400_000;
@@ -25,7 +30,9 @@ export async function GET(request: Request) {
     const offset = Math.max(0, Number(searchParams.get("offset")) || 0);
 
     const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
+    const key =
+      process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+      process.env.SUPABASE_ANON_KEY?.trim();
     if (!url || !key) {
       console.error("Missing Supabase env vars");
       return Response.json({ error: "Supabase not configured" }, { status: 500 });
@@ -37,16 +44,20 @@ export async function GET(request: Request) {
     const winStart = windowStartMs(window, now);
     const floor = mergeStatsCutoverIntoMin(winStart, cutoverMs);
 
-    const { data, error, count } = await supabase
-      .from("call_performance")
-      .select(
-        "id, call_ca, ath_multiple, call_time, source, message_url, username, excluded_from_stats, token_name, token_ticker, call_market_cap_usd, token_image_url",
-        { count: "exact" }
-      )
-      .eq("discord_id", discordId)
-      .gte("call_time", floor)
-      .order("call_time", { ascending: false })
-      .range(offset, offset + limit - 1);
+    const { data, error, count } = await selectCallPerformanceWithSnapshotFallback({
+      columnsWithSnapshot: CP_TAPE_WITH_SNAPSHOT,
+      columnsLegacy: CP_TAPE_LEGACY,
+      run: async (columns) => {
+        const res = await supabase
+          .from("call_performance")
+          .select(columns, { count: "exact" })
+          .eq("discord_id", discordId)
+          .gte("call_time", floor)
+          .order("call_time", { ascending: false })
+          .range(offset, offset + limit - 1);
+        return { data: res.data, error: res.error, count: res.count };
+      },
+    });
 
     if (error) {
       console.error("[me/call-tape]", error);

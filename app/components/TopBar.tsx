@@ -3,6 +3,7 @@
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { useMobileSidebar } from "@/app/contexts/MobileSidebarContext";
 import { dashboardChrome } from "@/lib/roleTierStyles";
+import { userProfileHref, userProfilePathMatches } from "@/lib/userProfileHref";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -445,12 +446,18 @@ export function TopBar() {
                       role="menu"
                     >
                       <Link
-                        href={`/user/${encodeURIComponent(session.user.id)}`}
+                        href={userProfileHref({
+                          discordId: session.user.id,
+                          displayName: session.user.name,
+                        })}
                         role="menuitem"
                         onClick={() => setOpen(false)}
                         className={accountMenuItem(
-                          pathname === `/user/${session.user.id}` ||
-                            pathname === `/user/${encodeURIComponent(session.user.id)}`
+                          userProfilePathMatches(
+                            pathname,
+                            session.user.id,
+                            session.user.name
+                          )
                         )}
                       >
                         Profile

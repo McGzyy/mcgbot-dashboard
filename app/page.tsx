@@ -28,6 +28,7 @@ import {
   DASHBOARD_CHAT_AUTHOR_COLOR,
   type ChatMessagePayload,
 } from "@/lib/discordChatMessageSerialize";
+import { userProfileHref } from "@/lib/userProfileHref";
 import {
   useCallback,
   useEffect,
@@ -961,7 +962,10 @@ function renderActivityFeedLine(
         <>
           New Call -{" "}
           <Link
-            href={`/user/${encodeURIComponent(id)}`}
+            href={userProfileHref({
+              discordId: id,
+              displayName: name || apiName,
+            })}
             className={PROFILE_LINK_CLASS}
             onClick={(e) => e.stopPropagation()}
           >
@@ -978,7 +982,10 @@ function renderActivityFeedLine(
         <>
           {legacyPrefix}
           <Link
-            href={`/user/${encodeURIComponent(id)}`}
+            href={userProfileHref({
+              discordId: id,
+              displayName: name || apiName,
+            })}
             className={PROFILE_LINK_CLASS}
             onClick={(e) => e.stopPropagation()}
           >
@@ -995,7 +1002,10 @@ function renderActivityFeedLine(
     return (
       <>
         <Link
-          href={`/user/${encodeURIComponent(id)}`}
+          href={userProfileHref({
+            discordId: id,
+            displayName: name || apiName,
+          })}
           className={PROFILE_LINK_CLASS}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1725,7 +1735,10 @@ function TopPerformersPanel({
                         #{listPosition}
                       </span>
                       <Link
-                        href={`/user/${encodeURIComponent(row.discordId)}`}
+                        href={userProfileHref({
+                          discordId: row.discordId,
+                          displayName: label,
+                        })}
                         className={v.nameLink}
                       >
                         {label}
@@ -2864,7 +2877,10 @@ function DashboardChatPanel({
                         <div className={`min-w-0 ${own ? "text-right" : ""}`}>
                           {m.authorId ? (
                             <Link
-                              href={`/user/${encodeURIComponent(m.authorId)}`}
+                              href={userProfileHref({
+                                discordId: m.authorId,
+                                displayName: m.authorName,
+                              })}
                               className="truncate text-sm font-semibold underline-offset-2 hover:underline"
                               style={{ color: nameColor }}
                             >
@@ -4102,7 +4118,10 @@ export default function Home() {
 
                 <div className="grid grid-cols-2 gap-2">
                   <Link
-                    href={`/user/${encodeURIComponent(session.user.id)}`}
+                    href={userProfileHref({
+                      discordId: session.user.id,
+                      displayName: session.user.name,
+                    })}
                     className="flex items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     My Profile

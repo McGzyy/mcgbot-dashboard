@@ -13,6 +13,7 @@ import {
   type StaffRoleLabel,
 } from "@/lib/roleTierStyles";
 import { useMobileSidebar } from "@/app/contexts/MobileSidebarContext";
+import { userProfileHref } from "@/lib/userProfileHref";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -186,7 +187,14 @@ function SidebarBody({
 
       <div className="mt-auto border-t border-zinc-800 p-3">
         <Link
-          href={profileId ? `/user/${encodeURIComponent(profileId)}` : "/"}
+          href={
+            profileId
+              ? userProfileHref({
+                  discordId: profileId,
+                  displayName: profileName,
+                })
+              : "/"
+          }
           onClick={pick}
           className="flex cursor-pointer items-center gap-3 rounded-md p-2 transition hover:bg-zinc-900"
         >

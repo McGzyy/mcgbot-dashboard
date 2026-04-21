@@ -1,6 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  CP_RECENT_LEGACY,
+  CP_RECENT_WITH_SNAPSHOT,
+  selectCallPerformanceWithSnapshotFallback,
+} from "@/lib/callPerformanceColumnFallback";
 import { mapCallPerformanceRowToRecentCall } from "@/lib/callPerformanceUserStats";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
@@ -26,14 +31,19 @@ export async function GET() {
     const supabase = createClient(url, key);
 
     const [{ data, error }, cutoverMs] = await Promise.all([
-      supabase
-        .from("call_performance")
-        .select(
-          "id, call_ca, ath_multiple, call_time, excluded_from_stats, token_name, token_ticker, call_market_cap_usd, token_image_url"
-        )
-        .eq("discord_id", discordId)
-        .order("call_time", { ascending: false })
-        .limit(50),
+      selectCallPerformanceWithSnapshotFallback({
+        columnsWithSnapshot: CP_RECENT_WITH_SNAPSHOT,
+        columnsLegacy: CP_RECENT_LEGACY,
+        run: async (columns) => {
+          const res = await supabase
+            .from("call_performance")
+            .select(columns)
+            .eq("discord_id", discordId)
+            .order("call_time", { ascending: false })
+            .limit(50);
+          return { data: res.data, error: res.error };
+        },
+      }),
       getStatsCutoverUtcMs(),
     ]);
 

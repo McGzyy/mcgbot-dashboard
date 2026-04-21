@@ -1,9 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import {
+  CP_PROFILE_LEGACY,
+  CP_PROFILE_WITH_SNAPSHOT,
+  selectCallPerformanceWithSnapshotFallback,
+} from "@/lib/callPerformanceColumnFallback";
+import {
   computeCallPerformanceUserStats,
   pickLatestUsername,
   recentCallsFromRows,
 } from "@/lib/callPerformanceUserStats";
+import { resolveDiscordIdFromProfileRouteParam } from "@/lib/discordIdentity";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
 const PROFILE_RECENT_CALLS_LIMIT = 15;
@@ -89,8 +95,8 @@ export async function GET(
 ) {
   try {
     const { id: rawId } = await context.params;
-    const discordId = decodeURIComponent(String(rawId ?? "")).trim();
-    if (!discordId || discordId.length > 64) {
+    const routeParam = decodeURIComponent(String(rawId ?? "")).trim();
+    if (!routeParam || routeParam.length > 200) {
       return Response.json({ error: "Invalid user id" }, { status: 400 });
     }
 
@@ -109,13 +115,28 @@ export async function GET(
 
     const supabase = createClient(url, key);
 
-    const [{ data, error }, userRowResult, cutoverMs] = await Promise.all([
-      supabase
-        .from("call_performance")
-        .select(
-          "id, username, call_ca, ath_multiple, call_time, excluded_from_stats, token_name, token_ticker, call_market_cap_usd, token_image_url"
-        )
-        .eq("discord_id", discordId),
+    const discordId = await resolveDiscordIdFromProfileRouteParam(
+      supabase,
+      routeParam
+    );
+    if (!discordId) {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const perfResult = await selectCallPerformanceWithSnapshotFallback({
+      columnsWithSnapshot: CP_PROFILE_WITH_SNAPSHOT,
+      columnsLegacy: CP_PROFILE_LEGACY,
+      run: async (columns) => {
+        const res = await supabase
+          .from("call_performance")
+          .select(columns)
+          .eq("discord_id", discordId);
+        return { data: res.data, error: res.error };
+      },
+    });
+    const { data, error } = perfResult;
+
+    const [userRowResult, cutoverMs] = await Promise.all([
       supabase
         .from("users")
         .select("id, discord_id, bio, banner_url, x_handle, x_verified, created_at, profile_visibility")
@@ -159,6 +180,7 @@ export async function GET(
     const callDistribution = computeCallDistribution(statsRows);
 
     return Response.json({
+      discordId,
       username,
       // Badges are now fetched from `user_badges` on the client; keep fields for compatibility.
       isTopCaller: false,

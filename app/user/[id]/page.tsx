@@ -9,6 +9,7 @@ import {
   formatJoinedAt,
   multipleClass,
 } from "@/lib/callDisplayFormat";
+import { looksLikeDiscordSnowflake } from "@/lib/discordIdentity";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -36,6 +37,8 @@ type RecentCallRow = {
 };
 
 type ProfilePayload = {
+  /** Resolved Discord snowflake (always set by `/api/user/[id]`). */
+  discordId: string;
   username: string;
   isTopCaller: boolean;
   isTrustedPro: boolean;
@@ -538,6 +541,11 @@ function DepthMetricsGrid({
 function parseProfile(json: unknown): ProfilePayload | null {
   if (!json || typeof json !== "object" || "error" in json) return null;
   const o = json as Record<string, unknown>;
+  const discordRaw = o.discordId ?? o.discord_id;
+  const discordId =
+    typeof discordRaw === "string" && discordRaw.trim()
+      ? discordRaw.trim()
+      : "";
   const username = typeof o.username === "string" ? o.username : "";
   const statsRaw = o.stats;
   if (!statsRaw || typeof statsRaw !== "object") return null;
@@ -599,7 +607,9 @@ function parseProfile(json: unknown): ProfilePayload | null {
       });
     }
   }
+  if (!discordId) return null;
   return {
+    discordId,
     username,
     isTopCaller: Boolean(o.isTopCaller),
     isTrustedPro: Boolean(o.isTrustedPro),
@@ -674,8 +684,6 @@ export default function UserProfilePage() {
   const { data: session } = useSession();
   const isAdmin =
     (session?.user as { helpTier?: string } | undefined)?.helpTier === "admin";
-  const isOwnProfile =
-    !!session?.user?.id?.trim() && session.user.id.trim() === profileUserId;
 
   const { followingIds, setFollowing } = useFollowingIds();
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
@@ -707,6 +715,17 @@ export default function UserProfilePage() {
     time: unknown;
   } | null>(null);
   const [pinnedLoading, setPinnedLoading] = useState(true);
+
+  const resolvedSnowflake =
+    profile?.discordId?.trim() ||
+    (looksLikeDiscordSnowflake(profileUserId) ? profileUserId.trim() : "");
+
+  const isOwnProfile =
+    !!session?.user?.id?.trim() &&
+    (!!resolvedSnowflake
+      ? session.user.id.trim() === resolvedSnowflake
+      : looksLikeDiscordSnowflake(profileUserId) &&
+        session.user.id.trim() === profileUserId.trim());
 
   const fetchProfile = useCallback(async (signal?: AbortSignal) => {
     if (!profileUserId) {
@@ -743,7 +762,13 @@ export default function UserProfilePage() {
       setProfile(parsed);
       setError(null);
       return true;
-    } catch {
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        return false;
+      }
+      if (e instanceof Error && e.name === "AbortError") {
+        return false;
+      }
       setError("Could not load profile.");
       setProfile(null);
       return false;
@@ -753,7 +778,12 @@ export default function UserProfilePage() {
   }, [profileUserId]);
 
   const resetUserStats = useCallback(async () => {
-    if (!isAdmin || !profileUserId) return;
+    if (!isAdmin) return;
+    const targetId = resolvedSnowflake;
+    if (!targetId) {
+      window.alert("Profile could not be resolved yet — try again in a moment.");
+      return;
+    }
     let body: Record<string, string> = {};
     let confirmMsg =
       "Reset this user’s stats?\n\nThis excludes ALL of their existing calls from leaderboards and performance stats (history is retained).";
@@ -773,7 +803,7 @@ export default function UserProfilePage() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/admin/users/${encodeURIComponent(profileUserId)}/reset-stats`,
+        `/api/admin/users/${encodeURIComponent(targetId)}/reset-stats`,
         {
           method: "POST",
           credentials: "same-origin",
@@ -810,13 +840,18 @@ export default function UserProfilePage() {
   }, [
     fetchProfile,
     isAdmin,
-    profileUserId,
+    resolvedSnowflake,
     statsCutoverLocal,
     statsResetMode,
   ]);
 
   const resetUserTrophies = useCallback(async () => {
-    if (!isAdmin || !profileUserId) return;
+    if (!isAdmin) return;
+    const targetId = resolvedSnowflake;
+    if (!targetId) {
+      window.alert("Profile could not be resolved yet — try again in a moment.");
+      return;
+    }
     const ok = window.confirm(
       "Delete all leaderboard trophies for this user? This cannot be undone."
     );
@@ -826,7 +861,7 @@ export default function UserProfilePage() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/admin/users/${encodeURIComponent(profileUserId)}/reset-trophies`,
+        `/api/admin/users/${encodeURIComponent(targetId)}/reset-trophies`,
         { method: "POST", credentials: "same-origin" }
       );
       const json = (await res.json().catch(() => ({}))) as {
@@ -852,10 +887,15 @@ export default function UserProfilePage() {
     } finally {
       setAdminBusy(false);
     }
-  }, [fetchProfile, isAdmin, profileUserId]);
+  }, [fetchProfile, isAdmin, resolvedSnowflake]);
 
   const unlinkUserX = useCallback(async () => {
-    if (!isAdmin || !profileUserId) return;
+    if (!isAdmin) return;
+    const targetId = resolvedSnowflake;
+    if (!targetId) {
+      window.alert("Profile could not be resolved yet — try again in a moment.");
+      return;
+    }
     const ok = window.confirm(
       "Unlink this user’s X (Twitter) handle from their profile?"
     );
@@ -865,7 +905,7 @@ export default function UserProfilePage() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/admin/users/${encodeURIComponent(profileUserId)}/unlink-x`,
+        `/api/admin/users/${encodeURIComponent(targetId)}/unlink-x`,
         { method: "POST", credentials: "same-origin" }
       );
       const json = (await res.json().catch(() => ({}))) as {
@@ -885,7 +925,7 @@ export default function UserProfilePage() {
     } finally {
       setAdminBusy(false);
     }
-  }, [fetchProfile, isAdmin, profileUserId]);
+  }, [fetchProfile, isAdmin, resolvedSnowflake]);
 
   const setCallExcluded = useCallback(
     async (callId: string, excluded: boolean) => {
@@ -1040,12 +1080,12 @@ export default function UserProfilePage() {
   }, [editOpen, isOwnProfile]);
 
   useEffect(() => {
-    if (!profileUserId) {
+    if (!resolvedSnowflake) {
       setBadges([]);
       return;
     }
     let cancelled = false;
-    const url = `/api/user/${encodeURIComponent(profileUserId)}/badges`;
+    const url = `/api/user/${encodeURIComponent(resolvedSnowflake)}/badges`;
     fetch(url)
       .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
@@ -1069,13 +1109,13 @@ export default function UserProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [profileUserId]);
+  }, [resolvedSnowflake]);
 
   useEffect(() => {
-    if (!profileUserId) return;
+    if (!resolvedSnowflake) return;
     let cancelled = false;
     setFollowStats(null);
-    const q = encodeURIComponent(profileUserId);
+    const q = encodeURIComponent(resolvedSnowflake);
     fetch(`/api/follow?userId=${q}`)
       .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
@@ -1103,10 +1143,10 @@ export default function UserProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [profileUserId]);
+  }, [resolvedSnowflake]);
 
   useEffect(() => {
-    if (!profileUserId) {
+    if (!resolvedSnowflake) {
       setTrophiesLoading(false);
       setTrophies(null);
       return;
@@ -1114,7 +1154,7 @@ export default function UserProfilePage() {
 
     let cancelled = false;
     setTrophiesLoading(true);
-    const url = `/api/user/${encodeURIComponent(profileUserId)}/trophies`;
+    const url = `/api/user/${encodeURIComponent(resolvedSnowflake)}/trophies`;
     fetch(url)
       .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
@@ -1135,10 +1175,10 @@ export default function UserProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [profileUserId]);
+  }, [resolvedSnowflake]);
 
   const refreshFollowStats = useCallback(async () => {
-    const id = profileUserId;
+    const id = resolvedSnowflake;
     if (!id) return;
     const q = encodeURIComponent(id);
     try {
@@ -1160,10 +1200,11 @@ export default function UserProfilePage() {
       });
     } catch (e) {
     }
-  }, [profileUserId]);
+  }, [resolvedSnowflake]);
 
   const nowMs = Date.now();
-  const uid = profileUserId;
+  const snowflakeForFollow = resolvedSnowflake;
+  const uid = resolvedSnowflake || profileUserId;
   const avatarSrc =
     isOwnProfile && session?.user?.image
       ? session.user.image
@@ -1180,7 +1221,9 @@ export default function UserProfilePage() {
   const followingState =
     followStats !== null
       ? followStats.isFollowing
-      : followingIds.has(uid);
+      : snowflakeForFollow
+        ? followingIds.has(snowflakeForFollow)
+        : false;
 
   const isTopCaller = badges.includes("top_caller");
   const isTrustedPro = badges.includes("trusted_pro");
@@ -1372,10 +1415,11 @@ export default function UserProfilePage() {
                 </button>
               ) : (
                 <FollowButton
-                  targetDiscordId={uid}
+                  targetDiscordId={snowflakeForFollow}
                   following={followingState}
                   onFollowingChange={(next) => {
-                    setFollowing(uid, next);
+                    if (!snowflakeForFollow) return;
+                    setFollowing(snowflakeForFollow, next);
                     setFollowStats((prev) =>
                       prev ? { ...prev, isFollowing: next } : prev
                     );
@@ -1953,7 +1997,7 @@ export default function UserProfilePage() {
                 ) : null}
               </div>
               <p className="mt-3 text-xs text-zinc-500">
-                Discord ID · {uid}
+                Discord ID · {resolvedSnowflake || "—"}
               </p>
             </PanelCard>
 
