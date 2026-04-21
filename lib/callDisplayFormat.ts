@@ -13,6 +13,83 @@ export function abbreviateCa(ca: string, headChars = 4, tailChars = 4): string {
   return `${s.slice(0, headChars)}…${s.slice(-tailChars)}`;
 }
 
+function stripTrailingDotZeros(s: string): string {
+  return s.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+}
+
+/** Compact MC label for call-time display, e.g. `15.5k MC`, `1.2M MC`. */
+export function formatMarketCapAtCall(
+  usd: number | string | null | undefined
+): string {
+  if (usd == null) return "—";
+  const n = typeof usd === "number" ? usd : Number(usd);
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  if (n >= 1_000_000_000) {
+    return `${stripTrailingDotZeros((n / 1_000_000_000).toFixed(2))}B MC`;
+  }
+  if (n >= 1_000_000) {
+    return `${stripTrailingDotZeros((n / 1_000_000).toFixed(2))}M MC`;
+  }
+  if (n >= 1000) {
+    return `${stripTrailingDotZeros((n / 1000).toFixed(1))}k MC`;
+  }
+  return `${Math.round(n)} MC`;
+}
+
+export type CallSnapshotMeta = {
+  tokenName?: string | null;
+  tokenTicker?: string | null;
+  callMarketCapUsd?: number | string | null;
+  callCa?: string | null;
+};
+
+function snapshotTokenName(meta: CallSnapshotMeta): string {
+  const raw = typeof meta.tokenName === "string" ? meta.tokenName.trim() : "";
+  if (raw && raw.toLowerCase() !== "unknown token") return raw.slice(0, 80);
+  const ca = String(meta.callCa ?? "").trim();
+  if (ca) return abbreviateCa(ca, 4, 4);
+  return "Unknown";
+}
+
+function snapshotTicker(meta: CallSnapshotMeta): string {
+  const raw = typeof meta.tokenTicker === "string" ? meta.tokenTicker.trim() : "";
+  const t = raw.replace(/^\$+/, "").toUpperCase();
+  if (t && t !== "UNKNOWN") return t.slice(0, 24);
+  return "UNKNOWN";
+}
+
+/** `Called COIN ($COIN) @ 15.5k MC` — for “my calls” surfaces (no username). */
+export function formatCalledSnapshotLine(meta: CallSnapshotMeta): string {
+  const name = snapshotTokenName(meta);
+  const tick = snapshotTicker(meta);
+  const mc = formatMarketCapAtCall(meta.callMarketCapUsd ?? null);
+  return `Called ${name} ($${tick}) @ ${mc}`;
+}
+
+/** Live activity line for a new user call. */
+export function formatNewCallActivityLine(
+  username: string,
+  meta: CallSnapshotMeta
+): string {
+  const who = username.trim() || "Unknown";
+  const inner = formatCalledSnapshotLine(meta).replace(/^Called /, "");
+  return `New Call - ${who} called ${inner}`;
+}
+
+/** Win / milestone style line (activity feed). */
+export function formatWinActivityLine(
+  username: string,
+  multiple: number,
+  meta: CallSnapshotMeta
+): string {
+  const who = username.trim() || "Unknown";
+  const name = snapshotTokenName(meta);
+  const tick = snapshotTicker(meta);
+  const mc = formatMarketCapAtCall(meta.callMarketCapUsd ?? null);
+  const x = Number.isFinite(multiple) ? multiple.toFixed(1) : "?";
+  return `${who} hit ${x}x on ${name} ($${tick}) @ ${mc}`;
+}
+
 export function multipleClass(multiple: number): string {
   if (multiple >= 2) return "text-[#39FF14]";
   if (multiple < 1) return "text-red-400";

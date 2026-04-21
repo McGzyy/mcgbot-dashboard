@@ -2,6 +2,10 @@ import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getUserTier } from "@/lib/getUserTier";
+import {
+  formatNewCallActivityLine,
+  formatWinActivityLine,
+} from "@/lib/callDisplayFormat";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
 export async function GET(request: Request) {
@@ -30,7 +34,7 @@ export async function GET(request: Request) {
     let query = supabase
       .from("call_performance")
       .select(
-        "username, discord_id, ath_multiple, call_time, source, call_ca, message_url, excluded_from_stats"
+        "username, discord_id, ath_multiple, call_time, source, call_ca, message_url, excluded_from_stats, token_name, token_ticker, call_market_cap_usd"
       );
 
     const t = tier.toLowerCase().trim();
@@ -107,8 +111,6 @@ export async function GET(request: Request) {
           ? String(r.call_ca).trim()
           : null;
 
-      const callLabel = rawCa ?? "a call";
-
       const link_chart = rawCa
         ? `https://dexscreener.com/solana/${rawCa}`
         : null;
@@ -118,10 +120,27 @@ export async function GET(request: Request) {
           ? r.message_url.trim()
           : null;
 
+      const tn =
+        typeof r.token_name === "string" && r.token_name.trim() !== ""
+          ? r.token_name.trim()
+          : null;
+      const tt =
+        typeof r.token_ticker === "string" && r.token_ticker.trim() !== ""
+          ? r.token_ticker.trim()
+          : null;
+      const mcNum = Number(r.call_market_cap_usd);
+      const meta = {
+        tokenName: tn,
+        tokenTicker: tt,
+        callMarketCapUsd:
+          Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
+        callCa: rawCa,
+      };
+
       if (multiple >= 2) {
         return {
           type: "win" as const,
-          text: `${username} hit ${multiple.toFixed(1)}x on ${callLabel}`,
+          text: formatWinActivityLine(username, multiple, meta),
           username,
           time: r.call_time,
           link_chart,
@@ -133,7 +152,7 @@ export async function GET(request: Request) {
 
       return {
         type: "call" as const,
-        text: `New call by ${username}`,
+        text: formatNewCallActivityLine(username, meta),
         username,
         time: r.call_time,
         link_chart,

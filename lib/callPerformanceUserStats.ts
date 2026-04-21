@@ -3,10 +3,14 @@ import { rowCallTimeUtcMs } from "@/lib/callPerformanceLeaderboard";
 /** Shape returned by `/api/me/recent-calls` and profile `recentCalls`. */
 export type RecentCallDto = {
   id?: string;
+  /** Mint / contract (Solana CA). */
   token: string;
   multiple: number;
   time: unknown;
   excludedFromStats?: boolean;
+  tokenName?: string | null;
+  tokenTicker?: string | null;
+  callMarketCapUsd?: number | null;
 };
 
 /** Same rules as `/api/me/stats`: avg of `ath_multiple`, win = multiple ≥ 2. */
@@ -143,12 +147,20 @@ export function mapCallPerformanceRowToRecentCall(
       ? raw.trim()
       : String(raw ?? "Unknown") || "Unknown";
   const multiple = Number(row.ath_multiple ?? 0);
+  const tn = (row as Record<string, unknown>).token_name;
+  const tt = (row as Record<string, unknown>).token_ticker;
+  const mcRaw = (row as Record<string, unknown>).call_market_cap_usd;
+  const mcNum = typeof mcRaw === "number" ? mcRaw : Number(mcRaw);
   return {
     id: id || undefined,
     token,
     multiple: Number.isFinite(multiple) ? multiple : 0,
     time: row.call_time,
     excludedFromStats: (row as any).excluded_from_stats === true,
+    tokenName: typeof tn === "string" && tn.trim() ? tn.trim() : null,
+    tokenTicker: typeof tt === "string" && tt.trim() ? tt.trim() : null,
+    callMarketCapUsd:
+      Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
   };
 }
 

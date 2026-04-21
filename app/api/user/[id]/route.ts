@@ -112,7 +112,9 @@ export async function GET(
     const [{ data, error }, userRowResult, cutoverMs] = await Promise.all([
       supabase
         .from("call_performance")
-        .select("id, username, call_ca, ath_multiple, call_time, excluded_from_stats")
+        .select(
+          "id, username, call_ca, ath_multiple, call_time, excluded_from_stats, token_name, token_ticker, call_market_cap_usd"
+        )
         .eq("discord_id", discordId),
       supabase
         .from("users")

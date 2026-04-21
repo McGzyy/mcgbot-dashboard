@@ -1,5 +1,6 @@
 "use client";
 
+import { formatCalledSnapshotLine } from "@/lib/callDisplayFormat";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -14,6 +15,9 @@ type TapeRow = {
   messageUrl: string | null;
   username: string;
   excludedFromStats?: boolean;
+  tokenName?: string | null;
+  tokenTicker?: string | null;
+  callMarketCapUsd?: number | null;
 };
 
 function shortCa(ca: string) {
@@ -150,7 +154,7 @@ export default function CallTapePage() {
             <thead className="border-b border-zinc-800/90 bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="px-4 py-3">When</th>
-                <th className="px-4 py-3">Contract</th>
+                <th className="px-4 py-3 min-w-[220px]">Call</th>
                 <th className="px-4 py-3 text-right">ATH ×</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Source</th>
@@ -184,8 +188,28 @@ export default function CallTapePage() {
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-zinc-400">
                         {iso ? formatRelativeTime(iso) : "—"}
                       </td>
-                      <td className="max-w-[200px] px-4 py-3 font-mono text-xs text-zinc-300">
-                        <span title={r.callCa}>{shortCa(r.callCa)}</span>
+                      <td className="max-w-[min(360px,55vw)] px-4 py-3 text-xs text-zinc-200">
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="font-medium leading-snug text-zinc-100">
+                            {formatCalledSnapshotLine({
+                              tokenName: r.tokenName,
+                              tokenTicker: r.tokenTicker,
+                              callMarketCapUsd: r.callMarketCapUsd ?? null,
+                              callCa: r.callCa,
+                            })}
+                          </div>
+                          {r.callCa ? (
+                            <a
+                              href={dex ?? "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-block font-mono text-[11px] text-cyan-400/90 hover:underline"
+                              title={r.callCa}
+                            >
+                              {shortCa(r.callCa)}
+                            </a>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-emerald-300">
                         {Number.isFinite(r.athMultiple) ? `${r.athMultiple.toFixed(2)}×` : "—"}

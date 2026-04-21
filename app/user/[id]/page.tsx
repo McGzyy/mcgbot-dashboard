@@ -3,7 +3,9 @@
 import { FollowButton } from "@/app/components/FollowButton";
 import { useFollowingIds } from "@/app/hooks/useFollowingIds";
 import {
+  abbreviateCa,
   callTimeMs,
+  formatCalledSnapshotLine,
   formatJoinedAt,
   multipleClass,
 } from "@/lib/callDisplayFormat";
@@ -27,6 +29,9 @@ type RecentCallRow = {
   multiple: number;
   time: unknown;
   excludedFromStats?: boolean;
+  tokenName?: string | null;
+  tokenTicker?: string | null;
+  callMarketCapUsd?: number | null;
 };
 
 type ProfilePayload = {
@@ -561,12 +566,31 @@ function parseProfile(json: unknown): ProfilePayload | null {
         typeof r.token === "string" ? r.token : String(r.token ?? "");
       const multiple = Number(r.multiple);
       if (!Number.isFinite(multiple)) continue;
+      const tokenName =
+        typeof r.tokenName === "string" && r.tokenName.trim()
+          ? r.tokenName.trim()
+          : typeof r.token_name === "string" && r.token_name.trim()
+            ? r.token_name.trim()
+            : null;
+      const tokenTicker =
+        typeof r.tokenTicker === "string" && r.tokenTicker.trim()
+          ? r.tokenTicker.trim()
+          : typeof r.token_ticker === "string" && r.token_ticker.trim()
+            ? r.token_ticker.trim()
+            : null;
+      const mcRaw = r.callMarketCapUsd ?? r.call_market_cap_usd;
+      const mcNum =
+        typeof mcRaw === "number" ? mcRaw : Number(mcRaw ?? NaN);
       recentCalls.push({
         id: id || undefined,
         token: token || "Unknown",
         multiple,
         time: r.time,
         excludedFromStats: r.excludedFromStats === true,
+        tokenName,
+        tokenTicker,
+        callMarketCapUsd:
+          Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
       });
     }
   }
@@ -654,6 +678,8 @@ export default function UserProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [adminBusy, setAdminBusy] = useState(false);
   const [adminOk, setAdminOk] = useState<string | null>(null);
+  const [statsResetMode, setStatsResetMode] = useState<"full" | "cutover">("full");
+  const [statsCutoverLocal, setStatsCutoverLocal] = useState("");
   const [followStats, setFollowStats] = useState<{
     followers: number;
     following: number;
@@ -723,9 +749,19 @@ export default function UserProfilePage() {
 
   const resetUserStats = useCallback(async () => {
     if (!isAdmin || !profileUserId) return;
-    const ok = window.confirm(
-      "Reset this user’s stats?\n\nThis excludes ALL of their existing calls from leaderboards and performance stats (history is retained)."
-    );
+    let body: Record<string, string> = {};
+    let confirmMsg =
+      "Reset this user’s stats?\n\nThis excludes ALL of their existing calls from leaderboards and performance stats (history is retained).";
+    if (statsResetMode === "cutover") {
+      if (!statsCutoverLocal.trim()) {
+        window.alert("Choose a date and time first — only calls at or after that instant will count toward stats.");
+        return;
+      }
+      const iso = new Date(statsCutoverLocal).toISOString();
+      body = { statsFromUtc: iso };
+      confirmMsg = `Apply stats cutover?\n\nCalls before ${iso} will be excluded; calls on or after that time stay eligible (per-call exclusions preserved where possible).`;
+    }
+    const ok = window.confirm(confirmMsg);
     if (!ok) return;
     setAdminBusy(true);
     setAdminOk(null);
@@ -733,11 +769,17 @@ export default function UserProfilePage() {
     try {
       const res = await fetch(
         `/api/admin/users/${encodeURIComponent(profileUserId)}/reset-stats`,
-        { method: "POST", credentials: "same-origin" }
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
       );
       const json = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         excluded?: number | null;
+        mode?: string;
         error?: string;
       };
       if (!res.ok || json.success !== true) {
@@ -746,11 +788,95 @@ export default function UserProfilePage() {
         );
         return;
       }
-      const n = typeof json.excluded === "number" ? json.excluded : null;
-      setAdminOk(n == null ? "Reset complete." : `Reset complete. Excluded ${n} calls.`);
+      if (json.mode === "cutover") {
+        setAdminOk("Cutover applied. Stats now use calls on or after the chosen time.");
+      } else {
+        const n = typeof json.excluded === "number" ? json.excluded : null;
+        setAdminOk(
+          n == null ? "Reset complete." : `Reset complete. Excluded ${n} calls.`
+        );
+      }
       void fetchProfile();
     } catch {
       setError("Reset failed.");
+    } finally {
+      setAdminBusy(false);
+    }
+  }, [
+    fetchProfile,
+    isAdmin,
+    profileUserId,
+    statsCutoverLocal,
+    statsResetMode,
+  ]);
+
+  const resetUserTrophies = useCallback(async () => {
+    if (!isAdmin || !profileUserId) return;
+    const ok = window.confirm(
+      "Delete all leaderboard trophies for this user? This cannot be undone."
+    );
+    if (!ok) return;
+    setAdminBusy(true);
+    setAdminOk(null);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/users/${encodeURIComponent(profileUserId)}/reset-trophies`,
+        { method: "POST", credentials: "same-origin" }
+      );
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        deleted?: number | null;
+        error?: string;
+      };
+      if (!res.ok || json.success !== true) {
+        setError(
+          typeof json.error === "string" ? json.error : "Trophy reset failed."
+        );
+        return;
+      }
+      const d = json.deleted;
+      setAdminOk(
+        typeof d === "number"
+          ? `Removed ${d} trophy row${d === 1 ? "" : "s"}.`
+          : "Trophies cleared."
+      );
+      void fetchProfile();
+    } catch {
+      setError("Trophy reset failed.");
+    } finally {
+      setAdminBusy(false);
+    }
+  }, [fetchProfile, isAdmin, profileUserId]);
+
+  const unlinkUserX = useCallback(async () => {
+    if (!isAdmin || !profileUserId) return;
+    const ok = window.confirm(
+      "Unlink this user’s X (Twitter) handle from their profile?"
+    );
+    if (!ok) return;
+    setAdminBusy(true);
+    setAdminOk(null);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/users/${encodeURIComponent(profileUserId)}/unlink-x`,
+        { method: "POST", credentials: "same-origin" }
+      );
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+      };
+      if (!res.ok || json.success !== true) {
+        setError(
+          typeof json.error === "string" ? json.error : "Unlink failed."
+        );
+        return;
+      }
+      setAdminOk("X account unlinked.");
+      void fetchProfile();
+    } catch {
+      setError("Unlink failed.");
     } finally {
       setAdminBusy(false);
     }
@@ -1549,80 +1675,97 @@ export default function UserProfilePage() {
                     className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-700/50 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 sm:gap-x-4"
                     aria-hidden
                   >
-                    <span>Token / CA</span>
+                    <span>Call</span>
                     <span className="text-right">Result</span>
                     <span className="text-right">Time</span>
                   </div>
                   <ul className="divide-y divide-zinc-800/40 text-sm">
                     {profile.recentCalls.map((call, i) => {
-                      const tokenFmt = formatCallTokenForProfile(call.token);
+                      const ca = call.token.trim();
+                      const dexUrl =
+                        ca &&
+                        ca !== "Unknown" &&
+                        SOLANA_MINT_LIKE.test(ca)
+                          ? `https://dexscreener.com/solana/${encodeURIComponent(ca)}`
+                          : null;
+                      const summary = formatCalledSnapshotLine({
+                        tokenName: call.tokenName,
+                        tokenTicker: call.tokenTicker,
+                        callMarketCapUsd: call.callMarketCapUsd ?? null,
+                        callCa: call.token,
+                      });
                       const titleMint =
-                        call.token.trim() &&
-                        call.token !== "Unknown" &&
-                        SOLANA_MINT_LIKE.test(call.token.trim())
-                          ? call.token.trim()
-                          : tokenFmt.display;
+                        ca && ca !== "Unknown"
+                          ? `${summary}\n${ca}`
+                          : summary;
                       return (
                       <li
                         key={`${call.token}-${String(call.time)}-${i}`}
                         className="group grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 py-2.5 text-zinc-300 transition first:pt-2 hover:bg-zinc-800/25 sm:gap-x-4"
                       >
-                        <span className="min-w-0 font-mono text-[13px]">
-                          {tokenFmt.explorerUrl ? (
-                            <a
-                              href={tokenFmt.explorerUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="truncate text-cyan-200/90 underline decoration-cyan-500/30 underline-offset-2 transition hover:text-cyan-100 hover:decoration-cyan-400/50"
-                              title={titleMint}
-                            >
-                              {tokenFmt.display}
-                            </a>
-                          ) : (
-                            <span
-                              className={`block truncate ${
-                                tokenFmt.display === "Mint not on file"
-                                  ? "text-zinc-500"
-                                  : "text-zinc-100"
-                              }`}
-                              title={titleMint}
-                            >
-                              {tokenFmt.display}
-                            </span>
-                          )}
-                          {isOwnProfile && call.id ? (
-                            <button
-                              type="button"
-                              onClick={() => pinCall(call.id!)}
-                              className="ml-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200"
-                            >
-                              Pin
-                            </button>
-                          ) : null}
-                          {isAdmin && call.id ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void setCallExcluded(
-                                  call.id!,
-                                  call.excludedFromStats !== true
-                                )
-                              }
-                              disabled={adminBusy}
-                              className={`ml-2 rounded-md border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide transition disabled:opacity-60 ${
-                                call.excludedFromStats === true
-                                  ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-200 hover:border-emerald-400/40"
-                                  : "border-red-500/25 bg-red-500/10 text-red-200 hover:border-red-400/40"
-                              }`}
-                              title={
-                                call.excludedFromStats === true
-                                  ? "Restore this call to stats"
-                                  : "Exclude this call from stats"
-                              }
-                            >
-                              {call.excludedFromStats === true ? "Restore" : "Exclude"}
-                            </button>
-                          ) : null}
+                        <span className="min-w-0 text-[13px] leading-snug">
+                          <div className="min-w-0">
+                            {dexUrl ? (
+                              <a
+                                href={dexUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block truncate font-medium text-cyan-200/90 underline decoration-cyan-500/30 underline-offset-2 transition hover:text-cyan-100 hover:decoration-cyan-400/50"
+                                title={titleMint}
+                              >
+                                {summary}
+                              </a>
+                            ) : (
+                              <span
+                                className="block truncate font-medium text-zinc-100"
+                                title={titleMint}
+                              >
+                                {summary}
+                              </span>
+                            )}
+                            {ca && ca !== "Unknown" && SOLANA_MINT_LIKE.test(ca) ? (
+                              <span className="mt-0.5 block font-mono text-[11px] text-zinc-500">
+                                {abbreviateCa(ca)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {isOwnProfile && call.id ? (
+                              <button
+                                type="button"
+                                onClick={() => pinCall(call.id!)}
+                                className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200"
+                              >
+                                Pin
+                              </button>
+                            ) : null}
+                            {isAdmin && call.id ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void setCallExcluded(
+                                    call.id!,
+                                    call.excludedFromStats !== true
+                                  )
+                                }
+                                disabled={adminBusy}
+                                className={`rounded-md border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide transition disabled:opacity-60 ${
+                                  call.excludedFromStats === true
+                                    ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-200 hover:border-emerald-400/40"
+                                    : "border-red-500/25 bg-red-500/10 text-red-200 hover:border-red-400/40"
+                                }`}
+                                title={
+                                  call.excludedFromStats === true
+                                    ? "Restore this call to stats"
+                                    : "Exclude this call from stats"
+                                }
+                              >
+                                {call.excludedFromStats === true
+                                  ? "Restore"
+                                  : "Exclude"}
+                              </button>
+                            ) : null}
+                          </div>
                         </span>
                         <span
                           className={`shrink-0 text-right text-sm font-semibold tabular-nums ${multipleClass(
@@ -1657,17 +1800,75 @@ export default function UserProfilePage() {
             {isAdmin ? (
               <PanelCard title="Admin tools">
                 <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                  Exclude suspicious/outlier calls so they stop impacting global stats. Reset will exclude
-                  all historical calls for this user (history is retained).
+                  Exclude suspicious rows from the Recent Calls list, or reset aggregates. History is
+                  never deleted; exclusions only change what counts in stats and boards.
                 </p>
+
+                <div className="mt-3 space-y-2 rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Stats reset
+                  </p>
+                  <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                    <input
+                      type="radio"
+                      name="stats-reset-mode"
+                      className="accent-red-400"
+                      checked={statsResetMode === "full"}
+                      onChange={() => setStatsResetMode("full")}
+                      disabled={adminBusy}
+                    />
+                    Full reset — exclude every existing call from stats
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                    <input
+                      type="radio"
+                      name="stats-reset-mode"
+                      className="accent-red-400"
+                      checked={statsResetMode === "cutover"}
+                      onChange={() => setStatsResetMode("cutover")}
+                      disabled={adminBusy}
+                    />
+                    Cutover — only calls on or after this time count
+                  </label>
+                  {statsResetMode === "cutover" ? (
+                    <input
+                      type="datetime-local"
+                      value={statsCutoverLocal}
+                      onChange={(e) => setStatsCutoverLocal(e.target.value)}
+                      disabled={adminBusy}
+                      className="mt-1 w-full rounded-md border border-zinc-800 bg-[#0b0d12] px-2 py-1.5 text-xs text-zinc-200 outline-none ring-sky-500/25 focus:ring-2 disabled:opacity-60"
+                    />
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void resetUserStats()}
+                    disabled={adminBusy}
+                    className="mt-2 w-full rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-100 transition hover:border-red-400/45 hover:bg-red-500/15 disabled:opacity-60"
+                  >
+                    {adminBusy ? "Working…" : "Apply stats reset"}
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => void resetUserStats()}
+                  onClick={() => void resetUserTrophies()}
                   disabled={adminBusy}
-                  className="mt-3 w-full rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-100 transition hover:border-red-400/45 hover:bg-red-500/15 disabled:opacity-60"
+                  className="mt-3 w-full rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-400/45 hover:bg-amber-500/15 disabled:opacity-60"
                 >
-                  {adminBusy ? "Working…" : "Reset user stats"}
+                  Reset trophies
                 </button>
+
+                {(profile?.x_handle?.trim() || profile?.x_verified) ? (
+                  <button
+                    type="button"
+                    onClick={() => void unlinkUserX()}
+                    disabled={adminBusy}
+                    className="mt-2 w-full rounded-lg border border-zinc-600 bg-zinc-900/60 px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800/60 disabled:opacity-60"
+                  >
+                    Unlink X account
+                  </button>
+                ) : null}
+
                 {adminOk ? (
                   <p className="mt-2 text-xs font-semibold text-emerald-300/90">
                     {adminOk}

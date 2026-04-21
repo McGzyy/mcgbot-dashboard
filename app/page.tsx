@@ -18,6 +18,7 @@ import { signIn, useSession } from "next-auth/react";
 import {
   abbreviateCa,
   callTimeMs,
+  formatCalledSnapshotLine,
   formatJoinedAt,
   multipleClass,
 } from "@/lib/callDisplayFormat";
@@ -342,7 +343,19 @@ type RecentCallRow = {
   multiple: number;
   time: unknown;
   excludedFromStats?: boolean;
+  tokenName?: string | null;
+  tokenTicker?: string | null;
+  callMarketCapUsd?: number | null;
 };
+
+function homeRecentCallSummary(call: RecentCallRow): string {
+  return formatCalledSnapshotLine({
+    tokenName: call.tokenName,
+    tokenTicker: call.tokenTicker,
+    callMarketCapUsd: call.callMarketCapUsd ?? null,
+    callCa: call.token,
+  });
+}
 
 type PublicTeaserCall = {
   token: string;
@@ -929,11 +942,29 @@ function renderActivityFeedLine(
   const id = item.discordId.trim();
 
   if (name && id && item.type === "call") {
-    const prefix = "New call by ";
-    if (item.text.startsWith(prefix)) {
+    const newCall = item.text.match(/^New Call - (.+?) called (.+)$/i);
+    if (newCall) {
+      const tail = newCall[2] ?? "";
       return (
         <>
-          {prefix}
+          New Call -{" "}
+          <Link
+            href={`/user/${encodeURIComponent(id)}`}
+            className={PROFILE_LINK_CLASS}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {name}
+          </Link>
+          <UserBadgeIcons badges={badges} className="ml-1" />
+          {" "}called {renderTextSegmentWithCa(tail, dex)}
+        </>
+      );
+    }
+    const legacyPrefix = "New call by ";
+    if (item.text.startsWith(legacyPrefix)) {
+      return (
+        <>
+          {legacyPrefix}
           <Link
             href={`/user/${encodeURIComponent(id)}`}
             className={PROFILE_LINK_CLASS}
@@ -3430,7 +3461,27 @@ export default function Home() {
               typeof o.token === "string" ? o.token : String(o.token ?? "");
             const multiple = Number(o.multiple);
             if (!Number.isFinite(multiple)) continue;
-            parsed.push({ token: token || "Unknown", multiple, time: o.time });
+            const tokenName =
+              typeof o.tokenName === "string" && o.tokenName.trim()
+                ? o.tokenName.trim()
+                : null;
+            const tokenTicker =
+              typeof o.tokenTicker === "string" && o.tokenTicker.trim()
+                ? o.tokenTicker.trim()
+                : null;
+            const mcRaw = o.callMarketCapUsd;
+            const mcNum =
+              typeof mcRaw === "number" ? mcRaw : Number(mcRaw ?? NaN);
+            parsed.push({
+              token: token || "Unknown",
+              multiple,
+              time: o.time,
+              excludedFromStats: o.excludedFromStats === true,
+              tokenName,
+              tokenTicker,
+              callMarketCapUsd:
+                Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
+            });
           }
           setRecentCalls(parsed);
         } else {
@@ -3910,12 +3961,12 @@ export default function Home() {
                   title={
                     callsLoading || recentCalls.length === 0
                       ? undefined
-                      : recentCalls[0].token
+                      : `${homeRecentCallSummary(recentCalls[0])}\n${recentCalls[0].token}`
                   }
                 >
                   {callsLoading || recentCalls.length === 0
                     ? "—"
-                    : abbreviateCa(recentCalls[0].token)}
+                    : homeRecentCallSummary(recentCalls[0])}
                 </div>
                 <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   {callsLoading || recentCalls.length === 0 ? "—" : `${recentCalls[0].multiple.toFixed(1)}x`}
@@ -4081,21 +4132,27 @@ export default function Home() {
                       key={`${call.token}-${String(call.time)}-${i}`}
                       className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-1.5 text-zinc-300"
                     >
-                      <span className="min-w-0 font-medium text-zinc-100" title={call.token}>
-                        {abbreviateCa(call.token)}
-                        <span className="text-zinc-400"> → </span>
-                        <span
-                          className={`font-semibold tabular-nums ${multipleClass(
-                            call.multiple
-                          )}`}
-                        >
-                          {call.multiple.toFixed(1)}x
+                      <span
+                        className="min-w-0 font-medium text-zinc-100"
+                        title={`${homeRecentCallSummary(call)}\n${call.token}`}
+                      >
+                        <span className="block min-w-0 truncate text-zinc-100">
+                          {homeRecentCallSummary(call)}
                         </span>
-                        {call.excludedFromStats ? (
-                          <span className="ml-2 inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
-                            Excluded
+                        <span className="mt-0.5 inline-flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+                          <span
+                            className={`font-semibold tabular-nums ${multipleClass(
+                              call.multiple
+                            )}`}
+                          >
+                            {call.multiple.toFixed(1)}x
                           </span>
-                        ) : null}
+                          {call.excludedFromStats ? (
+                            <span className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+                              Excluded
+                            </span>
+                          ) : null}
+                        </span>
                       </span>
                       <span className="ml-auto shrink-0 text-zinc-500">
                         {formatJoinedAt(callTimeMs(call.time), nowMs)}
