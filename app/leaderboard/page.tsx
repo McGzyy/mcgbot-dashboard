@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Avatar } from "@/components/ui/avatar";
+import { formatRelativeTime } from "@/lib/modUiUtils";
+import { looksLikeDiscordSnowflake } from "@/lib/discordIdentity";
 
 type TimeframeId = "daily" | "weekly" | "monthly" | "all";
 
@@ -23,6 +26,7 @@ type LeaderRow = {
 };
 
 type TopCallRow = {
+  id?: string;
   symbol: string;
   multiplier: number;
   username: string;
@@ -127,11 +131,6 @@ const MOCK_INDIV_CALLS: Record<TimeframeId, TopCallRow[]> = {
   monthly: [],
   all: [],
 };
-
-/** Mock “signed-in” caller — highlighted on the current timeframe’s page 1 */
-function mockViewerUsername(tf: TimeframeId): string {
-  return `${tf}_caller_6`;
-}
 
 const MOCK_MCGBOT_TOP_CALLS: Record<TimeframeId, TopCallRow[]> = {
   daily: [],
@@ -278,7 +277,7 @@ function TopCallsList({
         {sorted.map((row, i) => {
           return (
             <li
-              key={`${row.symbol}-${row.username}-${row.timestamp}-${i}`}
+              key={row.id ?? `${row.symbol}-${row.username}-${row.timestamp}-${i}`}
               className={[
                 "flex items-center justify-between rounded-lg border px-3 py-2 transition-all duration-150",
                 tone === "bot"
@@ -333,10 +332,15 @@ function TopCallsList({
 
 export default function LeaderboardPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const viewerDiscordId = session?.user?.id?.trim() ?? "";
   const [usersTimeframe, setUsersTimeframe] = useState<TimeframeId>("daily");
   const [userPage, setUserPage] = useState(1);
   const [indivTimeframe, setIndivTimeframe] = useState<TimeframeId>("daily");
   const [indivPage, setIndivPage] = useState(1);
+  const [indivRows, setIndivRows] = useState<TopCallRow[]>([]);
+  const [indivTotal, setIndivTotal] = useState(0);
+  const [indivLoading, setIndivLoading] = useState(true);
   const [mcgbotTimeframe, setMcgbotTimeframe] = useState<TimeframeId>("daily");
   const [mcgbotPage, setMcgbotPage] = useState(1);
   const [usersLoading, setUsersLoading] = useState(true);
@@ -404,6 +408,7 @@ export default function LeaderboardPage() {
         rank,
         username,
         discordId: discordId || undefined,
+        avatarSrc: avatarUrlFor(username),
         avgX,
         bestX: bestMultiple,
         calls: totalCalls,
@@ -481,18 +486,92 @@ export default function LeaderboardPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    setIndivLoading(true);
+    const limit = 10;
+    const offset = (indivPage - 1) * limit;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/leaderboard/top-calls?type=user&period=${encodeURIComponent(periodFor(indivTimeframe))}&limit=${limit}&offset=${offset}`,
+          { credentials: "same-origin" }
+        );
+        const json = (await res.json().catch(() => null)) as unknown;
+        if (cancelled) return;
+        if (!res.ok || !json || typeof json !== "object") {
+          setIndivRows([]);
+          setIndivTotal(0);
+          return;
+        }
+        const payload = json as {
+          rows?: unknown[];
+          total?: unknown;
+        };
+        const total =
+          typeof payload.total === "number" && Number.isFinite(payload.total)
+            ? payload.total
+            : Number(payload.total) || 0;
+        setIndivTotal(total);
+        const rawRows = Array.isArray(payload.rows) ? payload.rows : [];
+        const mapped: TopCallRow[] = [];
+        for (const item of rawRows) {
+          if (!item || typeof item !== "object") continue;
+          const r = item as Record<string, unknown>;
+          const id = r.id != null ? String(r.id) : undefined;
+          const symbol = typeof r.symbol === "string" ? r.symbol : "—";
+          const multRaw = r.multiplier;
+          const multiplier =
+            typeof multRaw === "number" && Number.isFinite(multRaw)
+              ? multRaw
+              : Number(multRaw) || 0;
+          const username = typeof r.username === "string" ? r.username : "—";
+          const iso = typeof r.callTimeIso === "string" ? r.callTimeIso : null;
+          const callToATH = typeof r.callToAth === "string" ? r.callToAth : "—";
+          mapped.push({
+            id,
+            symbol,
+            multiplier,
+            username,
+            timestamp: formatRelativeTime(iso),
+            callToATH,
+          });
+        }
+        setIndivRows(mapped);
+      } catch {
+        if (!cancelled) {
+          setIndivRows([]);
+          setIndivTotal(0);
+        }
+      } finally {
+        if (!cancelled) setIndivLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [indivPage, indivTimeframe]);
+
   const userRows = useMemo(
     () => (usersBoards[usersTimeframe] ?? []).slice((userPage - 1) * 10, userPage * 10),
     [usersBoards, usersTimeframe, userPage]
   );
 
-  const indivRows = useMemo(() => {
-    const ITEMS_PER_PAGE = 10;
-    const calls: TopCallRow[] = [];
-    const start = (indivPage - 1) * ITEMS_PER_PAGE;
-    const end = start + ITEMS_PER_PAGE;
-    return calls.slice(start, end);
-  }, [indivPage, indivTimeframe]);
+  const indivPageCount = Math.min(5, Math.max(1, Math.ceil(indivTotal / 10) || 1));
+
+  useEffect(() => {
+    setIndivPage((p) => Math.min(p, indivPageCount));
+  }, [indivPageCount]);
+
+  const userPageCount = Math.min(
+    5,
+    Math.max(1, Math.ceil((usersBoards[usersTimeframe]?.length ?? 0) / 10) || 1)
+  );
+
+  useEffect(() => {
+    setUserPage((p) => Math.min(p, userPageCount));
+  }, [userPageCount]);
+
   const mcgbotRows = useMemo(
     () => (botBoards[mcgbotTimeframe] ?? []).slice((mcgbotPage - 1) * 10, mcgbotPage * 10),
     [botBoards, mcgbotPage, mcgbotTimeframe]
@@ -513,16 +592,43 @@ export default function LeaderboardPage() {
   }, [botBoards.all]);
 
   const allTimeRecords = useMemo(() => {
-    // With a clean start, records are intentionally empty until data exists.
-    const empty = { rank: 0, username: "—", avgX: 0, bestX: 0, calls: 0 } as LeaderRow;
+    const empty: LeaderRow = {
+      rank: 0,
+      username: "—",
+      avgX: 0,
+      bestX: 0,
+      calls: 0,
+      winRate: undefined,
+    };
+
+    const all = usersBoards.all ?? [];
+    if (all.length === 0) {
+      return {
+        highestMultiplierUser: empty,
+        bestAverageUser: empty,
+        mostCalls: empty,
+        bestWinRateUser: { ...empty, winRate: undefined },
+      };
+    }
+
+    const byBestX = all.reduce((a, b) => (b.bestX > a.bestX ? b : a), all[0]);
+    const byAvgX = all.reduce((a, b) => (b.avgX > a.avgX ? b : a), all[0]);
+    const byCalls = all.reduce((a, b) => (b.calls > a.calls ? b : a), all[0]);
+
+    const MIN_CALLS_WINRATE = 5;
+    const winEligible = all.filter((r) => r.calls >= MIN_CALLS_WINRATE);
+    const byWinRate =
+      winEligible.length > 0
+        ? winEligible.reduce((a, b) => ((b.winRate ?? 0) > (a.winRate ?? 0) ? b : a), winEligible[0])
+        : { ...empty, winRate: undefined };
 
     return {
-      highestMultiplierUser: empty,
-      bestAverageUser: empty,
-      mostCalls: empty,
-      bestWinRateUser: empty,
+      highestMultiplierUser: byBestX,
+      bestAverageUser: byAvgX,
+      mostCalls: byCalls,
+      bestWinRateUser: byWinRate,
     };
-  }, []);
+  }, [usersBoards]);
 
   useEffect(() => {
     let cancelled = false;
@@ -596,8 +702,15 @@ export default function LeaderboardPage() {
     return "border-transparent";
   };
 
-  const Table = ({ rows, loading }: { rows: LeaderRow[]; loading: boolean }) => {
-    const youHandle = mockViewerUsername(usersTimeframe);
+  const Table = ({
+    rows,
+    loading,
+    highlightDiscordId,
+  }: {
+    rows: LeaderRow[];
+    loading: boolean;
+    highlightDiscordId?: string | null;
+  }) => {
     return (
       <div className="rounded-xl border border-emerald-500/15 bg-black/30 p-4 ring-1 ring-emerald-500/10">
         <div className="overflow-x-auto">
@@ -627,7 +740,10 @@ export default function LeaderboardPage() {
                 </div>
               ) : (
                 rows.map((r) => {
-                const isYou = r.username === youHandle;
+                const isYou =
+                  Boolean(highlightDiscordId) &&
+                  Boolean(r.discordId) &&
+                  r.discordId === highlightDiscordId;
                 return (
                   <div
                     key={`${r.rank}-${r.username}`}
@@ -828,9 +944,11 @@ export default function LeaderboardPage() {
           ).map((slot, idx) => {
             const w = slot.row;
             const profileSeg =
-              w?.username && w.username !== "—"
-                ? w.username.trim()
-                : w?.discordId?.trim() || "";
+              w?.discordId && looksLikeDiscordSnowflake(w.discordId)
+                ? w.discordId.trim()
+                : w?.username && w.username !== "—"
+                  ? w.username.trim()
+                  : w?.discordId?.trim() || "";
             const clickable = Boolean(profileSeg);
             return (
               <div
@@ -947,8 +1065,9 @@ export default function LeaderboardPage() {
                     <span className="text-base" aria-hidden />
                   </div>
                   <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-100">
-                    {Number.isFinite(allTimeRecords.mostCalls?.calls)
-                      ? allTimeRecords.mostCalls?.calls
+                    {allTimeRecords.mostCalls?.username &&
+                    allTimeRecords.mostCalls.username !== "—"
+                      ? (allTimeRecords.mostCalls.calls ?? 0).toLocaleString()
                       : "—"}
                   </p>
                   <p className="mt-1.5 text-xs text-zinc-500">
@@ -1091,9 +1210,13 @@ export default function LeaderboardPage() {
               })}
             </div>
           </div>
-          <Table rows={userRows} loading={usersLoading} />
+          <Table
+            rows={userRows}
+            loading={usersLoading}
+            highlightDiscordId={viewerDiscordId || null}
+          />
           <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
-            {[1, 2, 3, 4, 5].map((p) => {
+            {Array.from({ length: userPageCount }, (_, i) => i + 1).map((p) => {
               const active = userPage === p;
               return (
                 <button
@@ -1147,9 +1270,24 @@ export default function LeaderboardPage() {
                 })}
               </div>
             </div>
-            <TopCallsList rows={indivRows} tone="default" />
+            {indivLoading ? (
+              <div className="flex items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-950/10 px-3 py-12 ring-1 ring-emerald-500/10">
+                <p className="text-sm text-zinc-500">Loading…</p>
+              </div>
+            ) : indivRows.length === 0 ? (
+              <div className="flex items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-950/10 px-3 py-12 ring-1 ring-emerald-500/10">
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-zinc-200">No qualifying calls in this window</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Try another timeframe or check back after new calls land.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <TopCallsList rows={indivRows} tone="default" />
+            )}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
-              {[1, 2, 3, 4, 5].map((p) => {
+              {Array.from({ length: indivPageCount }, (_, i) => i + 1).map((p) => {
                 const active = indivPage === p;
                 return (
                   <button
@@ -1437,7 +1575,11 @@ export default function LeaderboardPage() {
             Bot performance summary. With a clean start, this stays empty until bot calls land.
           </p>
           <div className="mt-6">
-            <Table rows={mcgbotRows} loading={botLoading} />
+            <Table
+              rows={mcgbotRows}
+              loading={botLoading}
+              highlightDiscordId={viewerDiscordId || null}
+            />
           </div>
         </div>
           </div>

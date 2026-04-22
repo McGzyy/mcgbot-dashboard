@@ -29,6 +29,12 @@ export const CP_ACTIVITY_LEGACY =
 
 export const CP_ACTIVITY_WITH_SNAPSHOT = `${CP_ACTIVITY_LEGACY}, token_name, token_ticker, call_market_cap_usd, token_image_url, spot_multiple, live_market_cap_usd`;
 
+/** Leaderboard “top single calls” — minimal columns + optional token snapshot. */
+export const CP_TOP_CALLS_LEGACY =
+  "id, username, discord_id, call_ca, ath_multiple, call_time, excluded_from_stats, source";
+
+export const CP_TOP_CALLS_WITH_SNAPSHOT = `${CP_TOP_CALLS_LEGACY}, token_name, token_ticker`;
+
 export async function selectCallPerformanceWithSnapshotFallback(opts: {
   run: (columns: string) => Promise<{
     data: unknown;

@@ -10,6 +10,10 @@ import {
 } from "@/lib/callPerformanceLeaderboard";
 import { hasAccess } from "@/lib/hasAccess";
 import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
+import {
+  displayNameForDiscordId,
+  fetchDiscordDisplayNameMap,
+} from "@/lib/leaderboardDisplayNames";
 
 // WEEKLY LEADER = resets every Monday 00:00 UTC → GET /api/leaderboard/weekly-leader
 // MONTHLY LEADER = resets first day of month 00:00 UTC → GET /api/leaderboard/monthly-leader
@@ -75,8 +79,14 @@ export async function GET(request: Request) {
 
     const aggregated = aggregateCallPerformanceRows(eligible);
     const ranked = rankTopN(aggregated, 10);
+    const ids = ranked.map((r) => r.discordId);
+    const nameMap = await fetchDiscordDisplayNameMap(supabase, ids);
+    const enriched = ranked.map((r) => ({
+      ...r,
+      username: displayNameForDiscordId(r.discordId, r.username, nameMap),
+    }));
 
-    return Response.json(ranked);
+    return Response.json(enriched);
   } catch (e) {
     console.error("[leaderboard API] GET:", e);
     return Response.json(

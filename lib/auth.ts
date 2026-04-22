@@ -47,9 +47,14 @@ export const authOptions: NextAuthOptions = {
         const supabase = createClient(supabaseUrl, serviceKey);
 
         // Ensure a `public.users` row exists (schema uses discord_id UNIQUE, no username column).
+        const displayName =
+          typeof user.name === "string" && user.name.trim() ? user.name.trim() : null;
         const { error } = await supabase.from("users").upsert(
-          { discord_id: user.id },
-          { onConflict: "discord_id", ignoreDuplicates: true }
+          {
+            discord_id: user.id,
+            discord_display_name: displayName,
+          },
+          { onConflict: "discord_id" }
         );
 
         if (error) {
