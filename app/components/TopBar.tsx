@@ -22,6 +22,35 @@ type UserCounts = {
   onlineUsers: number;
 };
 
+function CountPill({
+  label,
+  value,
+  accentDot = false,
+}: {
+  label: string;
+  value: string;
+  accentDot?: boolean;
+}) {
+  return (
+    <span className="group inline-flex items-center gap-2 rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur transition hover:border-zinc-700/80 hover:bg-zinc-950/45">
+      {accentDot ? (
+        <span
+          className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)] shadow-[0_0_0_3px_rgba(34,197,94,0.10)]"
+          aria-hidden
+        />
+      ) : (
+        <span className="h-1.5 w-1.5 rounded-full bg-zinc-600/70" aria-hidden />
+      )}
+      <span className="text-[11px] font-semibold tracking-wide text-zinc-400">
+        {label}
+      </span>
+      <span className="min-w-[2.25rem] text-right text-[11px] font-semibold tabular-nums text-zinc-100 transition-opacity duration-200 group-hover:text-white">
+        {value}
+      </span>
+    </span>
+  );
+}
+
 type TipStartOk = {
   success: true;
   solanaPayUrl: string;
@@ -618,21 +647,21 @@ export function TopBar() {
             <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
               <div className="flex shrink-0 items-center gap-2 text-zinc-500">
                 {userCountsLoading && !userCounts ? (
-                  <span className="text-zinc-600">Users —</span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-7 w-[92px] animate-pulse rounded-lg border border-zinc-800/70 bg-zinc-950/35" />
+                    <span className="inline-flex h-7 w-[92px] animate-pulse rounded-lg border border-zinc-800/70 bg-zinc-950/35" />
+                  </div>
                 ) : userCounts ? (
                   <>
-                    <span className="rounded-md border border-zinc-800/55 bg-zinc-900/55 px-2 py-1 text-zinc-400">
-                      Total{" "}
-                      <span className="font-medium tabular-nums text-zinc-200">
-                        {formatCount(userCounts.totalUsers)}
-                      </span>
-                    </span>
-                    <span className="rounded-md border border-zinc-800/55 bg-zinc-900/55 px-2 py-1 text-zinc-400">
-                      Online{" "}
-                      <span className="font-medium tabular-nums text-zinc-200">
-                        {formatCount(userCounts.onlineUsers)}
-                      </span>
-                    </span>
+                    <CountPill
+                      label="Total"
+                      value={formatCount(userCounts.totalUsers)}
+                    />
+                    <CountPill
+                      label="Online"
+                      value={formatCount(userCounts.onlineUsers)}
+                      accentDot
+                    />
                   </>
                 ) : (
                   <span className="text-zinc-600">Users unavailable</span>
