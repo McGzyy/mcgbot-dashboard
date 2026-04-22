@@ -1509,9 +1509,9 @@ export default function UserProfilePage() {
         ? followingIds.has(snowflakeForFollow)
         : false;
 
-  const topCallerTimes = parseTopCallerTimesFromBadges(badges);
-  const isTopCaller = topCallerTimes > 0;
-  const isTrustedPro = badges.includes("trusted_pro");
+  const isTopCaller = Boolean(profile?.isTopCaller);
+  const topCallerTimes = isTopCaller ? parseTopCallerTimesFromBadges(badges) : 0;
+  const isTrustedPro = Boolean(profile?.isTrustedPro);
 
   const bannerUrl = profile?.banner_url?.trim() || "";
   const bioText = profile?.bio?.trim() || "";
