@@ -1,7 +1,9 @@
 "use client";
 
 import { formatCalledSnapshotLine } from "@/lib/callDisplayFormat";
+import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
+import { tokenChartLabel } from "@/lib/tradingViewEmbed";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
@@ -33,6 +35,7 @@ const WINDOWS = [
 
 export default function CallTapePage() {
   const { status } = useSession();
+  const { openTokenChart } = useTokenChartModal();
   const [window, setWindow] = useState<(typeof WINDOWS)[number]["id"]>("30d");
   const [rows, setRows] = useState<TapeRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -249,6 +252,27 @@ export default function CallTapePage() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
                         <div className="flex justify-end gap-2">
+                          {r.callCa ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openTokenChart({
+                                  chain: "solana",
+                                  contractAddress: r.callCa,
+                                  symbolLabel: tokenChartLabel({
+                                    tokenTicker: r.tokenTicker,
+                                    tokenName: r.tokenName,
+                                    contractAddress: r.callCa,
+                                  }),
+                                  tokenImageUrl: r.tokenImageUrl ?? null,
+                                })
+                              }
+                              className="text-xs font-semibold text-emerald-300/95 hover:text-emerald-200"
+                              title="Live chart (TradingView)"
+                            >
+                              Chart
+                            </button>
+                          ) : null}
                           {dex ? (
                             <a
                               href={dex}

@@ -3,6 +3,7 @@
 import { HelpHotkey } from "@/app/components/HelpHotkey";
 import { NotificationToasts } from "@/app/components/NotificationToasts";
 import { NotificationsProvider } from "@/app/contexts/NotificationsContext";
+import { TokenChartModalProvider } from "@/app/contexts/TokenChartModalContext";
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import type { ReactNode } from "react";
@@ -17,9 +18,11 @@ export function Providers({
   return (
     <SessionProvider refetchInterval={45} session={session ?? undefined}>
       <NotificationsProvider>
-        <HelpHotkey />
-        {children}
-        <NotificationToasts />
+        <TokenChartModalProvider>
+          <HelpHotkey />
+          {children}
+          <NotificationToasts />
+        </TokenChartModalProvider>
       </NotificationsProvider>
     </SessionProvider>
   );

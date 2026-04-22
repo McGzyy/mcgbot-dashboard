@@ -120,9 +120,12 @@ export async function GET(request: Request) {
           ? imgRaw.trim().slice(0, 800)
           : null;
 
+      const callCa = typeof r.call_ca === "string" ? r.call_ca.trim() : String(r.call_ca ?? "").trim();
+
       return {
         id: r.id != null ? String(r.id) : "",
         symbol: rowSymbol(r),
+        callCa,
         tokenImageUrl,
         multiplier: rowAthMultiple(r),
         username,

@@ -5,6 +5,7 @@ import {
   useNotifications,
   type NotificationPriority,
 } from "@/app/contexts/NotificationsContext";
+import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { ActivityPopup } from "./components/ActivityPopup";
 import { AddToWatchlistModal } from "./components/AddToWatchlistModal";
 import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
@@ -29,6 +30,7 @@ import {
   type ChatMessagePayload,
 } from "@/lib/discordChatMessageSerialize";
 import { userProfileHref } from "@/lib/userProfileHref";
+import { tokenChartLabel } from "@/lib/tradingViewEmbed";
 import {
   useCallback,
   useEffect,
@@ -3189,6 +3191,7 @@ async function submitCall(
 export default function Home() {
   const { data: session, status } = useSession();
   const { addNotification } = useNotifications();
+  const { openTokenChart } = useTokenChartModal();
   const oauthErrorHandledRef = useRef(false);
   const lastSeenActivityKeysRef = useRef(new Set<string>());
   const activitySourceModeRef = useRef<"all" | "following" | null>(null);
@@ -4270,7 +4273,26 @@ export default function Home() {
                           ) : null}
                         </span>
                       </span>
-                      <span className="ml-auto shrink-0 text-zinc-500">
+                      <span className="ml-auto flex shrink-0 items-center gap-2 text-zinc-500">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openTokenChart({
+                              chain: "solana",
+                              contractAddress: call.token,
+                              symbolLabel: tokenChartLabel({
+                                tokenTicker: call.tokenTicker,
+                                tokenName: call.tokenName,
+                                contractAddress: call.token,
+                              }),
+                              tokenImageUrl: call.tokenImageUrl ?? null,
+                            })
+                          }
+                          className="rounded border border-zinc-700/80 bg-zinc-900/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200/90 transition hover:border-emerald-500/40 hover:bg-emerald-500/10"
+                          title="Live chart (TradingView)"
+                        >
+                          Chart
+                        </button>
                         {formatJoinedAt(callTimeMs(call.time), nowMs)}
                       </span>
                     </li>

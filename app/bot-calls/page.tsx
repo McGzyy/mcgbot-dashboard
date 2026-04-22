@@ -1,7 +1,9 @@
 "use client";
 
+import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { formatCalledSnapshotLine } from "@/lib/callDisplayFormat";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
+import { tokenChartLabel } from "@/lib/tradingViewEmbed";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -45,6 +47,7 @@ function callTimeIso(callTime: unknown): string | null {
 export default function BotCallsPage() {
   const { status } = useSession();
   const { addNotification } = useNotifications();
+  const { openTokenChart } = useTokenChartModal();
   const [timeWindow, setTimeWindow] = useState<(typeof WINDOWS)[number]["id"]>("24h");
   const [minMultiple, setMinMultiple] = useState<number>(0);
   const [showExcluded, setShowExcluded] = useState(false);
@@ -423,6 +426,27 @@ export default function BotCallsPage() {
                           >
                             Report
                           </button>
+                          {r.callCa ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openTokenChart({
+                                  chain: "solana",
+                                  contractAddress: r.callCa,
+                                  symbolLabel: tokenChartLabel({
+                                    tokenTicker: r.tokenTicker,
+                                    tokenName: r.tokenName,
+                                    contractAddress: r.callCa,
+                                  }),
+                                  tokenImageUrl: r.tokenImageUrl ?? null,
+                                })
+                              }
+                              className="text-xs font-semibold text-emerald-300/95 hover:text-emerald-200"
+                              title="Live chart (TradingView)"
+                            >
+                              Chart
+                            </button>
+                          ) : null}
                           {dex ? (
                             <a
                               href={dex}

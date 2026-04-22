@@ -7,6 +7,8 @@ import { useSession } from "next-auth/react";
 import { Avatar } from "@/components/ui/avatar";
 import { formatRelativeTime } from "@/lib/modUiUtils";
 import { looksLikeDiscordSnowflake } from "@/lib/discordIdentity";
+import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
+import { tokenChartLabel } from "@/lib/tradingViewEmbed";
 
 type TimeframeId = "daily" | "weekly" | "monthly" | "all";
 
@@ -28,6 +30,7 @@ type LeaderRow = {
 type TopCallRow = {
   id?: string;
   symbol: string;
+  callCa: string;
   /** Dex / snapshot icon when present — same source as Call log. */
   tokenImageUrl?: string | null;
   multiplier: number;
@@ -123,7 +126,7 @@ function buildTopCalls(tf: TimeframeId, who: "users" | "bot"): TopCallRow[] {
     const username =
       who === "bot" ? "McGBot" : `${tf}_caller_${Math.max(1, 1 + (n % 50))}`;
 
-    return { symbol: sym, multiplier, username, timestamp, callToATH };
+    return { symbol: sym, multiplier, username, timestamp, callToATH, callCa: "" };
   });
 }
 
@@ -308,9 +311,11 @@ function RankDelta({ delta }: { delta?: number }) {
 function TopCallsList({
   rows,
   tone = "default",
+  onOpenChart,
 }: {
   rows: TopCallRow[];
   tone?: "default" | "muted" | "bot";
+  onOpenChart?: (row: TopCallRow) => void;
 }) {
   const sorted = useMemo(
     () => [...rows].sort((a, b) => b.multiplier - a.multiplier),
@@ -357,8 +362,28 @@ function TopCallsList({
                 />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold text-zinc-100">{row.symbol}</div>
-                  <div className="truncate text-xs text-zinc-500">
-                    {row.username} · {row.timestamp}
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+                    <span className="truncate">
+                      {row.username} · {row.timestamp}
+                    </span>
+                    {onOpenChart && row.callCa ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenChart(row);
+                        }}
+                        className={
+                          tone === "bot"
+                            ? "shrink-0 rounded border border-sky-500/35 bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-100 transition hover:bg-sky-500/25"
+                            : tone === "muted"
+                              ? "shrink-0 rounded border border-zinc-700/80 bg-zinc-900/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-300 transition hover:border-zinc-600 hover:text-zinc-100"
+                              : "shrink-0 rounded border border-emerald-500/35 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-500/25"
+                        }
+                      >
+                        Chart
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -384,6 +409,22 @@ export default function LeaderboardPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const viewerDiscordId = session?.user?.id?.trim() ?? "";
+  const { openTokenChart } = useTokenChartModal();
+  const openIndivChart = useCallback(
+    (row: TopCallRow) => {
+      if (!row.callCa) return;
+      openTokenChart({
+        chain: "solana",
+        contractAddress: row.callCa,
+        symbolLabel: tokenChartLabel({
+          tokenTicker: row.symbol,
+          contractAddress: row.callCa,
+        }),
+        tokenImageUrl: row.tokenImageUrl ?? null,
+      });
+    },
+    [openTokenChart]
+  );
   const [usersTimeframe, setUsersTimeframe] = useState<TimeframeId>("daily");
   const [userPage, setUserPage] = useState(1);
   const [indivTimeframe, setIndivTimeframe] = useState<TimeframeId>("daily");
@@ -583,9 +624,13 @@ export default function LeaderboardPage() {
             typeof imgRaw === "string" && imgRaw.trim()
               ? imgRaw.trim().slice(0, 800)
               : null;
+          const callCaRaw = r.callCa ?? r.call_ca;
+          const callCa =
+            typeof callCaRaw === "string" ? callCaRaw.trim() : String(callCaRaw ?? "").trim();
           mapped.push({
             id,
             symbol,
+            callCa,
             tokenImageUrl,
             multiplier,
             username,
@@ -1340,7 +1385,7 @@ export default function LeaderboardPage() {
                 </div>
               </div>
             ) : (
-              <TopCallsList rows={indivRows} tone="default" />
+              <TopCallsList rows={indivRows} tone="default" onOpenChart={openIndivChart} />
             )}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
               {Array.from({ length: indivPageCount }, (_, i) => i + 1).map((p) => {
