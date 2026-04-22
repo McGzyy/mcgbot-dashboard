@@ -22,7 +22,7 @@ export async function GET() {
     const { data, error } = await db
       .from("call_performance")
       .select(
-        "id, username, call_ca, ath_multiple, spot_multiple, call_time, source, excluded_from_stats"
+        "id, username, call_ca, ath_multiple, spot_multiple, call_time, source, excluded_from_stats, token_name, token_ticker"
       )
       .gte("call_time", weekMinMs)
       .order("call_time", { ascending: false })
@@ -38,7 +38,18 @@ export async function GET() {
 
     let sum = 0;
     let n = 0;
-    const top = new Map<string, { token: string; multiple: number; username: string; source: string; time: unknown }>();
+    const top = new Map<
+      string,
+      {
+        token: string;
+        tokenName?: string | null;
+        tokenTicker?: string | null;
+        multiple: number;
+        username: string;
+        source: string;
+        time: unknown;
+      }
+    >();
     for (const r of rows) {
       const multiple = rowAthMultiple(r);
       sum += multiple;
@@ -47,11 +58,23 @@ export async function GET() {
       const id = typeof r.id === "string" ? r.id : String(r.id ?? "");
       const username = typeof r.username === "string" ? r.username.trim() : String(r.username ?? "").trim();
       const token = typeof r.call_ca === "string" ? r.call_ca.trim() : String(r.call_ca ?? "").trim();
+      const tokenName =
+        typeof (r as any).token_name === "string" ? (r as any).token_name.trim() : null;
+      const tokenTicker =
+        typeof (r as any).token_ticker === "string" ? (r as any).token_ticker.trim() : null;
       const source = typeof r.source === "string" ? r.source : "user";
       const time = r.call_time;
       const prev = top.get(id);
       if (!prev || multiple > prev.multiple) {
-        top.set(id, { token: token || "Unknown", multiple, username: username || "Unknown", source, time });
+        top.set(id, {
+          token: token || "Unknown",
+          tokenName,
+          tokenTicker,
+          multiple,
+          username: username || "Unknown",
+          source,
+          time,
+        });
       }
     }
 

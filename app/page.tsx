@@ -372,6 +372,8 @@ function homeLastCallHeadline(call: RecentCallRow): string {
 
 type PublicTeaserCall = {
   token: string;
+  tokenName?: string | null;
+  tokenTicker?: string | null;
   multiple: number;
   username: string;
   source: string;
@@ -505,8 +507,13 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                       key={`${c.token}-${String(c.time)}-${i}`}
                       className="flex items-center justify-between gap-3 py-2.5 first:pt-2 text-zinc-300"
                     >
-                      <span className="min-w-0 truncate font-mono text-[13px] text-zinc-100">
-                        {c.token}
+                      <span className="min-w-0 truncate text-[13px] font-semibold text-zinc-100">
+                        {formatNameAndTickerLine({
+                          tokenName: c.tokenName,
+                          tokenTicker: c.tokenTicker,
+                          callMarketCapUsd: null,
+                          callCa: c.token,
+                        })}
                       </span>
                       <span className="shrink-0 font-semibold tabular-nums text-emerald-300">
                         {c.multiple.toFixed(1)}×
