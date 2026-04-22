@@ -10,7 +10,9 @@ import { useNotifications } from "@/app/contexts/NotificationsContext";
 type TapeRow = {
   id: string;
   callCa: string;
+  liveMultiple: number;
   athMultiple: number;
+  liveMarketCapUsd?: number | null;
   callTime: unknown;
   source: string;
   messageUrl: string | null;
@@ -315,6 +317,7 @@ export default function BotCallsPage() {
               <tr>
                 <th className="px-4 py-3">When</th>
                 <th className="px-4 py-3 min-w-[240px]">Call</th>
+                <th className="px-4 py-3 text-right">Live ×</th>
                 <th className="px-4 py-3 text-right">ATH ×</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Links</th>
@@ -323,13 +326,13 @@ export default function BotCallsPage() {
             <tbody className="divide-y divide-zinc-800/60">
               {loading && rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-zinc-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-zinc-500">
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-zinc-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-zinc-500">
                     No bot calls in this window yet.
                   </td>
                 </tr>
@@ -386,7 +389,12 @@ export default function BotCallsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-emerald-300">
-                        {Number.isFinite(r.athMultiple) ? `${r.athMultiple.toFixed(2)}×` : "—"}
+                        {Number.isFinite(r.liveMultiple) ? `${r.liveMultiple.toFixed(2)}×` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-400">
+                        {Number.isFinite(r.athMultiple) && r.athMultiple > 0
+                          ? `${r.athMultiple.toFixed(2)}×`
+                          : "—"}
                       </td>
                       <td className="px-4 py-3">
                         {r.excludedFromStats ? (

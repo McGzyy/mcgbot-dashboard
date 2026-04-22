@@ -9,7 +9,11 @@ import { useCallback, useEffect, useState } from "react";
 type TapeRow = {
   id: string;
   callCa: string;
+  /** Current MC ÷ call MC (from `spot_multiple`, bot-synced). */
+  liveMultiple: number;
+  /** Peak ATH ÷ call MC. */
   athMultiple: number;
+  liveMarketCapUsd?: number | null;
   callTime: unknown;
   source: string;
   messageUrl: string | null;
@@ -150,6 +154,7 @@ export default function CallTapePage() {
               <tr>
                 <th className="px-4 py-3">When</th>
                 <th className="px-4 py-3 min-w-[220px]">Call</th>
+                <th className="px-4 py-3 text-right">Live ×</th>
                 <th className="px-4 py-3 text-right">ATH ×</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Source</th>
@@ -159,13 +164,13 @@ export default function CallTapePage() {
             <tbody className="divide-y divide-zinc-800/60">
               {loading && rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-zinc-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-zinc-500">
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-zinc-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-zinc-500">
                     No calls in this window yet.
                   </td>
                 </tr>
@@ -219,7 +224,12 @@ export default function CallTapePage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-emerald-300">
-                        {Number.isFinite(r.athMultiple) ? `${r.athMultiple.toFixed(2)}×` : "—"}
+                        {Number.isFinite(r.liveMultiple) ? `${r.liveMultiple.toFixed(2)}×` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-400">
+                        {Number.isFinite(r.athMultiple) && r.athMultiple > 0
+                          ? `${r.athMultiple.toFixed(2)}×`
+                          : "—"}
                       </td>
                       <td className="px-4 py-3">
                         {r.excludedFromStats ? (

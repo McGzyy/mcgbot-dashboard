@@ -111,10 +111,17 @@ export async function GET(request: Request) {
       const imgRaw = r.token_image_url;
       const tokenImageUrl =
         typeof imgRaw === "string" && imgRaw.trim() ? imgRaw.trim().slice(0, 800) : null;
+      const athRaw = Number(r.ath_multiple ?? 0);
+      const liveMcRaw = r.live_market_cap_usd;
+      const liveMcNum =
+        typeof liveMcRaw === "number" ? liveMcRaw : Number(liveMcRaw ?? NaN);
       return {
         id: r.id != null ? String(r.id) : "",
         callCa: typeof r.call_ca === "string" ? r.call_ca.trim() : String(r.call_ca ?? ""),
-        athMultiple: rowLiveMultiple(r),
+        liveMultiple: rowLiveMultiple(r),
+        athMultiple: Number.isFinite(athRaw) && athRaw > 0 ? athRaw : 0,
+        liveMarketCapUsd:
+          Number.isFinite(liveMcNum) && liveMcNum > 0 ? liveMcNum : null,
         callTime: r.call_time,
         source: typeof r.source === "string" ? r.source : "bot",
         messageUrl: typeof r.message_url === "string" ? r.message_url.trim() : null,
