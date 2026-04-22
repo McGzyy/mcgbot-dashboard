@@ -21,8 +21,8 @@ export async function GET() {
     const [totalRes, onlineRes] = await Promise.all([
       db.from("users").select("id", { count: "exact", head: true }),
       db
-        .from("user_presence")
-        .select("user_id", { count: "exact", head: true })
+        .from("user_presence_v2")
+        .select("discord_id", { count: "exact", head: true })
         .gte("last_seen_at", onlineMinIso),
     ]);
 

@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 export async function POST() {
   try {
     const session = await getServerSession(authOptions);
-    const userId = session?.user?.id?.trim();
-    if (!userId) {
+    const discordId = session?.user?.id?.trim();
+    if (!discordId) {
       return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
@@ -19,8 +19,11 @@ export async function POST() {
     }
 
     const { error } = await db
-      .from("user_presence")
-      .upsert({ user_id: userId, last_seen_at: new Date().toISOString() }, { onConflict: "user_id" });
+      .from("user_presence_v2")
+      .upsert(
+        { discord_id: discordId, last_seen_at: new Date().toISOString() },
+        { onConflict: "discord_id" }
+      );
 
     if (error) {
       console.error("[me/presence] upsert:", error);
