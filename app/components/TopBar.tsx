@@ -17,6 +17,11 @@ type MarketSnapshot = {
   activeTraders: number;
 };
 
+type UserCounts = {
+  totalUsers: number;
+  onlineUsers: number;
+};
+
 type TipStartOk = {
   success: true;
   solanaPayUrl: string;
@@ -88,6 +93,8 @@ export function TopBar() {
   const [market, setMarket] = useState<MarketSnapshot | null>(null);
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketUpdatedAtMs, setMarketUpdatedAtMs] = useState<number | null>(null);
+  const [userCounts, setUserCounts] = useState<UserCounts | null>(null);
+  const [userCountsLoading, setUserCountsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const loadedOnceRef = useRef(false);
   const prevSolPriceRef = useRef<number | null>(null);
@@ -113,6 +120,59 @@ export function TopBar() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchCounts = () => {
+      if (!cancelled && userCounts == null) setUserCountsLoading(true);
+      fetch("/api/public/user-counts")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: unknown) => {
+          if (cancelled || !data || typeof data !== "object") return;
+          const o = data as Record<string, unknown>;
+          if (o.success !== true) return;
+          const totalUsers = Number(o.totalUsers);
+          const onlineUsers = Number(o.onlineUsers);
+          if (!Number.isFinite(totalUsers) || totalUsers < 0) return;
+          if (!Number.isFinite(onlineUsers) || onlineUsers < 0) return;
+          setUserCounts({
+            totalUsers: Math.round(totalUsers),
+            onlineUsers: Math.round(onlineUsers),
+          });
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) setUserCountsLoading(false);
+        });
+    };
+
+    fetchCounts();
+    const id = window.setInterval(fetchCounts, 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [userCounts]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.user?.id?.trim()) return;
+    let cancelled = false;
+
+    const ping = () => {
+      void fetch("/api/me/presence", { method: "POST" }).catch(() => {});
+    };
+
+    ping();
+    const id = window.setInterval(() => {
+      if (!cancelled) ping();
+    }, 45_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [session?.user?.id, status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -555,12 +615,36 @@ export function TopBar() {
           <div className={dashboardChrome.marketStripTopRule} aria-hidden />
           <div className={dashboardChrome.marketStripBackdrop} aria-hidden />
           <div className="relative z-10 px-4 py-2 text-xs sm:px-6">
-            {marketLoading ? (
-              <div className="flex w-full justify-end">
-                <span className="text-zinc-600">Loading market…</span>
+            <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+              <div className="flex shrink-0 items-center gap-2 text-zinc-500">
+                {userCountsLoading && !userCounts ? (
+                  <span className="text-zinc-600">Users —</span>
+                ) : userCounts ? (
+                  <>
+                    <span className="rounded-md border border-zinc-800/55 bg-zinc-900/55 px-2 py-1 text-zinc-400">
+                      Total{" "}
+                      <span className="font-medium tabular-nums text-zinc-200">
+                        {formatCount(userCounts.totalUsers)}
+                      </span>
+                    </span>
+                    <span className="rounded-md border border-zinc-800/55 bg-zinc-900/55 px-2 py-1 text-zinc-400">
+                      Online{" "}
+                      <span className="font-medium tabular-nums text-zinc-200">
+                        {formatCount(userCounts.onlineUsers)}
+                      </span>
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-zinc-600">Users unavailable</span>
+                )}
               </div>
-            ) : market ? (
-              <div className="flex w-full flex-wrap items-center justify-end gap-x-3 gap-y-1.5 text-zinc-500">
+
+              {marketLoading ? (
+                <div className="flex justify-end">
+                  <span className="text-zinc-600">Loading market…</span>
+                </div>
+              ) : market ? (
+                <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5 text-zinc-500">
                 <span
                   className={[
                     "flex shrink-0 items-center gap-1 rounded-md border border-transparent px-1.5 py-1 font-semibold tabular-nums transition-colors duration-300",
@@ -595,12 +679,13 @@ export function TopBar() {
                   Updated{" "}
                   <span className="font-medium tabular-nums text-zinc-300">{marketUpdatedLabel}</span>
                 </span>
-              </div>
-            ) : (
-              <div className="flex w-full justify-end">
-                <span className="text-zinc-600">Market unavailable</span>
-              </div>
-            )}
+                </div>
+              ) : (
+                <div className="flex justify-end">
+                  <span className="text-zinc-600">Market unavailable</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

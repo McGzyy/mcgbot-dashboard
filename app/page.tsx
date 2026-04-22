@@ -341,6 +341,12 @@ function callsTodayDeltaLabel(stats: MeStats | null): ReactNode {
   return <span className="text-zinc-500">Flat from yesterday</span>;
 }
 
+function smoothClass(refreshing: boolean): string {
+  return refreshing
+    ? "transition-opacity duration-300 ease-out opacity-70"
+    : "transition-opacity duration-300 ease-out opacity-100";
+}
+
 type RecentCallRow = {
   token: string;
   multiple: number;
@@ -3203,6 +3209,7 @@ export default function Home() {
   const activitySourceModeRef = useRef<"all" | "following" | null>(null);
   const [copied, setCopied] = useState(false);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [statsRefreshing, setStatsRefreshing] = useState(false);
   const [stats, setStats] = useState<MeStats | null>(null);
   const [recentCalls, setRecentCalls] = useState<RecentCallRow[]>([]);
   const [callsLoading, setCallsLoading] = useState(true);
@@ -3446,7 +3453,8 @@ export default function Home() {
     if (!session?.user?.id?.trim()) return;
 
     let cancelled = false;
-    setStats(null);
+    if (stats === null) setStatsLoading(true);
+    setStatsRefreshing(true);
 
     fetch("/api/me/stats")
       .then((res) => res.json())
@@ -3511,12 +3519,18 @@ export default function Home() {
             totalCalls: 0,
           });
         }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setStatsLoading(false);
+          setStatsRefreshing(false);
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id, homeDataRefreshNonce]);
+  }, [session?.user?.id, homeDataRefreshNonce, stats]);
 
   useEffect(() => {
     if (!session?.user?.id?.trim()) {
@@ -3986,7 +4000,11 @@ export default function Home() {
             Key metrics from your recent activity.
           </p>
         </div>
-        <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
+        <div
+          className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-4 ${smoothClass(
+            statsRefreshing || statsLoading
+          )}`}
+        >
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
             <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -4447,14 +4465,37 @@ export default function Home() {
             </div>
 
             <div className="mt-4 space-y-3">
-              <input
-                type="text"
-                value={submitCallValue}
-                onChange={(e) => setSubmitCallValue(e.target.value)}
-                placeholder="Enter contract address"
-                disabled={submitCallSubmitting}
-                className="w-full rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60"
-              />
+              <div className="flex items-stretch gap-2">
+                <input
+                  type="text"
+                  value={submitCallValue}
+                  onChange={(e) => setSubmitCallValue(e.target.value)}
+                  placeholder="Enter contract address"
+                  disabled={submitCallSubmitting}
+                  className="min-w-0 flex-1 rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const t = await navigator.clipboard.readText();
+                      if (typeof t === "string") setSubmitCallValue(t.trim());
+                    } catch {
+                      addNotification({
+                        id: crypto.randomUUID(),
+                        text: "Clipboard blocked — use Ctrl+V instead.",
+                        type: "call",
+                        createdAt: Date.now(),
+                        priority: "low",
+                      });
+                    }
+                  }}
+                  disabled={submitCallSubmitting}
+                  className="shrink-0 rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 text-xs font-semibold text-zinc-200 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:opacity-60"
+                >
+                  Paste
+                </button>
+              </div>
 
               {submitCallFeedback ? (
                 <p className="text-sm">
