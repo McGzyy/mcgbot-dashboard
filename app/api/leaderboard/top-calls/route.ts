@@ -114,9 +114,16 @@ export async function GET(request: Request) {
       const username = displayNameForDiscordId(discordId, rawUser, nameMap);
       const tMs = rowCallTimeUtcMs(r);
       const callTimeIso = tMs > 0 ? new Date(tMs).toISOString() : "";
+      const imgRaw = r.token_image_url;
+      const tokenImageUrl =
+        typeof imgRaw === "string" && imgRaw.trim()
+          ? imgRaw.trim().slice(0, 800)
+          : null;
+
       return {
         id: r.id != null ? String(r.id) : "",
         symbol: rowSymbol(r),
+        tokenImageUrl,
         multiplier: rowAthMultiple(r),
         username,
         discordId: discordId || undefined,

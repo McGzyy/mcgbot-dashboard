@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -28,6 +28,8 @@ type LeaderRow = {
 type TopCallRow = {
   id?: string;
   symbol: string;
+  /** Dex / snapshot icon when present — same source as Call log. */
+  tokenImageUrl?: string | null;
   multiplier: number;
   username: string;
   timestamp: string;
@@ -229,6 +231,62 @@ function symbolBadge(symbol: string) {
   return letters.length >= 2 ? letters.slice(0, 2) : `${letters}•`.slice(0, 2);
 }
 
+function TokenCallThumb({
+  symbol,
+  tokenImageUrl,
+  tone,
+}: {
+  symbol: string;
+  tokenImageUrl?: string | null;
+  tone: "default" | "muted" | "bot";
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const onImgError = useCallback(() => setImgFailed(true), []);
+
+  useEffect(() => {
+    setImgFailed(false);
+  }, [tokenImageUrl]);
+
+  const imgBorder =
+    tone === "bot"
+      ? "border-sky-500/35"
+      : tone === "muted"
+        ? "border-zinc-700/50"
+        : "border-emerald-500/30";
+
+  const letterFallback = (
+    <div
+      className={[
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-[10px] font-bold tabular-nums",
+        tone === "bot"
+          ? "border-sky-500/25 bg-sky-950/50 text-sky-200"
+          : tone === "muted"
+            ? "border-[#1a1a1a] bg-[#050505] text-zinc-300"
+            : "border-emerald-500/20 bg-emerald-950/40 text-emerald-200/90",
+      ].join(" ")}
+      aria-hidden
+    >
+      {symbolBadge(symbol)}
+    </div>
+  );
+
+  if (tokenImageUrl && !imgFailed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={tokenImageUrl}
+        alt=""
+        className={`h-9 w-9 shrink-0 rounded-lg border object-cover ${imgBorder}`}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={onImgError}
+      />
+    );
+  }
+
+  return letterFallback;
+}
+
 function RankDelta({ delta }: { delta?: number }) {
   if (delta === undefined || delta === 0) {
     return <span className="text-[10px] tabular-nums text-zinc-600">—</span>;
@@ -292,19 +350,11 @@ function TopCallsList({
                 <div className="w-8 shrink-0 text-right text-xs font-medium tabular-nums text-zinc-500">
                   #{i + 1}
                 </div>
-                <div
-                  className={[
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-[10px] font-bold tabular-nums",
-                    tone === "bot"
-                      ? "border-sky-500/25 bg-sky-950/50 text-sky-200"
-                      : tone === "muted"
-                        ? "border-[#1a1a1a] bg-[#050505] text-zinc-300"
-                        : "border-emerald-500/20 bg-emerald-950/40 text-emerald-200/90",
-                  ].join(" ")}
-                  aria-hidden
-                >
-                  {symbolBadge(row.symbol)}
-                </div>
+                <TokenCallThumb
+                  symbol={row.symbol}
+                  tokenImageUrl={row.tokenImageUrl}
+                  tone={tone}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold text-zinc-100">{row.symbol}</div>
                   <div className="truncate text-xs text-zinc-500">
@@ -528,9 +578,15 @@ export default function LeaderboardPage() {
           const username = typeof r.username === "string" ? r.username : "—";
           const iso = typeof r.callTimeIso === "string" ? r.callTimeIso : null;
           const callToATH = typeof r.callToAth === "string" ? r.callToAth : "—";
+          const imgRaw = r.tokenImageUrl ?? r.token_image_url;
+          const tokenImageUrl =
+            typeof imgRaw === "string" && imgRaw.trim()
+              ? imgRaw.trim().slice(0, 800)
+              : null;
           mapped.push({
             id,
             symbol,
+            tokenImageUrl,
             multiplier,
             username,
             timestamp: formatRelativeTime(iso),

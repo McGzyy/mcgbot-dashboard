@@ -33,7 +33,7 @@ export const CP_ACTIVITY_WITH_SNAPSHOT = `${CP_ACTIVITY_LEGACY}, token_name, tok
 export const CP_TOP_CALLS_LEGACY =
   "id, username, discord_id, call_ca, ath_multiple, call_time, excluded_from_stats, source";
 
-export const CP_TOP_CALLS_WITH_SNAPSHOT = `${CP_TOP_CALLS_LEGACY}, token_name, token_ticker`;
+export const CP_TOP_CALLS_WITH_SNAPSHOT = `${CP_TOP_CALLS_LEGACY}, token_name, token_ticker, token_image_url`;
 
 export async function selectCallPerformanceWithSnapshotFallback(opts: {
   run: (columns: string) => Promise<{
