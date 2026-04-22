@@ -27,10 +27,12 @@ type Props = {
 
 export function TokenChartModal({ open, payload, onClose }: Props) {
   const [copied, setCopied] = useState(false);
+  const [chartMode, setChartMode] = useState<"gecko" | "tv">("gecko");
 
   useEffect(() => {
     if (!open) return;
     setCopied(false);
+    setChartMode("gecko");
   }, [open, payload?.contractAddress]);
 
   useEffect(() => {
@@ -52,9 +54,10 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
     return resolveTradingViewSymbolForMint(ca, payload?.tradingViewSymbol);
   }, [ca, payload?.tradingViewSymbol]);
 
-  const showMintDisclaimer = ca
-    ? shouldShowTradingViewMintDisclaimer(ca, payload?.tradingViewSymbol)
-    : false;
+  const showMintDisclaimer =
+    chartMode === "tv" && ca
+      ? shouldShowTradingViewMintDisclaimer(ca, payload?.tradingViewSymbol)
+      : false;
 
   const iframeSrc = useMemo(
     () =>
@@ -67,6 +70,12 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
       }),
     [tvSymbol]
   );
+
+  const geckoSrc = useMemo(() => {
+    if (!ca) return "";
+    // GeckoTerminal supports `?embed=1` (no X-Frame-Options) and redirects tokens → best pool.
+    return `https://www.geckoterminal.com/solana/tokens/${encodeURIComponent(ca)}?embed=1`;
+  }, [ca]);
 
   const copyCa = useCallback(async () => {
     if (!ca) return;
@@ -125,6 +134,32 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <div className="hidden items-center gap-1 rounded-lg border border-zinc-800/80 bg-black/30 p-1 sm:flex">
+              <button
+                type="button"
+                onClick={() => setChartMode("gecko")}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
+                  chartMode === "gecko"
+                    ? "bg-emerald-500/15 text-emerald-100"
+                    : "text-zinc-400 hover:text-zinc-100"
+                }`}
+                title="GeckoTerminal embed (DEX chart)"
+              >
+                Live
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartMode("tv")}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
+                  chartMode === "tv"
+                    ? "bg-sky-500/15 text-sky-100"
+                    : "text-zinc-400 hover:text-zinc-100"
+                }`}
+                title="TradingView listed symbol (CEX pair)"
+              >
+                TV
+              </button>
+            </div>
             {dexUrl ? (
               <a
                 href={dexUrl}
@@ -167,9 +202,9 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
 
         <div className="min-h-0 flex-1 bg-black">
           <iframe
-            key={tvSymbol}
-            title="TradingView chart"
-            src={iframeSrc}
+            key={chartMode === "gecko" ? geckoSrc : tvSymbol}
+            title={chartMode === "gecko" ? "GeckoTerminal chart" : "TradingView chart"}
+            src={chartMode === "gecko" ? geckoSrc : iframeSrc}
             className="h-[min(58dvh,560px)] w-full min-h-[320px] border-0 sm:h-[min(62vh,620px)]"
             referrerPolicy="no-referrer-when-downgrade"
             allow="clipboard-write; fullscreen"
