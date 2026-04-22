@@ -12,6 +12,15 @@ type TrustedProMe = {
   viewsTotal: number;
 };
 
+type TrustedProPublicStats = {
+  trustedPros: number;
+  totalCalls: number;
+  avgCallMcUsd: number | null;
+  avgAthMultiple: number | null;
+  avgTimeToAthMs: number | null;
+  bestAthMultipleAllTime: number | null;
+};
+
 type TrustedProCall = {
   id: string;
   author_discord_id: string;
@@ -40,6 +49,7 @@ export default function TrustedProPage() {
   const { status } = useSession();
   const { addNotification } = useNotifications();
   const [me, setMe] = useState<TrustedProMe | null>(null);
+  const [publicStats, setPublicStats] = useState<TrustedProPublicStats | null>(null);
   const [calls, setCalls] = useState<TrustedProCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -50,17 +60,23 @@ export default function TrustedProPage() {
   const [thesis, setThesis] = useState("");
   const [narrative, setNarrative] = useState("");
 
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [applyBusy, setApplyBusy] = useState(false);
+  const [applyNote, setApplyNote] = useState("");
+
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
     try {
-      const [feedRes, meRes] = await Promise.all([
+      const [feedRes, meRes, statsRes] = await Promise.all([
         fetch("/api/public/trusted-pro-calls?limit=30&offset=0"),
         fetch("/api/me/trusted-pro", { credentials: "same-origin" }),
+        fetch("/api/public/trusted-pro-stats"),
       ]);
 
       const feedJson = (await feedRes.json().catch(() => ({}))) as any;
       const meJson = (await meRes.json().catch(() => ({}))) as any;
+      const statsJson = (await statsRes.json().catch(() => ({}))) as any;
 
       if (feedRes.ok && feedJson?.success === true) {
         setCalls(Array.isArray(feedJson.calls) ? feedJson.calls : []);
@@ -75,6 +91,12 @@ export default function TrustedProPage() {
       } else {
         setMe(null);
       }
+
+      if (statsRes.ok && statsJson?.success === true) {
+        setPublicStats(statsJson as TrustedProPublicStats);
+      } else {
+        setPublicStats(null);
+      }
     } catch {
       setErr("Could not load Trusted Pro calls.");
       setCalls([]);
@@ -88,6 +110,7 @@ export default function TrustedProPage() {
   }, [load]);
 
   const canSubmit = me?.trustedPro === true;
+  const canApply = status === "authenticated" && me?.trustedPro !== true;
 
   const submit = useCallback(async () => {
     if (!canSubmit) return;
@@ -150,6 +173,72 @@ export default function TrustedProPage() {
     return `${a}/3 approvals • ${needed} until auto`;
   }, [me]);
 
+  const publicSummary = useMemo(() => {
+    if (!publicStats) return null;
+    const mc =
+      publicStats.avgCallMcUsd != null && Number.isFinite(publicStats.avgCallMcUsd)
+        ? `$${Math.round(publicStats.avgCallMcUsd).toLocaleString("en-US")}`
+        : "—";
+    const avgAth =
+      publicStats.avgAthMultiple != null && Number.isFinite(publicStats.avgAthMultiple)
+        ? `${publicStats.avgAthMultiple.toFixed(2)}x`
+        : "—";
+    const bestAth =
+      publicStats.bestAthMultipleAllTime != null && Number.isFinite(publicStats.bestAthMultipleAllTime)
+        ? `${publicStats.bestAthMultipleAllTime.toFixed(2)}x`
+        : "—";
+    const avgT =
+      publicStats.avgTimeToAthMs != null && Number.isFinite(publicStats.avgTimeToAthMs)
+        ? `${Math.round(publicStats.avgTimeToAthMs / 60000).toLocaleString("en-US")}m`
+        : "—";
+    return { mc, avgAth, bestAth, avgT };
+  }, [publicStats]);
+
+  const apply = useCallback(async () => {
+    if (!canApply) return;
+    if (applyBusy) return;
+    setApplyBusy(true);
+    try {
+      const res = await fetch("/api/me/trusted-pro-apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: applyNote.trim() || null }),
+      });
+      const json = (await res.json().catch(() => ({}))) as any;
+      if (!res.ok || json?.success !== true) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: typeof json?.error === "string" ? json.error : "Application failed.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "medium",
+        });
+        return;
+      }
+      if (json.eligible !== true) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "You’re not eligible to apply yet. Keep building your track record and try again soon.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+        return;
+      }
+      addNotification({
+        id: crypto.randomUUID(),
+        text: json.alreadyPending ? "Application already pending review." : "Application submitted for review.",
+        type: "call",
+        createdAt: Date.now(),
+        priority: "low",
+      });
+      setApplyOpen(false);
+      setApplyNote("");
+    } finally {
+      setApplyBusy(false);
+    }
+  }, [addNotification, applyBusy, applyNote, canApply]);
+
   if (status === "loading") {
     return (
       <div className="mx-auto max-w-6xl animate-pulse space-y-4 px-4 py-10">
@@ -186,13 +275,13 @@ export default function TrustedProPage() {
         </div>
       </header>
 
-      {me ? (
+      {canSubmit && me ? (
         <div className="mt-6 rounded-2xl border border-white/[0.06] bg-black/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-zinc-100">Your Trusted Pro stats</p>
               <p className="mt-1 text-xs text-zinc-500">
-                {me.trustedPro ? statLine : "You are viewing read-only. Trusted Pro submit is role-gated."}
+                {statLine}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
@@ -210,6 +299,67 @@ export default function TrustedProPage() {
                 Views <span className="font-semibold tabular-nums text-zinc-100">{me.viewsTotal}</span>
               </span>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {!canSubmit ? (
+        <div className="mt-6 rounded-2xl border border-white/[0.06] bg-black/20 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-zinc-100">Trusted Pro intel</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Aggregates across approved Trusted Pro calls.
+              </p>
+            </div>
+            {canApply ? (
+              <button
+                type="button"
+                onClick={() => setApplyOpen(true)}
+                className="rounded-xl border border-emerald-500/25 bg-emerald-950/20 px-4 py-2 text-xs font-semibold text-emerald-100/90 transition hover:border-emerald-400/35"
+              >
+                Become a Trusted Pro
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
+              Trusted Pros{" "}
+              <span className="font-semibold tabular-nums text-zinc-100">
+                {publicStats?.trustedPros ?? "—"}
+              </span>
+            </span>
+            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
+              Total calls{" "}
+              <span className="font-semibold tabular-nums text-zinc-100">
+                {publicStats?.totalCalls ?? "—"}
+              </span>
+            </span>
+            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
+              Avg call MC{" "}
+              <span className="font-semibold tabular-nums text-zinc-100">
+                {publicSummary?.mc ?? "—"}
+              </span>
+            </span>
+            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
+              Avg ATH{" "}
+              <span className="font-semibold tabular-nums text-zinc-100">
+                {publicSummary?.avgAth ?? "—"}
+              </span>
+            </span>
+            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
+              Avg time to ATH{" "}
+              <span className="font-semibold tabular-nums text-zinc-100">
+                {publicSummary?.avgT ?? "—"}
+              </span>
+            </span>
+            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
+              Best call (ATH){" "}
+              <span className="font-semibold tabular-nums text-zinc-100">
+                {publicSummary?.bestAth ?? "—"}
+              </span>
+            </span>
           </div>
         </div>
       ) : null}
@@ -333,6 +483,66 @@ export default function TrustedProPage() {
                   className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-medium text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-60"
                 >
                   {submitting ? "Submitting…" : "Submit"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {applyOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Become a Trusted Pro"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setApplyOpen(false);
+          }}
+        >
+          <div className="w-full max-w-lg rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">Become a Trusted Pro</h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  If you’re eligible, you can submit an application for staff review.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApplyOpen(false)}
+                className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-2 py-1 text-xs text-zinc-300 hover:bg-[#0a0a0a]"
+                aria-label="Close"
+                disabled={applyBusy}
+              >
+                Esc
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              <textarea
+                value={applyNote}
+                onChange={(e) => setApplyNote(e.target.value)}
+                placeholder="Optional note (what makes your calls unique, process, strengths)…"
+                disabled={applyBusy}
+                className="min-h-[120px] w-full resize-y rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60"
+              />
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setApplyOpen(false)}
+                  disabled={applyBusy}
+                  className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-[#0a0a0a] disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={apply}
+                  disabled={applyBusy}
+                  className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-medium text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-60"
+                >
+                  {applyBusy ? "Submitting…" : "Apply"}
                 </button>
               </div>
             </div>

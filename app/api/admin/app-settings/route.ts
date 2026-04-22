@@ -110,6 +110,22 @@ export async function PATCH(req: Request) {
       }
     }
   }
+  if ("trusted_pro_apply_min_total_calls" in o) {
+    const n = Number((o as any).trusted_pro_apply_min_total_calls);
+    if (Number.isFinite(n)) patch.trusted_pro_apply_min_total_calls = n;
+  }
+  if ("trusted_pro_apply_min_avg_x" in o) {
+    const n = Number((o as any).trusted_pro_apply_min_avg_x);
+    if (Number.isFinite(n)) patch.trusted_pro_apply_min_avg_x = n;
+  }
+  if ("trusted_pro_apply_min_win_rate" in o) {
+    const n = Number((o as any).trusted_pro_apply_min_win_rate);
+    if (Number.isFinite(n)) patch.trusted_pro_apply_min_win_rate = n;
+  }
+  if ("trusted_pro_apply_min_best_x_30d" in o) {
+    const n = Number((o as any).trusted_pro_apply_min_best_x_30d);
+    if (Number.isFinite(n)) patch.trusted_pro_apply_min_best_x_30d = n;
+  }
 
   const row = await patchDashboardAdminSettings(patch);
   if (!row) {

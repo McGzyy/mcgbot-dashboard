@@ -58,6 +58,17 @@ type TrustedProPendingRow = {
   created_at: string;
 };
 
+type TrustedProApplicationRow = {
+  id: string;
+  applicant_discord_id: string;
+  application_note: string | null;
+  snapshot_total_calls: number;
+  snapshot_avg_x: number;
+  snapshot_win_rate: number;
+  snapshot_best_x_30d: number;
+  created_at: string;
+};
+
 function shortAddr(ca: string) {
   const s = ca.trim();
   if (s.length <= 14) return s;
@@ -657,6 +668,11 @@ export default function ModerationPage() {
   const [trustedProPending, setTrustedProPending] = useState<TrustedProPendingRow[]>([]);
   const [trustedProNotes, setTrustedProNotes] = useState<Record<string, string>>({});
 
+  const [tpAppsLoading, setTpAppsLoading] = useState(false);
+  const [tpAppsErr, setTpAppsErr] = useState<string | null>(null);
+  const [tpAppsPending, setTpAppsPending] = useState<TrustedProApplicationRow[]>([]);
+  const [tpAppsNotes, setTpAppsNotes] = useState<Record<string, string>>({});
+
   useEffect(() => {
     if (status !== "authenticated") {
       setTierLoading(false);
@@ -871,6 +887,88 @@ export default function ModerationPage() {
     [addNotification, loadTrustedProPending, trustedProNotes]
   );
 
+  const loadTrustedProApplications = useCallback(async () => {
+    if (status !== "authenticated") return;
+    if (tier !== "mod" && tier !== "admin") return;
+    setTpAppsErr(null);
+    setTpAppsLoading(true);
+    try {
+      const res = await fetch("/api/mod/trusted-pro-applications/pending");
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        rows?: unknown;
+      };
+      if (!res.ok || json.success !== true) {
+        const msg =
+          typeof json.error === "string" && json.error.trim()
+            ? json.error.trim()
+            : `HTTP ${res.status}`;
+        setTpAppsErr(msg);
+        setTpAppsPending([]);
+        return;
+      }
+      const rowsIn = Array.isArray(json.rows) ? (json.rows as unknown[]) : [];
+      const parsed: TrustedProApplicationRow[] = [];
+      for (const r of rowsIn) {
+        if (!r || typeof r !== "object") continue;
+        const o = r as Record<string, unknown>;
+        const id = typeof o.id === "string" ? o.id : "";
+        const applicant = typeof o.applicant_discord_id === "string" ? o.applicant_discord_id : "";
+        const createdAt = typeof o.created_at === "string" ? o.created_at : "";
+        if (!id || !applicant || !createdAt) continue;
+        parsed.push({
+          id,
+          applicant_discord_id: applicant,
+          application_note: typeof o.application_note === "string" ? o.application_note : null,
+          snapshot_total_calls: Number(o.snapshot_total_calls || 0) || 0,
+          snapshot_avg_x: Number(o.snapshot_avg_x || 0) || 0,
+          snapshot_win_rate: Number(o.snapshot_win_rate || 0) || 0,
+          snapshot_best_x_30d: Number(o.snapshot_best_x_30d || 0) || 0,
+          created_at: createdAt,
+        });
+      }
+      setTpAppsPending(parsed);
+    } catch (e) {
+      setTpAppsErr(e instanceof Error ? e.message : "Failed to load Trusted Pro applications");
+      setTpAppsPending([]);
+    } finally {
+      setTpAppsLoading(false);
+    }
+  }, [status, tier]);
+
+  const actTpApp = useCallback(
+    async (id: string, action: "approve" | "deny") => {
+      const notes = (tpAppsNotes[id] ?? "").trim();
+      const res = await fetch(`/api/mod/trusted-pro-applications/${encodeURIComponent(id)}/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffNotes: notes || null }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || json.success !== true) {
+        const msg = typeof json.error === "string" ? json.error : `HTTP ${res.status}`;
+        addNotification({
+          id: crypto.randomUUID(),
+          text: `Trusted Pro application ${action} failed: ${msg}`,
+          type: "call",
+          createdAt: Date.now(),
+          priority: "medium",
+        });
+        return;
+      }
+      addNotification({
+        id: crypto.randomUUID(),
+        text: `Trusted Pro application ${action}d.`,
+        type: "call",
+        createdAt: Date.now(),
+        priority: "low",
+      });
+      await loadTrustedProApplications();
+    },
+    [addNotification, loadTrustedProApplications, tpAppsNotes]
+  );
+
   useEffect(() => {
     if (status !== "authenticated") return;
     if (tier !== "mod" && tier !== "admin") return;
@@ -882,6 +980,12 @@ export default function ModerationPage() {
     if (tier !== "mod" && tier !== "admin") return;
     void loadTrustedProPending();
   }, [status, tier, loadTrustedProPending]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (tier !== "mod" && tier !== "admin") return;
+    void loadTrustedProApplications();
+  }, [status, tier, loadTrustedProApplications]);
 
   const loadReports = useCallback(async () => {
     if (status !== "authenticated") return;
@@ -1391,6 +1495,98 @@ export default function ModerationPage() {
                           <button
                             type="button"
                             onClick={() => void actTrustedPro(r.id, "approve")}
+                            className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-1.5 text-xs font-semibold text-emerald-100/90 transition hover:border-emerald-400/40"
+                          >
+                            Approve
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          <section>
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className={modChrome.sectionAccent} aria-hidden />
+                <div>
+                  <h2 className={modChrome.h2}>Trusted Pro applications</h2>
+                  <p className="mt-1 text-xs text-zinc-600">
+                    Users can apply when they meet hidden thresholds. Approving grants the Trusted Pro flag.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void loadTrustedProApplications()}
+                disabled={tpAppsLoading}
+                className="rounded-lg border border-zinc-700/80 bg-zinc-950/40 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 disabled:opacity-60"
+              >
+                {tpAppsLoading ? "Refreshing…" : "Refresh"}
+              </button>
+            </div>
+
+            {tpAppsErr ? (
+              <div className="mb-4 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">
+                {tpAppsErr}
+              </div>
+            ) : null}
+
+            {tpAppsLoading ? (
+              <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+                Loading…
+              </div>
+            ) : tpAppsPending.length === 0 ? (
+              <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+                No pending applications.
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {tpAppsPending.map((r) => {
+                  const draft = tpAppsNotes[r.id] ?? "";
+                  return (
+                    <li key={r.id} className="rounded-xl border border-zinc-800/80 bg-black/20 p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-zinc-100">
+                            <span className="font-mono text-zinc-300">{r.applicant_discord_id}</span>
+                          </p>
+                          <p className="mt-1 text-[11px] text-zinc-500">
+                            Calls <span className="font-semibold tabular-nums text-zinc-200">{r.snapshot_total_calls}</span>{" "}
+                            · Avg X <span className="font-semibold tabular-nums text-zinc-200">{r.snapshot_avg_x.toFixed(2)}</span>{" "}
+                            · Win <span className="font-semibold tabular-nums text-zinc-200">{r.snapshot_win_rate.toFixed(1)}%</span>{" "}
+                            · Best 30d <span className="font-semibold tabular-nums text-zinc-200">{r.snapshot_best_x_30d.toFixed(2)}x</span>
+                          </p>
+                          {r.application_note ? (
+                            <p className="mt-2 text-xs leading-relaxed text-zinc-300">{r.application_note}</p>
+                          ) : null}
+                        </div>
+                        <span className="text-[11px] tabular-nums text-zinc-500" title={r.created_at}>
+                          {formatRelativeTime(r.created_at)}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid gap-2">
+                        <textarea
+                          value={draft}
+                          onChange={(e) => setTpAppsNotes((m) => ({ ...m, [r.id]: e.target.value }))}
+                          className="min-h-[64px] w-full resize-y rounded-lg border border-zinc-800 bg-black/20 px-3 py-2 text-xs text-zinc-200 outline-none ring-emerald-500/20 focus:ring-2"
+                          placeholder="Staff notes (optional)…"
+                        />
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void actTpApp(r.id, "deny")}
+                            className="rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-1.5 text-xs font-semibold text-red-100/90 transition hover:border-red-400/40"
+                          >
+                            Deny
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void actTpApp(r.id, "approve")}
                             className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-1.5 text-xs font-semibold text-emerald-100/90 transition hover:border-emerald-400/40"
                           >
                             Approve

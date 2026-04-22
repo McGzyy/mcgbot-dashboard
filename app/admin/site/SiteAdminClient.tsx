@@ -27,6 +27,10 @@ type AppSettings = {
   discord_invite_url: string | null;
   /** ISO-8601 UTC; stats APIs ignore call_performance before this instant. */
   stats_cutover_at: string | null;
+  trusted_pro_apply_min_total_calls: number;
+  trusted_pro_apply_min_avg_x: number;
+  trusted_pro_apply_min_win_rate: number;
+  trusted_pro_apply_min_best_x_30d: number;
   updated_at?: string;
   updated_by_discord_id?: string | null;
 };
@@ -146,6 +150,10 @@ export function SiteAdminClient() {
           subscribe_button_label: settings.subscribe_button_label,
           discord_invite_url: settings.discord_invite_url,
           stats_cutover_at: settings.stats_cutover_at,
+          trusted_pro_apply_min_total_calls: settings.trusted_pro_apply_min_total_calls,
+          trusted_pro_apply_min_avg_x: settings.trusted_pro_apply_min_avg_x,
+          trusted_pro_apply_min_win_rate: settings.trusted_pro_apply_min_win_rate,
+          trusted_pro_apply_min_best_x_30d: settings.trusted_pro_apply_min_best_x_30d,
         }),
       });
       const json = (await res.json().catch(() => ({}))) as {
@@ -270,6 +278,74 @@ export function SiteAdminClient() {
           </AdminPanel>
         </div>
       </div>
+
+      <SettingsSection
+        kicker="Trusted Pro"
+        title="Application thresholds (hidden)"
+        description="These values determine whether a user can open the Trusted Pro application modal. Do not publish these numbers; the public UI only shows a generic ineligible message."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-xs font-semibold text-zinc-300">Min total calls</span>
+            <input
+              type="number"
+              value={settings?.trusted_pro_apply_min_total_calls ?? 0}
+              onChange={(e) =>
+                setSettings((s) =>
+                  s
+                    ? { ...s, trusted_pro_apply_min_total_calls: Number(e.target.value) || 0 }
+                    : s
+                )
+              }
+              className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-semibold text-zinc-300">Min avg X</span>
+            <input
+              type="number"
+              step="0.1"
+              value={settings?.trusted_pro_apply_min_avg_x ?? 0}
+              onChange={(e) =>
+                setSettings((s) =>
+                  s ? { ...s, trusted_pro_apply_min_avg_x: Number(e.target.value) || 0 } : s
+                )
+              }
+              className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-semibold text-zinc-300">Min win rate (%)</span>
+            <input
+              type="number"
+              step="1"
+              value={settings?.trusted_pro_apply_min_win_rate ?? 0}
+              onChange={(e) =>
+                setSettings((s) =>
+                  s ? { ...s, trusted_pro_apply_min_win_rate: Number(e.target.value) || 0 } : s
+                )
+              }
+              className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-semibold text-zinc-300">Min best X (30d)</span>
+            <input
+              type="number"
+              step="0.1"
+              value={settings?.trusted_pro_apply_min_best_x_30d ?? 0}
+              onChange={(e) =>
+                setSettings((s) =>
+                  s
+                    ? { ...s, trusted_pro_apply_min_best_x_30d: Number(e.target.value) || 0 }
+                    : s
+                )
+              }
+              className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
+            />
+          </label>
+        </div>
+      </SettingsSection>
 
       {settingsError ? (
         <AdminPanel className="border-red-500/25 bg-red-950/20 p-4">

@@ -13,6 +13,11 @@ export type DashboardAdminSettingsRow = {
   discord_invite_url: string | null;
   /** Inclusive UTC instant: stats APIs ignore `call_performance` rows with `call_time` before this. */
   stats_cutover_at: string | null;
+  /** Hidden thresholds for Trusted Pro applications (do not expose to users). */
+  trusted_pro_apply_min_total_calls: number;
+  trusted_pro_apply_min_avg_x: number;
+  trusted_pro_apply_min_win_rate: number;
+  trusted_pro_apply_min_best_x_30d: number;
   updated_at: string;
   updated_by_discord_id: string | null;
 };
@@ -31,6 +36,10 @@ function defaultRow(): DashboardAdminSettingsRow {
     subscribe_button_label: null,
     discord_invite_url: null,
     stats_cutover_at: null,
+    trusted_pro_apply_min_total_calls: 0,
+    trusted_pro_apply_min_avg_x: 0,
+    trusted_pro_apply_min_win_rate: 0,
+    trusted_pro_apply_min_best_x_30d: 0,
     updated_at: now,
     updated_by_discord_id: null,
   };
@@ -61,6 +70,18 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
     subscribe_button_label: typeof r.subscribe_button_label === "string" ? r.subscribe_button_label : null,
     discord_invite_url: typeof r.discord_invite_url === "string" ? r.discord_invite_url : null,
     stats_cutover_at: typeof r.stats_cutover_at === "string" ? r.stats_cutover_at : null,
+    trusted_pro_apply_min_total_calls: Number.isFinite(Number((r as any).trusted_pro_apply_min_total_calls))
+      ? Math.max(0, Math.floor(Number((r as any).trusted_pro_apply_min_total_calls)))
+      : 0,
+    trusted_pro_apply_min_avg_x: Number.isFinite(Number((r as any).trusted_pro_apply_min_avg_x))
+      ? Math.max(0, Number((r as any).trusted_pro_apply_min_avg_x))
+      : 0,
+    trusted_pro_apply_min_win_rate: Number.isFinite(Number((r as any).trusted_pro_apply_min_win_rate))
+      ? Math.max(0, Number((r as any).trusted_pro_apply_min_win_rate))
+      : 0,
+    trusted_pro_apply_min_best_x_30d: Number.isFinite(Number((r as any).trusted_pro_apply_min_best_x_30d))
+      ? Math.max(0, Number((r as any).trusted_pro_apply_min_best_x_30d))
+      : 0,
     updated_at: typeof r.updated_at === "string" ? r.updated_at : new Date().toISOString(),
     updated_by_discord_id: typeof r.updated_by_discord_id === "string" ? r.updated_by_discord_id : null,
   };
@@ -77,6 +98,10 @@ export async function patchDashboardAdminSettings(input: {
   subscribe_button_label?: string | null;
   discord_invite_url?: string | null;
   stats_cutover_at?: string | null;
+  trusted_pro_apply_min_total_calls?: number;
+  trusted_pro_apply_min_avg_x?: number;
+  trusted_pro_apply_min_win_rate?: number;
+  trusted_pro_apply_min_best_x_30d?: number;
   updatedByDiscordId: string;
 }): Promise<DashboardAdminSettingsRow | null> {
   const db = getSupabaseAdmin();
@@ -127,6 +152,18 @@ export async function patchDashboardAdminSettings(input: {
     const s = input.stats_cutover_at;
     next.stats_cutover_at = s == null || !String(s).trim() ? null : String(s).trim();
   }
+  if (typeof input.trusted_pro_apply_min_total_calls === "number" && Number.isFinite(input.trusted_pro_apply_min_total_calls)) {
+    next.trusted_pro_apply_min_total_calls = Math.max(0, Math.floor(input.trusted_pro_apply_min_total_calls));
+  }
+  if (typeof input.trusted_pro_apply_min_avg_x === "number" && Number.isFinite(input.trusted_pro_apply_min_avg_x)) {
+    next.trusted_pro_apply_min_avg_x = Math.max(0, input.trusted_pro_apply_min_avg_x);
+  }
+  if (typeof input.trusted_pro_apply_min_win_rate === "number" && Number.isFinite(input.trusted_pro_apply_min_win_rate)) {
+    next.trusted_pro_apply_min_win_rate = Math.max(0, input.trusted_pro_apply_min_win_rate);
+  }
+  if (typeof input.trusted_pro_apply_min_best_x_30d === "number" && Number.isFinite(input.trusted_pro_apply_min_best_x_30d)) {
+    next.trusted_pro_apply_min_best_x_30d = Math.max(0, input.trusted_pro_apply_min_best_x_30d);
+  }
 
   const { data, error } = await db
     .from("dashboard_admin_settings")
@@ -143,6 +180,10 @@ export async function patchDashboardAdminSettings(input: {
         subscribe_button_label: next.subscribe_button_label,
         discord_invite_url: next.discord_invite_url,
         stats_cutover_at: next.stats_cutover_at,
+        trusted_pro_apply_min_total_calls: next.trusted_pro_apply_min_total_calls,
+        trusted_pro_apply_min_avg_x: next.trusted_pro_apply_min_avg_x,
+        trusted_pro_apply_min_win_rate: next.trusted_pro_apply_min_win_rate,
+        trusted_pro_apply_min_best_x_30d: next.trusted_pro_apply_min_best_x_30d,
         updated_at: next.updated_at,
         updated_by_discord_id: next.updated_by_discord_id,
       },
