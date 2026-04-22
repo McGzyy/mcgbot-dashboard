@@ -146,6 +146,19 @@ function SidebarBody({
               </span>
             </span>
           </Link>
+          <Link href="/trusted-pro" onClick={pick} className={getNavItemClass(isActive(pathname, "/trusted-pro"))}>
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/trusted-pro") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+              <span className="truncate">Trusted Pro</span>
+              <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100/90">
+                Pro
+              </span>
+            </span>
+          </Link>
           <Link href="/leaderboard" onClick={pick} className={getNavItemClass(isActive(pathname, "/leaderboard"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${

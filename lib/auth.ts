@@ -4,6 +4,7 @@ import DiscordProvider from "next-auth/providers/discord";
 import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
+import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -49,10 +50,28 @@ export const authOptions: NextAuthOptions = {
         // Ensure a `public.users` row exists (schema uses discord_id UNIQUE, no username column).
         const displayName =
           typeof user.name === "string" && user.name.trim() ? user.name.trim() : null;
+
+        const TRUSTED_PRO_ROLE_ID = "1490638667386191884";
+        let trustedPro: boolean | null = null;
+        try {
+          const roles = await getDiscordGuildMemberRoleIds(user.id);
+          if (roles) {
+            trustedPro = roles.includes(TRUSTED_PRO_ROLE_ID);
+          }
+        } catch {
+          trustedPro = null;
+        }
+
         const { error } = await supabase.from("users").upsert(
           {
             discord_id: user.id,
             discord_display_name: displayName,
+            ...(trustedPro == null
+              ? {}
+              : {
+                  trusted_pro: trustedPro,
+                  trusted_pro_granted_at: trustedPro ? new Date().toISOString() : null,
+                }),
           },
           { onConflict: "discord_id" }
         );

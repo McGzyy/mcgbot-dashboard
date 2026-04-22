@@ -654,7 +654,7 @@ export function TopBar() {
                 ) : userCounts ? (
                   <>
                     <CountPill
-                      label="Total"
+                      label="Total users"
                       value={formatCount(userCounts.totalUsers)}
                     />
                     <CountPill

@@ -43,6 +43,18 @@ type RecentCallRow = {
   tokenImageUrl?: string | null;
 };
 
+type TrustedProCallRow = {
+  id: string;
+  contract_address: string;
+  thesis: string;
+  status: string;
+  staff_notes: string | null;
+  reviewed_at: string | null;
+  published_at: string | null;
+  views_count: number;
+  created_at: string;
+};
+
 type ProfilePayload = {
   /** Resolved Discord snowflake (always set by `/api/user/[id]`). */
   discordId: string;
@@ -841,6 +853,10 @@ export default function UserProfilePage() {
     time: unknown;
   } | null>(null);
   const [pinnedLoading, setPinnedLoading] = useState(true);
+  const [trustedProCallsLoading, setTrustedProCallsLoading] = useState(false);
+  const [trustedProCallsErr, setTrustedProCallsErr] = useState<string | null>(null);
+  const [trustedProCalls, setTrustedProCalls] = useState<TrustedProCallRow[]>([]);
+  const [trustedProIncludeAll, setTrustedProIncludeAll] = useState(false);
 
   const resolvedSnowflake =
     profile?.discordId?.trim() ||
@@ -900,6 +916,65 @@ export default function UserProfilePage() {
       return false;
     } finally {
       setLoading(false);
+    }
+  }, [profileUserId]);
+
+  const loadTrustedProCalls = useCallback(async () => {
+    if (!profileUserId) return;
+    setTrustedProCallsErr(null);
+    setTrustedProCallsLoading(true);
+    try {
+      const url = `/api/user/${encodeURIComponent(profileUserId)}/trusted-pro-calls`;
+      const res = await fetch(url, { credentials: "same-origin" });
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        rows?: unknown;
+        includeAllStatuses?: boolean;
+      };
+      if (!res.ok || json.success !== true) {
+        setTrustedProCallsErr(
+          typeof json.error === "string"
+            ? json.error
+            : "Failed to load Trusted Pro calls."
+        );
+        setTrustedProCalls([]);
+        setTrustedProIncludeAll(false);
+        return;
+      }
+      setTrustedProIncludeAll(Boolean(json.includeAllStatuses));
+      const rowsIn = Array.isArray(json.rows) ? (json.rows as unknown[]) : [];
+      const parsed: TrustedProCallRow[] = [];
+      for (const r of rowsIn) {
+        if (!r || typeof r !== "object") continue;
+        const o = r as Record<string, unknown>;
+        const id = typeof o.id === "string" ? o.id : "";
+        const ca = typeof o.contract_address === "string" ? o.contract_address : "";
+        const thesis = typeof o.thesis === "string" ? o.thesis : "";
+        const status = typeof o.status === "string" ? o.status : "";
+        const createdAt = typeof o.created_at === "string" ? o.created_at : "";
+        if (!id || !ca || !thesis || !status || !createdAt) continue;
+        parsed.push({
+          id,
+          contract_address: ca,
+          thesis,
+          status,
+          staff_notes: typeof o.staff_notes === "string" ? o.staff_notes : null,
+          reviewed_at: typeof o.reviewed_at === "string" ? o.reviewed_at : null,
+          published_at: typeof o.published_at === "string" ? o.published_at : null,
+          views_count: Number.isFinite(Number((o as any).views_count))
+            ? Number((o as any).views_count)
+            : 0,
+          created_at: createdAt,
+        });
+      }
+      setTrustedProCalls(parsed);
+    } catch {
+      setTrustedProCallsErr("Failed to load Trusted Pro calls.");
+      setTrustedProCalls([]);
+      setTrustedProIncludeAll(false);
+    } finally {
+      setTrustedProCallsLoading(false);
     }
   }, [profileUserId]);
 
@@ -1104,6 +1179,10 @@ export default function UserProfilePage() {
       controller.abort();
     };
   }, [fetchProfile]);
+
+  useEffect(() => {
+    void loadTrustedProCalls();
+  }, [loadTrustedProCalls]);
 
   useEffect(() => {
     if (!profileUserId) {
@@ -2087,6 +2166,58 @@ export default function UserProfilePage() {
             </PanelCard>
           </section>
           ) : null}
+
+          <section className="mb-4">
+            <PanelCard title="Trusted Pro calls">
+              {trustedProCallsErr ? (
+                <div className="flex min-h-[88px] items-center justify-center py-6">
+                  <p className="text-sm text-zinc-500">{trustedProCallsErr}</p>
+                </div>
+              ) : trustedProCallsLoading ? (
+                <div className="flex min-h-[88px] items-center justify-center py-6">
+                  <p className="text-sm text-zinc-500">Loading Trusted Pro calls…</p>
+                </div>
+              ) : trustedProCalls.length === 0 ? (
+                <div className="flex min-h-[88px] items-center justify-center py-6">
+                  <p className="text-sm text-zinc-500">No Trusted Pro calls yet</p>
+                </div>
+              ) : (
+                <>
+                  <p className="mt-2 text-xs text-zinc-500">
+                    {trustedProIncludeAll
+                      ? "Showing all statuses (owner/staff view)."
+                      : "Showing approved-only."}
+                  </p>
+                  <ul className="mt-3 divide-y divide-zinc-800/40 text-sm">
+                    {trustedProCalls.map((c) => (
+                      <li
+                        key={c.id}
+                        className="group flex flex-wrap items-start justify-between gap-3 py-2.5 first:pt-1.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs text-zinc-500">
+                            <span className="font-mono text-zinc-300">{abbreviateCa(c.contract_address)}</span>
+                            <span className="mx-2 text-zinc-700">·</span>
+                            <span className="uppercase tracking-wide">{c.status}</span>
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-zinc-100">{c.thesis}</p>
+                          {trustedProIncludeAll && c.staff_notes ? (
+                            <p className="mt-1 text-xs text-zinc-500">Staff: {c.staff_notes}</p>
+                          ) : null}
+                        </div>
+                        <div className="shrink-0 text-right text-xs text-zinc-500">
+                          <div className="tabular-nums">{c.views_count} views</div>
+                          <div className="mt-1 tabular-nums" title={c.published_at ?? c.created_at}>
+                            {new Date(c.published_at ?? c.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </PanelCard>
+          </section>
         </div>
 
         <aside className="col-span-12 lg:col-span-4">

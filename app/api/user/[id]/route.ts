@@ -139,7 +139,7 @@ export async function GET(
     const [userRowResult, cutoverMs] = await Promise.all([
       supabase
         .from("users")
-        .select("id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, created_at, profile_visibility")
+        .select("id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, trusted_pro, created_at, profile_visibility")
         .eq("discord_id", discordId)
         .maybeSingle(),
       getStatsCutoverUtcMs(),
@@ -184,7 +184,7 @@ export async function GET(
       username,
       // Badges are now fetched from `user_badges` on the client; keep fields for compatibility.
       isTopCaller: false,
-      isTrustedPro: false,
+      isTrustedPro: Boolean((userRow as any)?.trusted_pro),
       created_at: userRow?.created_at ?? null,
       bio:
         userRow?.bio == null

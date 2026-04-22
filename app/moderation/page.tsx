@@ -48,6 +48,16 @@ type CallReportRow = {
   } | null;
 };
 
+type TrustedProPendingRow = {
+  id: string;
+  author_discord_id: string;
+  contract_address: string;
+  thesis: string;
+  narrative: string | null;
+  status: string;
+  created_at: string;
+};
+
 function shortAddr(ca: string) {
   const s = ca.trim();
   if (s.length <= 14) return s;
@@ -642,6 +652,11 @@ export default function ModerationPage() {
   const [reportBusyId, setReportBusyId] = useState<string | null>(null);
   const [reportNotes, setReportNotes] = useState<Record<string, string>>({});
 
+  const [trustedProLoading, setTrustedProLoading] = useState(false);
+  const [trustedProErr, setTrustedProErr] = useState<string | null>(null);
+  const [trustedProPending, setTrustedProPending] = useState<TrustedProPendingRow[]>([]);
+  const [trustedProNotes, setTrustedProNotes] = useState<Record<string, string>>({});
+
   useEffect(() => {
     if (status !== "authenticated") {
       setTierLoading(false);
@@ -765,11 +780,108 @@ export default function ModerationPage() {
     [addNotification]
   );
 
+  const loadTrustedProPending = useCallback(async () => {
+    if (status !== "authenticated") return;
+    setTrustedProErr(null);
+    setTrustedProLoading(true);
+    try {
+      const res = await fetch("/api/mod/trusted-pro-calls/pending");
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        calls?: unknown;
+      };
+      if (!res.ok || json.success !== true) {
+        const msg =
+          typeof json.error === "string" && json.error.trim()
+            ? json.error.trim()
+            : `HTTP ${res.status}`;
+        setTrustedProErr(msg);
+        setTrustedProPending([]);
+        return;
+      }
+      const rowsIn = Array.isArray(json.calls) ? (json.calls as unknown[]) : [];
+      const parsed: TrustedProPendingRow[] = [];
+      for (const r of rowsIn) {
+        if (!r || typeof r !== "object") continue;
+        const o = r as Record<string, unknown>;
+        const id = typeof o.id === "string" ? o.id : "";
+        const author = typeof o.author_discord_id === "string" ? o.author_discord_id : "";
+        const ca = typeof o.contract_address === "string" ? o.contract_address : "";
+        const thesis = typeof o.thesis === "string" ? o.thesis : "";
+        const createdAt = typeof o.created_at === "string" ? o.created_at : "";
+        if (!id || !author || !ca || !thesis || !createdAt) continue;
+        parsed.push({
+          id,
+          author_discord_id: author,
+          contract_address: ca,
+          thesis,
+          narrative: typeof o.narrative === "string" ? o.narrative : null,
+          status: typeof o.status === "string" ? o.status : "pending",
+          created_at: createdAt,
+        });
+      }
+      setTrustedProPending(parsed);
+    } catch (e) {
+      setTrustedProErr(e instanceof Error ? e.message : "Failed to load Trusted Pro queue");
+      setTrustedProPending([]);
+    } finally {
+      setTrustedProLoading(false);
+    }
+  }, [status]);
+
+  const actTrustedPro = useCallback(
+    async (id: string, action: "approve" | "deny") => {
+      const notes = (trustedProNotes[id] ?? "").trim();
+      const res = await fetch(
+        `/api/mod/trusted-pro-calls/${encodeURIComponent(id)}/${action}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ staffNotes: notes || null }),
+        }
+      );
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+      };
+      if (!res.ok || json.success !== true) {
+        const msg =
+          typeof json.error === "string" && json.error.trim()
+            ? json.error.trim()
+            : `HTTP ${res.status}`;
+        addNotification({
+          id: crypto.randomUUID(),
+          text: `Trusted Pro ${action} failed: ${msg}`,
+          type: "call",
+          createdAt: Date.now(),
+          priority: "medium",
+        });
+        return;
+      }
+      addNotification({
+        id: crypto.randomUUID(),
+        text: `Trusted Pro call ${action}d.`,
+        type: "call",
+        createdAt: Date.now(),
+        priority: "low",
+      });
+      await loadTrustedProPending();
+    },
+    [addNotification, loadTrustedProPending, trustedProNotes]
+  );
+
   useEffect(() => {
     if (status !== "authenticated") return;
     if (tier !== "mod" && tier !== "admin") return;
     void loadQueue();
   }, [status, tier, loadQueue]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (tier !== "mod" && tier !== "admin") return;
+    void loadTrustedProPending();
+  }, [status, tier, loadTrustedProPending]);
 
   const loadReports = useCallback(async () => {
     if (status !== "authenticated") return;
@@ -1200,6 +1312,94 @@ export default function ModerationPage() {
                 {devs.map((d) => (
                   <DevSubmissionRow key={d.id} d={d} />
                 ))}
+              </ul>
+            )}
+          </section>
+
+          <section>
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className={modChrome.sectionAccent} aria-hidden />
+                <div>
+                  <h2 className={modChrome.h2}>Trusted Pro submissions</h2>
+                  <p className="mt-1 text-xs text-zinc-600">
+                    First 3 approvals per author require staff review. After that, Trusted Pro posts auto-publish.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void loadTrustedProPending()}
+                disabled={trustedProLoading}
+                className="rounded-lg border border-zinc-700/80 bg-zinc-950/40 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 disabled:opacity-60"
+              >
+                {trustedProLoading ? "Refreshing…" : "Refresh"}
+              </button>
+            </div>
+
+            {trustedProErr ? (
+              <div className="mb-4 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">
+                {trustedProErr}
+              </div>
+            ) : null}
+
+            {trustedProLoading ? (
+              <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+                Loading…
+              </div>
+            ) : trustedProPending.length === 0 ? (
+              <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+                No pending Trusted Pro submissions.
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {trustedProPending.map((r) => {
+                  const draft = trustedProNotes[r.id] ?? "";
+                  return (
+                    <li key={r.id} className="rounded-xl border border-zinc-800/80 bg-black/20 p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-zinc-100">
+                            <span className="font-mono">{shortAddr(r.contract_address)}</span>{" "}
+                            <span className="text-zinc-500">·</span>{" "}
+                            <span className="font-mono text-zinc-400">{r.author_discord_id}</span>
+                          </p>
+                          <p className="mt-2 text-xs leading-relaxed text-zinc-300">{r.thesis}</p>
+                        </div>
+                        <span className="text-[11px] tabular-nums text-zinc-500" title={r.created_at}>
+                          {formatRelativeTime(r.created_at)}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid gap-2">
+                        <textarea
+                          value={draft}
+                          onChange={(e) =>
+                            setTrustedProNotes((m) => ({ ...m, [r.id]: e.target.value }))
+                          }
+                          className="min-h-[64px] w-full resize-y rounded-lg border border-zinc-800 bg-black/20 px-3 py-2 text-xs text-zinc-200 outline-none ring-emerald-500/20 focus:ring-2"
+                          placeholder="Staff notes (optional)…"
+                        />
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void actTrustedPro(r.id, "deny")}
+                            className="rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-1.5 text-xs font-semibold text-red-100/90 transition hover:border-red-400/40"
+                          >
+                            Deny
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void actTrustedPro(r.id, "approve")}
+                            className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-1.5 text-xs font-semibold text-emerald-100/90 transition hover:border-emerald-400/40"
+                          >
+                            Approve
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
