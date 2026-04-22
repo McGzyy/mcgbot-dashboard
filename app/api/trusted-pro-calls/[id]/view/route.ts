@@ -7,10 +7,10 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   _request: Request,
-  ctx: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = ctx.params;
+    const { id } = await ctx.params;
     const callId = String(id || "").trim();
     if (!callId) {
       return Response.json({ success: false, error: "Missing id" }, { status: 400 });

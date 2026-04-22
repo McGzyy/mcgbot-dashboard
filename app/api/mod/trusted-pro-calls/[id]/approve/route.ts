@@ -13,12 +13,16 @@ function staffNotesFromBody(body: unknown): string | null {
   return t.length > 4000 ? t.slice(0, 4000) : t;
 }
 
-export async function POST(request: Request, ctx: { params: { id: string } }) {
+export async function POST(
+  request: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
   const staff = await requireDashboardStaff();
   if (!staff.ok) return staff.response;
 
   try {
-    const callId = String(ctx.params.id || "").trim();
+    const { id } = await ctx.params;
+    const callId = String(id || "").trim();
     if (!callId) {
       return Response.json({ success: false, error: "Missing id" }, { status: 400 });
     }
