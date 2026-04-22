@@ -30,7 +30,6 @@ import {
   type ChatMessagePayload,
 } from "@/lib/discordChatMessageSerialize";
 import { userProfileHref } from "@/lib/userProfileHref";
-import { tokenChartLabel } from "@/lib/tradingViewEmbed";
 import {
   useCallback,
   useEffect,
@@ -4280,11 +4279,8 @@ export default function Home() {
                             openTokenChart({
                               chain: "solana",
                               contractAddress: call.token,
-                              symbolLabel: tokenChartLabel({
-                                tokenTicker: call.tokenTicker,
-                                tokenName: call.tokenName,
-                                contractAddress: call.token,
-                              }),
+                              tokenTicker: call.tokenTicker,
+                              tokenName: call.tokenName,
                               tokenImageUrl: call.tokenImageUrl ?? null,
                             })
                           }

@@ -3,7 +3,6 @@
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { formatCalledSnapshotLine } from "@/lib/callDisplayFormat";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
-import { tokenChartLabel } from "@/lib/tradingViewEmbed";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -433,11 +432,8 @@ export default function BotCallsPage() {
                                 openTokenChart({
                                   chain: "solana",
                                   contractAddress: r.callCa,
-                                  symbolLabel: tokenChartLabel({
-                                    tokenTicker: r.tokenTicker,
-                                    tokenName: r.tokenName,
-                                    contractAddress: r.callCa,
-                                  }),
+                                  tokenTicker: r.tokenTicker,
+                                  tokenName: r.tokenName,
                                   tokenImageUrl: r.tokenImageUrl ?? null,
                                 })
                               }

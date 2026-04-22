@@ -416,10 +416,7 @@ export default function LeaderboardPage() {
       openTokenChart({
         chain: "solana",
         contractAddress: row.callCa,
-        symbolLabel: tokenChartLabel({
-          tokenTicker: row.symbol,
-          contractAddress: row.callCa,
-        }),
+        tokenTicker: row.symbol,
         tokenImageUrl: row.tokenImageUrl ?? null,
       });
     },

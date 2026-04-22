@@ -6,14 +6,16 @@ import {
   shouldShowTradingViewMintDisclaimer,
   tradingViewAdvancedChartEmbedUrl,
 } from "@/lib/tradingViewEmbed";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type TokenChartModalPayload = {
   /** Dex chain segment (default solana). */
   chain?: string;
   contractAddress: string;
-  /** Short title (ticker or name). */
-  symbolLabel: string;
+  /** Preferred label (e.g. ticker). Optional; computed from other fields if omitted. */
+  symbolLabel?: string;
+  tokenName?: string | null;
+  tokenTicker?: string | null;
   tokenImageUrl?: string | null;
   /** When set, chart loads this `EXCHANGE:PAIR` instead of heuristics. */
   tradingViewSymbol?: string | null;
@@ -25,14 +27,33 @@ type Props = {
   onClose: () => void;
 };
 
+const MODE_STORAGE_KEY = "mcgbot_token_chart_mode_v1";
+
 export function TokenChartModal({ open, payload, onClose }: Props) {
   const [copied, setCopied] = useState(false);
   const [chartMode, setChartMode] = useState<"gecko" | "tv">("gecko");
+  const [loaded, setLoaded] = useState(false);
+  const [embedTimedOut, setEmbedTimedOut] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+  const lastScrollYRef = useRef<number>(0);
 
   useEffect(() => {
     if (!open) return;
     setCopied(false);
-    setChartMode("gecko");
+    setLoaded(false);
+    setEmbedTimedOut(false);
+
+    // Restore last mode (desktop power users).
+    try {
+      const stored = window.localStorage.getItem(MODE_STORAGE_KEY);
+      if (stored === "tv" || stored === "gecko") {
+        setChartMode(stored);
+      } else {
+        setChartMode("gecko");
+      }
+    } catch {
+      setChartMode("gecko");
+    }
   }, [open, payload?.contractAddress]);
 
   useEffect(() => {
@@ -44,10 +65,48 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Premium UX: lock background scroll, restore position on close.
+  useEffect(() => {
+    if (!open) return;
+    const body = document.body;
+    lastScrollYRef.current = window.scrollY;
+    const prevOverflow = body.style.overflow;
+    const prevPaddingRight = body.style.paddingRight;
+    const scrollbarComp =
+      window.innerWidth - document.documentElement.clientWidth;
+    body.style.overflow = "hidden";
+    if (scrollbarComp > 0) {
+      body.style.paddingRight = `${scrollbarComp}px`;
+    }
+    return () => {
+      body.style.overflow = prevOverflow;
+      body.style.paddingRight = prevPaddingRight;
+      window.scrollTo({ top: lastScrollYRef.current });
+    };
+  }, [open]);
+
   const ca = payload?.contractAddress?.trim() ?? "";
   const chain = payload?.chain?.trim() || "solana";
   const dexUrl = ca ? dexscreenerTokenUrl(chain, ca) : null;
   const solscanUrl = ca ? solscanAccountUrl(ca) : null;
+
+  const title = useMemo(() => {
+    const fromLabel = typeof payload?.symbolLabel === "string" ? payload.symbolLabel.trim() : "";
+    const tt = typeof payload?.tokenTicker === "string" ? payload.tokenTicker.trim() : "";
+    const tn = typeof payload?.tokenName === "string" ? payload.tokenName.trim() : "";
+    if (fromLabel) return fromLabel;
+    if (tt) return tt.toUpperCase();
+    if (tn) return tn;
+    return "Token";
+  }, [payload?.symbolLabel, payload?.tokenTicker, payload?.tokenName]);
+
+  const subtitle = useMemo(() => {
+    const tt = typeof payload?.tokenTicker === "string" ? payload.tokenTicker.trim() : "";
+    const tn = typeof payload?.tokenName === "string" ? payload.tokenName.trim() : "";
+    if (tt && tn) return `${tt.toUpperCase()} · ${tn}`;
+    if (tn) return tn;
+    return null;
+  }, [payload?.tokenTicker, payload?.tokenName]);
 
   const tvSymbol = useMemo(() => {
     if (!ca) return "BINANCE:SOLUSDT";
@@ -74,8 +133,33 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
   const geckoSrc = useMemo(() => {
     if (!ca) return "";
     // GeckoTerminal supports `?embed=1` (no X-Frame-Options) and redirects tokens → best pool.
-    return `https://www.geckoterminal.com/solana/tokens/${encodeURIComponent(ca)}?embed=1`;
-  }, [ca]);
+    const seg = String(chain || "solana").toLowerCase().trim() || "solana";
+    return `https://www.geckoterminal.com/${encodeURIComponent(seg)}/tokens/${encodeURIComponent(ca)}?embed=1`;
+  }, [ca, chain]);
+
+  const activeSrc = chartMode === "gecko" ? geckoSrc : iframeSrc;
+
+  // Loading + timeout for iframe (no reliable onError).
+  useEffect(() => {
+    if (!open) return;
+    setLoaded(false);
+    setEmbedTimedOut(false);
+    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = window.setTimeout(() => {
+      setEmbedTimedOut(true);
+    }, 9000);
+    return () => {
+      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    };
+  }, [open, activeSrc]);
+
+  const onIframeLoad = useCallback(() => {
+    setLoaded(true);
+    setEmbedTimedOut(false);
+    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  }, []);
 
   const copyCa = useCallback(async () => {
     if (!ca) return;
@@ -90,8 +174,6 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
 
   if (!open || !payload || !ca) return null;
 
-  const title = payload.symbolLabel?.trim() || "Token";
-
   return (
     <div
       className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70 px-0 py-0 sm:items-center sm:px-4 sm:py-8"
@@ -102,8 +184,8 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[100dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-2xl border border-zinc-800/90 bg-[#09090b] shadow-2xl shadow-black/60 sm:max-h-[min(92dvh,880px)] sm:rounded-2xl">
-        <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-zinc-800/80 px-4 py-3 sm:px-5">
+      <div className="flex max-h-[100dvh] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl border border-zinc-800/90 bg-[#09090b] shadow-2xl shadow-black/60 sm:max-h-[min(92dvh,920px)] sm:rounded-2xl">
+        <div className="sticky top-0 z-10 flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-zinc-800/80 bg-[#09090b]/95 px-4 py-3 backdrop-blur sm:px-5">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             {payload.tokenImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -119,6 +201,9 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
               <h2 className="truncate text-base font-semibold tracking-tight text-zinc-50 sm:text-lg">
                 {title}
               </h2>
+              {subtitle ? (
+                <p className="mt-0.5 truncate text-xs text-zinc-500">{subtitle}</p>
+              ) : null}
               <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
                 <code className="max-w-[min(100%,28rem)] truncate rounded bg-black/40 px-1.5 py-0.5 text-[11px] text-zinc-400">
                   {ca}
@@ -137,7 +222,12 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
             <div className="hidden items-center gap-1 rounded-lg border border-zinc-800/80 bg-black/30 p-1 sm:flex">
               <button
                 type="button"
-                onClick={() => setChartMode("gecko")}
+                onClick={() => {
+                  setChartMode("gecko");
+                  try {
+                    window.localStorage.setItem(MODE_STORAGE_KEY, "gecko");
+                  } catch {}
+                }}
                 className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
                   chartMode === "gecko"
                     ? "bg-emerald-500/15 text-emerald-100"
@@ -149,7 +239,12 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => setChartMode("tv")}
+                onClick={() => {
+                  setChartMode("tv");
+                  try {
+                    window.localStorage.setItem(MODE_STORAGE_KEY, "tv");
+                  } catch {}
+                }}
                 className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
                   chartMode === "tv"
                     ? "bg-sky-500/15 text-sky-100"
@@ -200,7 +295,44 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
           </div>
         ) : null}
 
-        <div className="min-h-0 flex-1 bg-black">
+        <div className="relative min-h-0 flex-1 bg-black">
+          {!loaded ? (
+            <div className="absolute inset-0 z-[5] flex items-center justify-center bg-black/70">
+              <div className="w-full max-w-md px-6 text-center">
+                <div className="mx-auto mb-3 h-10 w-10 animate-pulse rounded-full bg-zinc-800/80" />
+                <p className="text-sm font-semibold text-zinc-200">Loading chart…</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  If it takes too long, open an external chart below.
+                </p>
+                {embedTimedOut ? (
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {dexUrl ? (
+                      <a
+                        href={dexUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg border border-cyan-500/35 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
+                      >
+                        Dexscreener
+                      </a>
+                    ) : null}
+                    <a
+                      href={
+                        chartMode === "gecko"
+                          ? geckoSrc.replace(/\?embed=1\b/i, "")
+                          : "https://www.tradingview.com/"
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-zinc-100"
+                    >
+                      Open externally
+                    </a>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <iframe
             key={chartMode === "gecko" ? geckoSrc : tvSymbol}
             title={chartMode === "gecko" ? "GeckoTerminal chart" : "TradingView chart"}
@@ -208,6 +340,7 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
             className="h-[min(58dvh,560px)] w-full min-h-[320px] border-0 sm:h-[min(62vh,620px)]"
             referrerPolicy="no-referrer-when-downgrade"
             allow="clipboard-write; fullscreen"
+            onLoad={onIframeLoad}
           />
         </div>
       </div>

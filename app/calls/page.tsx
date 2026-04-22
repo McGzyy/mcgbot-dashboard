@@ -3,7 +3,6 @@
 import { formatCalledSnapshotLine } from "@/lib/callDisplayFormat";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
-import { tokenChartLabel } from "@/lib/tradingViewEmbed";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
@@ -259,11 +258,8 @@ export default function CallTapePage() {
                                 openTokenChart({
                                   chain: "solana",
                                   contractAddress: r.callCa,
-                                  symbolLabel: tokenChartLabel({
-                                    tokenTicker: r.tokenTicker,
-                                    tokenName: r.tokenName,
-                                    contractAddress: r.callCa,
-                                  }),
+                                  tokenTicker: r.tokenTicker,
+                                  tokenName: r.tokenName,
                                   tokenImageUrl: r.tokenImageUrl ?? null,
                                 })
                               }
