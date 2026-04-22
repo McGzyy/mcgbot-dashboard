@@ -1,4 +1,5 @@
 import { rowCallTimeUtcMs } from "@/lib/callPerformanceLeaderboard";
+import { rowBestMultiple, rowLiveMultiple } from "@/lib/callPerformanceMultiples";
 
 /** Shape returned by `/api/me/recent-calls` and profile `recentCalls`. */
 export type RecentCallDto = {
@@ -11,28 +12,29 @@ export type RecentCallDto = {
   tokenName?: string | null;
   tokenTicker?: string | null;
   callMarketCapUsd?: number | null;
+  /** Last scanned MC from the bot (when `spot_multiple` is synced). */
+  liveMarketCapUsd?: number | null;
   tokenImageUrl?: string | null;
 };
 
-/** Same rules as `/api/me/stats`: avg of `ath_multiple`, win = multiple ≥ 2. */
+/** Avg uses live spot X; win rate still uses ATH ≥ 2x (classic caller milestone). */
 export function computeCallPerformanceUserStats(
   rows: Record<string, unknown>[]
 ): { avgX: number; winRate: number; totalCalls: number } {
   const totalCalls = rows.length;
   const avgX =
     totalCalls > 0
-      ? rows.reduce((sum, r) => sum + Number(r.ath_multiple ?? 0), 0) /
-        totalCalls
+      ? rows.reduce((sum, r) => sum + rowLiveMultiple(r), 0) / totalCalls
       : 0;
   const wins = rows.filter((r) => Number(r.ath_multiple) >= 2).length;
   const winRate = totalCalls > 0 ? (wins / totalCalls) * 100 : 0;
   return { avgX, winRate, totalCalls };
 }
 
-/** Median of `ath_multiple` (robust vs outliers). */
+/** Median of live spot multiple (falls back to ATH when spot not synced). */
 export function computeMedianX(rows: Record<string, unknown>[]): number {
   const xs = rows
-    .map((r) => Number(r.ath_multiple ?? 0))
+    .map((r) => rowLiveMultiple(r))
     .filter((n) => Number.isFinite(n) && n > 0)
     .sort((a, b) => a - b);
   const n = xs.length;
@@ -62,7 +64,7 @@ export function bestXInLastMs(
   for (const r of rows) {
     const t = rowCallTimeUtcMs(r);
     if (t <= 0 || nowMs < t || nowMs - t >= windowMs) continue;
-    const x = Number(r.ath_multiple ?? 0);
+    const x = rowBestMultiple(r);
     if (Number.isFinite(x) && x > best) best = x;
   }
   return best;
@@ -147,11 +149,14 @@ export function mapCallPerformanceRowToRecentCall(
     typeof raw === "string" && raw.trim() !== ""
       ? raw.trim()
       : String(raw ?? "Unknown") || "Unknown";
-  const multiple = Number(row.ath_multiple ?? 0);
+  const multiple = rowLiveMultiple(row);
   const tn = (row as Record<string, unknown>).token_name;
   const tt = (row as Record<string, unknown>).token_ticker;
   const mcRaw = (row as Record<string, unknown>).call_market_cap_usd;
   const mcNum = typeof mcRaw === "number" ? mcRaw : Number(mcRaw);
+  const liveMcRaw = (row as Record<string, unknown>).live_market_cap_usd;
+  const liveMcNum =
+    typeof liveMcRaw === "number" ? liveMcRaw : Number(liveMcRaw ?? NaN);
   const imgRaw = (row as Record<string, unknown>).token_image_url;
   const tokenImageUrl =
     typeof imgRaw === "string" && imgRaw.trim() ? imgRaw.trim().slice(0, 800) : null;
@@ -165,6 +170,8 @@ export function mapCallPerformanceRowToRecentCall(
     tokenTicker: typeof tt === "string" && tt.trim() ? tt.trim() : null,
     callMarketCapUsd:
       Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
+    liveMarketCapUsd:
+      Number.isFinite(liveMcNum) && liveMcNum > 0 ? liveMcNum : null,
     tokenImageUrl,
   };
 }

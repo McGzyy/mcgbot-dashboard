@@ -3987,7 +3987,9 @@ export default function Home() {
                 <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
                   {stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
                 </div>
-                <div className="mt-1 text-xs text-zinc-500">From your verified calls</div>
+                <div className="mt-1 text-xs text-zinc-500">
+                  Current MC ÷ call MC (bot sync ~30s)
+                </div>
               </div>
 
               <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">

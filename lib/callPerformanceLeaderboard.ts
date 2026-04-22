@@ -3,6 +3,7 @@ import {
   rollingSevenDaysStartUtcMs,
   startOfCalendarDayUtcMs,
 } from "@/lib/leaderboardTimeWindows";
+import { rowLiveMultiple } from "@/lib/callPerformanceMultiples";
 
 export type AggregatedLeader = {
   discordId: string;
@@ -80,12 +81,8 @@ export function aggregateCallPerformanceRows(
         : String(row.discord_id ?? "").trim();
     if (!discordId) continue;
 
-    const mult =
-      typeof row.ath_multiple === "number" &&
-      Number.isFinite(row.ath_multiple)
-        ? row.ath_multiple
-        : Number(row.ath_multiple);
-    if (!Number.isFinite(mult)) continue;
+    const mult = rowLiveMultiple(row);
+    if (!Number.isFinite(mult) || mult <= 0) continue;
 
     let user = map.get(discordId);
     if (!user) {
@@ -102,7 +99,11 @@ export function aggregateCallPerformanceRows(
 
     user.totalCalls += 1;
     user.sumX += mult;
-    if (mult >= 2) user.wins += 1;
+    const ath =
+      typeof row.ath_multiple === "number" && Number.isFinite(row.ath_multiple)
+        ? row.ath_multiple
+        : Number(row.ath_multiple);
+    if (Number.isFinite(ath) && ath >= 2) user.wins += 1;
     if (mult > user.maxMultiple) user.maxMultiple = mult;
     user.username =
       typeof row.username === "string" ? row.username.trim() : "";

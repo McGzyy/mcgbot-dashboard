@@ -12,22 +12,22 @@ export function isMissingColumnPostgrestError(
 export const CP_PROFILE_LEGACY =
   "id, username, call_ca, ath_multiple, call_time, excluded_from_stats";
 
-export const CP_PROFILE_WITH_SNAPSHOT = `${CP_PROFILE_LEGACY}, token_name, token_ticker, call_market_cap_usd, token_image_url`;
+export const CP_PROFILE_WITH_SNAPSHOT = `${CP_PROFILE_LEGACY}, token_name, token_ticker, call_market_cap_usd, token_image_url, spot_multiple, live_market_cap_usd`;
 
 export const CP_RECENT_LEGACY =
   "id, call_ca, ath_multiple, call_time, excluded_from_stats";
 
-export const CP_RECENT_WITH_SNAPSHOT = `${CP_RECENT_LEGACY}, token_name, token_ticker, call_market_cap_usd, token_image_url`;
+export const CP_RECENT_WITH_SNAPSHOT = `${CP_RECENT_LEGACY}, token_name, token_ticker, call_market_cap_usd, token_image_url, spot_multiple, live_market_cap_usd`;
 
 export const CP_TAPE_LEGACY =
   "id, call_ca, ath_multiple, call_time, source, message_url, username, excluded_from_stats";
 
-export const CP_TAPE_WITH_SNAPSHOT = `${CP_TAPE_LEGACY}, token_name, token_ticker, call_market_cap_usd, token_image_url`;
+export const CP_TAPE_WITH_SNAPSHOT = `${CP_TAPE_LEGACY}, token_name, token_ticker, call_market_cap_usd, token_image_url, spot_multiple, live_market_cap_usd`;
 
 export const CP_ACTIVITY_LEGACY =
   "username, discord_id, ath_multiple, call_time, source, call_ca, message_url, excluded_from_stats";
 
-export const CP_ACTIVITY_WITH_SNAPSHOT = `${CP_ACTIVITY_LEGACY}, token_name, token_ticker, call_market_cap_usd, token_image_url`;
+export const CP_ACTIVITY_WITH_SNAPSHOT = `${CP_ACTIVITY_LEGACY}, token_name, token_ticker, call_market_cap_usd, token_image_url, spot_multiple, live_market_cap_usd`;
 
 export async function selectCallPerformanceWithSnapshotFallback(opts: {
   run: (columns: string) => Promise<{

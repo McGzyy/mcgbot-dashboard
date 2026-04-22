@@ -1,4 +1,5 @@
 import { rowCallTimeUtcMs } from "@/lib/callPerformanceLeaderboard";
+import { rowBestMultiple, rowLiveMultiple } from "@/lib/callPerformanceMultiples";
 
 export type DailyCallBucket = {
   dayKey: string;
@@ -40,13 +41,15 @@ export function buildDailyCallBuckets(
     const day = startOfUtcDayMs(t);
     const key = String(day);
     if (!byDay.has(key)) continue;
-    const x = Number(r.ath_multiple ?? 0);
-    if (!Number.isFinite(x) || x <= 0) continue;
+    const live = rowLiveMultiple(r);
+    if (!Number.isFinite(live) || live <= 0) continue;
     const b = byDay.get(key)!;
     b.n += 1;
-    b.sum += x;
-    if (x >= 2) b.wins += 1;
-    if (x > b.best) b.best = x;
+    b.sum += live;
+    const ath = Number(r.ath_multiple ?? 0);
+    if (Number.isFinite(ath) && ath >= 2) b.wins += 1;
+    const peak = rowBestMultiple(r);
+    if (peak > b.best) b.best = peak;
   }
 
   return keys.map((k) => {
@@ -78,7 +81,7 @@ export function computeMultipleDistribution(rows: Record<string, unknown>[]): Mu
   let fivePlus = 0;
   let total = 0;
   for (const r of rows) {
-    const m = Number(r.ath_multiple ?? 0);
+    const m = rowBestMultiple(r);
     if (!Number.isFinite(m) || m <= 0) continue;
     total += 1;
     if (m < 2) under2 += 1;

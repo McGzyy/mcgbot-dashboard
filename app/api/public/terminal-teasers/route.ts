@@ -1,15 +1,11 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { rowLiveMultiple } from "@/lib/callPerformanceMultiples";
 import { filterCallRowsForStats, getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const DAY = 86_400_000;
-
-function safeNum(n: unknown): number {
-  const v = typeof n === "number" ? n : Number(n);
-  return Number.isFinite(v) ? v : 0;
-}
 
 export async function GET() {
   try {
@@ -25,7 +21,9 @@ export async function GET() {
 
     const { data, error } = await db
       .from("call_performance")
-      .select("id, username, call_ca, ath_multiple, call_time, source, excluded_from_stats")
+      .select(
+        "id, username, call_ca, ath_multiple, spot_multiple, call_time, source, excluded_from_stats"
+      )
       .gte("call_time", weekMinMs)
       .order("call_time", { ascending: false })
       .limit(5000);
@@ -42,7 +40,7 @@ export async function GET() {
     let n = 0;
     const top = new Map<string, { token: string; multiple: number; username: string; source: string; time: unknown }>();
     for (const r of rows) {
-      const multiple = safeNum(r.ath_multiple);
+      const multiple = rowLiveMultiple(r);
       sum += multiple;
       n += 1;
 

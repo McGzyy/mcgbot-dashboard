@@ -39,7 +39,7 @@ export async function GET() {
     const [{ data, error }, cutoverMs] = await Promise.all([
       supabase
         .from("call_performance")
-        .select("ath_multiple, call_time, excluded_from_stats")
+        .select("ath_multiple, spot_multiple, call_time, excluded_from_stats")
         .eq("discord_id", discordId),
       getStatsCutoverUtcMs(),
     ]);

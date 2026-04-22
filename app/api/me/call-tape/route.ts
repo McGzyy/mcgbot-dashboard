@@ -6,6 +6,7 @@ import {
   CP_TAPE_WITH_SNAPSHOT,
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
+import { rowLiveMultiple } from "@/lib/callPerformanceMultiples";
 import { mergeStatsCutoverIntoMin, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
 const DAY = 86_400_000;
@@ -76,7 +77,7 @@ export async function GET(request: Request) {
       return {
         id: r.id != null ? String(r.id) : "",
         callCa: typeof r.call_ca === "string" ? r.call_ca.trim() : String(r.call_ca ?? ""),
-        athMultiple: Number(r.ath_multiple ?? 0),
+        athMultiple: rowLiveMultiple(r),
         callTime: r.call_time,
         source: typeof r.source === "string" ? r.source : "user",
         messageUrl: typeof r.message_url === "string" ? r.message_url.trim() : null,

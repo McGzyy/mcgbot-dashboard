@@ -8,6 +8,7 @@ import {
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
 import { hasAccess } from "@/lib/hasAccess";
+import { rowLiveMultiple } from "@/lib/callPerformanceMultiples";
 import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
 export const runtime = "nodejs";
@@ -113,7 +114,7 @@ export async function GET(request: Request) {
       return {
         id: r.id != null ? String(r.id) : "",
         callCa: typeof r.call_ca === "string" ? r.call_ca.trim() : String(r.call_ca ?? ""),
-        athMultiple: Number(r.ath_multiple ?? 0),
+        athMultiple: rowLiveMultiple(r),
         callTime: r.call_time,
         source: typeof r.source === "string" ? r.source : "bot",
         messageUrl: typeof r.message_url === "string" ? r.message_url.trim() : null,

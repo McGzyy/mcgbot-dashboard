@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { rowLiveMultiple } from "@/lib/callPerformanceMultiples";
 
 export async function GET(
   _request: Request,
@@ -49,7 +50,7 @@ export async function GET(
 
     const { data: call, error: callErr } = await supabase
       .from("call_performance")
-      .select("id, call_ca, ath_multiple, call_time")
+      .select("id, call_ca, ath_multiple, spot_multiple, call_time")
       .eq("id", pinnedCallId)
       .eq("discord_id", profileUserId)
       .maybeSingle();
@@ -64,11 +65,12 @@ export async function GET(
       return Response.json({ pinnedCall: null });
     }
 
+    const callRow = call as Record<string, unknown>;
     return Response.json({
       pinnedCall: {
         id: String((call as any).id ?? ""),
         token: (call as any).call_ca ?? "Unknown",
-        multiple: Number((call as any).ath_multiple ?? 0),
+        multiple: rowLiveMultiple(callRow),
         time: (call as any).call_time,
       },
     });
