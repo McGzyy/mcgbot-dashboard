@@ -118,33 +118,6 @@ function buildDatasetsFromSeries(series: DailyCallBucket[]): Record<Range, RawPo
   };
 }
 
-/** Index of the latest included bucket (inclusive). Anchored to calendar "now". */
-function getSliceEndIndex(range: Range, now: Date, len: number): number {
-  if (len === 0) return 0;
-  let end = 0;
-  switch (range) {
-    case "W": {
-      const dow = now.getDay();
-      end = dow === 0 ? 6 : dow - 1;
-      break;
-    }
-    case "M": {
-      const day = now.getDate();
-      end = Math.floor((day - 1) / 7);
-      break;
-    }
-    case "3M": {
-      end = now.getMonth();
-      break;
-    }
-    case "A": {
-      end = now.getFullYear() - 2022;
-      break;
-    }
-  }
-  return Math.max(0, Math.min(end, len - 1));
-}
-
 function formatNowAxisLabel(now: Date): string {
   return now.toLocaleTimeString(undefined, {
     hour: "numeric",
@@ -152,20 +125,24 @@ function formatNowAxisLabel(now: Date): string {
   });
 }
 
-function buildVisibleSliceRows(
-  full: RawPoint[],
-  range: Range,
-  now: Date,
-): SliceRow[] {
-  const end = getSliceEndIndex(range, now, full.length);
-  const sliced = full.slice(0, end + 1).map((r) => ({
+/**
+ * Chart datasets are already bounded server-side (e.g. last 7 UTC days, or 2–3
+ * aggregate buckets). Do **not** slice by local weekday/month — that assumed
+ * array indices lined up with calendar weeks and hid all real points at the end.
+ */
+function buildVisibleSliceRows(full: RawPoint[], _range: Range, now: Date): SliceRow[] {
+  if (full.length === 0) return [];
+  const sliced = full.map((r) => ({
     ...r,
     originalName: r.name,
   }));
-  if (sliced.length === 0) return sliced;
   const axisLabel = formatNowAxisLabel(now);
   const last = sliced.length - 1;
-  sliced[last] = { ...sliced[last]!, name: axisLabel, originalName: sliced[last]!.originalName };
+  sliced[last] = {
+    ...sliced[last]!,
+    name: axisLabel,
+    originalName: sliced[last]!.originalName,
+  };
   return sliced;
 }
 
