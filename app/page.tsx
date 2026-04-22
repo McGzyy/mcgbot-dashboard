@@ -3988,7 +3988,7 @@ export default function Home() {
                   {stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
                 </div>
                 <div className="mt-1 text-xs text-zinc-500">
-                  Current MC ÷ call MC (bot sync ~30s)
+                  Mean ATH multiple since your calls (peak ÷ entry MC)
                 </div>
               </div>
 

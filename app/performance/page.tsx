@@ -163,12 +163,12 @@ export default function PerformanceLabPage() {
         <StatCard
           label="Avg × (all)"
           value={loading ? "…" : s ? s.avgX.toFixed(2) + "×" : "—"}
-          hint="Mean live multiple (current MC ÷ call MC)"
+          hint="Mean ATH multiple (peak since call ÷ MC at call)"
         />
         <StatCard
           label="Median ×"
           value={loading ? "…" : s ? s.medianX.toFixed(2) + "×" : "—"}
-          hint="Robust center (live)"
+          hint="Robust center (ATH)"
         />
         <StatCard
           label="Win rate"
@@ -217,7 +217,7 @@ export default function PerformanceLabPage() {
         <section className="lg:col-span-3">
           <h2 className="text-base font-semibold tracking-tight text-white">Last 14 days · activity</h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Bars = call count per UTC day · line = average live multiple that day.
+            Bars = call count per UTC day · line = average ATH multiple that day.
           </p>
           <div className="mt-4 h-72 rounded-2xl border border-emerald-500/15 bg-gradient-to-b from-emerald-950/20 to-black/40 p-3 pl-0 ring-1 ring-emerald-500/10">
             {series.length === 0 && !loading ? (
@@ -272,7 +272,7 @@ export default function PerformanceLabPage() {
         <section className="lg:col-span-2">
           <h2 className="text-base font-semibold tracking-tight text-white">Multiple mix</h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Buckets use the higher of live multiple or ATH peak per call.
+            Buckets use ATH multiple since each call (peak ÷ entry MC).
           </p>
           <div className="mt-4 h-72 rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-3 ring-1 ring-white/[0.04]">
             {distChart.length === 0 || dist?.total === 0 ? (

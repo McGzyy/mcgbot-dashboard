@@ -1,12 +1,15 @@
 import { rowCallTimeUtcMs } from "@/lib/callPerformanceLeaderboard";
-import { rowBestMultiple, rowLiveMultiple } from "@/lib/callPerformanceMultiples";
+import { rowAthMultiple, rowLiveMultiple } from "@/lib/callPerformanceMultiples";
 
 /** Shape returned by `/api/me/recent-calls` and profile `recentCalls`. */
 export type RecentCallDto = {
   id?: string;
   /** Mint / contract (Solana CA). */
   token: string;
+  /** Peak ATH ÷ MC at call (caller stats; ≥ 1 when synced). */
   multiple: number;
+  /** Current MC ÷ call MC when the bot has written `spot_multiple`. */
+  liveMultiple?: number;
   time: unknown;
   excludedFromStats?: boolean;
   tokenName?: string | null;
@@ -17,24 +20,24 @@ export type RecentCallDto = {
   tokenImageUrl?: string | null;
 };
 
-/** Avg uses live spot X; win rate still uses ATH ≥ 2x (classic caller milestone). */
+/** Avg / rollups use ATH since call; win rate = ATH ≥ 2×. */
 export function computeCallPerformanceUserStats(
   rows: Record<string, unknown>[]
 ): { avgX: number; winRate: number; totalCalls: number } {
   const totalCalls = rows.length;
   const avgX =
     totalCalls > 0
-      ? rows.reduce((sum, r) => sum + rowLiveMultiple(r), 0) / totalCalls
+      ? rows.reduce((sum, r) => sum + rowAthMultiple(r), 0) / totalCalls
       : 0;
-  const wins = rows.filter((r) => Number(r.ath_multiple) >= 2).length;
+  const wins = rows.filter((r) => rowAthMultiple(r) >= 2).length;
   const winRate = totalCalls > 0 ? (wins / totalCalls) * 100 : 0;
   return { avgX, winRate, totalCalls };
 }
 
-/** Median of live spot multiple (falls back to ATH when spot not synced). */
+/** Median of ATH multiple since call. */
 export function computeMedianX(rows: Record<string, unknown>[]): number {
   const xs = rows
-    .map((r) => rowLiveMultiple(r))
+    .map((r) => rowAthMultiple(r))
     .filter((n) => Number.isFinite(n) && n > 0)
     .sort((a, b) => a - b);
   const n = xs.length;
@@ -64,7 +67,7 @@ export function bestXInLastMs(
   for (const r of rows) {
     const t = rowCallTimeUtcMs(r);
     if (t <= 0 || nowMs < t || nowMs - t >= windowMs) continue;
-    const x = rowBestMultiple(r);
+    const x = rowAthMultiple(r);
     if (Number.isFinite(x) && x > best) best = x;
   }
   return best;
@@ -81,8 +84,7 @@ export function hitRate2xInLastMs(
     const t = rowCallTimeUtcMs(r);
     if (t <= 0 || nowMs < t || nowMs - t >= windowMs) continue;
     total += 1;
-    const x = Number(r.ath_multiple ?? 0);
-    if (Number.isFinite(x) && x >= 2) hits += 1;
+    if (rowAthMultiple(r) >= 2) hits += 1;
   }
   return total > 0 ? (hits / total) * 100 : 0;
 }
@@ -149,7 +151,8 @@ export function mapCallPerformanceRowToRecentCall(
     typeof raw === "string" && raw.trim() !== ""
       ? raw.trim()
       : String(raw ?? "Unknown") || "Unknown";
-  const multiple = rowLiveMultiple(row);
+  const multiple = rowAthMultiple(row);
+  const liveMultiple = rowLiveMultiple(row);
   const tn = (row as Record<string, unknown>).token_name;
   const tt = (row as Record<string, unknown>).token_ticker;
   const mcRaw = (row as Record<string, unknown>).call_market_cap_usd;
@@ -164,6 +167,9 @@ export function mapCallPerformanceRowToRecentCall(
     id: id || undefined,
     token,
     multiple: Number.isFinite(multiple) ? multiple : 0,
+    ...(Number.isFinite(liveMultiple) && liveMultiple > 0
+      ? { liveMultiple }
+      : {}),
     time: row.call_time,
     excludedFromStats: (row as any).excluded_from_stats === true,
     tokenName: typeof tn === "string" && tn.trim() ? tn.trim() : null,

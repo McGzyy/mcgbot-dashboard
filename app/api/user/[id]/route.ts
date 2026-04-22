@@ -11,12 +11,12 @@ import {
 } from "@/lib/callPerformanceUserStats";
 import { resolveDiscordIdFromProfileRouteParam } from "@/lib/discordIdentity";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
-import { rowLiveMultiple } from "@/lib/callPerformanceMultiples";
+import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 
 const PROFILE_RECENT_CALLS_LIMIT = 15;
 
 function rowMultiple(row: Record<string, unknown>): number {
-  const n = rowLiveMultiple(row);
+  const n = rowAthMultiple(row);
   return Number.isFinite(n) && n > 0 ? n : NaN;
 }
 

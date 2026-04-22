@@ -12,7 +12,7 @@ import {
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
-import { rowLiveMultiple } from "@/lib/callPerformanceMultiples";
+import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 
 export async function GET(request: Request) {
   try {
@@ -111,7 +111,7 @@ export async function GET(request: Request) {
 
     const events = rows.map((row) => {
       const r = row as Record<string, unknown>;
-      const multiple = rowLiveMultiple(r);
+      const multiple = rowAthMultiple(r);
       const username =
         typeof r.username === "string" && r.username.trim() !== ""
           ? r.username.trim()

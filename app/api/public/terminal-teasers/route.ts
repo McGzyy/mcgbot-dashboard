@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { rowLiveMultiple } from "@/lib/callPerformanceMultiples";
+import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 import { filterCallRowsForStats, getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
 export const runtime = "nodejs";
@@ -40,7 +40,7 @@ export async function GET() {
     let n = 0;
     const top = new Map<string, { token: string; multiple: number; username: string; source: string; time: unknown }>();
     for (const r of rows) {
-      const multiple = rowLiveMultiple(r);
+      const multiple = rowAthMultiple(r);
       sum += multiple;
       n += 1;
 

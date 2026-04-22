@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { rowLiveMultiple } from "@/lib/callPerformanceMultiples";
+import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 
 export async function GET(
   _request: Request,
@@ -70,7 +70,7 @@ export async function GET(
       pinnedCall: {
         id: String((call as any).id ?? ""),
         token: (call as any).call_ca ?? "Unknown",
-        multiple: rowLiveMultiple(callRow),
+        multiple: rowAthMultiple(callRow),
         time: (call as any).call_time,
       },
     });
