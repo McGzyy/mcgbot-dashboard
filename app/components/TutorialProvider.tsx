@@ -92,7 +92,8 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     if (!(btn instanceof HTMLButtonElement)) return;
     if (btn.getAttribute("aria-expanded") !== "true") return;
     btn.click();
-    await new Promise((r) => setTimeout(r, 90));
+    // Let the dropdown unmount and layout settle before Joyride measures the next target.
+    await new Promise((r) => setTimeout(r, 240));
   }, []);
 
   const loadHelpTier = useCallback(async () => {

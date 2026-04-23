@@ -4170,9 +4170,9 @@ export default function Home() {
           {showTrendingWidget ? <TrendingPanel /> : null}
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4" data-tutorial="dashboard.quickActions">
           {widgetEnabled(widgets, "quick_actions") && (
-            <PanelCard title="Quick Actions" data-tutorial="dashboard.quickActions">
+            <PanelCard title="Quick Actions">
               <div className="mt-3 space-y-3">
                 <button
                   type="button"

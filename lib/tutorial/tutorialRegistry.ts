@@ -177,16 +177,21 @@ function dashboardBodySteps(): TutorialStep[] {
       placement: "top",
       scrollOffset: 130,
       skipScroll: true,
+      /** In case the account menu is still open, close before this spotlight (large section below nav). */
+      closeAccountMenu: true,
     },
     {
       section: "dashboard",
+      /** Always on the home layout: right column (Quick Actions panel only renders when that widget is enabled). */
       target: sel("dashboard.quickActions"),
       route: "/",
-      title: "Quick actions",
-      content: "Submit a call, profile, watchlist shortcuts, referral link, and more without leaving home.",
+      title: "Quick actions & rail",
+      content:
+        "Submit call, profile, watchlist, referral copy, and more—when the Quick Actions widget is on in Settings it fills the top of this column; staff also see queue preview and chat below.",
       placement: "top",
       scrollOffset: 130,
       skipScroll: true,
+      closeAccountMenu: true,
     },
   ];
 }
