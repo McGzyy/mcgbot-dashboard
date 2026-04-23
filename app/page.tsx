@@ -3981,11 +3981,11 @@ export default function Home() {
 
   return (
     <div className="mx-auto max-w-[1200px] px-1 sm:px-0">
-      <div className="mb-8">
+      <div className="mb-8" data-tutorial="dashboard.performanceChart">
         <PerformanceChart refreshNonce={homeDataRefreshNonce} />
       </div>
 
-      <section className="mb-8 space-y-4">
+      <section className="mb-8 space-y-4" data-tutorial="dashboard.personalStats">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-semibold tracking-tight text-zinc-100">
@@ -4172,7 +4172,7 @@ export default function Home() {
 
         <div className="flex flex-col gap-4">
           {widgetEnabled(widgets, "quick_actions") && (
-            <PanelCard title="Quick Actions">
+            <PanelCard title="Quick Actions" data-tutorial="dashboard.quickActions">
               <div className="mt-3 space-y-3">
                 <button
                   type="button"
@@ -4180,6 +4180,7 @@ export default function Home() {
                     setSubmitCallFeedback(null);
                     setSubmitCallOpen(true);
                   }}
+                  data-tutorial="dashboard.quickActions.submitCall"
                   className="w-full rounded-xl bg-[color:var(--accent)] px-4 py-3 text-base font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/30"
                 >
                   Submit Call
@@ -4191,6 +4192,7 @@ export default function Home() {
                       discordId: session.user.id,
                       displayName: session.user.name,
                     })}
+                    data-tutorial="dashboard.quickActions.myProfile"
                     className="flex items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     My Profile
@@ -4198,6 +4200,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setAddWatchlistOpen(true)}
+                    data-tutorial="dashboard.quickActions.watchlist"
                     className="flex items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     Watchlist
@@ -4230,7 +4233,11 @@ export default function Home() {
             </PanelCard>
           )}
 
-          {(helpTier === "mod" || helpTier === "admin") && <ModQueueHomePanel />}
+          {(helpTier === "mod" || helpTier === "admin") && (
+            <div data-tutorial="dashboard.modQueue">
+              <ModQueueHomePanel />
+            </div>
+          )}
 
           <DashboardChatPanel
             showModTab={

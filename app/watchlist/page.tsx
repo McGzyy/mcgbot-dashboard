@@ -169,7 +169,10 @@ export default function WatchlistPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:py-10">
-      <header className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/85 via-zinc-950 to-black/60 p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8">
+      <header
+        data-tutorial="watchlist.header"
+        className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/85 via-zinc-950 to-black/60 p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8"
+      >
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_35%,rgba(217,70,239,0.06)_48%,transparent_62%)] opacity-90" />
         <div className="relative">
           <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-fuchsia-300/90">You</p>
@@ -184,7 +187,10 @@ export default function WatchlistPage() {
         </div>
       </header>
 
-      <section className="rounded-2xl border border-zinc-800/70 bg-black/25 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:p-5">
+      <section
+        data-tutorial="watchlist.manage"
+        className="rounded-2xl border border-zinc-800/70 bg-black/25 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:p-5"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex rounded-xl border border-zinc-800/70 bg-zinc-950/60 p-1">
             <button
@@ -222,6 +228,7 @@ export default function WatchlistPage() {
           <input
             value={contractAddress}
             onChange={(e) => setContractAddress(e.target.value)}
+            data-tutorial="watchlist.input"
             placeholder="Paste a Solana contract address…"
             className="flex-1 rounded-xl border border-zinc-800/80 bg-zinc-950/70 px-4 py-2.5 text-sm text-zinc-100 outline-none ring-fuchsia-500/20 focus:ring-2"
             spellCheck={false}
@@ -230,6 +237,7 @@ export default function WatchlistPage() {
             type="button"
             onClick={add}
             disabled={!canAdd}
+            data-tutorial="watchlist.addButton"
             className="rounded-xl bg-gradient-to-r from-fuchsia-500 to-cyan-500 px-5 py-2.5 text-sm font-bold text-black shadow-lg shadow-black/40 transition hover:from-fuchsia-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? "Saving…" : "Add contract"}

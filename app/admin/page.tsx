@@ -36,7 +36,7 @@ function OverviewCard({
 
 export default function AdminOverviewPage() {
   return (
-    <div className="space-y-10">
+    <div className="space-y-10" data-tutorial="admin.overview">
       <div>
         <h2 className="text-lg font-semibold text-white">Overview</h2>
         <p className="mt-1 text-sm text-zinc-400">Jump into a section — left nav stays one click away.</p>

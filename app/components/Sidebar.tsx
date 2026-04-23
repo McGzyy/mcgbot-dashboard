@@ -68,6 +68,7 @@ function SidebarBody({
         <Link
           href="/"
           onClick={pick}
+          data-tutorial="sidebar.logo"
           className="group flex items-center gap-3 rounded-xl p-1 transition-colors hover:bg-white/[0.03]"
           aria-label="Go to dashboard"
         >
@@ -97,7 +98,7 @@ function SidebarBody({
 
       <nav className="flex flex-1 flex-col" aria-label="Main">
         <div className="mt-4 flex flex-col gap-1 px-2">
-          <Link href="/" onClick={pick} className={getNavItemClass(isActive(pathname, "/"))}>
+          <Link href="/" onClick={pick} data-tutorial="sidebar.nav.dashboard" className={getNavItemClass(isActive(pathname, "/"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
                 isActive(pathname, "/") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
@@ -107,7 +108,7 @@ function SidebarBody({
           </Link>
 
           <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">You</p>
-          <Link href="/calls" onClick={pick} className={getNavItemClass(isActive(pathname, "/calls"))}>
+          <Link href="/calls" onClick={pick} data-tutorial="sidebar.nav.calls" className={getNavItemClass(isActive(pathname, "/calls"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
                 isActive(pathname, "/calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
@@ -115,7 +116,7 @@ function SidebarBody({
             />
             <span>Call log</span>
           </Link>
-          <Link href="/performance" onClick={pick} className={getNavItemClass(isActive(pathname, "/performance"))}>
+          <Link href="/performance" onClick={pick} data-tutorial="sidebar.nav.performance" className={getNavItemClass(isActive(pathname, "/performance"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
                 isActive(pathname, "/performance") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
@@ -123,7 +124,7 @@ function SidebarBody({
             />
             <span>Performance lab</span>
           </Link>
-          <Link href="/watchlist" onClick={pick} className={getNavItemClass(isActive(pathname, "/watchlist"))}>
+          <Link href="/watchlist" onClick={pick} data-tutorial="sidebar.nav.watchlist" className={getNavItemClass(isActive(pathname, "/watchlist"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
                 isActive(pathname, "/watchlist") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
@@ -133,7 +134,7 @@ function SidebarBody({
           </Link>
 
           <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Arena</p>
-          <Link href="/bot-calls" onClick={pick} className={getNavItemClass(isActive(pathname, "/bot-calls"))}>
+          <Link href="/bot-calls" onClick={pick} data-tutorial="sidebar.nav.botCalls" className={getNavItemClass(isActive(pathname, "/bot-calls"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
                 isActive(pathname, "/bot-calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
@@ -146,7 +147,7 @@ function SidebarBody({
               </span>
             </span>
           </Link>
-          <Link href="/trusted-pro" onClick={pick} className={getNavItemClass(isActive(pathname, "/trusted-pro"))}>
+          <Link href="/trusted-pro" onClick={pick} data-tutorial="sidebar.nav.trustedPro" className={getNavItemClass(isActive(pathname, "/trusted-pro"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
                 isActive(pathname, "/trusted-pro") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
@@ -159,7 +160,7 @@ function SidebarBody({
               </span>
             </span>
           </Link>
-          <Link href="/leaderboard" onClick={pick} className={getNavItemClass(isActive(pathname, "/leaderboard"))}>
+          <Link href="/leaderboard" onClick={pick} data-tutorial="sidebar.nav.leaderboard" className={getNavItemClass(isActive(pathname, "/leaderboard"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
                 isActive(pathname, "/leaderboard") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
@@ -170,6 +171,7 @@ function SidebarBody({
           <Link
             href="/pnl-showcase"
             onClick={pick}
+            data-tutorial="sidebar.nav.pnlShowcase"
             className={getNavItemClass(isActive(pathname, "/pnl-showcase"))}
           >
             <div
@@ -189,6 +191,7 @@ function SidebarBody({
                 <Link
                   href="/moderation"
                   onClick={pick}
+                  data-tutorial="sidebar.nav.moderation"
                   className={getNavItemClass(isActive(pathname, "/moderation"))}
                 >
                   <div
@@ -208,7 +211,7 @@ function SidebarBody({
               ) : null}
 
               {adminNav ? (
-                <Link href="/admin" onClick={pick} className={getNavItemClass(isActive(pathname, "/admin"))}>
+                <Link href="/admin" onClick={pick} data-tutorial="sidebar.nav.admin" className={getNavItemClass(isActive(pathname, "/admin"))}>
                   <div
                     className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
                       isActive(pathname, "/admin") ? `${tierNavBarClass("admin")} opacity-100` : "opacity-0"

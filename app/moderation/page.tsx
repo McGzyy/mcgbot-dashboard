@@ -1213,7 +1213,7 @@ export default function ModerationPage() {
   return (
     <div className={modChrome.pageShell}>
       <div className={`relative mx-auto w-full min-w-0 max-w-6xl pb-20 ${modChrome.pageInner}`}>
-        <header className="relative border-b border-white/[0.06] pb-8 pt-2">
+        <header className="relative border-b border-white/[0.06] pb-8 pt-2" data-tutorial="moderation.header">
           <p className={`text-[10px] font-semibold uppercase tracking-[0.28em] ${modChrome.kicker}`}>
             Staff command center
           </p>
@@ -1270,7 +1270,7 @@ export default function ModerationPage() {
             </div>
           </div>
 
-        <div className="mt-5 grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-5 grid w-full grid-cols-2 gap-3 sm:grid-cols-4" data-tutorial="moderation.queueStats">
           <div className={modChrome.statTile}>
             <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">Total</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-zinc-100">{queueLoading ? "…" : total}</div>
@@ -1294,15 +1294,32 @@ export default function ModerationPage() {
             </div>
           </div>
         </div>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] text-zinc-600">
-            Tip: press <kbd className="rounded border border-emerald-900/50 bg-emerald-950/40 px-1.5 py-0.5 font-mono text-emerald-200/70">R</kbd>{" "}
+            Tip: press{" "}
+            <kbd className="rounded border border-emerald-900/50 bg-emerald-950/40 px-1.5 py-0.5 font-mono text-emerald-200/70">
+              R
+            </kbd>{" "}
             outside inputs to refresh.
           </p>
-          {data && total === 0 && !queueLoading ? (
-            <p className="text-[11px] font-medium text-emerald-200/55">Nothing to triage — queue is clear.</p>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+            <span className="rounded-lg border border-emerald-900/35 bg-black/25 px-2 py-1">
+              Trusted Pro submissions{" "}
+              <span className="font-semibold tabular-nums text-zinc-200">
+                {trustedProLoading ? "…" : trustedProPending.length}
+              </span>
+            </span>
+            <span className="rounded-lg border border-emerald-900/35 bg-black/25 px-2 py-1">
+              Trusted Pro applications{" "}
+              <span className="font-semibold tabular-nums text-zinc-200">
+                {tpAppsLoading ? "…" : tpAppsPending.length}
+              </span>
+            </span>
+          </div>
         </div>
+        {data && total === 0 && !queueLoading ? (
+          <p className="mt-2 text-[11px] font-medium text-emerald-200/55">Nothing to triage — queue is clear.</p>
+        ) : null}
       </div>
 
       <div className="mt-2 grid gap-8 lg:grid-cols-[1fr_minmax(280px,360px)] lg:items-start">
@@ -1435,7 +1452,7 @@ export default function ModerationPage() {
                 type="button"
                 onClick={() => void loadTrustedProPending()}
                 disabled={trustedProLoading}
-                className="rounded-lg border border-zinc-700/80 bg-zinc-950/40 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 disabled:opacity-60"
+                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold text-emerald-50 shadow-sm transition focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${modChrome.refreshBtn}`}
               >
                 {trustedProLoading ? "Refreshing…" : "Refresh"}
               </button>
@@ -1448,11 +1465,11 @@ export default function ModerationPage() {
             ) : null}
 
             {trustedProLoading ? (
-              <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+              <div className={`rounded-xl px-4 py-6 text-center text-sm text-zinc-500 ${modChrome.emptyState}`}>
                 Loading…
               </div>
             ) : trustedProPending.length === 0 ? (
-              <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+              <div className={`rounded-xl px-4 py-6 text-center text-sm text-zinc-500 ${modChrome.emptyState}`}>
                 No pending Trusted Pro submissions.
               </div>
             ) : (
@@ -1460,7 +1477,7 @@ export default function ModerationPage() {
                 {trustedProPending.map((r) => {
                   const draft = trustedProNotes[r.id] ?? "";
                   return (
-                    <li key={r.id} className="rounded-xl border border-zinc-800/80 bg-black/20 p-3">
+                    <li key={r.id} className={modChrome.card}>
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-xs font-semibold text-zinc-100">
@@ -1481,21 +1498,21 @@ export default function ModerationPage() {
                           onChange={(e) =>
                             setTrustedProNotes((m) => ({ ...m, [r.id]: e.target.value }))
                           }
-                          className="min-h-[64px] w-full resize-y rounded-lg border border-zinc-800 bg-black/20 px-3 py-2 text-xs text-zinc-200 outline-none ring-emerald-500/20 focus:ring-2"
+                          className="min-h-[64px] w-full resize-y rounded-lg border border-emerald-900/35 bg-black/25 px-3 py-2 text-xs text-zinc-200 outline-none ring-emerald-500/20 focus:ring-2"
                           placeholder="Staff notes (optional)…"
                         />
                         <div className="flex flex-wrap items-center justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => void actTrustedPro(r.id, "deny")}
-                            className="rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-1.5 text-xs font-semibold text-red-100/90 transition hover:border-red-400/40"
+                            className="rounded-lg border border-red-500/30 bg-red-950/25 px-3 py-1.5 text-xs font-semibold text-red-100/90 transition hover:border-red-400/45"
                           >
                             Deny
                           </button>
                           <button
                             type="button"
                             onClick={() => void actTrustedPro(r.id, "approve")}
-                            className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-1.5 text-xs font-semibold text-emerald-100/90 transition hover:border-emerald-400/40"
+                            className="rounded-lg border border-emerald-500/30 bg-emerald-950/35 px-3 py-1.5 text-xs font-semibold text-emerald-100/90 transition hover:border-emerald-400/50"
                           >
                             Approve
                           </button>
@@ -1523,7 +1540,7 @@ export default function ModerationPage() {
                 type="button"
                 onClick={() => void loadTrustedProApplications()}
                 disabled={tpAppsLoading}
-                className="rounded-lg border border-zinc-700/80 bg-zinc-950/40 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 disabled:opacity-60"
+                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold text-emerald-50 shadow-sm transition focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${modChrome.refreshBtn}`}
               >
                 {tpAppsLoading ? "Refreshing…" : "Refresh"}
               </button>
@@ -1536,11 +1553,11 @@ export default function ModerationPage() {
             ) : null}
 
             {tpAppsLoading ? (
-              <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+              <div className={`rounded-xl px-4 py-6 text-center text-sm text-zinc-500 ${modChrome.emptyState}`}>
                 Loading…
               </div>
             ) : tpAppsPending.length === 0 ? (
-              <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-6 text-center text-sm text-zinc-500">
+              <div className={`rounded-xl px-4 py-6 text-center text-sm text-zinc-500 ${modChrome.emptyState}`}>
                 No pending applications.
               </div>
             ) : (
@@ -1548,7 +1565,7 @@ export default function ModerationPage() {
                 {tpAppsPending.map((r) => {
                   const draft = tpAppsNotes[r.id] ?? "";
                   return (
-                    <li key={r.id} className="rounded-xl border border-zinc-800/80 bg-black/20 p-3">
+                    <li key={r.id} className={modChrome.card}>
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-xs font-semibold text-zinc-100">
@@ -1573,21 +1590,21 @@ export default function ModerationPage() {
                         <textarea
                           value={draft}
                           onChange={(e) => setTpAppsNotes((m) => ({ ...m, [r.id]: e.target.value }))}
-                          className="min-h-[64px] w-full resize-y rounded-lg border border-zinc-800 bg-black/20 px-3 py-2 text-xs text-zinc-200 outline-none ring-emerald-500/20 focus:ring-2"
+                          className="min-h-[64px] w-full resize-y rounded-lg border border-emerald-900/35 bg-black/25 px-3 py-2 text-xs text-zinc-200 outline-none ring-emerald-500/20 focus:ring-2"
                           placeholder="Staff notes (optional)…"
                         />
                         <div className="flex flex-wrap items-center justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => void actTpApp(r.id, "deny")}
-                            className="rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-1.5 text-xs font-semibold text-red-100/90 transition hover:border-red-400/40"
+                            className="rounded-lg border border-red-500/30 bg-red-950/25 px-3 py-1.5 text-xs font-semibold text-red-100/90 transition hover:border-red-400/45"
                           >
                             Deny
                           </button>
                           <button
                             type="button"
                             onClick={() => void actTpApp(r.id, "approve")}
-                            className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-1.5 text-xs font-semibold text-emerald-100/90 transition hover:border-emerald-400/40"
+                            className="rounded-lg border border-emerald-500/30 bg-emerald-950/35 px-3 py-1.5 text-xs font-semibold text-emerald-100/90 transition hover:border-emerald-400/50"
                           >
                             Approve
                           </button>

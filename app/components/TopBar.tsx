@@ -399,6 +399,7 @@ export function TopBar() {
           <button
             type="button"
             onClick={() => setMobileSidebarOpen(true)}
+            data-tutorial="nav.openSidebar"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-800/80 bg-zinc-900/40 text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800/60 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 lg:hidden"
             aria-label="Open navigation menu"
           >
@@ -416,6 +417,7 @@ export function TopBar() {
               <button
                 type="button"
                 onClick={openTokenSearch}
+                data-tutorial="nav.tokenSearch"
                 className="hidden h-9 items-center gap-2 rounded-lg border border-zinc-800/70 bg-zinc-900/25 px-3 text-sm text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900/40 hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 sm:flex"
                 aria-label="Open token search"
               >
@@ -428,12 +430,13 @@ export function TopBar() {
                 <button
                   type="button"
                   onClick={() => setTipOpen(true)}
+                  data-tutorial="nav.tip"
                   className="hidden h-9 items-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15 sm:inline-flex"
                 >
                   Tip McGBot
                 </button>
               ) : null}
-              <div className="relative" ref={notifRef}>
+              <div className="relative" ref={notifRef} data-tutorial="nav.notifications">
                 <button
                   type="button"
                   onClick={() => {
@@ -501,7 +504,7 @@ export function TopBar() {
               </div>
 
               {session ? (
-                <div className="relative" ref={menuRef}>
+              <div className="relative" ref={menuRef} data-tutorial="nav.userMenu">
                   <button
                     type="button"
                     onClick={() => {
