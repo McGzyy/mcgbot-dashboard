@@ -1664,7 +1664,7 @@ export default function UserProfilePage() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-10%,rgba(34,211,238,0.14),transparent_50%)]" />
       </div>
 
-      <header className="border-b border-zinc-800/60 pb-10 pt-2 sm:pt-3">
+      <header className="border-b border-zinc-800/60 pb-10 pt-2 sm:pt-3" data-tutorial="profile.header">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:gap-8">
           <img
             src={avatarSrc}

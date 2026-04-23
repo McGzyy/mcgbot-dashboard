@@ -650,7 +650,10 @@ function SettingsPageInner() {
         </aside>
 
         <div className="min-w-0">
-          <header className="flex flex-col gap-4 border-b border-zinc-800/60 pb-6 sm:flex-row sm:items-end sm:justify-between">
+          <header
+            className="flex flex-col gap-4 border-b border-zinc-800/60 pb-6 sm:flex-row sm:items-end sm:justify-between"
+            data-tutorial="settings.header"
+          >
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
                 Settings
@@ -696,6 +699,7 @@ function SettingsPageInner() {
           </header>
 
           <div className="mt-8 space-y-6 lg:mt-10 lg:space-y-7">
+      <div data-tutorial="settings.account">
       <SettingsSection
         id="account"
         title="Account & X"
@@ -805,6 +809,7 @@ function SettingsPageInner() {
         </div>
         </div>
       </SettingsSection>
+      </div>
 
       <SettingsSection
         id="notifications"

@@ -542,6 +542,7 @@ export function TopBar() {
                           discordId: session.user.id,
                           displayName: session.user.name,
                         })}
+                        data-tutorial="nav.menu.profile"
                         role="menuitem"
                         onClick={() => setOpen(false)}
                         className={accountMenuItem(
@@ -556,6 +557,7 @@ export function TopBar() {
                       </Link>
                       <Link
                         href="/settings"
+                        data-tutorial="nav.menu.settings"
                         role="menuitem"
                         onClick={() => setOpen(false)}
                         className={accountMenuItem(pathname.startsWith("/settings"))}
@@ -564,6 +566,7 @@ export function TopBar() {
                       </Link>
                       <Link
                         href="/help"
+                        data-tutorial="nav.menu.help"
                         role="menuitem"
                         aria-keyshortcuts="Shift+/"
                         onClick={() => setOpen(false)}
@@ -589,6 +592,7 @@ export function TopBar() {
                       </div>
                       <Link
                         href="/referrals"
+                        data-tutorial="nav.menu.referralsOverview"
                         role="menuitem"
                         onClick={() => setOpen(false)}
                         className={accountMenuItem(pathname === "/referrals")}
@@ -597,6 +601,7 @@ export function TopBar() {
                       </Link>
                       <Link
                         href="/referrals/performance"
+                        data-tutorial="nav.menu.referralsPerformance"
                         role="menuitem"
                         onClick={() => setOpen(false)}
                         className={accountMenuItem(pathname === "/referrals/performance")}
@@ -605,6 +610,7 @@ export function TopBar() {
                       </Link>
                       <Link
                         href="/referrals/rewards"
+                        data-tutorial="nav.menu.referralsRewards"
                         role="menuitem"
                         onClick={() => setOpen(false)}
                         className={accountMenuItem(pathname === "/referrals/rewards")}

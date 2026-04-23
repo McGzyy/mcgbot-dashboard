@@ -136,7 +136,7 @@ export default function PerformanceLabPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
-      <header className="border-b border-white/[0.06] pb-8 pt-2">
+      <header className="border-b border-white/[0.06] pb-8 pt-2" data-tutorial="performance.header">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Your terminal</p>
         <h1 className="mt-2 bg-gradient-to-r from-white via-emerald-50/95 to-emerald-300/85 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
           Performance lab
@@ -159,7 +159,7 @@ export default function PerformanceLabPage() {
         <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">{err}</div>
       ) : null}
 
-      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-tutorial="performance.summary">
         <StatCard
           label="Avg × (all)"
           value={loading ? "…" : s ? s.avgX.toFixed(2) + "×" : "—"}
@@ -214,7 +214,7 @@ export default function PerformanceLabPage() {
       </div>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-5">
-        <section className="lg:col-span-3">
+        <section className="lg:col-span-3" data-tutorial="performance.activity">
           <h2 className="text-base font-semibold tracking-tight text-white">Last 14 days · activity</h2>
           <p className="mt-1 text-xs text-zinc-500">
             Bars = call count per UTC day · line = average ATH multiple that day.

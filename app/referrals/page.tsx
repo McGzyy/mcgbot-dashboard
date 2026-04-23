@@ -91,7 +91,10 @@ export default function ReferralsPage() {
   return (
     <div className="mx-auto w-full max-w-[1100px] space-y-8 px-4 py-8 sm:px-6 sm:py-10">
       {/* Hero */}
-      <header className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[#070708] p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8">
+      <header
+        className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[#070708] p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8"
+        data-tutorial="referrals.hero"
+      >
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_38%,rgba(16,185,129,0.05)_50%,transparent_62%)]" />
         <div className="pointer-events-none absolute -right-20 -top-16 h-56 w-56 rounded-full bg-emerald-600/[0.07] blur-3xl" />
         <div className="pointer-events-none absolute -bottom-16 -left-12 h-48 w-48 rounded-full bg-cyan-500/[0.06] blur-3xl" />
@@ -110,7 +113,10 @@ export default function ReferralsPage() {
       </header>
 
       {/* Link hub */}
-      <section className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-950/[0.18] via-[#070a08] to-zinc-950 shadow-[0_0_0_1px_rgba(16,185,129,0.08),0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-emerald-500/10">
+      <section
+        className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-950/[0.18] via-[#070a08] to-zinc-950 shadow-[0_0_0_1px_rgba(16,185,129,0.08),0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-emerald-500/10"
+        data-tutorial="referrals.linkHub"
+      >
         <div
           className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-400/80 via-emerald-500/50 to-teal-700/40"
           aria-hidden
@@ -143,7 +149,7 @@ export default function ReferralsPage() {
       </section>
 
       {/* KPI strip */}
-      <section aria-label="Referral stats">
+      <section aria-label="Referral stats" data-tutorial="referrals.stats">
         <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
           Network snapshot
         </p>

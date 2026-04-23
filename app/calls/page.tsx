@@ -104,7 +104,7 @@ export default function CallTapePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
-      <header className="border-b border-white/[0.06] pb-8 pt-2">
+      <header className="border-b border-white/[0.06] pb-8 pt-2" data-tutorial="calls.header">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Your terminal</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Call log</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
@@ -123,7 +123,7 @@ export default function CallTapePage() {
         </p>
       </header>
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-4" data-tutorial="calls.filters">
         <div className="flex flex-wrap gap-2">
           {WINDOWS.map((w) => (
             <button
@@ -149,7 +149,10 @@ export default function CallTapePage() {
         <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">{err}</div>
       ) : null}
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+      <div
+        className="mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
+        data-tutorial="calls.table"
+      >
         <div className="overflow-x-auto">
           <table className="min-w-[720px] w-full text-left text-sm">
             <thead className="border-b border-zinc-800/90 bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">

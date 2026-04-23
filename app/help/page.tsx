@@ -105,7 +105,10 @@ function HelpPageContent() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <header
+        className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"
+        data-tutorial="help.header"
+      >
         <div>
           <h1 className="text-xl font-semibold text-zinc-100">Help</h1>
           <p className="text-sm text-zinc-500">
@@ -154,7 +157,11 @@ function HelpPageContent() {
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
-            <section aria-label="Tutorial mode" className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20">
+            <section
+              aria-label="Tutorial mode"
+              data-tutorial="help.tutorialPanel"
+              className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Onboarding</p>
