@@ -291,6 +291,26 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(t);
   }, [navWait]);
 
+  /** Keep the caller on `/` during account-dropdown spotlight steps (links are real Next.js routes). */
+  useEffect(() => {
+    if (!tourOpen) {
+      document.body.removeAttribute("data-mcgbot-tour-block-account-nav");
+      return;
+    }
+    const run = tourOpen && !navWait;
+    if (!run) {
+      document.body.removeAttribute("data-mcgbot-tour-block-account-nav");
+      return;
+    }
+    const target = steps[stepIndex]?.target ?? "";
+    if (target.includes("nav.menu.")) {
+      document.body.setAttribute("data-mcgbot-tour-block-account-nav", "1");
+    } else {
+      document.body.removeAttribute("data-mcgbot-tour-block-account-nav");
+    }
+    return () => document.body.removeAttribute("data-mcgbot-tour-block-account-nav");
+  }, [tourOpen, navWait, stepIndex, steps]);
+
   const onJoyrideEvent = useCallback<EventHandler>(
     (data) => {
       const { type, action, index: eventIndex, status: st } = data;

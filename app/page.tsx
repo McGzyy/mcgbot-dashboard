@@ -1220,6 +1220,7 @@ function PanelCard({
   titleClassName,
   paddingClassName = "px-4 py-3",
   titleRight,
+  "data-tutorial": dataTutorial,
 }: {
   title: string;
   children: ReactNode;
@@ -1229,6 +1230,7 @@ function PanelCard({
   /** e.g. `px-5 py-3` for tighter vertical rhythm */
   paddingClassName?: string;
   titleRight?: ReactNode;
+  "data-tutorial"?: string;
 }) {
   const surface = elevated
     ? "border-[#1a1a1a] bg-[#0a0a0a] shadow-md shadow-black/25"
@@ -1236,6 +1238,7 @@ function PanelCard({
 
   return (
     <div
+      data-tutorial={dataTutorial}
       className={`rounded-xl border ${paddingClassName} backdrop-blur-sm ${surface} ${CARD_HOVER} ${className}`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -4137,6 +4140,7 @@ export default function Home() {
 
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 flex flex-col gap-3">
+          <div data-tutorial="dashboard.activityFeed">
           {widgetEnabled(widgets, "activity") && (
             <div className="min-h-[420px]">
               <ActivityFeedPanel
@@ -4154,7 +4158,9 @@ export default function Home() {
               />
             </div>
           )}
+          </div>
 
+          <div data-tutorial="dashboard.topPerformers">
           {widgetEnabled(widgets, "top_performers") && (
             <TopPerformersPanel
               topPerformersLoading={topPerformersLoading}
@@ -4164,10 +4170,15 @@ export default function Home() {
               badgesByUser={badgesByUser}
             />
           )}
+          </div>
 
+          <div data-tutorial="dashboard.socialFeed">
           <SocialsFeedPanel />
+          </div>
 
+          <div data-tutorial="dashboard.trending">
           {showTrendingWidget ? <TrendingPanel /> : null}
+          </div>
         </div>
 
         <div className="flex flex-col gap-4" data-tutorial="dashboard.quickActions">
@@ -4239,6 +4250,7 @@ export default function Home() {
             </div>
           )}
 
+          <div data-tutorial="dashboard.discordChat">
           <DashboardChatPanel
             showModTab={
               (helpTier === "mod" || helpTier === "admin") && modChatConfigured
@@ -4247,9 +4259,13 @@ export default function Home() {
               (helpTier === "mod" || helpTier === "admin") && !modChatConfigured
             }
           />
+          </div>
 
+          <div data-tutorial="dashboard.dailyLeaderboard">
           {widgetEnabled(widgets, "live_tracked_calls") && <DailyLeaderboardPanel />}
+          </div>
 
+          <div data-tutorial="dashboard.homeRecentCalls">
           {widgetEnabled(widgets, "recent_calls") ? (
             <PanelCard title="Recent calls" titleClassName="normal-case">
               <p className="mt-2 text-xs text-zinc-500">
@@ -4338,8 +4354,9 @@ export default function Home() {
               </div>
             </PanelCard>
           ) : null}
+          </div>
 
-          <PanelCard title="Watchlist" titleClassName="normal-case">
+          <PanelCard title="Watchlist" titleClassName="normal-case" data-tutorial="dashboard.homeWatchlist">
             <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
               <span className="tabular-nums">
                 Saved{" "}

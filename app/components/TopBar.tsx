@@ -110,6 +110,14 @@ function isInsideGuidedTourUi(node: Node | null): boolean {
   );
 }
 
+/** Caller tour spotlights account links without leaving `/`; block real navigation while active. */
+function tourBlocksAccountMenuNav(e: { preventDefault(): void }): boolean {
+  if (typeof document === "undefined") return false;
+  if (document.body.dataset.mcgbotTourBlockAccountNav !== "1") return false;
+  e.preventDefault();
+  return true;
+}
+
 function formatTimeAgo(createdAt: number, nowMs: number): string {
   if (!Number.isFinite(createdAt) || createdAt <= 0) return "—";
   const diff = Math.max(0, nowMs - createdAt);
@@ -555,7 +563,10 @@ export function TopBar() {
                         })}
                         data-tutorial="nav.menu.profile"
                         role="menuitem"
-                        onClick={() => setOpen(false)}
+                        onClick={(e) => {
+                          if (tourBlocksAccountMenuNav(e)) return;
+                          setOpen(false);
+                        }}
                         className={accountMenuItem(
                           userProfilePathMatches(
                             pathname,
@@ -570,7 +581,10 @@ export function TopBar() {
                         href="/settings"
                         data-tutorial="nav.menu.settings"
                         role="menuitem"
-                        onClick={() => setOpen(false)}
+                        onClick={(e) => {
+                          if (tourBlocksAccountMenuNav(e)) return;
+                          setOpen(false);
+                        }}
                         className={accountMenuItem(pathname.startsWith("/settings"))}
                       >
                         Settings
@@ -580,7 +594,10 @@ export function TopBar() {
                         data-tutorial="nav.menu.help"
                         role="menuitem"
                         aria-keyshortcuts="Shift+/"
-                        onClick={() => setOpen(false)}
+                        onClick={(e) => {
+                          if (tourBlocksAccountMenuNav(e)) return;
+                          setOpen(false);
+                        }}
                         className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition hover:bg-zinc-800 ${
                           pathname.startsWith("/help")
                             ? "bg-zinc-900 text-white"
@@ -605,7 +622,10 @@ export function TopBar() {
                         href="/referrals"
                         data-tutorial="nav.menu.referralsOverview"
                         role="menuitem"
-                        onClick={() => setOpen(false)}
+                        onClick={(e) => {
+                          if (tourBlocksAccountMenuNav(e)) return;
+                          setOpen(false);
+                        }}
                         className={accountMenuItem(pathname === "/referrals")}
                       >
                         Overview
@@ -614,7 +634,10 @@ export function TopBar() {
                         href="/referrals/performance"
                         data-tutorial="nav.menu.referralsPerformance"
                         role="menuitem"
-                        onClick={() => setOpen(false)}
+                        onClick={(e) => {
+                          if (tourBlocksAccountMenuNav(e)) return;
+                          setOpen(false);
+                        }}
                         className={accountMenuItem(pathname === "/referrals/performance")}
                       >
                         Performance
@@ -623,7 +646,10 @@ export function TopBar() {
                         href="/referrals/rewards"
                         data-tutorial="nav.menu.referralsRewards"
                         role="menuitem"
-                        onClick={() => setOpen(false)}
+                        onClick={(e) => {
+                          if (tourBlocksAccountMenuNav(e)) return;
+                          setOpen(false);
+                        }}
                         className={accountMenuItem(pathname === "/referrals/rewards")}
                       >
                         Rewards

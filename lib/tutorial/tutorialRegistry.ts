@@ -54,7 +54,7 @@ function dashboardIntroSteps(): TutorialStep[] {
       route: "/",
       title: "Dashboard",
       content:
-        "Home base: top bar and account menu first, then the performance chart and the rest of this page (for staff: a queue preview at the end).",
+        "You are still on home. Next: the performance chart, stats, feeds, and the left nav—then Call log, Performance lab, and Watchlist pages. Profile, Settings, Help, and Referrals pages come at the end of this tour.",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
@@ -125,42 +125,43 @@ function dashboardAccountMenuRows(): TutorialStep[] {
       section: "accountMenu",
       target: sel("nav.menu.profile"),
       title: "Profile",
-      content: "Your public profile. The caller tour opens your live profile page after Performance lab.",
+      content:
+        "Public profile card—preview only here; the tour does not leave the dashboard until after the home walk. We open your profile page near the end.",
       ...common,
     },
     {
       section: "accountMenu",
       target: sel("nav.menu.settings"),
       title: "Settings",
-      content: "Account, notifications, public visibility, and dashboard widget toggles—we tour this page later.",
+      content: "Account, notifications, widgets, and visibility—preview only; full Settings tour near the end.",
       ...common,
     },
     {
       section: "accountMenu",
       target: sel("nav.menu.help"),
       title: "Help",
-      content: "Docs, FAQ, bugs, features, and tutorial controls.",
+      content: "Docs, FAQ, bugs, features, and tutorial controls—preview only; Help page near the end.",
       ...common,
     },
     {
       section: "accountMenu",
       target: sel("nav.menu.referralsOverview"),
       title: "Referrals — overview",
-      content: "Your link and aggregate stats; sub-links open performance and rewards views.",
+      content: "Your link and network stats—preview only; Referrals page near the end.",
       ...common,
     },
     {
       section: "accountMenu",
       target: sel("nav.menu.referralsPerformance"),
       title: "Referrals — performance",
-      content: "Leaderboard-style view of referred callers.",
+      content: "Referred callers’ performance view—preview only; opened from the tour later.",
       ...common,
     },
     {
       section: "accountMenu",
       target: sel("nav.menu.referralsRewards"),
       title: "Referrals — rewards",
-      content: "Rewards and milestones for your network.",
+      content: "Rewards-style view—preview only; opened from the tour later.",
       ...common,
     },
   ];
@@ -177,21 +178,147 @@ function dashboardBodySteps(): TutorialStep[] {
       placement: "top",
       scrollOffset: 130,
       skipScroll: true,
-      /** In case the account menu is still open, close before this spotlight (large section below nav). */
       closeAccountMenu: true,
     },
+  ];
+}
+
+const dashHome: Pick<TutorialStep, "section" | "route"> = { section: "dashboard", route: "/" };
+
+function dashboardMainFeedSteps(): TutorialStep[] {
+  return [
+    {
+      ...dashHome,
+      target: sel("dashboard.activityFeed"),
+      title: "Activity feed",
+      content: "Live-style stream of notable calls and moves (when the Activity widget is enabled in Settings).",
+      placement: "top",
+      scrollOffset: 148,
+    },
+    {
+      ...dashHome,
+      target: sel("dashboard.topPerformers"),
+      title: "Top performers today",
+      content: "Standout callers for the UTC day—ranks refresh as calls verify.",
+      placement: "top",
+      scrollOffset: 148,
+    },
+    {
+      ...dashHome,
+      target: sel("dashboard.socialFeed"),
+      title: "Social feed",
+      content: "Curated X posts and highlights wired into the terminal.",
+      placement: "top",
+      scrollOffset: 148,
+    },
+    {
+      ...dashHome,
+      target: sel("dashboard.trending"),
+      title: "Trending tokens",
+      content: "What the desk is watching right now (when the market strip / trending widget is on).",
+      placement: "top",
+      scrollOffset: 148,
+    },
+  ];
+}
+
+function dashboardQuickActionsRailStep(): TutorialStep[] {
+  return [
     {
       section: "dashboard",
-      /** Always on the home layout: right column (Quick Actions panel only renders when that widget is enabled). */
       target: sel("dashboard.quickActions"),
       route: "/",
       title: "Quick actions & rail",
       content:
-        "Submit call, profile, watchlist, referral copy, and more—when the Quick Actions widget is on in Settings it fills the top of this column; staff also see queue preview and chat below.",
+        "Submit call, profile shortcuts, watchlist modal, referral copy—when the Quick Actions widget is on it sits here. Mods/admins also see the staff queue card in this column.",
       placement: "top",
-      scrollOffset: 130,
-      skipScroll: true,
-      closeAccountMenu: true,
+      scrollOffset: 148,
+    },
+  ];
+}
+
+function dashboardRightColumnLowerSteps(): TutorialStep[] {
+  return [
+    {
+      ...dashHome,
+      target: sel("dashboard.discordChat"),
+      title: "Discord chat",
+      content: "Terminal chat with callers; staff see an extra mod tab when configured.",
+      placement: "top",
+      scrollOffset: 148,
+    },
+    {
+      ...dashHome,
+      target: sel("dashboard.dailyLeaderboard"),
+      title: "Daily leaderboard",
+      content: "Snapshot of today’s leaderboard race on your dashboard (when enabled).",
+      placement: "top",
+      scrollOffset: 148,
+    },
+    {
+      ...dashHome,
+      target: sel("dashboard.homeRecentCalls"),
+      title: "Recent calls (home)",
+      content: "Last few verified calls with a shortcut into the full call log.",
+      placement: "top",
+      scrollOffset: 148,
+    },
+    {
+      ...dashHome,
+      target: sel("dashboard.homeWatchlist"),
+      title: "Watchlist preview",
+      content: "A peek at saved contracts; the full editor lives on Watchlist after we tour Call log and Performance lab in the sidebar.",
+      placement: "top",
+      scrollOffset: 148,
+    },
+  ];
+}
+
+/** On `/`, walk YOU row, then Arena, in the left nav before opening Call log / Performance / Watchlist pages. */
+function sidebarYouNavSteps(): TutorialStep[] {
+  const s = { section: "dashboard" as const, route: "/", placement: "right" as const, scrollOffset: 72, skipScroll: true };
+  return [
+    {
+      ...s,
+      target: sel("sidebar.nav.calls"),
+      title: "Call log (nav)",
+      content: "Your verified calls, filters, and table—next we open this page.",
+    },
+    {
+      ...s,
+      target: sel("sidebar.nav.performance"),
+      title: "Performance lab (nav)",
+      content: "Summaries and charts from the same data—after Call log we tour this page.",
+    },
+    {
+      ...s,
+      target: sel("sidebar.nav.watchlist"),
+      title: "Watchlist (nav)",
+      content: "Private mint list in the YOU row—we tour the full Watchlist page after Performance lab.",
+    },
+    {
+      ...s,
+      target: sel("sidebar.nav.botCalls"),
+      title: "Bot calls (nav)",
+      content: "Arena: curated McGBot bot calls (Pro). Open from here when you want the full feed.",
+    },
+    {
+      ...s,
+      target: sel("sidebar.nav.trustedPro"),
+      title: "Trusted Pro (nav)",
+      content: "Arena: verified Trusted Pro posts and applications (Pro).",
+    },
+    {
+      ...s,
+      target: sel("sidebar.nav.leaderboard"),
+      title: "Leaderboards (nav)",
+      content: "Arena: daily, weekly, and monthly leaderboards.",
+    },
+    {
+      ...s,
+      target: sel("sidebar.nav.pnlShowcase"),
+      title: "PnL Showcase (nav)",
+      content: "Arena: PnL highlights and eligible wallets.",
     },
   ];
 }
@@ -206,24 +333,13 @@ function dashboardModQueueStep(): TutorialStep[] {
       content:
         "Moderators and admins see a compact pending queue here so you can triage without opening Moderation.",
       placement: "top",
-      scrollOffset: 140,
-      skipScroll: true,
+      scrollOffset: 148,
     },
   ];
 }
 
-function watchlistChapter(): TutorialStep[] {
+function watchlistPageSteps(): TutorialStep[] {
   return [
-    {
-      section: "watchlist",
-      target: sel("sidebar.nav.watchlist"),
-      route: "/watchlist",
-      title: "Watchlist",
-      content: "Private tokens you track for the terminal. Next: add and manage rows on this page.",
-      placement: "right",
-      scrollOffset: 72,
-      closeAccountMenu: true,
-    },
     {
       section: "watchlist",
       target: sel("watchlist.input"),
@@ -232,21 +348,13 @@ function watchlistChapter(): TutorialStep[] {
       content: "Paste a mint or ticker, then confirm with Add. Use Manage to edit or remove rows.",
       placement: "top",
       scrollOffset: 120,
+      closeAccountMenu: true,
     },
   ];
 }
 
-function callLogChapter(): TutorialStep[] {
+function callLogPageSteps(): TutorialStep[] {
   return [
-    {
-      section: "calls",
-      target: sel("sidebar.nav.calls"),
-      route: "/calls",
-      title: "Call log",
-      content: "Your verified calls only, line by line. Next: filters and the table.",
-      placement: "right",
-      scrollOffset: 72,
-    },
     {
       section: "calls",
       target: sel("calls.filters"),
@@ -268,17 +376,8 @@ function callLogChapter(): TutorialStep[] {
   ];
 }
 
-function performanceChapter(): TutorialStep[] {
+function performancePageSteps(): TutorialStep[] {
   return [
-    {
-      section: "performance",
-      target: sel("sidebar.nav.performance"),
-      route: "/performance",
-      title: "Performance lab",
-      content: "Summaries, activity, and distribution from the same data as Call log.",
-      placement: "right",
-      scrollOffset: 72,
-    },
     {
       section: "performance",
       target: sel("performance.summary"),
@@ -474,18 +573,21 @@ function referralsChapter(): TutorialStep[] {
 }
 
 /** Full caller-facing tour (everyone runs this track for the shared terminal). */
-export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext): TutorialStep[] {
+export function getUserTutorialSteps(_tier: HelpTier, ctx?: TutorialStepContext): TutorialStep[] {
   const own = ctx?.ownProfilePath?.trim();
   const out: TutorialStep[] = [
-    ...dashboardIntroSteps(),
     ...dashboardTopBarSteps(),
     ...dashboardAccountMenuRows(),
+    ...dashboardIntroSteps(),
     ...dashboardHomePerformanceStep(),
     ...dashboardBodySteps(),
-    ...(tier === "mod" || tier === "admin" ? dashboardModQueueStep() : []),
-    ...watchlistChapter(),
-    ...callLogChapter(),
-    ...performanceChapter(),
+    ...dashboardMainFeedSteps(),
+    ...dashboardQuickActionsRailStep(),
+    ...dashboardRightColumnLowerSteps(),
+    ...sidebarYouNavSteps(),
+    ...callLogPageSteps(),
+    ...performancePageSteps(),
+    ...watchlistPageSteps(),
   ];
   if (own) out.push(...profileChapter(own));
   out.push(...settingsChapter(), ...helpChapter(), ...referralsChapter());
