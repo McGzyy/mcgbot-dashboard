@@ -37,6 +37,17 @@ function parseTargetUserId(body: unknown): string | null {
   return t.length > 0 ? t : null;
 }
 
+function supabaseErrorPayload(error: any): { code?: string; details?: string; hint?: string; message?: string } {
+  if (!error || typeof error !== "object") return {};
+  const e = error as Record<string, unknown>;
+  const out: { code?: string; details?: string; hint?: string; message?: string } = {};
+  if (typeof e.code === "string") out.code = e.code;
+  if (typeof e.details === "string") out.details = e.details;
+  if (typeof e.hint === "string") out.hint = e.hint;
+  if (typeof e.message === "string") out.message = e.message;
+  return out;
+}
+
 /**
  * GET ?userId=… → { followers, following, isFollowing }
  * GET (no userId, authenticated) → { following: [{ targetUserId }] } for dashboard bootstrap
@@ -64,7 +75,7 @@ export async function GET(request: Request) {
       if (error) {
         console.error("[follow API] GET list:", error);
         return Response.json(
-          { error: "Failed to load follows" },
+          { error: "Failed to load follows", ...supabaseErrorPayload(error) },
           { status: 500 }
         );
       }
@@ -91,7 +102,7 @@ export async function GET(request: Request) {
     if (followersErr) {
       console.error("[follow API] GET followers count:", followersErr);
       return Response.json(
-        { error: "Failed to load follower count" },
+        { error: "Failed to load follower count", ...supabaseErrorPayload(followersErr) },
         { status: 500 }
       );
     }
@@ -104,7 +115,7 @@ export async function GET(request: Request) {
     if (followingErr) {
       console.error("[follow API] GET following count:", followingErr);
       return Response.json(
-        { error: "Failed to load following count" },
+        { error: "Failed to load following count", ...supabaseErrorPayload(followingErr) },
         { status: 500 }
       );
     }
@@ -121,7 +132,7 @@ export async function GET(request: Request) {
       if (followErr) {
         console.error("[follow API] GET isFollowing:", followErr);
         return Response.json(
-          { error: "Failed to load follow state" },
+          { error: "Failed to load follow state", ...supabaseErrorPayload(followErr) },
           { status: 500 }
         );
       }
@@ -183,7 +194,10 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (existingErr) {
       console.error("[follow API] POST existing check:", existingErr);
-      return Response.json({ error: "Failed to follow" }, { status: 500 });
+      return Response.json(
+        { error: "Failed to follow (existing check)", ...supabaseErrorPayload(existingErr) },
+        { status: 500 }
+      );
     }
     if (existing) {
       return Response.json({ ok: true, alreadyFollowing: true });
@@ -196,7 +210,10 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error("[follow API] POST:", error);
-      return Response.json({ error: "Failed to follow" }, { status: 500 });
+      return Response.json(
+        { error: "Failed to follow", ...supabaseErrorPayload(error) },
+        { status: 500 }
+      );
     }
 
     return Response.json({ ok: true });
@@ -242,7 +259,10 @@ export async function DELETE(request: Request) {
 
     if (error) {
       console.error("[follow API] DELETE:", error);
-      return Response.json({ error: "Failed to unfollow" }, { status: 500 });
+      return Response.json(
+        { error: "Failed to unfollow", ...supabaseErrorPayload(error) },
+        { status: 500 }
+      );
     }
 
     return Response.json({ ok: true });
