@@ -269,7 +269,7 @@ export default function PerformanceLabPage() {
           </div>
         </section>
 
-        <section className="lg:col-span-2">
+        <section className="lg:col-span-2" data-tutorial="performance.distribution">
           <h2 className="text-base font-semibold tracking-tight text-white">Multiple mix</h2>
           <p className="mt-1 text-xs text-zinc-500">
             Buckets use ATH multiple since each call (peak ÷ entry MC).
