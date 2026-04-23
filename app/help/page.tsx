@@ -13,6 +13,7 @@ import { useSession } from "next-auth/react";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import type { TutorialSection } from "@/lib/tutorial/tutorialRegistry";
+import type { TutorialTrackId } from "@/lib/tutorial/tutorialVersions";
 
 function HelpPageContent() {
   const { status } = useSession();
@@ -39,6 +40,7 @@ function HelpPageContent() {
   const [featureSubmitting, setFeatureSubmitting] = useState(false);
   const [tutorialSections, setTutorialSections] = useState<TutorialSection[]>([]);
   const [tutorialSectionId, setTutorialSectionId] = useState<string>("");
+  const [tutorialTrackPick, setTutorialTrackPick] = useState<TutorialTrackId>("user");
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -96,12 +98,13 @@ function HelpPageContent() {
     if (status !== "authenticated" || tier === null) return;
     try {
       const w = window as any;
-      const sections = typeof w?.__mcgbotTutorial?.sections === "function" ? w.__mcgbotTutorial.sections() : [];
+      const fn = w?.__mcgbotTutorial?.sectionsForTrack;
+      const sections = typeof fn === "function" ? fn(tutorialTrackPick) : [];
       if (Array.isArray(sections)) {
         setTutorialSections(sections as TutorialSection[]);
       }
     } catch {}
-  }, [status, tier]);
+  }, [status, tier, tutorialTrackPick]);
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6">
@@ -167,44 +170,78 @@ function HelpPageContent() {
                   <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Onboarding</p>
                   <h2 className="mt-1 text-sm font-semibold text-zinc-100">Tutorial mode</h2>
                   <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                    Run the guided tour again, or jump to a specific section. You can skip anytime.
+                    Caller, moderator, and admin tours are separate. Pick a tour, jump to a section, or reset one
+                    track without touching the others.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  {(() => {
                     const w = window as any;
-                    if (typeof w?.__mcgbotTutorial?.start === "function") {
-                      w.__mcgbotTutorial.start();
-                      addNotification({
-                        id: crypto.randomUUID(),
-                        text: "Tutorial started.",
-                        type: "call",
-                        createdAt: Date.now(),
-                        priority: "low",
-                      });
-                    }
-                  }}
-                  className="rounded-lg border border-emerald-500/30 bg-emerald-950/35 px-3 py-1.5 text-xs font-semibold text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-950/50"
-                >
-                  Start tutorial
-                </button>
+                    const tracks: TutorialTrackId[] =
+                      typeof w?.__mcgbotTutorial?.availableTracks === "function"
+                        ? w.__mcgbotTutorial.availableTracks()
+                        : ["user"];
+                    const labels: Record<TutorialTrackId, string> = {
+                      user: "Caller tour",
+                      mod: "Mod tour",
+                      admin: "Admin tour",
+                    };
+                    return tracks.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => {
+                          if (typeof w?.__mcgbotTutorial?.start === "function") {
+                            w.__mcgbotTutorial.start({ track: t });
+                            addNotification({
+                              id: crypto.randomUUID(),
+                              text: `${labels[t]} started.`,
+                              type: "call",
+                              createdAt: Date.now(),
+                              priority: "low",
+                            });
+                          }
+                        }}
+                        className="rounded-lg border border-emerald-500/30 bg-emerald-950/35 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-950/50"
+                      >
+                        {labels[t]}
+                      </button>
+                    ));
+                  })()}
+                </div>
               </div>
 
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Jump to</label>
-                <select
-                  value={tutorialSectionId}
-                  onChange={(e) => setTutorialSectionId(e.target.value)}
-                  className="min-w-0 flex-1 rounded-lg border border-zinc-800/80 bg-black/25 px-3 py-2 text-xs text-zinc-200 outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
-                >
-                  <option value="">Choose a section…</option>
-                  {tutorialSections.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Tour</label>
+                  <select
+                    value={tutorialTrackPick}
+                    onChange={(e) => {
+                      setTutorialTrackPick(e.target.value as TutorialTrackId);
+                      setTutorialSectionId("");
+                    }}
+                    className="w-full rounded-lg border border-zinc-800/80 bg-black/25 px-3 py-2 text-xs text-zinc-200 outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                  >
+                    <option value="user">Caller</option>
+                    {tier === "mod" || tier === "admin" ? <option value="mod">Moderator</option> : null}
+                    {tier === "admin" ? <option value="admin">Administrator</option> : null}
+                  </select>
+                </div>
+                <div className="flex min-w-0 flex-[2] flex-col gap-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Jump to</label>
+                  <select
+                    value={tutorialSectionId}
+                    onChange={(e) => setTutorialSectionId(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-800/80 bg-black/25 px-3 py-2 text-xs text-zinc-200 outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                  >
+                    <option value="">Choose a section…</option>
+                    {tutorialSections.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <button
                   type="button"
                   onClick={() => {
@@ -212,39 +249,86 @@ function HelpPageContent() {
                     if (!id) return;
                     const w = window as any;
                     if (typeof w?.__mcgbotTutorial?.start === "function") {
-                      w.__mcgbotTutorial.start(id);
+                      w.__mcgbotTutorial.start({ sectionId: id, track: tutorialTrackPick });
                     }
                   }}
                   disabled={!tutorialSectionId.trim()}
-                  className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white disabled:opacity-50"
+                  className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white disabled:opacity-50 sm:mb-0.5"
                 >
                   Go
                 </button>
               </div>
 
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold text-zinc-500">
+                <span className="uppercase tracking-wide">Reset</span>
                 <button
                   type="button"
+                  className="underline-offset-2 transition hover:text-zinc-300 hover:underline"
                   onClick={async () => {
                     const w = window as any;
                     if (typeof w?.__mcgbotTutorial?.reset === "function") {
-                      await w.__mcgbotTutorial.reset();
+                      await w.__mcgbotTutorial.reset("user");
                       addNotification({
                         id: crypto.randomUUID(),
-                        text: "Tutorial reset. It will auto-run again on next login.",
+                        text: "Caller tutorial reset.",
                         type: "call",
                         createdAt: Date.now(),
                         priority: "low",
                       });
                     }
                   }}
-                  className="text-xs font-semibold text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline"
                 >
-                  Reset tutorial
+                  Caller
                 </button>
+                {tier === "mod" || tier === "admin" ? (
+                  <button
+                    type="button"
+                    className="underline-offset-2 transition hover:text-zinc-300 hover:underline"
+                    onClick={async () => {
+                      const w = window as any;
+                      if (typeof w?.__mcgbotTutorial?.reset === "function") {
+                        await w.__mcgbotTutorial.reset("mod");
+                        addNotification({
+                          id: crypto.randomUUID(),
+                          text: "Moderator tutorial reset.",
+                          type: "call",
+                          createdAt: Date.now(),
+                          priority: "low",
+                        });
+                      }
+                    }}
+                  >
+                    Moderator
+                  </button>
+                ) : null}
+                {tier === "admin" ? (
+                  <button
+                    type="button"
+                    className="underline-offset-2 transition hover:text-zinc-300 hover:underline"
+                    onClick={async () => {
+                      const w = window as any;
+                      if (typeof w?.__mcgbotTutorial?.reset === "function") {
+                        await w.__mcgbotTutorial.reset("admin");
+                        addNotification({
+                          id: crypto.randomUUID(),
+                          text: "Admin tutorial reset.",
+                          type: "call",
+                          createdAt: Date.now(),
+                          priority: "low",
+                        });
+                      }
+                    }}
+                  >
+                    Admin
+                  </button>
+                ) : null}
               </div>
             </section>
-            <section aria-label="Report a bug" className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20">
+            <section
+              aria-label="Report a bug"
+              className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20"
+              data-tutorial="help.reportBug"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Support</p>
@@ -262,7 +346,11 @@ function HelpPageContent() {
                 </button>
               </div>
             </section>
-            <section aria-label="Request a feature" className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20">
+            <section
+              aria-label="Request a feature"
+              className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20"
+              data-tutorial="help.featureRequest"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Feedback</p>
@@ -282,7 +370,7 @@ function HelpPageContent() {
             </section>
           </div>
 
-          <section aria-label="Documentation for your role">
+          <section aria-label="Documentation for your role" data-tutorial="help.docs">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                 Docs

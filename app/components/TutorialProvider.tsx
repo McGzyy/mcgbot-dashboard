@@ -2,23 +2,41 @@
 
 import type { HelpTier } from "@/lib/helpRole";
 import {
+  availableTutorialTracks,
   getTutorialSections,
   getTutorialSteps,
-  normalizeTutorialTier,
   type TutorialSection,
   type TutorialStep,
   type TutorialStepContext,
 } from "@/lib/tutorial/tutorialRegistry";
+import type { TutorialTrackId } from "@/lib/tutorial/tutorialVersions";
+import { TUTORIAL_LATEST_VERSIONS } from "@/lib/tutorial/tutorialVersions";
 import { userProfileHref } from "@/lib/userProfileHref";
 import { Joyride, ACTIONS, EVENTS, STATUS, type EventHandler } from "react-joyride";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
+type TrackState = {
+  seenAt: string | null;
+  version: number;
+  completedSections: string[];
+};
+
 function tierFromSessionUser(user: unknown): HelpTier | null {
   if (!user || typeof user !== "object") return null;
   const t = (user as { helpTier?: unknown }).helpTier;
   return t === "admin" || t === "mod" || t === "user" ? t : null;
+}
+
+function normalizeTrackState(raw: unknown): TrackState {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const seenAt = typeof o.seenAt === "string" ? o.seenAt : null;
+  const vr = Number(o.version);
+  const version = Number.isFinite(vr) && vr > 0 ? vr : 1;
+  const cs = o.completedSections;
+  const completedSections = Array.isArray(cs) ? cs.filter((x): x is string => typeof x === "string") : [];
+  return { seenAt, version, completedSections };
 }
 
 export function TutorialProvider({ children }: { children: ReactNode }) {
@@ -28,21 +46,15 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
 
   const [helpTier, setHelpTier] = useState<HelpTier>("user");
   const [tourOpen, setTourOpen] = useState(false);
+  const [activeTrack, setActiveTrack] = useState<TutorialTrackId>("user");
   const [stepIndex, setStepIndex] = useState(0);
-  const [completedSections, setCompletedSections] = useState<string[]>([]);
-  const [seenAt, setSeenAt] = useState<string | null>(null);
-  const [latestVersion, setLatestVersion] = useState<number>(1);
+  const [trackStates, setTrackStates] = useState<Partial<Record<TutorialTrackId, TrackState>>>({});
   const [stateLoading, setStateLoading] = useState(false);
   const [helpRoleLoaded, setHelpRoleLoaded] = useState(false);
-  /** Hide Joyride until `pathname` matches the active step's `route` (if any). */
   const [navWait, setNavWait] = useState(false);
 
   const sessionTier = useMemo(() => tierFromSessionUser(session?.user ?? null), [session?.user]);
-
-  const viewerTier = useMemo(() => {
-    if (sessionTier) return normalizeTutorialTier(sessionTier);
-    return normalizeTutorialTier(helpTier);
-  }, [sessionTier, helpTier]);
+  const viewerTier: HelpTier = sessionTier ?? helpTier;
 
   const stepCtx = useMemo<TutorialStepContext>(() => {
     const id = session?.user?.id?.trim();
@@ -55,8 +67,15 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     };
   }, [session?.user?.id, session?.user?.name]);
 
-  const sections = useMemo<TutorialSection[]>(() => getTutorialSections(viewerTier, stepCtx), [viewerTier, stepCtx]);
-  const steps = useMemo<TutorialStep[]>(() => getTutorialSteps(viewerTier, stepCtx), [viewerTier, stepCtx]);
+  const steps = useMemo<TutorialStep[]>(
+    () => getTutorialSteps(activeTrack, viewerTier, stepCtx),
+    [activeTrack, viewerTier, stepCtx]
+  );
+
+  const sections = useMemo<TutorialSection[]>(
+    () => getTutorialSections(activeTrack, viewerTier, stepCtx),
+    [activeTrack, viewerTier, stepCtx]
+  );
 
   const openAccountMenu = useCallback(async () => {
     const wrap = document.querySelector('[data-tutorial="nav.userMenu"]');
@@ -64,7 +83,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     if (!(btn instanceof HTMLButtonElement)) return;
     if (btn.getAttribute("aria-expanded") === "true") return;
     btn.click();
-    await new Promise((r) => setTimeout(r, 160));
+    await new Promise((r) => setTimeout(r, 260));
   }, []);
 
   const closeAccountMenu = useCallback(async () => {
@@ -96,25 +115,33 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       const json = (await res.json().catch(() => ({}))) as any;
       if (!res.ok || json.success !== true) return;
 
-      const latest = Number(json.latestVersion);
-      const ver = Number(json.version);
-      if (Number.isFinite(latest) && Number.isFinite(ver) && ver < latest) {
-        await fetch("/api/me/tutorial", {
-          method: "PATCH",
-          credentials: "same-origin",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ action: "reset" }),
-        });
-        setSeenAt(null);
-        setCompletedSections([]);
-        if (Number.isFinite(latest) && latest > 0) setLatestVersion(latest);
-        return;
+      const latest = (json.latestVersions ?? TUTORIAL_LATEST_VERSIONS) as Record<TutorialTrackId, number>;
+      const tracksRaw = json.tracks && typeof json.tracks === "object" ? json.tracks : {};
+
+      for (const t of ["user", "mod", "admin"] as const) {
+        const st = tracksRaw[t];
+        const lv = Number(latest[t]);
+        if (!st || !Number.isFinite(lv) || lv <= 0) continue;
+        const parsed = normalizeTrackState(st);
+        if (parsed.version < lv) {
+          await fetch("/api/me/tutorial", {
+            method: "PATCH",
+            credentials: "same-origin",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "reset", track: t }),
+          });
+        }
       }
 
-      setSeenAt(typeof json.seenAt === "string" ? json.seenAt : json.seenAt ?? null);
-      setCompletedSections(Array.isArray(json.completedSections) ? json.completedSections : []);
-      const lv = Number(json.latestVersion);
-      if (Number.isFinite(lv) && lv > 0) setLatestVersion(lv);
+      const res2 = await fetch("/api/me/tutorial", { credentials: "same-origin" });
+      const json2 = (await res2.json().catch(() => ({}))) as any;
+      if (!res2.ok || json2.success !== true) return;
+      const tr = json2.tracks && typeof json2.tracks === "object" ? json2.tracks : {};
+      setTrackStates({
+        user: normalizeTrackState(tr.user),
+        mod: tr.mod ? normalizeTrackState(tr.mod) : undefined,
+        admin: tr.admin ? normalizeTrackState(tr.admin) : undefined,
+      });
     } finally {
       setStateLoading(false);
     }
@@ -132,39 +159,66 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const startTour = useCallback(
-    async (opts?: { sectionId?: string }) => {
+    async (opts?: { sectionId?: string; track?: TutorialTrackId }) => {
+      const track = opts?.track ?? "user";
+      if (!availableTutorialTracks(viewerTier).includes(track)) return;
+
+      const list = getTutorialSteps(track, viewerTier, stepCtx);
       const sectionId = opts?.sectionId?.trim() ?? "";
       let idx = 0;
       if (sectionId) {
-        const found = steps.findIndex((s) => s.section === sectionId);
+        const found = list.findIndex((s) => s.section === sectionId);
         if (found >= 0) idx = found;
       }
+
+      setActiveTrack(track);
       setStepIndex(idx);
       setTourOpen(true);
-      if (!seenAt) {
-        setSeenAt(new Date().toISOString());
-        void patchTutorial({ action: "seen" });
+
+      const seen = trackStates[track]?.seenAt;
+      if (!seen) {
+        void patchTutorial({ action: "seen", track });
+        setTrackStates((prev) => ({
+          ...prev,
+          [track]: {
+            ...(prev[track] ?? { seenAt: null, version: 1, completedSections: [] }),
+            seenAt: new Date().toISOString(),
+            version: TUTORIAL_LATEST_VERSIONS[track],
+          },
+        }));
       }
     },
-    [patchTutorial, seenAt, steps]
+    [patchTutorial, stepCtx, trackStates, viewerTier]
   );
 
   useEffect(() => {
     const w = window as any;
     w.__mcgbotTutorial = {
-      start: (sectionId?: string) => void startTour({ sectionId }),
-      reset: async () => {
-        await patchTutorial({ action: "reset" });
-        setSeenAt(null);
-        setCompletedSections([]);
+      start: (arg?: string | { sectionId?: string; track?: TutorialTrackId }) => {
+        if (typeof arg === "string") void startTour({ sectionId: arg });
+        else void startTour(arg);
+      },
+      reset: async (track: TutorialTrackId = "user") => {
+        if (!availableTutorialTracks(viewerTier).includes(track)) return;
+        await patchTutorial({ action: "reset", track });
+        setTrackStates((prev) => ({
+          ...prev,
+          [track]: { seenAt: null, version: TUTORIAL_LATEST_VERSIONS[track], completedSections: [] },
+        }));
         setStepIndex(0);
       },
-      sections: () => sections,
+      sectionsForTrack: (track: TutorialTrackId) =>
+        availableTutorialTracks(viewerTier).includes(track)
+          ? getTutorialSections(track, viewerTier, stepCtx)
+          : [],
+      availableTracks: () => availableTutorialTracks(viewerTier),
+      /** @deprecated use sectionsForTrack */
+      sections: () => getTutorialSections(activeTrack, viewerTier, stepCtx),
     };
     return () => {
       if ((window as any).__mcgbotTutorial) delete (window as any).__mcgbotTutorial;
     };
-  }, [patchTutorial, sections, startTour]);
+  }, [activeTrack, patchTutorial, startTour, stepCtx, viewerTier]);
 
   useEffect(() => {
     if (status !== "authenticated" || !session?.user?.id?.trim()) return;
@@ -183,21 +237,33 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     if (stateLoading) return;
     if (!helpRoleLoaded && !sessionTier) return;
     if (tourOpen) return;
-    if (seenAt) return;
-    if (steps.length === 0) return;
+    if (viewerTier !== "user") return;
+    const seen = trackStates.user?.seenAt;
+    if (seen) return;
+    const list = getTutorialSteps("user", viewerTier, stepCtx);
+    if (list.length === 0) return;
+    setActiveTrack("user");
     setStepIndex(0);
     setTourOpen(true);
-    setSeenAt(new Date().toISOString());
-    void patchTutorial({ action: "seen" });
+    void patchTutorial({ action: "seen", track: "user" });
+    setTrackStates((prev) => ({
+      ...prev,
+      user: {
+        ...(prev.user ?? { seenAt: null, version: 1, completedSections: [] }),
+        seenAt: new Date().toISOString(),
+        version: TUTORIAL_LATEST_VERSIONS.user,
+      },
+    }));
   }, [
     helpRoleLoaded,
     patchTutorial,
-    seenAt,
     sessionTier,
     stateLoading,
     status,
-    steps.length,
     tourOpen,
+    trackStates.user?.seenAt,
+    viewerTier,
+    stepCtx,
   ]);
 
   useEffect(() => {
@@ -238,12 +304,6 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (type === EVENTS.TARGET_NOT_FOUND) {
-        const next = Math.min(steps.length - 1, index + 1);
-        setStepIndex(next);
-        return;
-      }
-
       if (type !== EVENTS.STEP_AFTER) return;
 
       if (action === ACTIONS.CLOSE || action === ACTIONS.SKIP) {
@@ -262,10 +322,17 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
         const currSection = curr.section;
         const hasMoreInSection = steps.some((s, i) => i > index && s.section === currSection);
         if (!hasMoreInSection) {
-          setCompletedSections((prev) => {
-            if (prev.includes(currSection)) return prev;
-            void patchTutorial({ action: "completeSection", sectionId: currSection });
-            return [...prev, currSection];
+          void patchTutorial({ action: "completeSection", sectionId: currSection, track: activeTrack });
+          setTrackStates((prev) => {
+            const ts = prev[activeTrack] ?? { seenAt: null, version: 1, completedSections: [] };
+            if (ts.completedSections.includes(currSection)) return prev;
+            return {
+              ...prev,
+              [activeTrack]: {
+                ...ts,
+                completedSections: [...ts.completedSections, currSection],
+              },
+            };
           });
         }
       }
@@ -277,7 +344,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
 
       setStepIndex(index + 1);
     },
-    [patchTutorial, steps]
+    [activeTrack, patchTutorial, steps]
   );
 
   const joyrideSteps = useMemo(() => {
@@ -320,6 +387,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
             buttons: ["back", "close", "primary", "skip"],
             scrollOffset: 112,
             scrollDuration: 480,
+            overlayClickAction: false,
           }}
         />
       ) : null}

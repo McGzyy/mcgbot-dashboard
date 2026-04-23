@@ -209,7 +209,10 @@ export default function ReferralsPage() {
       </section>
 
       {/* How it works */}
-      <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-4 py-3.5 sm:px-5">
+      <div
+        className="rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-4 py-3.5 sm:px-5"
+        data-tutorial="referrals.flow"
+      >
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Flow</p>
         <ol className="mt-2 flex flex-col gap-2 text-sm text-zinc-400 sm:flex-row sm:flex-wrap sm:items-center sm:gap-1 sm:text-xs">
           <li className="flex items-center gap-2">
@@ -239,7 +242,7 @@ export default function ReferralsPage() {
         </ol>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2" data-tutorial="referrals.lists">
         <section className={panelShell}>
           <div className="mb-4 flex items-baseline justify-between gap-2 border-b border-zinc-800/60 pb-3">
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Recent referrals</h2>

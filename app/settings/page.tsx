@@ -811,6 +811,7 @@ function SettingsPageInner() {
       </SettingsSection>
       </div>
 
+      <div data-tutorial="settings.notifications">
       <SettingsSection
         id="notifications"
         title="Notifications"
@@ -919,7 +920,9 @@ function SettingsPageInner() {
           </div>
         </div>
       </SettingsSection>
+      </div>
 
+      <div data-tutorial="settings.publicProfile">
       <SettingsSection
         id="public-profile"
         title="Public profile"
@@ -1006,7 +1009,9 @@ function SettingsPageInner() {
           />
         </div>
       </SettingsSection>
+      </div>
 
+      <div data-tutorial="settings.dashboardLayout">
       <SettingsSection
         id="dashboard"
         title="Dashboard layout"
@@ -1112,6 +1117,7 @@ function SettingsPageInner() {
           </div>
         </details>
       </SettingsSection>
+      </div>
 
           </div>
         </div>

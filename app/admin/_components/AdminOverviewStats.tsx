@@ -25,7 +25,8 @@ function fmtPct(x: number | null | undefined) {
   return `${(x * 100).toFixed(1)}%`;
 }
 
-export function AdminOverviewStats() {
+export function AdminOverviewStats(props?: { "data-tutorial"?: string }) {
+  const dataTutorial = props?.["data-tutorial"];
   const [data, setData] = useState<AdminOverviewSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -60,7 +61,7 @@ export function AdminOverviewStats() {
   const uptime = h?.processUptimeSec;
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4" data-tutorial={dataTutorial}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className={`text-[10px] font-bold uppercase tracking-[0.22em] ${adminChrome.kicker}`}>Live snapshot</p>

@@ -8,14 +8,16 @@ function OverviewCard({
   title,
   subtitle,
   hint,
+  "data-tutorial": dataTutorial,
 }: {
   href: string;
   title: string;
   subtitle: string;
   hint: string;
+  "data-tutorial"?: string;
 }) {
   return (
-    <Link href={href} className="group block">
+    <Link href={href} className="group block" data-tutorial={dataTutorial}>
       <div className={adminChrome.overviewRing}>
         <AdminPanel className="h-full p-6 transition group-hover:bg-zinc-900/95">
           <div className="flex items-start justify-between gap-3">
@@ -37,12 +39,12 @@ function OverviewCard({
 export default function AdminOverviewPage() {
   return (
     <div className="space-y-10" data-tutorial="admin.overview">
-      <div>
+      <div data-tutorial="admin.intro">
         <h2 className="text-lg font-semibold text-white">Overview</h2>
         <p className="mt-1 text-sm text-zinc-400">Jump into a section — left nav stays one click away.</p>
       </div>
 
-      <AdminOverviewStats />
+      <AdminOverviewStats data-tutorial="admin.stats" />
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <OverviewCard
@@ -50,30 +52,35 @@ export default function AdminOverviewPage() {
           title="Subscription access"
           subtitle="Database bypass list and env-based exempt Discord IDs."
           hint="Writes · Supabase"
+          data-tutorial="admin.card.subscription"
         />
         <OverviewCard
           href="/admin/bot"
           title="Bot controls"
           subtitle="Health check plus scanner on/off (same effect as !scanner in Discord)."
           hint="Bot API · HTTP"
+          data-tutorial="admin.card.bot"
         />
         <OverviewCard
           href="/admin/site"
           title="Site & flags"
           subtitle="Deploy fingerprint, env checks, and live Supabase settings (maintenance, banner, paywall)."
           hint="Writes · Supabase"
+          data-tutorial="admin.card.site"
         />
         <OverviewCard
           href="/admin/bugs"
           title="Bug reports"
           subtitle="Review user-submitted bugs, add notes, and close (sends bell notification)."
           hint="Workflow · Inbox ping"
+          data-tutorial="admin.card.bugs"
         />
         <OverviewCard
           href="/admin/feature-requests"
           title="Feature requests"
           subtitle="Review user ideas, triage, and close (sends bell notification)."
           hint="Workflow · Inbox ping"
+          data-tutorial="admin.card.features"
         />
       </div>
     </div>

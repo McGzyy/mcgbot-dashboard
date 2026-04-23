@@ -100,6 +100,16 @@ function formatCount(n: number): string {
   return Math.round(n).toLocaleString("en-US");
 }
 
+/** Joyride tooltips render in a portal; ignore those clicks for top-bar dismiss handlers. */
+function isInsideGuidedTourUi(node: Node | null): boolean {
+  if (!node || !(node instanceof Element)) return false;
+  return Boolean(
+    node.closest("[class*='react-joyride']") ||
+      node.closest("[data-floater-container]") ||
+      node.closest("[id^='react-joyride']")
+  );
+}
+
 function formatTimeAgo(createdAt: number, nowMs: number): string {
   if (!Number.isFinite(createdAt) || createdAt <= 0) return "—";
   const diff = Math.max(0, nowMs - createdAt);
@@ -323,6 +333,7 @@ export function TopBar() {
     if (!open && !openNotifications) return;
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
+      if (isInsideGuidedTourUi(t)) return;
       if (open && menuRef.current && !menuRef.current.contains(t)) {
         setOpen(false);
       }

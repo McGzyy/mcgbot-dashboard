@@ -1234,6 +1234,7 @@ export default function ModerationPage() {
 
         <div
           className={`sticky top-0 z-20 mb-8 mt-8 rounded-2xl p-5 backdrop-blur-md ${modChrome.headerBg}`}
+          data-tutorial="moderation.liveQueue"
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-3">

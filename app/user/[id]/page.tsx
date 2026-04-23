@@ -595,13 +595,16 @@ function PanelCard({
   title,
   children,
   className = "",
+  "data-tutorial": dataTutorial,
 }: {
   title: string;
   children: ReactNode;
   className?: string;
+  "data-tutorial"?: string;
 }) {
   return (
     <div
+      data-tutorial={dataTutorial}
       className={`w-full rounded-xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/75 to-zinc-950/95 px-4 py-3.5 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.85)] backdrop-blur-md ring-1 ring-white/[0.03] ${CARD_HOVER} ${className}`.trim()}
     >
       <h2 className="flex items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
@@ -1826,7 +1829,7 @@ export default function UserProfilePage() {
 
       <div className="mt-10 grid grid-cols-12 gap-5 lg:items-start lg:gap-6">
         {visibility.show_stats ? (
-        <section className="col-span-12">
+        <section className="col-span-12" data-tutorial="profile.performance">
           <div className="rounded-2xl border border-zinc-800/55 bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)] ring-1 ring-white/[0.03] sm:p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
@@ -1891,7 +1894,7 @@ export default function UserProfilePage() {
 
         <div className="col-span-12 lg:col-span-8">
           {visibility.show_trophies ? (
-          <section className="mb-4">
+          <section className="mb-4" data-tutorial="profile.trophies">
             <PanelCard title="Trophy Case" className="overflow-visible">
               {trophiesLoading ? (
                 <div className="mt-3 space-y-4" aria-busy aria-label="Loading trophies">
@@ -1963,7 +1966,7 @@ export default function UserProfilePage() {
           ) : null}
 
           {visibility.show_distribution ? (
-          <section className="mb-4">
+          <section className="mb-4" data-tutorial="profile.distribution">
             <PanelCard title="Call Distribution">
               {(() => {
                 const dist = profile?.callDistribution;
@@ -2021,7 +2024,7 @@ export default function UserProfilePage() {
 
           {visibility.show_calls ? (
           <section className="mb-4">
-            <PanelCard title="Recent Calls">
+            <PanelCard title="Recent Calls" data-tutorial="profile.recentCalls">
               {loading ? (
                 <div className="flex min-h-[88px] items-center justify-center py-6">
                   <p className="text-sm text-zinc-500">Loading calls…</p>
