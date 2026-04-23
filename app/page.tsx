@@ -2050,10 +2050,26 @@ function FollowingFeedPanel() {
 }
 
 function SocialsFeedPanel() {
+  const { data: session, status } = useSession();
   const [tab, setTab] = useState<"all" | SocialPlatform>("all");
   const [items, setItems] = useState<SocialFeedItem[]>([]);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [sources, setSources] = useState<
+    { id: string; platform: SocialPlatform; handle: string; displayName: string | null }[]
+  >([]);
+  const [sourcesLoading, setSourcesLoading] = useState(false);
+  const [sourcePlatform, setSourcePlatform] = useState<SocialPlatform>("x");
+  const [sourceHandle, setSourceHandle] = useState("");
+  const [sourceDisplayName, setSourceDisplayName] = useState("");
+  const [sourceBusy, setSourceBusy] = useState(false);
+  const [sourceOk, setSourceOk] = useState<string | null>(null);
+  const [sourceErr, setSourceErr] = useState<string | null>(null);
+
+  const tier = (session?.user as any)?.helpTier as string | undefined;
+  const canSubmit = status === "authenticated" && (tier === "mod" || tier === "admin");
+  const isAdmin = status === "authenticated" && tier === "admin";
 
   useEffect(() => {
     let cancelled = false;
@@ -2104,6 +2120,42 @@ function SocialsFeedPanel() {
     };
   }, [tab]);
 
+  const loadSources = useCallback(async () => {
+    setSourcesLoading(true);
+    setSourceErr(null);
+    try {
+      const res = await fetch("/api/social-sources", { credentials: "same-origin" });
+      const json = (await res.json().catch(() => null)) as any;
+      const list = json && json.success === true && Array.isArray(json.sources) ? json.sources : [];
+      const parsed: typeof sources = [];
+      for (const row of list) {
+        if (!row || typeof row !== "object") continue;
+        const o = row as Record<string, unknown>;
+        const id = typeof o.id === "string" ? o.id.trim() : "";
+        const platform = typeof o.platform === "string" ? o.platform : "";
+        const handle = typeof o.handle === "string" ? o.handle.trim() : "";
+        if (!id || !handle) continue;
+        parsed.push({
+          id,
+          platform: platform === "instagram" ? "instagram" : "x",
+          handle,
+          displayName: typeof o.displayName === "string" ? o.displayName : null,
+        });
+      }
+      setSources(parsed);
+    } catch {
+      setSources([]);
+      setSourceErr("Failed to load sources.");
+    } finally {
+      setSourcesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!expanded) return;
+    void loadSources();
+  }, [expanded, loadSources]);
+
   const rows = useMemo(() => {
     if (tab === "all") return items;
     return items.filter((r) => r.platform === tab);
@@ -2152,13 +2204,187 @@ function SocialsFeedPanel() {
             Instagram
           </button>
         </div>
-        <div className="text-[11px] text-zinc-500">
-          {loading ? "Loading…" : "Live • feed wired"}
+        <div className="flex items-center gap-2">
+          <div className="text-[11px] text-zinc-500">
+            {loading ? "Loading…" : "Live • feed wired"}
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55"
+          >
+            {expanded ? "Collapse" : "Expand"}
+          </button>
         </div>
       </div>
 
       <div className="mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-        <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">
+        <div className={`${expanded ? "h-[520px]" : "h-[300px]"} overflow-y-auto pr-1 no-scrollbar`}>
+          {expanded ? (
+            <div className="mb-3 rounded-lg border border-zinc-800/60 bg-black/25 px-3 py-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                    Sources
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {isAdmin
+                      ? "Add accounts to monitor. Mods submit for approval."
+                      : canSubmit
+                        ? "Submit an account for approval."
+                        : "Sign in as staff to submit sources."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadSources()}
+                  className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55 disabled:opacity-50"
+                  disabled={sourcesLoading}
+                >
+                  {sourcesLoading ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+
+              {sourceErr ? (
+                <p className="mt-2 text-xs text-red-300/90">{sourceErr}</p>
+              ) : null}
+              {sourceOk ? (
+                <p className="mt-2 text-xs text-emerald-300/90">{sourceOk}</p>
+              ) : null}
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  Platform
+                  <select
+                    value={sourcePlatform}
+                    onChange={(e) => setSourcePlatform(e.target.value as SocialPlatform)}
+                    disabled={!canSubmit || sourceBusy}
+                    className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950/70 px-2.5 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
+                  >
+                    <option value="x">X</option>
+                    <option value="instagram">Instagram</option>
+                  </select>
+                </label>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500 sm:col-span-2">
+                  Handle
+                  <input
+                    value={sourceHandle}
+                    onChange={(e) => setSourceHandle(e.target.value)}
+                    disabled={!canSubmit || sourceBusy}
+                    placeholder="@account"
+                    className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950/70 px-2.5 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
+                  />
+                </label>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500 sm:col-span-3">
+                  Display name (optional)
+                  <input
+                    value={sourceDisplayName}
+                    onChange={(e) => setSourceDisplayName(e.target.value)}
+                    disabled={!canSubmit || sourceBusy}
+                    placeholder="Friendly label shown in the feed"
+                    className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950/70 px-2.5 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="text-xs text-zinc-500">
+                  Action:{" "}
+                  <span className="font-semibold text-zinc-300">
+                    {isAdmin ? "Add to live feed" : "Submit for approval"}
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  disabled={!canSubmit || sourceBusy || !sourceHandle.trim()}
+                  onClick={() => {
+                    void (async () => {
+                      if (sourceBusy) return;
+                      setSourceBusy(true);
+                      setSourceErr(null);
+                      setSourceOk(null);
+                      try {
+                        const res = await fetch("/api/social-sources", {
+                          method: "POST",
+                          credentials: "same-origin",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            platform: sourcePlatform,
+                            handle: sourceHandle,
+                            displayName: sourceDisplayName,
+                          }),
+                        });
+                        const json = (await res.json().catch(() => null)) as any;
+                        if (!res.ok || !json || json.success !== true) {
+                          setSourceErr(
+                            typeof json?.error === "string"
+                              ? json.error
+                              : "Request failed."
+                          );
+                          return;
+                        }
+                        setSourceHandle("");
+                        setSourceDisplayName("");
+                        setSourceOk(
+                          isAdmin
+                            ? "Source added."
+                            : json.alreadyPending
+                              ? "Already pending approval."
+                              : "Submitted for approval."
+                        );
+                        await loadSources();
+                      } catch {
+                        setSourceErr("Request failed.");
+                      } finally {
+                        setSourceBusy(false);
+                      }
+                    })();
+                  }}
+                  className="rounded-lg bg-[color:var(--accent)] px-3 py-2 text-[12px] font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-50"
+                >
+                  {isAdmin ? "Add" : "Submit"}
+                </button>
+              </div>
+
+              {!isAdmin ? (
+                <p className="mt-2 text-xs text-zinc-600">
+                  Submissions show up in the Admin panel for approval before they appear in the live feed.
+                </p>
+              ) : null}
+
+              <div className="mt-3 border-t border-zinc-800/70 pt-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                  Active sources
+                </p>
+                {sources.length === 0 ? (
+                  <p className="mt-2 text-xs text-zinc-500">No sources configured yet.</p>
+                ) : (
+                  <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                    {sources.slice(0, 24).map((s) => (
+                      <li
+                        key={s.id}
+                        className="flex items-center justify-between rounded-md border border-zinc-800/60 bg-zinc-950/40 px-2.5 py-2"
+                      >
+                        <span className="min-w-0">
+                          <span className="text-xs font-semibold text-zinc-200">
+                            {s.platform === "x" ? "X" : "IG"}
+                          </span>{" "}
+                          <span className="text-xs text-zinc-400">
+                            @{s.handle.replace(/^@/, "")}
+                          </span>
+                          {s.displayName ? (
+                            <span className="ml-2 text-xs text-zinc-500">
+                              {s.displayName}
+                            </span>
+                          ) : null}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          ) : null}
           {rows.length === 0 ? (
             <div className="flex h-full items-center justify-center px-3 py-10">
               <div className="text-center">

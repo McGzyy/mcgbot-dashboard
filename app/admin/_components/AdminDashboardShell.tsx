@@ -53,6 +53,17 @@ const NAV: {
     ),
   },
   {
+    href: "/admin/social-feed",
+    label: "Social feed",
+    description: "Source approvals",
+    icon: (a) => (
+      <svg className={`h-4 w-4 ${a ? adminChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3.75h9m-9 3.75h6" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3.75h10.5A2.25 2.25 0 0119.5 6v12a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 18V6a2.25 2.25 0 012.25-2.25z" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/bugs",
     label: "Bug reports",
     description: "Triage & close",
