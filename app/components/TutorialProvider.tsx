@@ -8,13 +8,12 @@ import {
   type TutorialSection,
   type TutorialStep,
 } from "@/lib/tutorial/tutorialRegistry";
-import { Joyride, ACTIONS, EVENTS, STATUS } from "react-joyride";
+import { Joyride, ACTIONS, EVENTS, STATUS, type EventHandler } from "react-joyride";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export function TutorialProvider({ children }: { children: ReactNode }) {
-  const JoyrideAny = Joyride as any;
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname() ?? "/";
@@ -165,62 +164,96 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(t);
   }, [pathname, stepIndex, steps, tourOpen]);
 
-  const handleJoyride = useCallback(
-    (data: any) => {
-      const { action, index, status: st, type } = data;
-      const curr = steps[index];
+  /** react-joyride v3 uses `onEvent` (v2 used `callback`); controlled `stepIndex` must be updated here. */
+  const onJoyrideEvent = useCallback<EventHandler>(
+    (data) => {
+      const { type, action, index: eventIndex, status: st } = data;
+      const index = typeof eventIndex === "number" ? eventIndex : 0;
 
-      if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
-        const delta = action === ACTIONS.PREV ? -1 : 1;
-        const next = Math.max(0, Math.min(steps.length - 1, index + delta));
+      if (type === EVENTS.TOUR_END) {
+        setTourOpen(false);
+        return;
+      }
+      if (st === STATUS.FINISHED || st === STATUS.SKIPPED) {
+        setTourOpen(false);
+        return;
+      }
+
+      if (type === EVENTS.TARGET_NOT_FOUND) {
+        const next = Math.min(steps.length - 1, index + 1);
         const nextStep = steps[next];
-        if (nextStep && nextStep.route && nextStep.route !== pathname) {
+        if (nextStep?.route && nextStep.route !== pathname) {
           pendingRouteRef.current = nextStep.route;
           router.push(nextStep.route);
         }
         setStepIndex(next);
+        return;
       }
 
-      if (st === STATUS.SKIPPED || st === STATUS.FINISHED) {
+      if (type !== EVENTS.STEP_AFTER) return;
+
+      if (action === ACTIONS.CLOSE || action === ACTIONS.SKIP) {
         setTourOpen(false);
+        return;
       }
 
-      // Mark section completed when user moves past the last step in that section.
-      if (type === EVENTS.STEP_AFTER && curr) {
+      const curr = steps[index];
+
+      if (action === ACTIONS.PREV) {
+        setStepIndex((i) => Math.max(0, i - 1));
+        return;
+      }
+
+      if (curr) {
         const currSection = curr.section;
-        const hasMoreInSection = steps.some(
-          (s, i) => i > index && s.section === currSection
-        );
-        if (!hasMoreInSection && !completedSections.includes(currSection)) {
-          const nextCompleted = [...completedSections, currSection];
-          setCompletedSections(nextCompleted);
-          void patchTutorial({ action: "completeSection", sectionId: currSection });
+        const hasMoreInSection = steps.some((s, i) => i > index && s.section === currSection);
+        if (!hasMoreInSection) {
+          setCompletedSections((prev) => {
+            if (prev.includes(currSection)) return prev;
+            void patchTutorial({ action: "completeSection", sectionId: currSection });
+            return [...prev, currSection];
+          });
         }
       }
+
+      if (index >= steps.length - 1) {
+        setTourOpen(false);
+        return;
+      }
+
+      const next = index + 1;
+      const nextStep = steps[next];
+      if (nextStep?.route && nextStep.route !== pathname) {
+        pendingRouteRef.current = nextStep.route;
+        router.push(nextStep.route);
+      }
+      setStepIndex(next);
     },
-    [completedSections, pathname, patchTutorial, router, steps]
+    [pathname, patchTutorial, router, steps]
   );
 
   return (
     <>
       {children}
       {status === "authenticated" ? (
-        <JoyrideAny
+        <Joyride
           steps={steps.map((s) => ({
             target: s.target,
             title: s.title,
             content: s.content,
-            disableBeacon: true,
             placement: "auto",
+            skipBeacon: true,
           }))}
           run={tourOpen}
           continuous
           scrollToFirstStep
-          showSkipButton
-          showProgress
           stepIndex={stepIndex}
-          callback={handleJoyride}
-          styles={{ options: { zIndex: 10050 } }}
+          onEvent={onJoyrideEvent}
+          options={{
+            zIndex: 10050,
+            showProgress: true,
+            buttons: ["back", "close", "primary", "skip"],
+          }}
         />
       ) : null}
     </>
