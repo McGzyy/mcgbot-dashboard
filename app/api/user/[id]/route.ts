@@ -10,6 +10,7 @@ import {
   recentCallsFromRows,
 } from "@/lib/callPerformanceUserStats";
 import { resolveDiscordIdFromProfileRouteParam } from "@/lib/discordIdentity";
+import { fetchDiscordIdentity } from "@/lib/discordIdentityFetch";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 
@@ -175,15 +176,33 @@ export async function GET(
     const statsRows = filterCallRowsForStats(rawRows, cutoverMs);
 
     const handleUsername = pickLatestUsername(statsRows, discordId);
-    const rowDn =
+    let rowDn =
       userRow && typeof (userRow as { discord_display_name?: unknown }).discord_display_name === "string"
         ? (userRow as { discord_display_name: string }).discord_display_name.trim()
         : "";
-    const displayName = rowDn || handleUsername;
-    const rowAv =
+    let rowAv =
       userRow && typeof (userRow as { discord_avatar_url?: unknown }).discord_avatar_url === "string"
         ? (userRow as { discord_avatar_url: string }).discord_avatar_url.trim().slice(0, 800)
         : "";
+
+    // Best-effort: if users row is missing identity, ask Discord (bot token) and persist.
+    if ((!rowDn || !rowAv) && discordId) {
+      const ident = await fetchDiscordIdentity(discordId);
+      if (ident) {
+        if (!rowDn && ident.displayName) rowDn = ident.displayName;
+        if (!rowAv && ident.avatarUrl) rowAv = ident.avatarUrl;
+        try {
+          const patch: Record<string, unknown> = { discord_id: discordId };
+          if (ident.displayName) patch.discord_display_name = ident.displayName;
+          if (ident.avatarUrl) patch.discord_avatar_url = ident.avatarUrl;
+          await supabase.from("users").upsert(patch, { onConflict: "discord_id" });
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    const displayName = rowDn || handleUsername;
     const stats = computeCallPerformanceUserStats(statsRows);
     // For moderation/debug: include excluded calls in the "recent calls" list, but keep stats clean.
     const recentCalls = recentCallsFromRows(rawRows, PROFILE_RECENT_CALLS_LIMIT);

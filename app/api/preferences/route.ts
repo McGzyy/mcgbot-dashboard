@@ -8,7 +8,17 @@ const DEFAULTS = {
   include_global: false,
   min_multiple: 2,
   sound_enabled: true,
+  sound_type: "classic" as const,
 };
+
+type SoundType = "classic" | "soft_pop" | "soft_chime";
+
+function parseSoundType(raw: unknown): SoundType {
+  const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (s === "soft_pop") return "soft_pop";
+  if (s === "soft_chime") return "soft_chime";
+  return "classic";
+}
 
 export async function GET() {
   try {
@@ -33,7 +43,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from("user_preferences")
       .select(
-        "own_calls, include_following, include_global, min_multiple, sound_enabled"
+        "own_calls, include_following, include_global, min_multiple, sound_enabled, sound_type"
       )
       .eq("discord_id", userId)
       .maybeSingle();
@@ -73,6 +83,7 @@ export async function GET() {
         typeof row.sound_enabled === "boolean"
           ? row.sound_enabled
           : DEFAULTS.sound_enabled,
+      sound_type: parseSoundType((row as any).sound_type ?? DEFAULTS.sound_type),
     });
   } catch (e) {
     console.error("[preferences API] GET:", e);
@@ -127,6 +138,8 @@ export async function POST(request: Request) {
         ? o.sound_enabled
         : DEFAULTS.sound_enabled;
 
+    const sound_type = parseSoundType(o.sound_type ?? DEFAULTS.sound_type);
+
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_ANON_KEY;
     if (!url || !key) {
@@ -147,6 +160,7 @@ export async function POST(request: Request) {
         include_global,
         min_multiple,
         sound_enabled,
+        sound_type,
       },
       { onConflict: "discord_id" }
     );
@@ -163,6 +177,7 @@ export async function POST(request: Request) {
       include_global,
       min_multiple,
       sound_enabled,
+      sound_type,
     });
   } catch (e) {
     console.error("[preferences API] POST:", e);

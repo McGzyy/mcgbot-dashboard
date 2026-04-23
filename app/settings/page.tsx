@@ -104,6 +104,7 @@ type PrefsState = {
   include_global: boolean;
   min_multiple: number;
   sound_enabled: boolean;
+  sound_type: "classic" | "soft_pop" | "soft_chime";
 };
 
 type ProfileVisibility = {
@@ -241,6 +242,7 @@ function SettingsPageInner() {
     include_global: false,
     min_multiple: 2,
     sound_enabled: true,
+    sound_type: "classic",
   });
   const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>(
     DEFAULT_PROFILE_VISIBILITY
@@ -290,12 +292,16 @@ function SettingsPageInner() {
         } else {
           const d = prefsData as Record<string, unknown>;
           const own_calls = !!d.own_calls;
+          const st = d.sound_type;
+          const sound_type: PrefsState["sound_type"] =
+            st === "soft_pop" || st === "soft_chime" ? st : "classic";
           setPrefs({
             own_calls,
             include_following: own_calls ? false : !!d.include_following,
             include_global: own_calls ? false : !!d.include_global,
             min_multiple: Number(d.min_multiple || 2),
             sound_enabled: !!d.sound_enabled,
+            sound_type,
           });
         }
 
@@ -520,6 +526,7 @@ function SettingsPageInner() {
         include_global: prefs.include_global,
         min_multiple: prefs.min_multiple,
         sound_enabled: prefs.sound_enabled,
+        sound_type: prefs.sound_type,
       };
 
       try {
@@ -884,6 +891,38 @@ function SettingsPageInner() {
             }
             disabled={settingsLoading}
           />
+
+          <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/35 px-3 py-3 sm:col-span-2 sm:px-4">
+            <label
+              htmlFor="notification-sound-type"
+              className="text-sm font-medium text-zinc-100"
+            >
+              Sound type
+            </label>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Choose the sound used for in-dashboard notifications.
+            </p>
+            <select
+              id="notification-sound-type"
+              value={prefs.sound_type}
+              onChange={(e) => {
+                const v = e.target.value;
+                setPrefs((prev) => ({
+                  ...prev,
+                  sound_type:
+                    v === "soft_pop" || v === "soft_chime"
+                      ? (v as PrefsState["sound_type"])
+                      : "classic",
+                }));
+              }}
+              disabled={settingsLoading || !prefs.sound_enabled}
+              className="mt-3 w-full max-w-[260px] rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50"
+            >
+              <option value="classic">Classic ping</option>
+              <option value="soft_pop">Soft pop</option>
+              <option value="soft_chime">Soft chime</option>
+            </select>
+          </div>
 
           <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/35 px-3 py-3 sm:col-span-2 sm:px-4">
             <label

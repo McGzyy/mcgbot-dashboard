@@ -7,6 +7,12 @@ alter table public.dashboard_admin_settings
   add column if not exists announcement_message text;
 
 alter table public.dashboard_admin_settings
+  add column if not exists announcement_cta_label text;
+
+alter table public.dashboard_admin_settings
+  add column if not exists announcement_cta_url text;
+
+alter table public.dashboard_admin_settings
   add column if not exists paywall_title text;
 
 alter table public.dashboard_admin_settings

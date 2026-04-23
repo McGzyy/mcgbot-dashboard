@@ -87,6 +87,14 @@ export async function PATCH(req: Request) {
     patch.announcement_message =
       o.announcement_message == null ? null : String(o.announcement_message);
   }
+  if ("announcement_cta_label" in o) {
+    patch.announcement_cta_label =
+      o.announcement_cta_label == null ? null : String(o.announcement_cta_label);
+  }
+  if ("announcement_cta_url" in o) {
+    patch.announcement_cta_url =
+      o.announcement_cta_url == null ? null : String(o.announcement_cta_url);
+  }
   if ("paywall_title" in o) {
     patch.paywall_title = o.paywall_title == null ? null : String(o.paywall_title);
   }

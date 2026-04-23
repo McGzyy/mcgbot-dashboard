@@ -22,6 +22,8 @@ type AppSettings = {
   public_signups_paused: boolean;
   announcement_enabled: boolean;
   announcement_message: string | null;
+  announcement_cta_label: string | null;
+  announcement_cta_url: string | null;
   paywall_title: string | null;
   subscribe_button_label: string | null;
   discord_invite_url: string | null;
@@ -149,6 +151,8 @@ export function SiteAdminClient() {
           public_signups_paused: settings.public_signups_paused,
           announcement_enabled: settings.announcement_enabled,
           announcement_message: settings.announcement_message,
+          announcement_cta_label: settings.announcement_cta_label,
+          announcement_cta_url: settings.announcement_cta_url,
           paywall_title: settings.paywall_title,
           subscribe_button_label: settings.subscribe_button_label,
           discord_invite_url: settings.discord_invite_url,
@@ -503,6 +507,33 @@ export function SiteAdminClient() {
                     className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   />
                 </label>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                    CTA button label (optional)
+                    <input
+                      value={settings.announcement_cta_label ?? ""}
+                      onChange={(e) =>
+                        setSettings((s) => (s ? { ...s, announcement_cta_label: e.target.value } : s))
+                      }
+                      placeholder="e.g. Join Discord"
+                      maxLength={32}
+                      className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                    CTA URL (optional)
+                    <input
+                      value={settings.announcement_cta_url ?? ""}
+                      onChange={(e) =>
+                        setSettings((s) => (s ? { ...s, announcement_cta_url: e.target.value } : s))
+                      }
+                      placeholder="https://…"
+                      maxLength={500}
+                      className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
+                    />
+                  </label>
+                </div>
               </SettingsSection>
 
               <SettingsSection

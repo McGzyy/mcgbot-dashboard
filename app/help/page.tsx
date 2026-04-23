@@ -199,6 +199,7 @@ function HelpPageContent() {
                               type: "call",
                               createdAt: Date.now(),
                               priority: "low",
+                              silent: true,
                             });
                           }
                         }}
@@ -274,6 +275,7 @@ function HelpPageContent() {
                         type: "call",
                         createdAt: Date.now(),
                         priority: "low",
+                        silent: true,
                       });
                     }
                   }}
@@ -294,6 +296,7 @@ function HelpPageContent() {
                           type: "call",
                           createdAt: Date.now(),
                           priority: "low",
+                          silent: true,
                         });
                       }
                     }}
@@ -315,6 +318,7 @@ function HelpPageContent() {
                           type: "call",
                           createdAt: Date.now(),
                           priority: "low",
+                          silent: true,
                         });
                       }
                     }}

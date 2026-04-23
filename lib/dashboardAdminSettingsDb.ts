@@ -8,6 +8,8 @@ export type DashboardAdminSettingsRow = {
   public_signups_paused: boolean;
   announcement_enabled: boolean;
   announcement_message: string | null;
+  announcement_cta_label: string | null;
+  announcement_cta_url: string | null;
   paywall_title: string | null;
   subscribe_button_label: string | null;
   discord_invite_url: string | null;
@@ -34,6 +36,8 @@ function defaultRow(): DashboardAdminSettingsRow {
     public_signups_paused: false,
     announcement_enabled: false,
     announcement_message: null,
+    announcement_cta_label: null,
+    announcement_cta_url: null,
     paywall_title: null,
     subscribe_button_label: null,
     discord_invite_url: null,
@@ -69,6 +73,14 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
     public_signups_paused: r.public_signups_paused === true,
     announcement_enabled: r.announcement_enabled === true,
     announcement_message: typeof r.announcement_message === "string" ? r.announcement_message : null,
+    announcement_cta_label:
+      typeof (r as any).announcement_cta_label === "string"
+        ? String((r as any).announcement_cta_label)
+        : null,
+    announcement_cta_url:
+      typeof (r as any).announcement_cta_url === "string"
+        ? String((r as any).announcement_cta_url)
+        : null,
     paywall_title: typeof r.paywall_title === "string" ? r.paywall_title : null,
     subscribe_button_label: typeof r.subscribe_button_label === "string" ? r.subscribe_button_label : null,
     discord_invite_url: typeof r.discord_invite_url === "string" ? r.discord_invite_url : null,
@@ -106,6 +118,8 @@ export async function patchDashboardAdminSettings(input: {
   public_signups_paused?: boolean;
   announcement_enabled?: boolean;
   announcement_message?: string | null;
+  announcement_cta_label?: string | null;
+  announcement_cta_url?: string | null;
   paywall_title?: string | null;
   subscribe_button_label?: string | null;
   discord_invite_url?: string | null;
@@ -147,6 +161,16 @@ export async function patchDashboardAdminSettings(input: {
     const a = input.announcement_message;
     next.announcement_message =
       a == null || !String(a).trim() ? null : String(a).trim().slice(0, 2000);
+  }
+  if ("announcement_cta_label" in input) {
+    const raw = input.announcement_cta_label;
+    next.announcement_cta_label =
+      raw == null || !String(raw).trim() ? null : String(raw).trim().slice(0, 32);
+  }
+  if ("announcement_cta_url" in input) {
+    const raw = input.announcement_cta_url;
+    next.announcement_cta_url =
+      raw == null || !String(raw).trim() ? null : String(raw).trim().slice(0, 500);
   }
   if ("paywall_title" in input) {
     const t = input.paywall_title;
@@ -192,6 +216,8 @@ export async function patchDashboardAdminSettings(input: {
         public_signups_paused: next.public_signups_paused,
         announcement_enabled: next.announcement_enabled,
         announcement_message: next.announcement_message,
+        announcement_cta_label: next.announcement_cta_label,
+        announcement_cta_url: next.announcement_cta_url,
         paywall_title: next.paywall_title,
         subscribe_button_label: next.subscribe_button_label,
         discord_invite_url: next.discord_invite_url,

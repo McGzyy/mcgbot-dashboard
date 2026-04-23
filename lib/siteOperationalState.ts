@@ -7,6 +7,8 @@ export type SiteOperationalState = {
   public_signups_paused: boolean;
   announcement_enabled: boolean;
   announcement_message: string | null;
+  announcement_cta_label: string | null;
+  announcement_cta_url: string | null;
   paywall_title: string | null;
   subscribe_button_label: string | null;
   discord_invite_url: string | null;
@@ -23,6 +25,8 @@ function defaults(): SiteOperationalState {
     public_signups_paused: false,
     announcement_enabled: false,
     announcement_message: null,
+    announcement_cta_label: null,
+    announcement_cta_url: null,
     paywall_title: null,
     subscribe_button_label: null,
     discord_invite_url: null,
@@ -48,6 +52,8 @@ export async function getSiteOperationalState(): Promise<SiteOperationalState> {
         public_signups_paused: Boolean(row.public_signups_paused),
         announcement_enabled: Boolean(row.announcement_enabled),
         announcement_message: row.announcement_message,
+        announcement_cta_label: (row as any).announcement_cta_label ?? null,
+        announcement_cta_url: (row as any).announcement_cta_url ?? null,
         paywall_title: row.paywall_title,
         subscribe_button_label: row.subscribe_button_label,
         discord_invite_url: row.discord_invite_url,
