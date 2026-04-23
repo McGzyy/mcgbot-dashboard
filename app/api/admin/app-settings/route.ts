@@ -4,6 +4,7 @@ import {
   patchDashboardAdminSettings,
 } from "@/lib/dashboardAdminSettingsDb";
 import { invalidateSiteOperationalStateCache } from "@/lib/siteOperationalState";
+import { clearSessionInvalidationEpochCache } from "@/lib/sessionInvalidationEpoch";
 import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
 
 export const runtime = "nodejs";
@@ -38,6 +39,32 @@ export async function PATCH(req: Request) {
     return Response.json({ success: false, error: "Invalid JSON" }, { status: 400 });
   }
   const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+
+  if (o.force_logout_all === true) {
+    const current = await getDashboardAdminSettings();
+    const nextEpoch = (current?.session_invalidation_epoch ?? 0) + 1;
+    const row = await patchDashboardAdminSettings({
+      session_invalidation_epoch: nextEpoch,
+      updatedByDiscordId: gate.discordId,
+    });
+    if (!row) {
+      return Response.json(
+        {
+          success: false,
+          code: "save_failed",
+          error: "Save failed. Run the SQL migration and check Supabase logs.",
+        },
+        { status: 500 }
+      );
+    }
+    clearSessionInvalidationEpochCache();
+    return Response.json({
+      success: true,
+      settings: row,
+      forceLogoutAll: true,
+      session_invalidation_epoch: row.session_invalidation_epoch,
+    });
+  }
 
   const patch: Parameters<typeof patchDashboardAdminSettings>[0] = {
     updatedByDiscordId: gate.discordId,

@@ -31,6 +31,8 @@ type AppSettings = {
   trusted_pro_apply_min_avg_x: number;
   trusted_pro_apply_min_win_rate: number;
   trusted_pro_apply_min_best_x_30d: number;
+  /** Incremented when admins force global logout; invalidates JWTs until re-auth. */
+  session_invalidation_epoch: number;
   updated_at?: string;
   updated_by_discord_id?: string | null;
 };
@@ -68,6 +70,7 @@ export function SiteAdminClient() {
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveOk, setSaveOk] = useState<string | null>(null);
+  const [forceLogoutBusy, setForceLogoutBusy] = useState(false);
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
@@ -173,6 +176,39 @@ export function SiteAdminClient() {
       setSaveBusy(false);
     }
   }, [settings]);
+
+  const forceLogoutAllUsers = useCallback(async () => {
+    const ok = window.confirm(
+      "Force every signed-in user to log out? They will need to sign in with Discord again. You will stay on this page but may need to refresh and sign in again yourself."
+    );
+    if (!ok) return;
+    setForceLogoutBusy(true);
+    setSettingsError(null);
+    setSaveOk(null);
+    try {
+      const res = await fetch("/api/admin/app-settings", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force_logout_all: true }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        settings?: AppSettings;
+        error?: string;
+      };
+      if (!res.ok || json.success !== true || !json.settings) {
+        setSettingsError(typeof json.error === "string" ? json.error : "Force logout failed.");
+        return;
+      }
+      setSettings(json.settings);
+      setSaveOk("All sessions invalidated. Users must sign in again.");
+    } catch {
+      setSettingsError("Force logout failed.");
+    } finally {
+      setForceLogoutBusy(false);
+    }
+  }, []);
 
   const int = data?.integrations ?? {};
   const dep = data?.deployment;
@@ -413,6 +449,27 @@ export function SiteAdminClient() {
                     Clear cutover
                   </button>
                 </div>
+              </SettingsSection>
+
+              <SettingsSection
+                kicker="Sessions"
+                title="Force logout (all users)"
+                description="Invalidates every existing dashboard session (JWT). Use after a security incident or credential rotation. Does not revoke Discord itself — users click Sign in again on this site."
+              >
+                <p className="text-xs text-zinc-500">
+                  Current session epoch:{" "}
+                  <span className="font-mono text-zinc-300">
+                    {settings.session_invalidation_epoch ?? 0}
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  disabled={forceLogoutBusy}
+                  onClick={() => void forceLogoutAllUsers()}
+                  className="rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-2.5 text-sm font-semibold text-red-100 transition hover:border-red-400/60 hover:bg-red-950/55 disabled:opacity-50"
+                >
+                  {forceLogoutBusy ? "Applying…" : "Force logout — all users"}
+                </button>
               </SettingsSection>
 
               <SettingsSection

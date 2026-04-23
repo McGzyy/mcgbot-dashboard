@@ -29,7 +29,6 @@ import {
   DASHBOARD_CHAT_AUTHOR_COLOR,
   type ChatMessagePayload,
 } from "@/lib/discordChatMessageSerialize";
-import { discordDefaultEmbedAvatarUrl } from "@/lib/discordIdentity";
 import { userProfileHref } from "@/lib/userProfileHref";
 import {
   useCallback,
@@ -1935,19 +1934,6 @@ function ActivityFeedPanel({
                       onFollowingChange={(next) => setFollowing(item.discordId, next)}
                       className="mt-0.5"
                     />
-                    {item.discordId.trim() ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={
-                          (item.userAvatarUrl && item.userAvatarUrl.trim()) ||
-                          discordDefaultEmbedAvatarUrl(item.discordId)
-                        }
-                        alt=""
-                        className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-zinc-600/50 object-cover"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : null}
                     {item.tokenImageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img

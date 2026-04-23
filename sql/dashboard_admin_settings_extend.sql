@@ -17,3 +17,6 @@ alter table public.dashboard_admin_settings
 
 alter table public.dashboard_admin_settings
   add column if not exists stats_cutover_at timestamptz;
+
+alter table public.dashboard_admin_settings
+  add column if not exists session_invalidation_epoch bigint not null default 0;

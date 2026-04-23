@@ -18,6 +18,8 @@ export type DashboardAdminSettingsRow = {
   trusted_pro_apply_min_avg_x: number;
   trusted_pro_apply_min_win_rate: number;
   trusted_pro_apply_min_best_x_30d: number;
+  /** Incremented to invalidate all NextAuth JWTs (force re-login). */
+  session_invalidation_epoch: number;
   updated_at: string;
   updated_by_discord_id: string | null;
 };
@@ -40,6 +42,7 @@ function defaultRow(): DashboardAdminSettingsRow {
     trusted_pro_apply_min_avg_x: 0,
     trusted_pro_apply_min_win_rate: 0,
     trusted_pro_apply_min_best_x_30d: 0,
+    session_invalidation_epoch: 0,
     updated_at: now,
     updated_by_discord_id: null,
   };
@@ -82,6 +85,15 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
     trusted_pro_apply_min_best_x_30d: Number.isFinite(Number((r as any).trusted_pro_apply_min_best_x_30d))
       ? Math.max(0, Number((r as any).trusted_pro_apply_min_best_x_30d))
       : 0,
+    session_invalidation_epoch: (() => {
+      const v = (r as { session_invalidation_epoch?: unknown }).session_invalidation_epoch;
+      if (typeof v === "number" && Number.isFinite(v)) return Math.max(0, Math.floor(v));
+      if (typeof v === "string" && /^\d+$/.test(v.trim())) {
+        const n = parseInt(v.trim(), 10);
+        return Number.isFinite(n) && n >= 0 ? n : 0;
+      }
+      return 0;
+    })(),
     updated_at: typeof r.updated_at === "string" ? r.updated_at : new Date().toISOString(),
     updated_by_discord_id: typeof r.updated_by_discord_id === "string" ? r.updated_by_discord_id : null,
   };
@@ -102,6 +114,7 @@ export async function patchDashboardAdminSettings(input: {
   trusted_pro_apply_min_avg_x?: number;
   trusted_pro_apply_min_win_rate?: number;
   trusted_pro_apply_min_best_x_30d?: number;
+  session_invalidation_epoch?: number;
   updatedByDiscordId: string;
 }): Promise<DashboardAdminSettingsRow | null> {
   const db = getSupabaseAdmin();
@@ -164,6 +177,9 @@ export async function patchDashboardAdminSettings(input: {
   if (typeof input.trusted_pro_apply_min_best_x_30d === "number" && Number.isFinite(input.trusted_pro_apply_min_best_x_30d)) {
     next.trusted_pro_apply_min_best_x_30d = Math.max(0, input.trusted_pro_apply_min_best_x_30d);
   }
+  if (typeof input.session_invalidation_epoch === "number" && Number.isFinite(input.session_invalidation_epoch)) {
+    next.session_invalidation_epoch = Math.max(0, Math.floor(input.session_invalidation_epoch));
+  }
 
   const { data, error } = await db
     .from("dashboard_admin_settings")
@@ -184,6 +200,7 @@ export async function patchDashboardAdminSettings(input: {
         trusted_pro_apply_min_avg_x: next.trusted_pro_apply_min_avg_x,
         trusted_pro_apply_min_win_rate: next.trusted_pro_apply_min_win_rate,
         trusted_pro_apply_min_best_x_30d: next.trusted_pro_apply_min_best_x_30d,
+        session_invalidation_epoch: next.session_invalidation_epoch,
         updated_at: next.updated_at,
         updated_by_discord_id: next.updated_by_discord_id,
       },

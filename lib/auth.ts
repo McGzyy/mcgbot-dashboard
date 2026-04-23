@@ -5,6 +5,7 @@ import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
 import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
+import { getSessionInvalidationEpochCached } from "@/lib/sessionInvalidationEpoch";
 
 /** Discord CDN avatar; custom avatar or default embed sprite from snowflake. */
 function discordAvatarUrlFromDiscordProfile(p: {
@@ -110,10 +111,25 @@ export const authOptions: NextAuthOptions = {
       }
     },
     async jwt({ token, user, profile, trigger, session }) {
+      const epochNow = await getSessionInvalidationEpochCached();
+
       if (user) {
+        (token as { sessionInvalidationEpoch?: number }).sessionInvalidationEpoch = epochNow;
         token.discord_id = user.id;
         if (user.name) token.name = user.name;
         if (user.image) token.picture = user.image;
+      } else {
+        const tokEp = (token as { sessionInvalidationEpoch?: unknown }).sessionInvalidationEpoch;
+        const bound =
+          typeof tokEp === "number" && Number.isFinite(tokEp)
+            ? Math.floor(tokEp)
+            : null;
+        if (bound !== null && bound < epochNow) {
+          return { ...token, exp: Math.floor(Date.now() / 1000) - 120 };
+        }
+        if (bound === null) {
+          (token as { sessionInvalidationEpoch?: number }).sessionInvalidationEpoch = epochNow;
+        }
       }
       if (profile && typeof profile === "object") {
         const p = profile as {
