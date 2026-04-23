@@ -1415,7 +1415,11 @@ export default function LeaderboardPage() {
       </section>
 
       {/* BOT — same layout pattern as community; sky accent */}
-      <section id="bot-performance" className="relative mt-16 scroll-mt-28">
+      <section
+        id="bot-performance"
+        className="relative mt-16 scroll-mt-28"
+        data-tutorial="leaderboard.botSection"
+      >
         <div
           className="pointer-events-none absolute -top-5 left-1/2 h-px w-[min(100%,48rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-sky-500/35 to-transparent"
           aria-hidden
@@ -1462,7 +1466,7 @@ export default function LeaderboardPage() {
               </Link>
             </div>
         {/* Bot summary stats */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3" data-tutorial="leaderboard.botStats">
           <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
@@ -1545,7 +1549,10 @@ export default function LeaderboardPage() {
         {/* Activity */}
         <div className="mt-2 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
           {/* Recent Milestone Hits */}
-          <div className="flex h-full max-h-[340px] flex-col rounded-xl border border-sky-500/15 bg-sky-950/15 p-4 ring-1 ring-sky-500/10">
+          <div
+            className="flex h-full max-h-[340px] flex-col rounded-xl border border-sky-500/15 bg-sky-950/15 p-4 ring-1 ring-sky-500/10"
+            data-tutorial="leaderboard.botMilestones"
+          >
             <div className="mb-2 flex items-start justify-between gap-2">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">Recent Milestone Hits</h3>
@@ -1595,7 +1602,10 @@ export default function LeaderboardPage() {
           </div>
 
           {/* Live Bot Activity */}
-          <div className="flex h-full max-h-[340px] flex-col rounded-xl border border-sky-500/15 bg-sky-950/15 p-4 ring-1 ring-sky-500/10">
+          <div
+            className="flex h-full max-h-[340px] flex-col rounded-xl border border-sky-500/15 bg-sky-950/15 p-4 ring-1 ring-sky-500/10"
+            data-tutorial="leaderboard.botLiveActivity"
+          >
             <div className="mb-2 flex items-start justify-between gap-2">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">Live Bot Activity</h3>
@@ -1641,7 +1651,10 @@ export default function LeaderboardPage() {
         </div>
 
         {/* McGBot board */}
-        <div className="mt-2 rounded-xl border border-sky-500/20 bg-sky-950/10 p-4 ring-1 ring-sky-500/10">
+        <div
+          className="mt-2 rounded-xl border border-sky-500/20 bg-sky-950/10 p-4 ring-1 ring-sky-500/10"
+          data-tutorial="leaderboard.botMcgbotBoard"
+        >
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className={sectionTitle}>McGBot board</h2>

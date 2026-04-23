@@ -1,22 +1,15 @@
 /**
- * Canonical dashboard profile URL: prefer human display name (matches Discord capitalization)
- * when available; fall back to Discord id for deep links and bots without a stored name.
+ * Canonical dashboard profile URL: always use the Discord snowflake.
+ * Display names (especially with emoji / special Unicode) break URL resolution and
+ * `resolveDiscordIdFromProfileRouteParam` lookups; the `/user/[id]` API expects a stable id.
  */
 export function userProfileHref(opts: {
   discordId: string;
   displayName?: string | null;
 }): string {
   const id = (opts.discordId ?? "").trim();
-  const dn = (opts.displayName ?? "").trim();
   if (!id) return "/";
-  const syntheticFallback = /^User\s+[0-9a-z…]+/i.test(dn);
-  const seg =
-    dn &&
-    !syntheticFallback &&
-    dn.toLowerCase() !== "unknown"
-      ? dn
-      : id;
-  return `/user/${encodeURIComponent(seg)}`;
+  return `/user/${encodeURIComponent(id)}`;
 }
 
 /** Active nav / pathname check when profile URLs may use either id or display name. */

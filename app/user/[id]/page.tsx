@@ -810,7 +810,20 @@ export default function UserProfilePage() {
   const raw = params?.id;
   const userId =
     typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
-  const profileUserId = userId.trim();
+  /** Next passes one decode; normalize in case of legacy double-encoded paths. */
+  const profileUserId = (() => {
+    let v = userId.trim();
+    for (let i = 0; i < 3 && v.includes("%"); i++) {
+      try {
+        const next = decodeURIComponent(v);
+        if (next === v) break;
+        v = next;
+      } catch {
+        break;
+      }
+    }
+    return v;
+  })();
   const { data: session } = useSession();
   const { addNotification } = useNotifications();
   const isAdmin =
