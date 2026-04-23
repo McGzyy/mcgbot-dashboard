@@ -54,11 +54,17 @@ function dashboardIntroSteps(): TutorialStep[] {
       route: "/",
       title: "Dashboard",
       content:
-        "Home base: charts, stats, quick actions, and (for staff) a queue preview. Next: performance, then the top bar, then the rest of this page.",
+        "Home base: top bar and account menu first, then the performance chart and the rest of this page (for staff: a queue preview at the end).",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
     },
+  ];
+}
+
+/** After account-menu rows: closes the dropdown, then spotlights the main chart before personal stats. */
+function dashboardHomePerformanceStep(): TutorialStep[] {
+  return [
     {
       section: "dashboard",
       target: sel("dashboard.performanceChart"),
@@ -69,6 +75,7 @@ function dashboardIntroSteps(): TutorialStep[] {
       placement: "bottom",
       scrollOffset: 120,
       skipScroll: true,
+      closeAccountMenu: true,
     },
   ];
 }
@@ -468,6 +475,7 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
     ...dashboardIntroSteps(),
     ...dashboardTopBarSteps(),
     ...dashboardAccountMenuRows(),
+    ...dashboardHomePerformanceStep(),
     ...dashboardBodySteps(),
     ...(tier === "mod" || tier === "admin" ? dashboardModQueueStep() : []),
     ...watchlistChapter(),
