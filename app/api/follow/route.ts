@@ -2,14 +2,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
-/**
- * Follow storage table in Supabase.
- *
- * Note: older deployments used `public.follows` (follower_discord_id/following_discord_id),
- * while newer code introduced `public.user_follows`. Production currently relies on `follows`,
- * so the API is wired to that table.
- */
-const TABLE = "follows";
+/** Follow storage table in Supabase. */
+const TABLE = "user_follows";
 
 function supabaseOrError() {
   const db = getSupabaseAdmin();
@@ -68,8 +62,8 @@ export async function GET(request: Request) {
 
       const { data, error } = await supabase
         .from(TABLE)
-        .select("following_discord_id, created_at")
-        .eq("follower_discord_id", selfId)
+        .select("following_id, created_at")
+        .eq("follower_id", selfId)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -85,7 +79,7 @@ export async function GET(request: Request) {
         following: rows.map((r) => {
           const row = r as Record<string, unknown>;
           return {
-            targetUserId: String(row.following_discord_id ?? ""),
+            targetUserId: String(row.following_id ?? ""),
             createdAt: row.created_at ?? null,
           };
         }),
@@ -97,7 +91,7 @@ export async function GET(request: Request) {
     const { count: followersCount, error: followersErr } = await supabase
       .from(TABLE)
       .select("*", { count: "exact", head: true })
-      .eq("following_discord_id", userId);
+      .eq("following_id", userId);
 
     if (followersErr) {
       console.error("[follow API] GET followers count:", followersErr);
@@ -110,7 +104,7 @@ export async function GET(request: Request) {
     const { count: followingCount, error: followingErr } = await supabase
       .from(TABLE)
       .select("*", { count: "exact", head: true })
-      .eq("follower_discord_id", userId);
+      .eq("follower_id", userId);
 
     if (followingErr) {
       console.error("[follow API] GET following count:", followingErr);
@@ -125,8 +119,8 @@ export async function GET(request: Request) {
       const { data: row, error: followErr } = await supabase
         .from(TABLE)
         .select("id")
-        .eq("follower_discord_id", selfId)
-        .eq("following_discord_id", userId)
+        .eq("follower_id", selfId)
+        .eq("following_id", userId)
         .maybeSingle();
 
       if (followErr) {
@@ -189,8 +183,8 @@ export async function POST(request: Request) {
     const { data: existing, error: existingErr } = await supabase
       .from(TABLE)
       .select("id")
-      .eq("follower_discord_id", followerId)
-      .eq("following_discord_id", targetUserId)
+      .eq("follower_id", followerId)
+      .eq("following_id", targetUserId)
       .maybeSingle();
     if (existingErr) {
       console.error("[follow API] POST existing check:", existingErr);
@@ -204,8 +198,8 @@ export async function POST(request: Request) {
     }
 
     const { error } = await supabase.from(TABLE).insert({
-      follower_discord_id: followerId,
-      following_discord_id: targetUserId,
+      follower_id: followerId,
+      following_id: targetUserId,
     });
 
     if (error) {
@@ -254,8 +248,8 @@ export async function DELETE(request: Request) {
     const { error } = await supabase
       .from(TABLE)
       .delete()
-      .eq("follower_discord_id", followerId)
-      .eq("following_discord_id", targetUserId);
+      .eq("follower_id", followerId)
+      .eq("following_id", targetUserId);
 
     if (error) {
       console.error("[follow API] DELETE:", error);
