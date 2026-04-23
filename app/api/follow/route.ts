@@ -1,4 +1,3 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -12,16 +11,16 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
  */
 const TABLE = "follows";
 
-function supabaseOrError(): SupabaseClient | Response {
-  const admin = getSupabaseAdmin();
-  if (admin) return admin;
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    console.error("[follow API] Missing Supabase env vars");
-    return Response.json({ error: "Supabase not configured" }, { status: 500 });
+function supabaseOrError() {
+  const db = getSupabaseAdmin();
+  if (!db) {
+    console.error("[follow API] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+    return Response.json(
+      { error: "Follow system not configured" },
+      { status: 503 }
+    );
   }
-  return createClient(url, key) as SupabaseClient;
+  return db;
 }
 
 async function sessionUserId(): Promise<string | null> {
