@@ -78,26 +78,53 @@ export async function PATCH(request: Request) {
   // Approve: upsert source row first, then mark submission approved.
   if (statusNext === "approved") {
     const platform = String((row as any).platform ?? "").trim();
-    const handle = String((row as any).handle ?? "").trim();
+    const handle = String((row as any).handle ?? "")
+      .trim()
+      .replace(/^@/, "")
+      .replace(/\s+/g, "")
+      .toLowerCase();
     const display_name = (row as any).display_name ?? null;
 
     if (!platform || !handle) {
       return Response.json({ success: false, error: "Invalid submission payload" }, { status: 400 });
     }
 
-    const { error: upErr } = await db.from("social_feed_sources").upsert(
-      {
+    // Avoid `onConflict` expressions (PostgREST only accepts column names).
+    const { data: existing, error: exErr } = await db
+      .from("social_feed_sources")
+      .select("id")
+      .eq("platform", platform)
+      .ilike("handle", handle)
+      .maybeSingle();
+    if (exErr) {
+      console.error("[admin social submissions] approve existing:", exErr);
+      return Response.json({ success: false, error: "Failed to create source" }, { status: 500 });
+    }
+    if (existing && (existing as any).id) {
+      const { error: updErr } = await db
+        .from("social_feed_sources")
+        .update({
+          handle,
+          display_name,
+          active: true,
+        })
+        .eq("id", (existing as any).id);
+      if (updErr) {
+        console.error("[admin social submissions] approve update source:", updErr);
+        return Response.json({ success: false, error: "Failed to create source" }, { status: 500 });
+      }
+    } else {
+      const { error: insErr } = await db.from("social_feed_sources").insert({
         platform,
         handle,
         display_name,
         created_by_discord_id: gate.discordId,
         active: true,
-      },
-      { onConflict: "platform,lower(handle)" as any }
-    );
-    if (upErr) {
-      console.error("[admin social submissions] approve upsert source:", upErr);
-      return Response.json({ success: false, error: "Failed to create source" }, { status: 500 });
+      });
+      if (insErr) {
+        console.error("[admin social submissions] approve insert source:", insErr);
+        return Response.json({ success: false, error: "Failed to create source" }, { status: 500 });
+      }
     }
   }
 

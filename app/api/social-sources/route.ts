@@ -15,7 +15,7 @@ function parsePlatform(raw: unknown): SocialPlatform | null {
 function normalizeHandle(raw: unknown): string {
   const s = typeof raw === "string" ? raw.trim() : String(raw ?? "").trim();
   const withoutAt = s.startsWith("@") ? s.slice(1) : s;
-  return withoutAt.replace(/\s+/g, "").slice(0, 64);
+  return withoutAt.replace(/\s+/g, "").toLowerCase().slice(0, 64);
 }
 
 function normalizeDisplayName(raw: unknown): string | null {
@@ -106,22 +106,43 @@ export async function POST(request: Request) {
   if (db instanceof Response) return db;
 
   if (tier === "admin") {
-    const { error } = await db.from("social_feed_sources").upsert(
-      {
-        platform,
-        handle,
-        display_name: displayName,
-        created_by_discord_id: userId,
-        active: true,
-      },
-      { onConflict: "platform,lower(handle)" as any }
-    );
+    // Avoid `onConflict` expressions (PostgREST only accepts column names).
+    const { data: existing, error: exErr } = await db
+      .from("social_feed_sources")
+      .select("id")
+      .eq("platform", platform)
+      .ilike("handle", handle)
+      .maybeSingle();
+    if (exErr) {
+      console.error("[social-sources] POST admin existing:", exErr);
+      return Response.json({ success: false, error: "Failed to add source" }, { status: 500 });
+    }
+    if (existing && (existing as any).id) {
+      const { error: updErr } = await db
+        .from("social_feed_sources")
+        .update({
+          handle,
+          display_name: displayName,
+          active: true,
+        })
+        .eq("id", (existing as any).id);
+      if (updErr) {
+        console.error("[social-sources] POST admin update:", updErr);
+        return Response.json({ success: false, error: "Failed to add source" }, { status: 500 });
+      }
+      return Response.json({ success: true, mode: "added" as const, updated: true });
+    }
+
+    const { error } = await db.from("social_feed_sources").insert({
+      platform,
+      handle,
+      display_name: displayName,
+      created_by_discord_id: userId,
+      active: true,
+    });
     if (error) {
-      console.error("[social-sources] POST admin:", error);
-      return Response.json(
-        { success: false, error: "Failed to add source" },
-        { status: 500 }
-      );
+      console.error("[social-sources] POST admin insert:", error);
+      return Response.json({ success: false, error: "Failed to add source" }, { status: 500 });
     }
     return Response.json({ success: true, mode: "added" as const });
   }
