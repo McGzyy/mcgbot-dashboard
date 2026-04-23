@@ -57,10 +57,11 @@ export async function GET(request: Request) {
         return Response.json([]);
       }
 
-      const { data: follows, error: followError } = await supabase
-        .from("follows")
-        .select("following_discord_id")
-        .eq("follower_discord_id", userId);
+      const followDb = supabaseAdmin ?? supabase;
+      const { data: follows, error: followError } = await followDb
+        .from("user_follows")
+        .select("following_id")
+        .eq("follower_id", userId);
 
       if (followError) {
         console.error("[activity API] follows:", followError);
@@ -72,8 +73,8 @@ export async function GET(request: Request) {
 
       const ids = (follows ?? [])
         .map((f) => {
-          const row = f as { following_discord_id?: string | null };
-          return row.following_discord_id;
+          const row = f as { following_id?: string | null };
+          return row.following_id;
         })
         .filter((id): id is string => typeof id === "string" && id.trim() !== "");
 
