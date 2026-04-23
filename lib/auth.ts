@@ -6,6 +6,26 @@ import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
 import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
 
+/** Discord CDN avatar; custom avatar or default embed sprite from snowflake. */
+function discordAvatarUrlFromDiscordProfile(p: {
+  id: string;
+  avatar?: string | null;
+}): string {
+  const id = (p.id ?? "").trim();
+  if (!id) return "https://cdn.discordapp.com/embed/avatars/0.png";
+  if (p.avatar) {
+    const ext = String(p.avatar).startsWith("a_") ? "gif" : "png";
+    return `https://cdn.discordapp.com/avatars/${id}/${p.avatar}.${ext}?size=128`;
+  }
+  try {
+    const n = BigInt(id);
+    const idx = Number((n >> BigInt(22)) % BigInt(6));
+    return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
+  } catch {
+    return "https://cdn.discordapp.com/embed/avatars/0.png";
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     DiscordProvider({
@@ -23,9 +43,7 @@ export const authOptions: NextAuthOptions = {
         return {
           id: p.id,
           name: p.global_name || p.username,
-          image: p.avatar
-            ? `https://cdn.discordapp.com/avatars/${p.id}/${p.avatar}.png`
-            : null,
+          image: discordAvatarUrlFromDiscordProfile(p),
         };
       },
     }),
@@ -50,6 +68,10 @@ export const authOptions: NextAuthOptions = {
         // Ensure a `public.users` row exists (schema uses discord_id UNIQUE, no username column).
         const displayName =
           typeof user.name === "string" && user.name.trim() ? user.name.trim() : null;
+        const avatarUrl =
+          typeof user.image === "string" && user.image.trim()
+            ? user.image.trim().slice(0, 800)
+            : discordAvatarUrlFromDiscordProfile({ id: user.id, avatar: null });
 
         const TRUSTED_PRO_ROLE_ID = "1490638667386191884";
         let trustedPro: boolean | null = null;
@@ -66,6 +88,7 @@ export const authOptions: NextAuthOptions = {
           {
             discord_id: user.id,
             discord_display_name: displayName,
+            discord_avatar_url: avatarUrl,
             ...(trustedPro == null
               ? {}
               : {

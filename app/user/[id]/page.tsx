@@ -9,7 +9,10 @@ import {
   formatJoinedAt,
   multipleClass,
 } from "@/lib/callDisplayFormat";
-import { looksLikeDiscordSnowflake } from "@/lib/discordIdentity";
+import {
+  discordDefaultEmbedAvatarUrl,
+  looksLikeDiscordSnowflake,
+} from "@/lib/discordIdentity";
 import {
   callClubMilestoneEmoji,
   callClubMilestoneLabel,
@@ -58,7 +61,12 @@ type TrustedProCallRow = {
 type ProfilePayload = {
   /** Resolved Discord snowflake (always set by `/api/user/[id]`). */
   discordId: string;
+  /** Latest handle from call rows (Discord username / legacy). */
   username: string;
+  /** Preferred label: OAuth global name when stored on `users`. */
+  displayName: string;
+  /** Discord CDN avatar URL from last sign-in when stored. */
+  avatarUrl: string | null;
   isTopCaller: boolean;
   isTrustedPro: boolean;
   bio: string | null;
@@ -538,16 +546,6 @@ function TrophyTierRow({
   );
 }
 
-function defaultDiscordAvatarUrl(discordId: string): string {
-  try {
-    const id = BigInt(discordId);
-    const idx = Number((id >> BigInt(22)) % BigInt(6));
-    return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
-  } catch {
-    return "https://cdn.discordapp.com/embed/avatars/0.png";
-  }
-}
-
 function StatCard({
   title,
   value,
@@ -669,6 +667,17 @@ function parseProfile(json: unknown): ProfilePayload | null {
       ? discordRaw.trim()
       : "";
   const username = typeof o.username === "string" ? o.username : "";
+  const displayNameFromApi =
+    typeof o.displayName === "string" && o.displayName.trim() !== ""
+      ? o.displayName.trim()
+      : (username || "").trim() || "Profile";
+  const avatarUrlRaw = o.avatarUrl ?? o.avatar_url;
+  const avatarUrl =
+    avatarUrlRaw != null &&
+    typeof avatarUrlRaw === "string" &&
+    avatarUrlRaw.trim() !== ""
+      ? avatarUrlRaw.trim().slice(0, 800)
+      : null;
   const statsRaw = o.stats;
   if (!statsRaw || typeof statsRaw !== "object") return null;
   const s = statsRaw as Record<string, unknown>;
@@ -733,6 +742,8 @@ function parseProfile(json: unknown): ProfilePayload | null {
   return {
     discordId,
     username,
+    displayName: displayNameFromApi,
+    avatarUrl,
     isTopCaller: Boolean(o.isTopCaller),
     isTrustedPro: Boolean(o.isTrustedPro),
     bio:
@@ -1508,12 +1519,17 @@ export default function UserProfilePage() {
   const avatarSrc =
     isOwnProfile && session?.user?.image
       ? session.user.image
-      : defaultDiscordAvatarUrl(uid);
+      : profile?.avatarUrl?.trim()
+        ? profile.avatarUrl.trim()
+        : discordDefaultEmbedAvatarUrl(uid);
 
   const displayName =
     isOwnProfile && session?.user?.name?.trim()
       ? session.user.name.trim()
-      : (profile?.username?.trim() || uid || "Profile");
+      : profile?.displayName?.trim() ||
+          profile?.username?.trim() ||
+          uid ||
+          "Profile";
 
   const showNameSkeleton =
     loading && !profile && !(isOwnProfile && session?.user?.name?.trim());
@@ -1747,6 +1763,14 @@ export default function UserProfilePage() {
                 </div>
               )}
             </div>
+            {!loading &&
+            profile &&
+            profile.username.trim() !== "" &&
+            profile.displayName.trim() !== profile.username.trim() ? (
+              <p className="mt-1 text-sm text-zinc-500">
+                <span className="text-zinc-600">@{profile.username}</span>
+              </p>
+            ) : null}
             {!loading && (bioText || joinedText) ? (
               <>
                 {bioText ? (

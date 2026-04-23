@@ -25,9 +25,10 @@ export async function GET(request: Request) {
     const tier = await getUserTier(userId);
 
     const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
+    const anonKey = process.env.SUPABASE_ANON_KEY;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
-    if (!url || !key) {
+    if (!url || !anonKey) {
       console.error("Missing Supabase env vars");
       return Response.json(
         { error: "Supabase not configured" },
@@ -35,7 +36,9 @@ export async function GET(request: Request) {
       );
     }
 
-    const supabase = createClient(url, key);
+    const supabase = createClient(url, anonKey);
+    const supabaseAdmin =
+      serviceKey && serviceKey.length > 0 ? createClient(url, serviceKey) : null;
 
     const buildBaseQuery = (columns: string) => {
       let q = supabase.from("call_performance").select(columns);
@@ -109,10 +112,27 @@ export async function GET(request: Request) {
     const rawRows = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
     const rows = filterCallRowsForStats(rawRows, cutoverMs).slice(0, 20);
 
-    const events = rows.map((row) => {
+    type DraftEvent = {
+      type: "win" | "call";
+      handleUsername: string;
+      time: unknown;
+      link_chart: string | null;
+      link_post: string | null;
+      multiple: number;
+      discordId: string;
+      tokenImageUrl: string | null;
+      meta: {
+        tokenName: string | null;
+        tokenTicker: string | null;
+        callMarketCapUsd: number | null;
+        callCa: string | null;
+      };
+    };
+
+    const drafts: DraftEvent[] = rows.map((row) => {
       const r = row as Record<string, unknown>;
       const multiple = rowAthMultiple(r);
-      const username =
+      const handleUsername =
         typeof r.username === "string" && r.username.trim() !== ""
           ? r.username.trim()
           : "Unknown";
@@ -160,30 +180,97 @@ export async function GET(request: Request) {
         callCa: rawCa,
       };
 
-      if (multiple >= 2) {
-        return {
-          type: "win" as const,
-          text: formatWinActivityLine(username, multiple, meta),
-          username,
-          time: r.call_time,
-          link_chart,
-          link_post,
-          multiple,
-          discordId,
-          tokenImageUrl,
-        };
-      }
-
       return {
-        type: "call" as const,
-        text: formatNewCallActivityLine(username, meta),
-        username,
+        type: multiple >= 2 ? ("win" as const) : ("call" as const),
+        handleUsername,
         time: r.call_time,
         link_chart,
         link_post,
         multiple,
         discordId,
         tokenImageUrl,
+        meta,
+      };
+    });
+
+    const distinctIds = [
+      ...new Set(
+        drafts
+          .map((d) => d.discordId.trim())
+          .filter((id) => id.length > 0)
+      ),
+    ];
+
+    const identityByDiscordId = new Map<
+      string,
+      { displayName: string; avatarUrl: string | null }
+    >();
+
+    if (supabaseAdmin && distinctIds.length > 0) {
+      const chunkSize = 80;
+      for (let i = 0; i < distinctIds.length; i += chunkSize) {
+        const chunk = distinctIds.slice(i, i + chunkSize);
+        const { data: userRows, error: usersErr } = await supabaseAdmin
+          .from("users")
+          .select("discord_id, discord_display_name, discord_avatar_url")
+          .in("discord_id", chunk);
+
+        if (usersErr) {
+          console.error("[activity API] users batch:", usersErr);
+          continue;
+        }
+        for (const ur of userRows ?? []) {
+          const row = ur as {
+            discord_id?: string | null;
+            discord_display_name?: string | null;
+            discord_avatar_url?: string | null;
+          };
+          const id =
+            typeof row.discord_id === "string" ? row.discord_id.trim() : "";
+          if (!id) continue;
+          const dn =
+            typeof row.discord_display_name === "string"
+              ? row.discord_display_name.trim()
+              : "";
+          const av =
+            typeof row.discord_avatar_url === "string"
+              ? row.discord_avatar_url.trim().slice(0, 800)
+              : "";
+          identityByDiscordId.set(id, {
+            displayName: dn,
+            avatarUrl: av || null,
+          });
+        }
+      }
+    }
+
+    const events = drafts.map((d) => {
+      const id = d.discordId.trim();
+      const idRow = id ? identityByDiscordId.get(id) : undefined;
+      const displayName =
+        (idRow?.displayName && idRow.displayName.length > 0
+          ? idRow.displayName
+          : d.handleUsername) || "Unknown";
+      const userAvatarUrl = idRow?.avatarUrl ?? null;
+
+      const text =
+        d.type === "win"
+          ? formatWinActivityLine(displayName, d.multiple, d.meta)
+          : formatNewCallActivityLine(displayName, d.meta);
+
+      return {
+        type: d.type,
+        text,
+        /** Call-log / legacy handle (may differ from Discord display name). */
+        username: d.handleUsername,
+        displayName,
+        userAvatarUrl,
+        time: d.time,
+        link_chart: d.link_chart,
+        link_post: d.link_post,
+        multiple: d.multiple,
+        discordId: d.discordId,
+        tokenImageUrl: d.tokenImageUrl,
       };
     });
 

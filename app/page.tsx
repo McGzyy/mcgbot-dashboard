@@ -29,6 +29,7 @@ import {
   DASHBOARD_CHAT_AUTHOR_COLOR,
   type ChatMessagePayload,
 } from "@/lib/discordChatMessageSerialize";
+import { discordDefaultEmbedAvatarUrl } from "@/lib/discordIdentity";
 import { userProfileHref } from "@/lib/userProfileHref";
 import {
   useCallback,
@@ -777,7 +778,12 @@ function makeNewSocialPost(forcePlatform?: SocialPlatform): SocialFeedItem {
 type ActivityItem = {
   type: "win" | "call";
   text: string;
+  /** Call-log handle (may differ from Discord display name). */
   username: string;
+  /** Label used in `text` and profile links (from `users` when available). */
+  displayName: string;
+  /** Caller avatar from `users.discord_avatar_url` when set. */
+  userAvatarUrl: string | null;
   time: unknown;
   link_chart: string | null;
   link_post: string | null;
@@ -785,6 +791,12 @@ type ActivityItem = {
   discordId: string;
   tokenImageUrl?: string | null;
 };
+
+function activityLineLabel(item: ActivityItem): string {
+  const d = item.displayName.trim();
+  if (d) return d;
+  return item.username.trim();
+}
 
 type NotificationPrefs = {
   own_calls: boolean;
@@ -959,10 +971,11 @@ function renderActivityFeedLine(
   badges: string[] = []
 ): ReactNode {
   const dex = item.link_chart ?? "";
+  const lineLabel = activityLineLabel(item);
   const apiName = item.username.trim();
   const name = viewerDisplayName(
     item.discordId,
-    item.username,
+    lineLabel,
     viewerId,
     viewerName
   );
@@ -978,7 +991,7 @@ function renderActivityFeedLine(
           <Link
             href={userProfileHref({
               discordId: id,
-              displayName: name || apiName,
+              displayName: name || lineLabel || apiName,
             })}
             className={PROFILE_LINK_CLASS}
             onClick={(e) => e.stopPropagation()}
@@ -998,7 +1011,7 @@ function renderActivityFeedLine(
           <Link
             href={userProfileHref({
               discordId: id,
-              displayName: name || apiName,
+              displayName: name || lineLabel || apiName,
             })}
             className={PROFILE_LINK_CLASS}
             onClick={(e) => e.stopPropagation()}
@@ -1011,14 +1024,19 @@ function renderActivityFeedLine(
     }
   }
 
-  if (apiName && id && item.type === "win" && item.text.startsWith(apiName)) {
-    const afterName = item.text.slice(apiName.length);
+  if (
+    lineLabel &&
+    id &&
+    item.type === "win" &&
+    item.text.startsWith(lineLabel)
+  ) {
+    const afterName = item.text.slice(lineLabel.length);
     return (
       <>
         <Link
           href={userProfileHref({
             discordId: id,
-            displayName: name || apiName,
+            displayName: name || lineLabel || apiName,
           })}
           className={PROFILE_LINK_CLASS}
           onClick={(e) => e.stopPropagation()}
@@ -1072,7 +1090,8 @@ function renderActivityFeedLine(
 const ACTIVITY_BIG_CALL_NOTIFY_MIN = 3;
 
 function activityItemDedupeKey(item: ActivityItem): string {
-  return `${callTimeMs(item.time)}::${item.text}`;
+  const chart = (item.link_chart ?? "").trim();
+  return `${callTimeMs(item.time)}::${item.discordId.trim()}::${item.type}::${chart}`;
 }
 
 function activityItemNotifiable(item: ActivityItem): boolean {
@@ -1916,6 +1935,19 @@ function ActivityFeedPanel({
                       onFollowingChange={(next) => setFollowing(item.discordId, next)}
                       className="mt-0.5"
                     />
+                    {item.discordId.trim() ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={
+                          (item.userAvatarUrl && item.userAvatarUrl.trim()) ||
+                          discordDefaultEmbedAvatarUrl(item.discordId)
+                        }
+                        alt=""
+                        className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-zinc-600/50 object-cover"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : null}
                     {item.tokenImageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -3397,6 +3429,16 @@ export default function Home() {
             typeof usernameRaw === "string" && usernameRaw.trim() !== ""
               ? usernameRaw.trim()
               : "";
+          const dnRaw = o.displayName ?? o.display_name;
+          const displayName =
+            typeof dnRaw === "string" && dnRaw.trim() !== ""
+              ? dnRaw.trim()
+              : username;
+          const uavRaw = o.userAvatarUrl ?? o.user_avatar_url;
+          const userAvatarUrl =
+            typeof uavRaw === "string" && uavRaw.trim() !== ""
+              ? uavRaw.trim()
+              : null;
           const imgRaw = o.tokenImageUrl ?? o.token_image_url;
           const tokenImageUrl =
             typeof imgRaw === "string" && imgRaw.trim() !== ""
@@ -3406,6 +3448,8 @@ export default function Home() {
             type: o.type,
             text,
             username,
+            displayName,
+            userAvatarUrl,
             time: o.time,
             link_chart,
             link_post,

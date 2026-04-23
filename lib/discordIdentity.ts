@@ -50,3 +50,16 @@ export async function resolveDiscordIdFromProfileRouteParam(
         : "";
   return id || null;
 }
+
+/** Discord default avatar sprite when the user has no custom avatar (from snowflake). */
+export function discordDefaultEmbedAvatarUrl(discordId: string): string {
+  const s = String(discordId ?? "").trim();
+  if (!s) return "https://cdn.discordapp.com/embed/avatars/0.png";
+  try {
+    const id = BigInt(s);
+    const idx = Number((id >> BigInt(22)) % BigInt(6));
+    return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
+  } catch {
+    return "https://cdn.discordapp.com/embed/avatars/0.png";
+  }
+}

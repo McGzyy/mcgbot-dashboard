@@ -139,7 +139,9 @@ export async function GET(
     const [userRowResult, cutoverMs] = await Promise.all([
       supabase
         .from("users")
-        .select("id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, trusted_pro, created_at, profile_visibility")
+        .select(
+          "id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, trusted_pro, created_at, profile_visibility, discord_display_name, discord_avatar_url"
+        )
         .eq("discord_id", discordId)
         .maybeSingle(),
       getStatsCutoverUtcMs(),
@@ -172,7 +174,16 @@ export async function GET(
     const rawRows = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
     const statsRows = filterCallRowsForStats(rawRows, cutoverMs);
 
-    const username = pickLatestUsername(statsRows, discordId);
+    const handleUsername = pickLatestUsername(statsRows, discordId);
+    const rowDn =
+      userRow && typeof (userRow as { discord_display_name?: unknown }).discord_display_name === "string"
+        ? (userRow as { discord_display_name: string }).discord_display_name.trim()
+        : "";
+    const displayName = rowDn || handleUsername;
+    const rowAv =
+      userRow && typeof (userRow as { discord_avatar_url?: unknown }).discord_avatar_url === "string"
+        ? (userRow as { discord_avatar_url: string }).discord_avatar_url.trim().slice(0, 800)
+        : "";
     const stats = computeCallPerformanceUserStats(statsRows);
     // For moderation/debug: include excluded calls in the "recent calls" list, but keep stats clean.
     const recentCalls = recentCallsFromRows(rawRows, PROFILE_RECENT_CALLS_LIMIT);
@@ -181,7 +192,12 @@ export async function GET(
 
     return Response.json({
       discordId,
-      username,
+      /** Latest handle-style name from call rows (Discord username / legacy). */
+      username: handleUsername,
+      /** Prefer OAuth global display name from `users` when present. */
+      displayName,
+      /** Discord CDN avatar from last sign-in when stored. */
+      avatarUrl: rowAv || null,
       // Badges are now fetched from `user_badges` on the client; keep fields for compatibility.
       isTopCaller: false,
       isTrustedPro: Boolean((userRow as any)?.trusted_pro),
