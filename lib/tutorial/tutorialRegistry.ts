@@ -29,6 +29,10 @@ const USER_SECTION_LABELS: Record<string, string> = {
   watchlist: "Watchlist",
   calls: "Call log",
   performance: "Performance lab",
+  botCalls: "Bot calls",
+  trustedPro: "Trusted Pro",
+  leaderboard: "Leaderboards",
+  pnlShowcase: "PnL Showcase",
   topNav: "Top bar",
   accountMenu: "Account menu",
   profile: "Your profile",
@@ -46,18 +50,37 @@ const ADMIN_SECTION_LABELS: Record<string, string> = {
   adminPanel: "Admin overview",
 };
 
-function dashboardIntroSteps(): TutorialStep[] {
+/** First step on `/`: general welcome before top bar or widgets. */
+function dashboardWelcomeStep(): TutorialStep[] {
   return [
     {
       section: "dashboard",
-      target: sel("sidebar.nav.dashboard"),
+      target: sel("dashboard.tutorialWelcome"),
       route: "/",
-      title: "Dashboard",
+      title: "Welcome to McGBot Terminal",
       content:
-        "You are still on home. Next: the performance chart, stats, feeds, and the left nav—then Call log, Performance lab, and Watchlist pages. Profile, Settings, Help, and Referrals pages come at the end of this tour.",
-      placement: "right",
+        "This tour follows the top bar (with a quick pass over the account menu), then each home widget, then every main page in the left nav with a short page overview before its modules. We return for full Profile, Settings, Help, and Referrals tours from the account menu. Skip or restart anytime from Help → Tutorial mode.",
+      placement: "center",
       scrollOffset: 72,
       skipScroll: true,
+    },
+  ];
+}
+
+/** After the account-menu preview: full-page home overview, then widget steps. */
+function dashboardHomePageIntro(): TutorialStep[] {
+  return [
+    {
+      section: "dashboard",
+      target: sel("dashboard.pageIntro"),
+      route: "/",
+      title: "Home dashboard",
+      content:
+        "Your hub: chart, personal stats, feeds, quick actions, Discord chat, and previews. Next we walk each block—then Call log, Performance lab, Watchlist, and the Arena pages on the left, followed by deeper tours of Profile, Settings, Help, and Referrals from the account menu.",
+      placement: "center",
+      scrollOffset: 72,
+      skipScroll: true,
+      closeAccountMenu: true,
     },
   ];
 }
@@ -126,42 +149,42 @@ function dashboardAccountMenuRows(): TutorialStep[] {
       target: sel("nav.menu.profile"),
       title: "Profile",
       content:
-        "Public profile card—preview only here; the tour does not leave the dashboard until after the home walk. We open your profile page near the end.",
+        "Your public profile card—quick preview. Later we open your profile and walk each section.",
       ...common,
     },
     {
       section: "accountMenu",
       target: sel("nav.menu.settings"),
       title: "Settings",
-      content: "Account, notifications, widgets, and visibility—preview only; full Settings tour near the end.",
+      content: "Account, notifications, widgets, and layout—preview only; full Settings tour after the left-nav pages.",
       ...common,
     },
     {
       section: "accountMenu",
       target: sel("nav.menu.help"),
       title: "Help",
-      content: "Docs, FAQ, bugs, features, and tutorial controls—preview only; Help page near the end.",
+      content: "Docs, FAQ, bugs, features, and tutorial controls—preview only; full Help tour after Settings.",
       ...common,
     },
     {
       section: "accountMenu",
       target: sel("nav.menu.referralsOverview"),
       title: "Referrals — overview",
-      content: "Your link and network stats—preview only; Referrals page near the end.",
+      content: "Your link and network stats—preview only; full Referrals tour last.",
       ...common,
     },
     {
       section: "accountMenu",
       target: sel("nav.menu.referralsPerformance"),
       title: "Referrals — performance",
-      content: "Referred callers’ performance view—preview only; opened from the tour later.",
+      content: "Referred callers’ performance—preview only; covered again on Referrals.",
       ...common,
     },
     {
       section: "accountMenu",
       target: sel("nav.menu.referralsRewards"),
       title: "Referrals — rewards",
-      content: "Rewards-style view—preview only; opened from the tour later.",
+      content: "Rewards-style view—preview only; covered again on Referrals.",
       ...common,
     },
   ];
@@ -267,58 +290,9 @@ function dashboardRightColumnLowerSteps(): TutorialStep[] {
       ...dashHome,
       target: sel("dashboard.homeWatchlist"),
       title: "Watchlist preview",
-      content: "A peek at saved contracts; the full editor lives on Watchlist after we tour Call log and Performance lab in the sidebar.",
+      content: "A peek at saved contracts; the full editor is on the Watchlist page after Call log and Performance lab.",
       placement: "top",
       scrollOffset: 148,
-    },
-  ];
-}
-
-/** On `/`, walk YOU row, then Arena, in the left nav before opening Call log / Performance / Watchlist pages. */
-function sidebarYouNavSteps(): TutorialStep[] {
-  const s = { section: "dashboard" as const, route: "/", placement: "right" as const, scrollOffset: 72, skipScroll: true };
-  return [
-    {
-      ...s,
-      target: sel("sidebar.nav.calls"),
-      title: "Call log (nav)",
-      content: "Your verified calls, filters, and table—next we open this page.",
-    },
-    {
-      ...s,
-      target: sel("sidebar.nav.performance"),
-      title: "Performance lab (nav)",
-      content: "Summaries and charts from the same data—after Call log we tour this page.",
-    },
-    {
-      ...s,
-      target: sel("sidebar.nav.watchlist"),
-      title: "Watchlist (nav)",
-      content: "Private mint list in the YOU row—we tour the full Watchlist page after Performance lab.",
-    },
-    {
-      ...s,
-      target: sel("sidebar.nav.botCalls"),
-      title: "Bot calls (nav)",
-      content: "Arena: curated McGBot bot calls (Pro). Open from here when you want the full feed.",
-    },
-    {
-      ...s,
-      target: sel("sidebar.nav.trustedPro"),
-      title: "Trusted Pro (nav)",
-      content: "Arena: verified Trusted Pro posts and applications (Pro).",
-    },
-    {
-      ...s,
-      target: sel("sidebar.nav.leaderboard"),
-      title: "Leaderboards (nav)",
-      content: "Arena: daily, weekly, and monthly leaderboards.",
-    },
-    {
-      ...s,
-      target: sel("sidebar.nav.pnlShowcase"),
-      title: "PnL Showcase (nav)",
-      content: "Arena: PnL highlights and eligible wallets.",
     },
   ];
 }
@@ -338,17 +312,283 @@ function dashboardModQueueStep(): TutorialStep[] {
   ];
 }
 
+function callLogPageIntro(): TutorialStep[] {
+  return [
+    {
+      section: "calls",
+      target: sel("calls.header"),
+      route: "/calls",
+      title: "Call log",
+      content:
+        "Your verified calls only—time windows, totals, and the table. Next: switch 7d / 30d / all time, then the rows.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+  ];
+}
+
+function performancePageIntro(): TutorialStep[] {
+  return [
+    {
+      section: "performance",
+      target: sel("performance.header"),
+      route: "/performance",
+      title: "Performance lab",
+      content:
+        "Same calls as Call log, summarized: headline stats, 14-day activity, multiple mix, and rank. Next: the summary tiles.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+  ];
+}
+
+function watchlistPageIntro(): TutorialStep[] {
+  return [
+    {
+      section: "watchlist",
+      target: sel("watchlist.header"),
+      route: "/watchlist",
+      title: "Watchlist",
+      content:
+        "Private and public Solana contract lists for quick chart jumps. Next: scope, add row, and saved contracts.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+      closeAccountMenu: true,
+    },
+  ];
+}
+
 function watchlistPageSteps(): TutorialStep[] {
   return [
     {
       section: "watchlist",
-      target: sel("watchlist.input"),
+      target: sel("watchlist.manage"),
       route: "/watchlist",
-      title: "Add tokens",
-      content: "Paste a mint or ticker, then confirm with Add. Use Manage to edit or remove rows.",
+      title: "Private / public & list",
+      content: "Toggle scope, refresh, and browse or remove saved mints for the active list.",
       placement: "top",
       scrollOffset: 120,
-      closeAccountMenu: true,
+    },
+    {
+      section: "watchlist",
+      target: sel("watchlist.input"),
+      route: "/watchlist",
+      title: "Add contracts",
+      content: "Paste a valid mint, then Add. Rows dedupe automatically.",
+      placement: "top",
+      scrollOffset: 120,
+    },
+  ];
+}
+
+function botCallsPageIntro(): TutorialStep[] {
+  return [
+    {
+      section: "botCalls",
+      target: sel("botCalls.header"),
+      route: "/bot-calls",
+      title: "Bot calls",
+      content:
+        "Live McGBot scanner feed (Pro): time windows, min multiple, excluded toggle, and the tape. Next: filters.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+  ];
+}
+
+function botCallsPageSteps(): TutorialStep[] {
+  return [
+    {
+      section: "botCalls",
+      target: sel("botCalls.filters"),
+      route: "/bot-calls",
+      title: "Filters",
+      content: "24h / 7d / all time, minimum ×, and whether excluded calls show in the list.",
+      placement: "bottom",
+      scrollOffset: 96,
+    },
+    {
+      section: "botCalls",
+      target: sel("botCalls.table"),
+      route: "/bot-calls",
+      title: "Bot call table",
+      content: "Each row: timing, token, live and ATH multiples, status, Dex and chart shortcuts.",
+      placement: "top",
+      scrollOffset: 120,
+    },
+  ];
+}
+
+function trustedProPageIntro(): TutorialStep[] {
+  return [
+    {
+      section: "trustedPro",
+      target: sel("trustedPro.header"),
+      route: "/trusted-pro",
+      title: "Trusted Pro",
+      content:
+        "Longform thesis posts from Trusted Pro members; everyone reads, only approved members submit. Next: the public feed.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+  ];
+}
+
+function trustedProPageSteps(): TutorialStep[] {
+  return [
+    {
+      section: "trustedPro",
+      target: sel("trustedPro.feed"),
+      route: "/trusted-pro",
+      title: "Trusted Pro feed",
+      content: "Published calls with thesis, narrative, views, and timestamps—apply or submit from the header when eligible.",
+      placement: "top",
+      scrollOffset: 120,
+    },
+  ];
+}
+
+function leaderboardPageIntro(): TutorialStep[] {
+  return [
+    {
+      section: "leaderboard",
+      target: sel("leaderboard.header"),
+      route: "/leaderboard",
+      title: "Leaderboards",
+      content:
+        "Public arena: spotlight leaders, records, caller boards, and top single-call multiples—separate from your private Call log and Performance lab. Next: spotlight cards.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+  ];
+}
+
+function leaderboardPageSteps(): TutorialStep[] {
+  return [
+    {
+      section: "leaderboard",
+      target: sel("leaderboard.spotlight"),
+      route: "/leaderboard",
+      title: "Spotlight leaders",
+      content: "Daily, weekly, and monthly faces on the board with best and average multiples.",
+      placement: "top",
+      scrollOffset: 130,
+    },
+    {
+      section: "leaderboard",
+      target: sel("leaderboard.userBoard"),
+      route: "/leaderboard",
+      title: "User leaderboard",
+      content: "Ranked callers for the selected timeframe—avg, best, win rate, calls, and rank deltas.",
+      placement: "top",
+      scrollOffset: 130,
+    },
+    {
+      section: "leaderboard",
+      target: sel("leaderboard.topCalls"),
+      route: "/leaderboard",
+      title: "Top single calls",
+      content: "Highest multiples and time-to-ATH for standout individual calls in the window.",
+      placement: "top",
+      scrollOffset: 130,
+    },
+  ];
+}
+
+function pnlShowcasePageIntro(): TutorialStep[] {
+  return [
+    {
+      section: "pnlShowcase",
+      target: sel("pnlShowcase.header"),
+      route: "/pnl-showcase",
+      title: "PnL Showcase",
+      content:
+        "Verified realized and unrealized PnLs from on-chain data for tokens you’ve called—post from here when eligible. Next: the public feed.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+  ];
+}
+
+function pnlShowcasePageSteps(): TutorialStep[] {
+  return [
+    {
+      section: "pnlShowcase",
+      target: sel("pnlShowcase.feed"),
+      route: "/pnl-showcase",
+      title: "Verified posts",
+      content: "Recent showcase cards with % moves, SOL figures, wallet and token context, and refresh.",
+      placement: "top",
+      scrollOffset: 130,
+    },
+  ];
+}
+
+function profilePageIntro(ownProfilePath: string): TutorialStep[] {
+  return [
+    {
+      section: "profile",
+      target: sel("profile.pageIntro"),
+      route: ownProfilePath,
+      title: "Your profile",
+      content:
+        "What others see: banner, avatar, bio, optional performance, trophies, and recent calls. Next: the header and actions.",
+      placement: "center",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+  ];
+}
+
+function settingsPageIntro(): TutorialStep[] {
+  return [
+    {
+      section: "settings",
+      target: sel("settings.header"),
+      route: "/settings",
+      title: "Settings",
+      content:
+        "Link Discord/X, notifications, public profile visibility, and which home widgets render. Next: Account & X.",
+      placement: "center",
+      scrollOffset: 120,
+      skipScroll: true,
+    },
+  ];
+}
+
+function helpPageIntro(): TutorialStep[] {
+  return [
+    {
+      section: "help",
+      target: sel("help.header"),
+      route: "/help",
+      title: "Help",
+      content: "Tutorial controls, bug and feature forms, and role-sized handbooks. Next: Tutorial mode.",
+      placement: "center",
+      scrollOffset: 120,
+      skipScroll: true,
+    },
+  ];
+}
+
+function referralsPageIntro(): TutorialStep[] {
+  return [
+    {
+      section: "referrals",
+      target: sel("referrals.hero"),
+      route: "/referrals",
+      title: "Referrals",
+      content: "Share your link, track signups, and see how referred callers perform. Next: link hub and copy tools.",
+      placement: "center",
+      scrollOffset: 120,
+      skipScroll: true,
     },
   ];
 }
@@ -576,21 +816,39 @@ function referralsChapter(): TutorialStep[] {
 export function getUserTutorialSteps(_tier: HelpTier, ctx?: TutorialStepContext): TutorialStep[] {
   const own = ctx?.ownProfilePath?.trim();
   const out: TutorialStep[] = [
+    ...dashboardWelcomeStep(),
     ...dashboardTopBarSteps(),
     ...dashboardAccountMenuRows(),
-    ...dashboardIntroSteps(),
+    ...dashboardHomePageIntro(),
     ...dashboardHomePerformanceStep(),
     ...dashboardBodySteps(),
     ...dashboardMainFeedSteps(),
     ...dashboardQuickActionsRailStep(),
     ...dashboardRightColumnLowerSteps(),
-    ...sidebarYouNavSteps(),
+    ...callLogPageIntro(),
     ...callLogPageSteps(),
+    ...performancePageIntro(),
     ...performancePageSteps(),
+    ...watchlistPageIntro(),
     ...watchlistPageSteps(),
+    ...botCallsPageIntro(),
+    ...botCallsPageSteps(),
+    ...trustedProPageIntro(),
+    ...trustedProPageSteps(),
+    ...leaderboardPageIntro(),
+    ...leaderboardPageSteps(),
+    ...pnlShowcasePageIntro(),
+    ...pnlShowcasePageSteps(),
   ];
-  if (own) out.push(...profileChapter(own));
-  out.push(...settingsChapter(), ...helpChapter(), ...referralsChapter());
+  if (own) out.push(...profilePageIntro(own), ...profileChapter(own));
+  out.push(
+    ...settingsPageIntro(),
+    ...settingsChapter(),
+    ...helpPageIntro(),
+    ...helpChapter(),
+    ...referralsPageIntro(),
+    ...referralsChapter()
+  );
   return out;
 }
 

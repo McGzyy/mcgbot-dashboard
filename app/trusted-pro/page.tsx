@@ -250,7 +250,7 @@ export default function TrustedProPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
-      <header className="border-b border-white/[0.06] pb-8 pt-2">
+      <header className="border-b border-white/[0.06] pb-8 pt-2" data-tutorial="trustedPro.header">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-fuchsia-300/80">
           Arena
         </p>
@@ -370,7 +370,7 @@ export default function TrustedProPage() {
         </div>
       ) : null}
 
-      <div className="mt-8 space-y-3">
+      <div className="mt-8 space-y-3" data-tutorial="trustedPro.feed">
         {loading ? (
           <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-10 text-center text-sm text-zinc-500">
             Loading…

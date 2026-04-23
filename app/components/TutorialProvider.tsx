@@ -15,7 +15,7 @@ import { userProfileHref } from "@/lib/userProfileHref";
 import { Joyride, ACTIONS, EVENTS, STATUS, type EventHandler } from "react-joyride";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 
 type TrackState = {
   seenAt: string | null;
@@ -311,6 +311,36 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     return () => document.body.removeAttribute("data-mcgbot-tour-block-account-nav");
   }, [tourOpen, navWait, stepIndex, steps]);
 
+  /**
+   * Joyride’s built-in scroll can jump to the wrong scroll parent on long `/` layouts.
+   * We disable per-step Joyride scrolling and align the window to each target ourselves.
+   */
+  useLayoutEffect(() => {
+    if (!tourOpen || navWait) return;
+    const step = steps[stepIndex];
+    if (!step?.target || step.skipScroll) return;
+
+    const offset = typeof step.scrollOffset === "number" ? step.scrollOffset : 112;
+    const scroll = () => {
+      const el = document.querySelector(step.target);
+      if (!(el instanceof Element)) return;
+      const y = el.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    };
+
+    scroll();
+    let innerRaf = 0;
+    const outerRaf = window.requestAnimationFrame(() => {
+      innerRaf = window.requestAnimationFrame(scroll);
+    });
+    const t = window.setTimeout(scroll, 200);
+    return () => {
+      window.cancelAnimationFrame(outerRaf);
+      window.cancelAnimationFrame(innerRaf);
+      window.clearTimeout(t);
+    };
+  }, [tourOpen, navWait, pathname, stepIndex, steps]);
+
   const onJoyrideEvent = useCallback<EventHandler>(
     (data) => {
       const { type, action, index: eventIndex, status: st } = data;
@@ -376,9 +406,10 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
         content: s.content,
         placement: s.placement ?? "auto",
         skipBeacon: true,
+        /** Always: window scroll is handled in `useLayoutEffect` when `skipScroll` is unset on the step. */
+        skipScroll: true,
       };
       if (typeof s.scrollOffset === "number") row.scrollOffset = s.scrollOffset;
-      if (s.skipScroll === true) row.skipScroll = true;
       if (s.openAccountMenu || s.closeAccountMenu) {
         row.before = async () => {
           if (s.openAccountMenu) await openAccountMenu();
@@ -399,7 +430,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
           steps={joyrideSteps as any}
           run={joyrideRun}
           continuous
-          scrollToFirstStep
+          scrollToFirstStep={false}
           stepIndex={stepIndex}
           onEvent={onJoyrideEvent}
           options={{

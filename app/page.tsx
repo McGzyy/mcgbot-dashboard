@@ -3983,7 +3983,8 @@ export default function Home() {
   const showTrendingWidget = widgetEnabled(widgets, "trending");
 
   return (
-    <div className="mx-auto max-w-[1200px] px-1 sm:px-0">
+    <div className="mx-auto max-w-[1200px] px-1 sm:px-0" data-tutorial="dashboard.tutorialWelcome">
+      <div className="space-y-8" data-tutorial="dashboard.pageIntro">
       <div className="mb-8" data-tutorial="dashboard.performanceChart">
         <PerformanceChart refreshNonce={homeDataRefreshNonce} />
       </div>
@@ -4437,6 +4438,7 @@ export default function Home() {
             <OpportunitiesPanel />
           )}
         </div>
+      </div>
       </div>
 
       <ActivityPopup

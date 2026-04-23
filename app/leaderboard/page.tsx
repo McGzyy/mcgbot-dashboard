@@ -921,7 +921,10 @@ export default function LeaderboardPage() {
   return (
     <div className="min-h-screen bg-[#070708] bg-[radial-gradient(ellipse_120%_80%_at_50%_-18%,rgba(34,211,238,0.12),transparent_55%)] text-zinc-100">
       <div className="mx-auto w-full max-w-[1100px] space-y-8 px-4 py-8 sm:px-6 lg:py-10">
-        <header className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[#070708] p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8">
+        <header
+          className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[#070708] p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8"
+          data-tutorial="leaderboard.header"
+        >
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_35%,rgba(34,211,238,0.06)_48%,transparent_62%)] opacity-90" />
           <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cyan-500/[0.07] blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-16 h-56 w-56 rounded-full bg-emerald-600/[0.06] blur-3xl" />
@@ -1024,7 +1027,7 @@ export default function LeaderboardPage() {
       </section>
 
       {/* 1) Leaders */}
-      <section id="leaders" className="scroll-mt-28 space-y-4">
+      <section id="leaders" className="scroll-mt-28 space-y-4" data-tutorial="leaderboard.spotlight">
         <div>
           <h2 className={sectionTitle}>Leaders</h2>
           <p className="mt-1 text-xs leading-relaxed text-zinc-500">
@@ -1277,7 +1280,7 @@ export default function LeaderboardPage() {
               className="scroll-mt-28 space-y-8 border-t border-emerald-500/10 pt-8"
             >
         {/* User Leaderboard */}
-        <section className="space-y-4">
+        <section className="space-y-4" data-tutorial="leaderboard.userBoard">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className={sectionTitle}>User Leaderboard</h2>
@@ -1337,7 +1340,7 @@ export default function LeaderboardPage() {
 
         {/* Indiv. Call Leaderboard */}
         <div className="mt-8">
-          <section className="space-y-4">
+          <section className="space-y-4" data-tutorial="leaderboard.topCalls">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className={sectionTitle}>Indiv. Call Leaderboard</h2>
