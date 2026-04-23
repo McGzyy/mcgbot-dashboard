@@ -106,49 +106,70 @@ function HelpPageContent() {
     } catch {}
   }, [status, tier, tutorialTrackPick]);
 
+  const helpCard =
+    "rounded-2xl border border-white/[0.07] bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-black/55 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] backdrop-blur-sm";
+
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6">
+    <div className="relative mx-auto w-full max-w-6xl px-4 py-8 sm:py-10">
+      <div
+        className="pointer-events-none absolute inset-x-0 -top-32 h-72 bg-[radial-gradient(ellipse_70%_55%_at_50%_0%,rgba(57,255,20,0.11),transparent_65%)] sm:-top-40 sm:h-96"
+        aria-hidden
+      />
+      <div className="relative space-y-8 sm:space-y-10">
       <header
-        className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"
+        className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
         data-tutorial="help.header"
       >
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-100">Help</h1>
-          <p className="text-sm text-zinc-500">
-            Role docs, FAQ, and quick answers — McGBot support will plug in here over time.
+        <div className="max-w-2xl">
+          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+            Support hub
+          </p>
+          <h1 className="mt-1.5 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            Help
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+            Role docs, FAQ, and quick answers — refined over time as McGBot grows.
           </p>
           {status === "authenticated" ? (
-            <p className="mt-2 text-xs leading-relaxed text-zinc-600">
-              <span className="font-medium text-zinc-500">Shortcut:</span>{" "}
-              <kbd className="rounded-md border border-zinc-700/80 bg-zinc-900/50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-400">
+            <p className="mt-3 text-xs leading-relaxed text-zinc-500">
+              <span className="font-semibold text-zinc-400">Shortcuts</span>
+              {" · "}
+              <kbd className="rounded-md border border-zinc-600/60 bg-zinc-950/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                 ?
               </kbd>{" "}
-              <span className="text-zinc-600">
-                (Shift + /) opens Help from any page when focus is not in a field, like
+              <span className="text-zinc-500">
+                (Shift + /) opens Help when focus isn’t in a field. Use
               </span>{" "}
-              <kbd className="rounded-md border border-zinc-700/80 bg-zinc-900/50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-400">
+              <kbd className="rounded-md border border-zinc-600/60 bg-zinc-950/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                 /
               </kbd>{" "}
-              <span className="text-zinc-600">for token search.</span>
+              <span className="text-zinc-500">for token search.</span>
             </p>
           ) : null}
         </div>
         <Link
           href="/"
-          className="text-sm font-medium text-[color:var(--accent)] transition hover:text-green-400"
+          className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-zinc-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-[color:var(--accent)]/35 hover:bg-white/[0.05] hover:text-white sm:self-auto"
         >
-          ← Dashboard
+          <span className="text-[color:var(--accent)]" aria-hidden>
+            ←
+          </span>
+          Dashboard
         </Link>
       </header>
 
       {status === "loading" ? (
         <p className="text-sm text-zinc-500">Loading…</p>
       ) : status === "unauthenticated" ? (
-        <div className="rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-8 text-center">
-          <p className="text-sm text-zinc-400">Sign in with Discord to open Help and role docs.</p>
+        <div
+          className={`${helpCard} mx-auto max-w-md text-center`}
+        >
+          <p className="text-sm leading-relaxed text-zinc-300">
+            Sign in with Discord to open Help, tutorials, and role-specific docs.
+          </p>
           <Link
             href="/"
-            className="mt-3 inline-block text-sm font-semibold text-[color:var(--accent)] hover:text-green-400"
+            className="mt-4 inline-flex items-center justify-center rounded-full bg-[color:var(--accent)] px-5 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-400"
           >
             Go to home
           </Link>
@@ -159,22 +180,22 @@ function HelpPageContent() {
         <p className="text-sm text-zinc-500">Resolving your access…</p>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <section
               aria-label="Tutorial mode"
               data-tutorial="help.tutorialPanel"
-              className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20"
+              className={`${helpCard} lg:col-span-2 lg:row-span-2`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Onboarding</p>
-                  <h2 className="mt-1 text-sm font-semibold text-zinc-100">Tutorial mode</h2>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Onboarding</p>
+                  <h2 className="mt-1.5 text-base font-semibold tracking-tight text-white">Tutorial mode</h2>
+                  <p className="mt-2 text-xs leading-relaxed text-zinc-400">
                     Caller, moderator, and admin tours are separate. Pick a tour, jump to a section, or reset one
                     track without touching the others.
                   </p>
                 </div>
-                <div className="flex flex-wrap justify-end gap-1.5">
+                <div className="flex flex-wrap justify-end gap-2">
                   {(() => {
                     const w = window as any;
                     const tracks: TutorialTrackId[] =
@@ -203,7 +224,7 @@ function HelpPageContent() {
                             });
                           }
                         }}
-                        className="rounded-lg border border-emerald-500/30 bg-emerald-950/35 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-950/50"
+                        className="rounded-full border border-[color:var(--accent)]/35 bg-[color:var(--accent)]/10 px-3 py-1.5 text-[11px] font-semibold text-[color:var(--accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-[color:var(--accent)]/55 hover:bg-[color:var(--accent)]/16"
                       >
                         {labels[t]}
                       </button>
@@ -212,28 +233,28 @@ function HelpPageContent() {
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Tour</label>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Tour</label>
                   <select
                     value={tutorialTrackPick}
                     onChange={(e) => {
                       setTutorialTrackPick(e.target.value as TutorialTrackId);
                       setTutorialSectionId("");
                     }}
-                    className="w-full rounded-lg border border-zinc-800/80 bg-black/25 px-3 py-2 text-xs text-zinc-200 outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                    className="w-full rounded-xl border border-zinc-700/50 bg-black/35 px-3 py-2.5 text-xs text-zinc-100 outline-none ring-0 transition focus:border-[color:var(--accent)]/40 focus:ring-2 focus:ring-[color:var(--accent)]/15"
                   >
                     <option value="user">Caller</option>
                     {tier === "mod" || tier === "admin" ? <option value="mod">Moderator</option> : null}
                     {tier === "admin" ? <option value="admin">Administrator</option> : null}
                   </select>
                 </div>
-                <div className="flex min-w-0 flex-[2] flex-col gap-1">
-                  <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Jump to</label>
+                <div className="flex min-w-0 flex-[2] flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Jump to</label>
                   <select
                     value={tutorialSectionId}
                     onChange={(e) => setTutorialSectionId(e.target.value)}
-                    className="w-full rounded-lg border border-zinc-800/80 bg-black/25 px-3 py-2 text-xs text-zinc-200 outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                    className="w-full rounded-xl border border-zinc-700/50 bg-black/35 px-3 py-2.5 text-xs text-zinc-100 outline-none transition focus:border-[color:var(--accent)]/40 focus:ring-2 focus:ring-[color:var(--accent)]/15"
                   >
                     <option value="">Choose a section…</option>
                     {tutorialSections.map((s) => (
@@ -254,17 +275,17 @@ function HelpPageContent() {
                     }
                   }}
                   disabled={!tutorialSectionId.trim()}
-                  className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white disabled:opacity-50 sm:mb-0.5"
+                  className="rounded-xl border border-zinc-600/50 bg-zinc-900/60 px-4 py-2.5 text-xs font-semibold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800/50 hover:text-white disabled:opacity-45 sm:mb-0.5"
                 >
                   Go
                 </button>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold text-zinc-500">
-                <span className="uppercase tracking-wide">Reset</span>
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-white/[0.06] pt-4 text-[11px] font-semibold text-zinc-500">
+                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">Reset</span>
                 <button
                   type="button"
-                  className="underline-offset-2 transition hover:text-zinc-300 hover:underline"
+                  className="text-zinc-400 underline-offset-2 transition hover:text-[color:var(--accent)] hover:underline"
                   onClick={async () => {
                     const w = window as any;
                     if (typeof w?.__mcgbotTutorial?.reset === "function") {
@@ -285,7 +306,7 @@ function HelpPageContent() {
                 {tier === "mod" || tier === "admin" ? (
                   <button
                     type="button"
-                    className="underline-offset-2 transition hover:text-zinc-300 hover:underline"
+                    className="text-zinc-400 underline-offset-2 transition hover:text-[color:var(--accent)] hover:underline"
                     onClick={async () => {
                       const w = window as any;
                       if (typeof w?.__mcgbotTutorial?.reset === "function") {
@@ -307,7 +328,7 @@ function HelpPageContent() {
                 {tier === "admin" ? (
                   <button
                     type="button"
-                    className="underline-offset-2 transition hover:text-zinc-300 hover:underline"
+                    className="text-zinc-400 underline-offset-2 transition hover:text-[color:var(--accent)] hover:underline"
                     onClick={async () => {
                       const w = window as any;
                       if (typeof w?.__mcgbotTutorial?.reset === "function") {
@@ -330,21 +351,21 @@ function HelpPageContent() {
             </section>
             <section
               aria-label="Report a bug"
-              className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20"
+              className={`${helpCard} lg:col-start-3`}
               data-tutorial="help.reportBug"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Support</p>
-                  <h2 className="mt-1 text-sm font-semibold text-zinc-100">Report a bug</h2>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Support</p>
+                  <h2 className="mt-1.5 text-base font-semibold tracking-tight text-white">Report a bug</h2>
+                  <p className="mt-2 text-xs leading-relaxed text-zinc-400">
                     Found something broken? Admin will review and you’ll get a bell notification when it’s closed.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setBugOpen(true)}
-                  className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white"
+                  className="rounded-full border border-white/[0.1] bg-white/[0.04] px-3.5 py-2 text-xs font-semibold text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/20 hover:bg-white/[0.07]"
                 >
                   Submit bug
                 </button>
@@ -352,21 +373,21 @@ function HelpPageContent() {
             </section>
             <section
               aria-label="Request a feature"
-              className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 shadow-sm shadow-black/20"
+              className={`${helpCard} lg:col-start-3`}
               data-tutorial="help.featureRequest"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Feedback</p>
-                  <h2 className="mt-1 text-sm font-semibold text-zinc-100">Feature request</h2>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Feedback</p>
+                  <h2 className="mt-1.5 text-base font-semibold tracking-tight text-white">Feature request</h2>
+                  <p className="mt-2 text-xs leading-relaxed text-zinc-400">
                     Have an idea for the dashboard or bot? Tell us what you want and why it matters to you.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setFeatureOpen(true)}
-                  className="rounded-lg border border-violet-600/40 bg-violet-950/40 px-3 py-1.5 text-xs font-semibold text-violet-100 transition hover:border-violet-500/60 hover:bg-violet-950/60"
+                  className="rounded-full border border-violet-400/35 bg-gradient-to-r from-violet-600/25 to-fuchsia-600/20 px-3.5 py-2 text-xs font-semibold text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-violet-300/45 hover:from-violet-500/30 hover:to-fuchsia-500/25"
                 >
                   Submit idea
                 </button>
@@ -375,23 +396,29 @@ function HelpPageContent() {
           </div>
 
           <section aria-label="Documentation for your role" data-tutorial="help.docs">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Docs
-              </span>
-              <span
-                className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                  tier === "admin"
-                    ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-                    : tier === "mod"
-                      ? "border-sky-500/30 bg-sky-500/10 text-sky-200"
-                      : "border-zinc-600/50 bg-zinc-800/40 text-zinc-200"
-                }`}
-              >
-                {tier === "admin" ? "Admin" : tier === "mod" ? "Moderator" : "Caller"}
-              </span>
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                  Docs
+                </span>
+                <span className="hidden h-4 w-px bg-zinc-700/60 sm:block" aria-hidden />
+                <span
+                  className={`rounded-full border px-3 py-1 text-[11px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                    tier === "admin"
+                      ? "border-amber-400/35 bg-amber-500/15 text-amber-100"
+                      : tier === "mod"
+                        ? "border-sky-400/35 bg-sky-500/12 text-sky-100"
+                        : "border-zinc-600/50 bg-zinc-800/50 text-zinc-200"
+                  }`}
+                >
+                  {tier === "admin" ? "Admin" : tier === "mod" ? "Moderator" : "Caller"}
+                </span>
+              </div>
+              <p className="max-w-md text-right text-[11px] leading-relaxed text-zinc-500 sm:text-xs">
+                Guides match your role — deeper runbooks unlock for staff.
+              </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
               {visibleCards.map((card, index) => (
                 <button
                   key={card.slug}
@@ -454,10 +481,12 @@ function HelpPageContent() {
             openerRef={docOpenerRef}
           />
 
-          <div className="border-t border-zinc-800/90" aria-hidden />
+          <div className="relative py-2" aria-hidden>
+            <div className="h-px w-full bg-gradient-to-r from-transparent via-zinc-600/35 to-transparent" />
+          </div>
 
           <section
-            className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,300px)] lg:items-start"
+            className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] lg:items-start"
             aria-label="FAQ and assistant"
           >
             <HelpFaqPanel />
@@ -477,10 +506,10 @@ function HelpPageContent() {
                 if (e.target === e.currentTarget) setBugOpen(false);
               }}
             >
-              <div className="mt-10 w-full max-w-xl rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+              <div className="mt-10 w-full max-w-xl rounded-2xl border border-white/[0.08] bg-gradient-to-b from-zinc-900/95 to-black/90 p-5 shadow-2xl shadow-black/60 backdrop-blur-xl">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-zinc-100">Submit bug</h3>
+                    <h3 className="text-base font-semibold tracking-tight text-white">Submit bug</h3>
                     <p className="mt-1 text-xs text-zinc-500">Short and specific is best.</p>
                   </div>
                   <button
@@ -675,10 +704,10 @@ function HelpPageContent() {
                 if (e.target === e.currentTarget) setFeatureOpen(false);
               }}
             >
-              <div className="mt-10 w-full max-w-xl rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+              <div className="mt-10 w-full max-w-xl rounded-2xl border border-white/[0.08] bg-gradient-to-b from-zinc-900/95 to-black/90 p-5 shadow-2xl shadow-black/60 backdrop-blur-xl">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-zinc-100">Feature request</h3>
+                    <h3 className="text-base font-semibold tracking-tight text-white">Feature request</h3>
                     <p className="mt-1 text-xs text-zinc-500">One clear idea per submission works best.</p>
                   </div>
                   <button
@@ -867,6 +896,7 @@ function HelpPageContent() {
           ) : null}
         </>
       )}
+      </div>
     </div>
   );
 }
@@ -875,7 +905,9 @@ export default function HelpPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto w-full max-w-6xl px-4 py-6 text-sm text-zinc-500">Loading Help…</div>
+        <div className="mx-auto flex min-h-[40vh] w-full max-w-6xl items-center justify-center px-4 py-16 text-sm text-zinc-500">
+          Loading Help…
+        </div>
       }
     >
       <HelpPageContent />

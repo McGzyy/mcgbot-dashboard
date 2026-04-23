@@ -74,12 +74,15 @@ export function HelpFaqPanel() {
   }, [visible]);
 
   return (
-    <div className="rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-sm shadow-black/20">
-      <h2 className="text-sm font-semibold text-zinc-100">FAQ</h2>
-      <p className="mt-0.5 text-xs text-zinc-500">Filter by topic, then tap a question to expand.</p>
+    <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-black/55 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] backdrop-blur-sm">
+      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Reference</p>
+      <h2 className="mt-1.5 text-base font-semibold tracking-tight text-white">FAQ</h2>
+      <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+        Filter by topic, then tap a question to expand.
+      </p>
 
       <div
-        className="mt-3 flex flex-wrap gap-1.5 border-b border-zinc-800/80 pb-3"
+        className="mt-4 flex flex-wrap gap-2 border-b border-white/[0.06] pb-4"
         role="tablist"
         aria-label="FAQ categories"
       >
@@ -94,10 +97,10 @@ export function HelpFaqPanel() {
               onClick={() => {
                 setFilter(chip.id);
               }}
-              className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide transition ${
+              className={`rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
                 active
-                  ? "border-green-500/45 bg-green-500/10 text-[color:var(--accent)]"
-                  : "border-zinc-700/90 bg-zinc-900/40 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
+                  ? "border-[color:var(--accent)]/40 bg-[color:var(--accent)]/12 text-[color:var(--accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                  : "border-zinc-700/60 bg-black/25 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
               }`}
             >
               {chip.label}
@@ -109,24 +112,38 @@ export function HelpFaqPanel() {
       {visible.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-500">No questions in this category yet.</p>
       ) : (
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-4 space-y-2">
           {visible.map((item) => {
             const isOpen = openId === item.id;
             return (
-              <li key={item.id} className="rounded-lg border border-zinc-800/80 bg-zinc-950/30">
+              <li
+                key={item.id}
+                className={`overflow-hidden rounded-xl border transition-colors ${
+                  isOpen
+                    ? "border-[color:var(--accent)]/25 bg-black/30 shadow-[inset_0_1px_0_rgba(57,255,20,0.06)]"
+                    : "border-white/[0.06] bg-black/20 hover:border-zinc-600/40"
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => setOpenId(isOpen ? null : item.id)}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-medium text-zinc-200 transition hover:bg-zinc-900/40"
+                  className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left text-sm font-medium text-zinc-100 transition hover:bg-white/[0.03]"
                   aria-expanded={isOpen}
                 >
                   <span className="min-w-0 leading-snug">{item.q}</span>
-                  <span className="shrink-0 text-zinc-500" aria-hidden>
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-xs font-semibold tabular-nums ${
+                      isOpen
+                        ? "border-[color:var(--accent)]/30 bg-[color:var(--accent)]/10 text-[color:var(--accent)]"
+                        : "border-zinc-700/60 bg-zinc-950/50 text-zinc-500"
+                    }`}
+                    aria-hidden
+                  >
                     {isOpen ? "−" : "+"}
                   </span>
                 </button>
                 {isOpen ? (
-                  <p className="border-t border-zinc-800/60 px-3 py-2.5 text-xs leading-relaxed text-zinc-400">
+                  <p className="border-t border-white/[0.06] bg-black/20 px-3.5 py-3 text-xs leading-relaxed text-zinc-400">
                     {item.a}
                   </p>
                 ) : null}

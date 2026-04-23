@@ -10,18 +10,22 @@ const LINKS: { href: string; label: string }[] = [
 
 export function HelpQuickLinksPanel() {
   return (
-    <div className="rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-sm shadow-black/20">
-      <h2 className="text-sm font-semibold text-zinc-100">Help — Quick links</h2>
-      <p className="mt-0.5 text-xs text-zinc-500">Jump to common destinations.</p>
-      <ul className="mt-3 space-y-1">
+    <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-black/55 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] backdrop-blur-sm">
+      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Navigate</p>
+      <h2 className="mt-1.5 text-base font-semibold tracking-tight text-white">Quick links</h2>
+      <p className="mt-1 text-xs leading-relaxed text-zinc-400">Jump to common destinations.</p>
+      <ul className="mt-4 space-y-0.5">
         {LINKS.map((l) => (
           <li key={l.href}>
             <Link
               href={l.href}
-              className="block rounded-md px-2 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-900/50 hover:text-[color:var(--accent)]"
+              className="group flex items-center justify-between rounded-xl border border-transparent px-2.5 py-2 text-xs font-medium text-zinc-300 transition hover:border-white/[0.06] hover:bg-white/[0.03] hover:text-white"
             >
-              {l.label}
-              <span className="ml-1 text-zinc-600" aria-hidden>
+              <span>{l.label}</span>
+              <span
+                className="text-zinc-600 transition group-hover:text-[color:var(--accent)]"
+                aria-hidden
+              >
                 →
               </span>
             </Link>

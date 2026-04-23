@@ -4525,6 +4525,83 @@ export default function Home() {
             </PanelCard>
           )}
 
+          <PanelCard title="Watchlist" titleClassName="normal-case" data-tutorial="dashboard.homeWatchlist">
+            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
+              <span className="tabular-nums">
+                Saved{" "}
+                <span className="font-semibold text-zinc-300">
+                  {watchlistLoading
+                    ? "—"
+                    : (watchlistPrivate.length + watchlistPublic.length).toLocaleString("en-US")}
+                </span>
+              </span>
+              <span>
+                Updated{" "}
+                <span className="font-medium tabular-nums text-zinc-300">
+                  {watchlistUpdatedAt == null ? "—" : formatJoinedAt(watchlistUpdatedAt, nowMs)}
+                </span>
+              </span>
+            </div>
+            <div className="mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              {watchlistLoading ? (
+                <div className="space-y-2 p-1">
+                  <div className="h-9 animate-pulse rounded-lg bg-zinc-900/35" />
+                  <div className="h-9 animate-pulse rounded-lg bg-zinc-900/25" />
+                  <div className="h-9 animate-pulse rounded-lg bg-zinc-900/20" />
+                </div>
+              ) : watchlistPrivate.length + watchlistPublic.length === 0 ? (
+                <div className="flex items-center justify-center px-3 py-10">
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-zinc-200">No contracts yet</p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Add contract addresses to build your list.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <ul className="space-y-1">
+                  {[...watchlistPublic, ...watchlistPrivate].slice(0, 3).map((ca) => (
+                    <li key={ca}>
+                      <a
+                        href={`https://dexscreener.com/solana/${encodeURIComponent(ca)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-zinc-100">
+                              {shortenCa(ca)}
+                            </span>
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
+                              CA
+                            </span>
+                          </div>
+                          <div className="mt-0.5 font-mono text-[11px] text-zinc-500">
+                            {ca}
+                          </div>
+                        </div>
+                        <span className="ml-2 hidden text-xs text-zinc-500 group-hover:inline">
+                          ↗
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-xs text-zinc-500">Your saved contracts</p>
+              <Link
+                href="/watchlist"
+                className="text-xs font-semibold text-zinc-200 hover:text-white"
+              >
+                Open →
+              </Link>
+            </div>
+          </PanelCard>
+
           {(helpTier === "mod" || helpTier === "admin") && (
             <div data-tutorial="dashboard.modQueue">
               <ModQueueHomePanel />
@@ -4636,83 +4713,6 @@ export default function Home() {
             </PanelCard>
           ) : null}
           </div>
-
-          <PanelCard title="Watchlist" titleClassName="normal-case" data-tutorial="dashboard.homeWatchlist">
-            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
-              <span className="tabular-nums">
-                Saved{" "}
-                <span className="font-semibold text-zinc-300">
-                  {watchlistLoading
-                    ? "—"
-                    : (watchlistPrivate.length + watchlistPublic.length).toLocaleString("en-US")}
-                </span>
-              </span>
-              <span>
-                Updated{" "}
-                <span className="font-medium tabular-nums text-zinc-300">
-                  {watchlistUpdatedAt == null ? "—" : formatJoinedAt(watchlistUpdatedAt, nowMs)}
-                </span>
-              </span>
-            </div>
-            <div className="mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              {watchlistLoading ? (
-                <div className="space-y-2 p-1">
-                  <div className="h-9 animate-pulse rounded-lg bg-zinc-900/35" />
-                  <div className="h-9 animate-pulse rounded-lg bg-zinc-900/25" />
-                  <div className="h-9 animate-pulse rounded-lg bg-zinc-900/20" />
-                </div>
-              ) : watchlistPrivate.length + watchlistPublic.length === 0 ? (
-                <div className="flex items-center justify-center px-3 py-10">
-                  <div className="text-center">
-                    <p className="text-sm font-semibold text-zinc-200">No contracts yet</p>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      Add contract addresses to build your list.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <ul className="space-y-1">
-                  {[...watchlistPublic, ...watchlistPrivate].slice(0, 3).map((ca) => (
-                    <li key={ca}>
-                      <a
-                        href={`https://dexscreener.com/solana/${encodeURIComponent(ca)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="group flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-zinc-100">
-                              {shortenCa(ca)}
-                            </span>
-                            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
-                              CA
-                            </span>
-                          </div>
-                          <div className="mt-0.5 font-mono text-[11px] text-zinc-500">
-                            {ca}
-                          </div>
-                        </div>
-                        <span className="ml-2 hidden text-xs text-zinc-500 group-hover:inline">
-                          ↗
-                        </span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div className="mt-3 flex items-center justify-between">
-              <p className="text-xs text-zinc-500">Your saved contracts</p>
-              <Link
-                href="/watchlist"
-                className="text-xs font-semibold text-zinc-200 hover:text-white"
-              >
-                Open →
-              </Link>
-            </div>
-          </PanelCard>
 
           {widgetEnabled(widgets, "hot_now") && (
             <OpportunitiesPanel />
