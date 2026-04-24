@@ -57,7 +57,13 @@ function lobbyRequiresLabel(lobby: (typeof VOICE_LOBBIES)[number]): string {
   return "sign-in";
 }
 
-export function VoiceLobbiesShell({ helpTier }: { helpTier: HelpTier }) {
+export function VoiceLobbiesShell({
+  helpTier,
+  "data-tutorial": dataTutorial = "dashboard.voiceLobbies",
+}: {
+  helpTier: HelpTier;
+  "data-tutorial"?: string;
+}) {
   const { status } = useSession();
 
   const [busyLobby, setBusyLobby] = useState<VoiceLobbyId | null>(null);
@@ -206,7 +212,7 @@ export function VoiceLobbiesShell({ helpTier }: { helpTier: HelpTier }) {
 
   return (
     <div
-      data-tutorial="dashboard.voiceLobbies"
+      data-tutorial={dataTutorial}
       className={`rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
     >
       <div className="flex items-start justify-between gap-3">

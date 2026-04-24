@@ -133,6 +133,40 @@ function SidebarBody({
             <span>Watchlist</span>
           </Link>
 
+          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
+            The Lounge
+          </p>
+          <Link
+            href="/lounge/discord-chats"
+            onClick={pick}
+            data-tutorial="sidebar.nav.loungeDiscordChats"
+            className={getNavItemClass(isActive(pathname, "/lounge/discord-chats"))}
+          >
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/lounge/discord-chats")
+                  ? `${tierNavBarClass("user")} opacity-100`
+                  : "opacity-0"
+              }`}
+            />
+            <span>Discord chats</span>
+          </Link>
+          <Link
+            href="/lounge/voice-chats"
+            onClick={pick}
+            data-tutorial="sidebar.nav.loungeVoiceChats"
+            className={getNavItemClass(isActive(pathname, "/lounge/voice-chats"))}
+          >
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/lounge/voice-chats")
+                  ? `${tierNavBarClass("user")} opacity-100`
+                  : "opacity-0"
+              }`}
+            />
+            <span>Voice chats</span>
+          </Link>
+
           <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Arena</p>
           <Link href="/bot-calls" onClick={pick} data-tutorial="sidebar.nav.botCalls" className={getNavItemClass(isActive(pathname, "/bot-calls"))}>
             <div
