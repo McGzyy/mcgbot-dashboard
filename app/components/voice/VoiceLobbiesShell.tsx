@@ -1,7 +1,13 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { DisconnectReason, RoomEvent, type Participant, type Room } from "livekit-client";
+import {
+  ConnectionState,
+  DisconnectReason,
+  RoomEvent,
+  type Participant,
+  type Room,
+} from "livekit-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { HelpTier } from "@/lib/helpRole";
 import { VOICE_LOBBIES, type VoiceLobbyId } from "@/lib/voice/lobbies";
@@ -91,22 +97,58 @@ function voiceDisconnectMessage(reason?: DisconnectReason): string {
 function bindRoomLifecycle(
   room: Room,
   handlers: {
-    onReconnecting: () => void;
-    onReconnected: () => void;
+    onConnectionState?: (state: ConnectionState) => void;
+    onMediaDevicesChanged?: () => void;
     onDisconnected: (reason?: DisconnectReason) => void;
   }
 ): () => void {
-  const onReconnecting = () => handlers.onReconnecting();
-  const onReconnected = () => handlers.onReconnected();
+  const onConn = (state: ConnectionState) => handlers.onConnectionState?.(state);
+  const onMd = () => handlers.onMediaDevicesChanged?.();
   const onDisconnected = (reason?: DisconnectReason) => handlers.onDisconnected(reason);
-  room.on(RoomEvent.Reconnecting, onReconnecting);
-  room.on(RoomEvent.Reconnected, onReconnected);
+  handlers.onConnectionState?.(room.state);
+  room.on(RoomEvent.ConnectionStateChanged, onConn);
+  room.on(RoomEvent.MediaDevicesChanged, onMd);
   room.on(RoomEvent.Disconnected, onDisconnected);
   return () => {
-    room.off(RoomEvent.Reconnecting, onReconnecting);
-    room.off(RoomEvent.Reconnected, onReconnected);
+    room.off(RoomEvent.ConnectionStateChanged, onConn);
+    room.off(RoomEvent.MediaDevicesChanged, onMd);
     room.off(RoomEvent.Disconnected, onDisconnected);
   };
+}
+
+function connectionStateLabel(state: ConnectionState | null): string {
+  if (state === null) return "—";
+  switch (state) {
+    case ConnectionState.Connected:
+      return "Connected";
+    case ConnectionState.Connecting:
+      return "Connecting…";
+    case ConnectionState.Reconnecting:
+      return "Reconnecting…";
+    case ConnectionState.SignalReconnecting:
+      return "Syncing signal…";
+    case ConnectionState.Disconnected:
+      return "Disconnected";
+    default:
+      return "—";
+  }
+}
+
+function connectionStatePillClass(state: ConnectionState | null): string {
+  if (state === null) return "border-white/10 bg-zinc-950/80 text-zinc-400";
+  switch (state) {
+    case ConnectionState.Connected:
+      return "border-[color:var(--accent)]/40 bg-[color:var(--accent)]/10 text-[color:var(--accent)]";
+    case ConnectionState.Connecting:
+      return "border-zinc-500/40 bg-zinc-900/80 text-zinc-200";
+    case ConnectionState.Reconnecting:
+    case ConnectionState.SignalReconnecting:
+      return "border-sky-400/35 bg-sky-950/40 text-sky-100";
+    case ConnectionState.Disconnected:
+      return "border-red-500/35 bg-red-950/30 text-red-100";
+    default:
+      return "border-white/10 bg-zinc-950/80 text-zinc-400";
+  }
 }
 
 function lobbyJoinAllowed(
@@ -154,6 +196,10 @@ export function VoiceLobbiesShell({
   const [lobbyListError, setLobbyListError] = useState<string | null>(null);
   const [lobbiesPhase, setLobbiesPhase] = useState<"boot" | "ready">("boot");
   const [voiceReconnecting, setVoiceReconnecting] = useState(false);
+  const [lkConnection, setLkConnection] = useState<ConnectionState | null>(null);
+  const [audioInputs, setAudioInputs] = useState<Array<{ deviceId: string; label: string }>>([]);
+  const [micDeviceId, setMicDeviceId] = useState("");
+  const [micSwitchBusy, setMicSwitchBusy] = useState(false);
 
   const roomRef = useRef<Room | null>(null);
   const audioMountRef = useRef<HTMLDivElement | null>(null);
@@ -238,6 +284,10 @@ export function VoiceLobbiesShell({
 
   const teardownVoiceSession = useCallback(() => {
     setVoiceReconnecting(false);
+    setLkConnection(null);
+    setAudioInputs([]);
+    setMicDeviceId("");
+    setMicSwitchBusy(false);
     detachLifecycleRef.current?.();
     detachLifecycleRef.current = null;
     detachPeersRef.current?.();
@@ -249,6 +299,51 @@ export function VoiceLobbiesShell({
     setConnectedLobby(null);
     setMuted(false);
   }, []);
+
+  const refreshInputDevices = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) {
+      setAudioInputs([]);
+      return;
+    }
+    try {
+      const raw = await navigator.mediaDevices.enumerateDevices();
+      const inputs = raw
+        .filter((d) => d.kind === "audioinput")
+        .map((d, i) => ({
+          deviceId: d.deviceId,
+          label: (d.label && d.label.trim()) || `Microphone ${i + 1}`,
+        }));
+      setAudioInputs(inputs);
+      const room = roomRef.current;
+      const active = room?.getActiveDevice("audioinput");
+      if (active && inputs.some((x) => x.deviceId === active)) {
+        setMicDeviceId(active);
+      } else if (inputs[0]) {
+        setMicDeviceId(inputs[0].deviceId);
+      }
+    } catch {
+      setAudioInputs([]);
+    }
+  }, []);
+
+  const switchMic = useCallback(
+    async (deviceId: string) => {
+      const room = roomRef.current;
+      if (!room || !deviceId) return;
+      setMicSwitchBusy(true);
+      setError(null);
+      try {
+        await room.switchActiveDevice("audioinput", deviceId, true);
+        setMicDeviceId(room.getActiveDevice("audioinput") ?? deviceId);
+        await refreshInputDevices();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not switch microphone.");
+      } finally {
+        setMicSwitchBusy(false);
+      }
+    },
+    [refreshInputDevices]
+  );
 
   const disconnect = useCallback(() => {
     intentionalLeaveRef.current = true;
@@ -287,10 +382,21 @@ export function VoiceLobbiesShell({
         detachLifecycleRef.current?.();
         setSpeakingIdentities([]);
         detachPeersRef.current = bindRoomPresence(room, setRoomMembers, setSpeakingIdentities);
-        setVoiceReconnecting(false);
+        setLkConnection(room.state);
+        setVoiceReconnecting(
+          room.state === ConnectionState.Reconnecting ||
+            room.state === ConnectionState.SignalReconnecting
+        );
         detachLifecycleRef.current = bindRoomLifecycle(room, {
-          onReconnecting: () => setVoiceReconnecting(true),
-          onReconnected: () => setVoiceReconnecting(false),
+          onConnectionState: (s) => {
+            setLkConnection(s);
+            setVoiceReconnecting(
+              s === ConnectionState.Reconnecting || s === ConnectionState.SignalReconnecting
+            );
+          },
+          onMediaDevicesChanged: () => {
+            void refreshInputDevices();
+          },
           onDisconnected: (reason) => {
             if (intentionalLeaveRef.current) return;
             setVoiceReconnecting(false);
@@ -301,6 +407,9 @@ export function VoiceLobbiesShell({
         });
         setConnectedLobby(lobbyId);
         setMuted(!room.localParticipant.isMicrophoneEnabled);
+        const initialMic = room.getActiveDevice("audioinput");
+        if (initialMic) setMicDeviceId(initialMic);
+        void refreshInputDevices();
         void refreshLobbies();
       } catch {
         setError("Connection failed.");
@@ -308,7 +417,7 @@ export function VoiceLobbiesShell({
         setBusyLobby(null);
       }
     },
-    [busyLobby, disconnect, refreshLobbies, status, teardownVoiceSession]
+    [busyLobby, disconnect, refreshInputDevices, refreshLobbies, status, teardownVoiceSession]
   );
 
   const toggleMute = useCallback(async () => {
@@ -351,6 +460,9 @@ export function VoiceLobbiesShell({
   const connectedLobbyMeta = connectedLobby
     ? VOICE_LOBBIES.find((l) => l.id === connectedLobby)
     : null;
+
+  const micSelectValue =
+    audioInputs.some((d) => d.deviceId === micDeviceId) ? micDeviceId : (audioInputs[0]?.deviceId ?? "");
 
   return (
     <div data-tutorial={dataTutorial} className={shellClass}>
@@ -432,6 +544,51 @@ export function VoiceLobbiesShell({
             <span className="shrink-0 rounded-full border border-white/15 bg-black/40 px-3 py-1.5 text-xs font-bold tabular-nums text-zinc-100 shadow-inner shadow-black/40">
               {roomMembers.length} {roomMembers.length === 1 ? "member" : "members"}
             </span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-white/[0.08] pt-3">
+            <div className="min-w-0 flex-1 basis-[min(100%,16rem)]">
+              <label
+                htmlFor="voice-mic-device"
+                className="block text-[10px] font-bold uppercase tracking-wide text-zinc-500"
+              >
+                Microphone
+              </label>
+              <select
+                id="voice-mic-device"
+                value={micSelectValue}
+                onChange={(e) => void switchMic(e.target.value)}
+                disabled={micSwitchBusy || audioInputs.length === 0}
+                className="mt-1 w-full max-w-sm rounded-lg border border-white/10 bg-black/45 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition focus:border-[color:var(--accent)]/45 focus:ring-2 focus:ring-[color:var(--accent)]/25 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {audioInputs.length === 0 ? (
+                  <option value="">No microphones detected</option>
+                ) : (
+                  audioInputs.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+            <div className="flex min-w-0 flex-col items-start gap-1 sm:ml-auto sm:items-end">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                Room link
+              </span>
+              <span
+                className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${connectionStatePillClass(lkConnection)}`}
+                title={connectionStateLabel(lkConnection)}
+              >
+                {lkConnection === ConnectionState.Reconnecting ||
+                lkConnection === ConnectionState.SignalReconnecting ? (
+                  <span
+                    className="inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-sky-300"
+                    aria-hidden
+                  />
+                ) : null}
+                <span className="min-w-0 truncate">{connectionStateLabel(lkConnection)}</span>
+              </span>
+            </div>
           </div>
           {roomMembers.length === 0 ? (
             <p className="mt-3 flex items-center gap-2 text-[11px] text-zinc-500">
