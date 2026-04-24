@@ -60,6 +60,16 @@ export function DashboardChatPanel({
   });
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const stickToBottomRef = useRef(true);
+  const tabRef = useRef<DashboardChatTab>("general");
+  tabRef.current = tab;
+  const messagesSnapRef = useRef<{ channel: DashboardChatTab; list: ChatMessagePayload[] }>({
+    channel: "general",
+    list: [],
+  });
+  const skipNextPollNewRef = useRef(false);
+  const baseTitleRef = useRef("");
+  const titleBumpedRef = useRef(false);
+  const [pendingBelow, setPendingBelow] = useState(0);
   const [popoutOpen, setPopoutOpen] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [portalReady, setPortalReady] = useState(false);
@@ -71,7 +81,27 @@ export function DashboardChatPanel({
 
   useEffect(() => {
     setPortalReady(true);
+    if (typeof document !== "undefined" && !baseTitleRef.current) {
+      baseTitleRef.current = document.title;
+    }
   }, []);
+
+  const restoreChatTitle = useCallback(() => {
+    if (typeof document === "undefined") return;
+    if (titleBumpedRef.current && baseTitleRef.current) {
+      document.title = baseTitleRef.current;
+      titleBumpedRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVis = () => {
+      if (document.visibilityState === "visible") restoreChatTitle();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [restoreChatTitle]);
 
   useEffect(() => {
     if (!popoutOpen && !imagePreviewUrl) return;
@@ -103,7 +133,9 @@ export function DashboardChatPanel({
   useEffect(() => {
     if (!popoutOpen) return;
     stickToBottomRef.current = true;
-  }, [popoutOpen]);
+    setPendingBelow(0);
+    restoreChatTitle();
+  }, [popoutOpen, restoreChatTitle]);
 
   useEffect(() => {
     if (!showModTab && tab === "mod") setTab("general");
@@ -112,14 +144,34 @@ export function DashboardChatPanel({
   useEffect(() => {
     stickToBottomRef.current = true;
     setSyncStale(false);
-  }, [tab]);
+    setPendingBelow(0);
+    skipNextPollNewRef.current = true;
+    restoreChatTitle();
+  }, [tab, restoreChatTitle]);
 
   const handleScrollerScroll = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
     const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
-    stickToBottomRef.current = gap < 100;
-  }, []);
+    const atBottom = gap < 100;
+    stickToBottomRef.current = atBottom;
+    if (atBottom) {
+      setPendingBelow(0);
+      restoreChatTitle();
+    }
+  }, [restoreChatTitle]);
+
+  const jumpToLatest = useCallback(() => {
+    stickToBottomRef.current = true;
+    setPendingBelow(0);
+    restoreChatTitle();
+    const el = scrollerRef.current;
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    }
+  }, [restoreChatTitle]);
 
   const draft = draftByTab[tab];
   const setDraft = (next: string) =>
@@ -130,11 +182,13 @@ export function DashboardChatPanel({
   const load = useCallback(
     (mode: "full" | "poll") => {
       void (async () => {
+        const channelAtStart = tabRef.current;
         if (mode === "full") setLoading(true);
         try {
-          const qs = new URLSearchParams({ channel: tab });
+          const qs = new URLSearchParams({ channel: channelAtStart });
           const res = await fetch(`/api/chat/messages?${qs.toString()}`);
           const json: any = await res.json().catch(() => ({}));
+          if (channelAtStart !== tabRef.current) return;
           if (!res.ok) {
             const msg =
               typeof json?.error === "string"
@@ -213,8 +267,47 @@ export function DashboardChatPanel({
               );
             })
             .sort((a, b) => a.createdAt - b.createdAt);
-          setMessages(parsed.slice(-60));
+          const next = parsed.slice(-60);
+          if (channelAtStart !== tabRef.current) return;
+
+          const prevSnap = messagesSnapRef.current;
+          const skipBaseline = skipNextPollNewRef.current;
+
+          if (mode === "full") {
+            skipNextPollNewRef.current = false;
+            setPendingBelow(0);
+          } else if (mode === "poll" && skipBaseline) {
+            skipNextPollNewRef.current = false;
+          }
+
+          const canCompareNew =
+            mode === "poll" &&
+            !skipBaseline &&
+            prevSnap.channel === channelAtStart &&
+            prevSnap.list.length > 0;
+
+          let addedCount = 0;
+          if (canCompareNew) {
+            const prevIds = new Set(prevSnap.list.map((m) => m.id));
+            addedCount = next.filter((m) => !prevIds.has(m.id)).length;
+          }
+
+          setMessages(next);
+          messagesSnapRef.current = { channel: channelAtStart, list: next };
+
+          if (mode === "poll" && addedCount > 0 && !stickToBottomRef.current) {
+            setPendingBelow((c) => {
+              const n = Math.min(99, c + addedCount);
+              if (typeof document !== "undefined" && document.hidden && n > 0) {
+                const base = baseTitleRef.current || "Chat";
+                document.title = `(${n}) New · ${base}`;
+                titleBumpedRef.current = true;
+              }
+              return n;
+            });
+          }
         } catch {
+          if (channelAtStart !== tabRef.current) return;
           if (mode === "full") {
             setChatError("Could not load chat.");
             setSyncStale(false);
@@ -222,7 +315,7 @@ export function DashboardChatPanel({
             setSyncStale(true);
           }
         } finally {
-          if (mode === "full") setLoading(false);
+          if (mode === "full" && channelAtStart === tabRef.current) setLoading(false);
         }
       })();
     },
@@ -241,8 +334,10 @@ export function DashboardChatPanel({
     if (!el || messages.length === 0) return;
     if (stickToBottomRef.current) {
       el.scrollTop = el.scrollHeight;
+      setPendingBelow(0);
+      restoreChatTitle();
     }
-  }, [messages, loading]);
+  }, [messages, loading, restoreChatTitle]);
 
   const send = useCallback(async () => {
     if (sending) return;
@@ -348,7 +443,14 @@ export function DashboardChatPanel({
               </button>
             </>
           ) : (
-            <span>Live</span>
+            <span className="inline-flex items-center gap-2 tabular-nums">
+              {pendingBelow > 0 ? (
+                <span className="font-semibold text-amber-300/95">
+                  {pendingBelow} new below
+                </span>
+              ) : null}
+              <span>Live</span>
+            </span>
           )}
         </span>
       </div>
@@ -372,6 +474,11 @@ export function DashboardChatPanel({
             : "mt-2 rounded-xl border border-zinc-800/45 bg-zinc-950/15 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-sm"
         }
       >
+        <div
+          className={
+            stretch ? "relative flex min-h-0 flex-1 flex-col" : "relative min-h-0"
+          }
+        >
         <div
           ref={scrollerRef}
           onScroll={handleScrollerScroll}
@@ -520,6 +627,33 @@ export function DashboardChatPanel({
               })}
             </ul>
           )}
+        </div>
+
+        {!chatError && !loading && messages.length > 0 && pendingBelow > 0 ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-zinc-950/95 via-zinc-950/70 to-transparent pb-2 pt-10">
+            <button
+              type="button"
+              onClick={jumpToLatest}
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[color:var(--accent)]/40 bg-[#070707]/95 px-4 py-2 text-xs font-semibold text-zinc-100 shadow-[0_8px_32px_-8px_rgba(57,255,20,0.35)] backdrop-blur-sm transition hover:border-[color:var(--accent)]/60 hover:bg-zinc-900/95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/30"
+            >
+              <span className="tabular-nums text-[color:var(--accent)]">{pendingBelow}</span>
+              <span>
+                new {pendingBelow === 1 ? "message" : "messages"} · Jump to latest
+              </span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-3.5 w-3.5 text-[color:var(--accent)]"
+                aria-hidden
+              >
+                <path d="M12 5v14M5 12l7-7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        ) : null}
         </div>
 
         <div className="mt-2 flex shrink-0 items-center gap-2">
