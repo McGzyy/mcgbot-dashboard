@@ -11,20 +11,34 @@ import { tierMeetsLobby } from "@/lib/voice/tierGate";
 const CARD_HOVER =
   "transition-[box-shadow,border-color,ring-color] duration-200 ease-out hover:border-[#2a2a2a] hover:shadow-lg hover:shadow-black/35 hover:ring-1 hover:ring-[#2a2a2a]/30";
 
+const LOBBY_POLL_MS = 8000;
+
 type TokenResponse =
   | { ok: true; url: string; token: string; roomName: string; lobbyId: string }
   | { ok: false; error?: string };
 
-type RemotePeer = { identity: string; name: string };
+type RoomMember = { identity: string; name: string; isLocal: boolean };
 
-function bindRemotePeers(room: Room, onUpdate: (peers: RemotePeer[]) => void): () => void {
+function bindRoomMembers(room: Room, onUpdate: (members: RoomMember[]) => void): () => void {
   const sync = () => {
-    onUpdate(
-      Array.from(room.remoteParticipants.values()).map((p) => ({
+    const lp = room.localParticipant;
+    const members: RoomMember[] = [
+      {
+        identity: lp.identity,
+        name: (lp.name && lp.name.trim()) || lp.identity,
+        isLocal: true,
+      },
+      ...Array.from(room.remoteParticipants.values()).map((p) => ({
         identity: p.identity,
         name: (p.name && p.name.trim()) || p.identity,
-      }))
-    );
+        isLocal: false as const,
+      })),
+    ];
+    members.sort((a, b) => {
+      if (a.isLocal !== b.isLocal) return a.isLocal ? -1 : 1;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    });
+    onUpdate(members);
   };
   sync();
   room.on(RoomEvent.ParticipantConnected, sync);
@@ -71,7 +85,10 @@ export function VoiceLobbiesShell({
   const [connectedLobby, setConnectedLobby] = useState<VoiceLobbyId | null>(null);
   const [muted, setMuted] = useState(false);
   const [lobbyAccess, setLobbyAccess] = useState<Partial<Record<VoiceLobbyId, boolean>> | null>(null);
-  const [remotePeers, setRemotePeers] = useState<RemotePeer[]>([]);
+  const [countByLobby, setCountByLobby] = useState<Partial<Record<VoiceLobbyId, number>> | null>(
+    null
+  );
+  const [roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
   const [modBusy, setModBusy] = useState<string | null>(null);
 
   const roomRef = useRef<Room | null>(null);
@@ -79,41 +96,49 @@ export function VoiceLobbiesShell({
   const detachPeersRef = useRef<(() => void) | null>(null);
 
   const isStaff = helpTier === "mod" || helpTier === "admin";
+  const remotePeers = roomMembers.filter((m) => !m.isLocal);
+
+  const refreshLobbies = useCallback(async () => {
+    if (status !== "authenticated") return;
+    try {
+      const res = await fetch("/api/voice/lobbies", { credentials: "same-origin" });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        lobbies?: Array<{ id: string; canJoin?: boolean; participantCount?: number }>;
+      };
+      if (!res.ok || json.ok !== true || !Array.isArray(json.lobbies)) {
+        setLobbyAccess({});
+        setCountByLobby({});
+        return;
+      }
+      const access: Partial<Record<VoiceLobbyId, boolean>> = {};
+      const counts: Partial<Record<VoiceLobbyId, number>> = {};
+      for (const row of json.lobbies) {
+        const raw = String(row.id || "").trim().toLowerCase();
+        const known = VOICE_LOBBIES.find((l) => l.id === raw);
+        if (!known) continue;
+        access[known.id] = row.canJoin === true;
+        const c = row.participantCount;
+        counts[known.id] = typeof c === "number" && Number.isFinite(c) ? Math.max(0, c) : 0;
+      }
+      setLobbyAccess(access);
+      setCountByLobby(counts);
+    } catch {
+      setLobbyAccess({});
+      setCountByLobby({});
+    }
+  }, [status]);
 
   useEffect(() => {
     if (status !== "authenticated") {
       setLobbyAccess(null);
+      setCountByLobby(null);
       return;
     }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch("/api/voice/lobbies", { credentials: "same-origin" });
-        const json = (await res.json().catch(() => ({}))) as {
-          ok?: boolean;
-          lobbies?: Array<{ id: string; canJoin?: boolean }>;
-        };
-        if (cancelled) return;
-        if (!res.ok || json.ok !== true || !Array.isArray(json.lobbies)) {
-          setLobbyAccess({});
-          return;
-        }
-        const map: Partial<Record<VoiceLobbyId, boolean>> = {};
-        for (const row of json.lobbies) {
-          const raw = String(row.id || "").trim().toLowerCase();
-          const known = VOICE_LOBBIES.find((l) => l.id === raw);
-          if (!known) continue;
-          map[known.id] = row.canJoin === true;
-        }
-        setLobbyAccess(map);
-      } catch {
-        if (!cancelled) setLobbyAccess({});
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [status]);
+    void refreshLobbies();
+    const id = window.setInterval(() => void refreshLobbies(), LOBBY_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [status, refreshLobbies]);
 
   useEffect(() => {
     return () => {
@@ -127,12 +152,13 @@ export function VoiceLobbiesShell({
   const disconnect = useCallback(() => {
     detachPeersRef.current?.();
     detachPeersRef.current = null;
-    setRemotePeers([]);
+    setRoomMembers([]);
     disconnectVoiceRoom(roomRef.current, audioMountRef.current);
     roomRef.current = null;
     setConnectedLobby(null);
     setMuted(false);
-  }, []);
+    void refreshLobbies();
+  }, [refreshLobbies]);
 
   const join = useCallback(
     async (lobbyId: VoiceLobbyId) => {
@@ -161,16 +187,17 @@ export function VoiceLobbiesShell({
         const room = await connectVoiceRoom(json.url, json.token, audioMountRef.current);
         roomRef.current = room;
         detachPeersRef.current?.();
-        detachPeersRef.current = bindRemotePeers(room, setRemotePeers);
+        detachPeersRef.current = bindRoomMembers(room, setRoomMembers);
         setConnectedLobby(lobbyId);
         setMuted(!room.localParticipant.isMicrophoneEnabled);
+        void refreshLobbies();
       } catch {
         setError("Connection failed.");
       } finally {
         setBusyLobby(null);
       }
     },
-    [busyLobby, disconnect, status]
+    [busyLobby, disconnect, refreshLobbies, status]
   );
 
   const toggleMute = useCallback(async () => {
@@ -210,6 +237,10 @@ export function VoiceLobbiesShell({
     return null;
   }
 
+  const connectedLobbyMeta = connectedLobby
+    ? VOICE_LOBBIES.find((l) => l.id === connectedLobby)
+    : null;
+
   return (
     <div
       data-tutorial={dataTutorial}
@@ -227,18 +258,74 @@ export function VoiceLobbiesShell({
 
       {error ? <p className="mt-2 text-xs text-red-300/90">{error}</p> : null}
 
+      {connectedLobby && connectedLobbyMeta ? (
+        <div className="mt-3 rounded-xl border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/[0.06] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--accent)]">
+                In this room
+              </p>
+              <p className="mt-0.5 text-sm font-semibold text-zinc-100">{connectedLobbyMeta.label}</p>
+            </div>
+            <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-zinc-200">
+              {roomMembers.length} {roomMembers.length === 1 ? "member" : "members"}
+            </span>
+          </div>
+          {roomMembers.length === 0 ? (
+            <p className="mt-2 text-[11px] text-zinc-500">Connecting…</p>
+          ) : (
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {roomMembers.map((m) => (
+                <li
+                  key={m.identity}
+                  className="inline-flex max-w-full items-center gap-1 rounded-lg border border-white/[0.08] bg-zinc-950/50 px-2 py-1 text-[11px] text-zinc-200"
+                  title={m.identity}
+                >
+                  <span className="min-w-0 truncate font-medium text-zinc-100">{m.name}</span>
+                  {m.isLocal ? (
+                    <span className="shrink-0 rounded bg-[color:var(--accent)]/20 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-[color:var(--accent)]">
+                      You
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">
         {VOICE_LOBBIES.map((lobby) => {
           const allowed = lobbyJoinAllowed(lobby, helpTier, lobbyAccess);
           const active = connectedLobby === lobby.id;
+          const serverCount = countByLobby?.[lobby.id];
+          const countLabel =
+            active && roomMembers.length > 0
+              ? String(roomMembers.length)
+              : typeof serverCount === "number"
+                ? String(serverCount)
+                : "…";
+
           return (
             <li
               key={lobby.id}
-              className="flex min-h-[5.5rem] flex-col justify-between gap-2 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5 sm:min-h-0"
+              className={`flex min-h-[5.5rem] flex-col justify-between gap-2 rounded-xl border px-3 py-2.5 sm:min-h-0 ${
+                active
+                  ? "border-[color:var(--accent)]/40 bg-[color:var(--accent)]/[0.05] ring-1 ring-[color:var(--accent)]/15"
+                  : "border-white/[0.06] bg-black/20"
+              }`}
             >
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-zinc-100">{lobby.label}</p>
-                <p className="text-[11px] text-zinc-500">{lobby.description}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-zinc-100">{lobby.label}</p>
+                  <span
+                    className="shrink-0 rounded-full border border-white/10 bg-zinc-900/80 px-2 py-0.5 text-[10px] font-bold tabular-nums text-zinc-300"
+                    title="Participants in this lobby"
+                  >
+                    {countLabel}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[11px] text-zinc-500">{lobby.description}</p>
                 {!allowed ? (
                   <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-amber-200/80">
                     Requires {lobbyRequiresLabel(lobby)}
