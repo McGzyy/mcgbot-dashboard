@@ -1,8 +1,8 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { RoomEvent, type Room } from "livekit-client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { RoomEvent, type Participant, type Room } from "livekit-client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { HelpTier } from "@/lib/helpRole";
 import { VOICE_LOBBIES, type VoiceLobbyId } from "@/lib/voice/lobbies";
 import { connectVoiceRoom, disconnectVoiceRoom } from "@/lib/voice/livekitRoom";
@@ -19,8 +19,17 @@ type TokenResponse =
 
 type RoomMember = { identity: string; name: string; isLocal: boolean };
 
-function bindRoomMembers(room: Room, onUpdate: (members: RoomMember[]) => void): () => void {
-  const sync = () => {
+function speakerIdentities(speakers: readonly Participant[]): string[] {
+  return speakers.map((s) => s.identity);
+}
+
+/** Member list + LiveKit active speaker highlights. */
+function bindRoomPresence(
+  room: Room,
+  onMembers: (members: RoomMember[]) => void,
+  onSpeakingIdentities: (ids: string[]) => void
+): () => void {
+  const syncMembers = () => {
     const lp = room.localParticipant;
     const members: RoomMember[] = [
       {
@@ -38,14 +47,24 @@ function bindRoomMembers(room: Room, onUpdate: (members: RoomMember[]) => void):
       if (a.isLocal !== b.isLocal) return a.isLocal ? -1 : 1;
       return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
     });
-    onUpdate(members);
+    onMembers(members);
   };
-  sync();
-  room.on(RoomEvent.ParticipantConnected, sync);
-  room.on(RoomEvent.ParticipantDisconnected, sync);
+
+  const onSpeakers = (speakers: Participant[]) => {
+    onSpeakingIdentities(speakerIdentities(speakers));
+  };
+
+  syncMembers();
+  onSpeakingIdentities(speakerIdentities(room.activeSpeakers ?? []));
+
+  room.on(RoomEvent.ParticipantConnected, syncMembers);
+  room.on(RoomEvent.ParticipantDisconnected, syncMembers);
+  room.on(RoomEvent.ActiveSpeakersChanged, onSpeakers);
+
   return () => {
-    room.off(RoomEvent.ParticipantConnected, sync);
-    room.off(RoomEvent.ParticipantDisconnected, sync);
+    room.off(RoomEvent.ParticipantConnected, syncMembers);
+    room.off(RoomEvent.ParticipantDisconnected, syncMembers);
+    room.off(RoomEvent.ActiveSpeakersChanged, onSpeakers);
   };
 }
 
@@ -89,6 +108,7 @@ export function VoiceLobbiesShell({
     null
   );
   const [roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
+  const [speakingIdentities, setSpeakingIdentities] = useState<string[]>([]);
   const [modBusy, setModBusy] = useState<string | null>(null);
 
   const roomRef = useRef<Room | null>(null);
@@ -97,6 +117,7 @@ export function VoiceLobbiesShell({
 
   const isStaff = helpTier === "mod" || helpTier === "admin";
   const remotePeers = roomMembers.filter((m) => !m.isLocal);
+  const speakingSet = useMemo(() => new Set(speakingIdentities), [speakingIdentities]);
 
   const refreshLobbies = useCallback(async () => {
     if (status !== "authenticated") return;
@@ -153,6 +174,7 @@ export function VoiceLobbiesShell({
     detachPeersRef.current?.();
     detachPeersRef.current = null;
     setRoomMembers([]);
+    setSpeakingIdentities([]);
     disconnectVoiceRoom(roomRef.current, audioMountRef.current);
     roomRef.current = null;
     setConnectedLobby(null);
@@ -187,7 +209,8 @@ export function VoiceLobbiesShell({
         const room = await connectVoiceRoom(json.url, json.token, audioMountRef.current);
         roomRef.current = room;
         detachPeersRef.current?.();
-        detachPeersRef.current = bindRoomMembers(room, setRoomMembers);
+        setSpeakingIdentities([]);
+        detachPeersRef.current = bindRoomPresence(room, setRoomMembers, setSpeakingIdentities);
         setConnectedLobby(lobbyId);
         setMuted(!room.localParticipant.isMicrophoneEnabled);
         void refreshLobbies();
@@ -293,20 +316,40 @@ export function VoiceLobbiesShell({
             <p className="mt-3 text-[11px] text-zinc-500">Connecting…</p>
           ) : (
             <ul className="mt-3 flex flex-wrap gap-2">
-              {roomMembers.map((m) => (
-                <li
-                  key={m.identity}
-                  className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-950/70 px-2.5 py-1.5 text-[11px] text-zinc-200 shadow-sm shadow-black/30"
-                  title={m.identity}
-                >
-                  <span className="min-w-0 truncate font-medium text-zinc-50">{m.name}</span>
-                  {m.isLocal ? (
-                    <span className="shrink-0 rounded-md bg-[color:var(--accent)]/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[color:var(--accent)] ring-1 ring-[color:var(--accent)]/30">
-                      You
+              {roomMembers.map((m) => {
+                const speaking = speakingSet.has(m.identity);
+                return (
+                  <li
+                    key={m.identity}
+                    className={`inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] shadow-sm shadow-black/30 transition-[box-shadow,background-color,border-color] duration-150 ${
+                      speaking
+                        ? "border-[color:var(--accent)]/55 bg-[color:var(--accent)]/15 text-zinc-100 shadow-[0_0_22px_-6px_rgba(57,255,20,0.55)] ring-2 ring-[color:var(--accent)]/35"
+                        : "border-white/10 bg-zinc-950/70 text-zinc-200"
+                    }`}
+                    title={m.identity}
+                  >
+                    {speaking ? (
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full bg-[color:var(--accent)] shadow-[0_0_8px_2px_rgba(57,255,20,0.55)]"
+                        aria-hidden
+                      />
+                    ) : null}
+                    <span
+                      className={`min-w-0 truncate font-medium ${speaking ? "text-white" : "text-zinc-50"}`}
+                    >
+                      {m.name}
                     </span>
-                  ) : null}
-                </li>
-              ))}
+                    {m.isLocal ? (
+                      <span className="shrink-0 rounded-md bg-[color:var(--accent)]/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[color:var(--accent)] ring-1 ring-[color:var(--accent)]/30">
+                        You
+                      </span>
+                    ) : null}
+                    {speaking ? (
+                      <span className="sr-only">Speaking</span>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -399,13 +442,30 @@ export function VoiceLobbiesShell({
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/30 to-transparent" aria-hidden />
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200/90">Staff · moderation</p>
           <ul className="mt-2 space-y-2">
-            {remotePeers.map((p) => (
+            {remotePeers.map((p) => {
+              const speaking = speakingSet.has(p.identity);
+              return (
               <li
                 key={p.identity}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-black/25 px-2 py-1.5 text-[11px] text-zinc-200"
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-[11px] transition-[box-shadow,background-color,border-color] duration-150 ${
+                  speaking
+                    ? "border-[color:var(--accent)]/45 bg-[color:var(--accent)]/10 text-zinc-100 shadow-[0_0_18px_-6px_rgba(57,255,20,0.45)] ring-1 ring-[color:var(--accent)]/30"
+                    : "border-white/[0.06] bg-black/25 text-zinc-200"
+                }`}
               >
-                <span className="min-w-0 truncate font-medium text-zinc-50" title={p.identity}>
-                  {p.name}
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {speaking ? (
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full bg-[color:var(--accent)] shadow-[0_0_8px_2px_rgba(57,255,20,0.5)]"
+                      aria-hidden
+                    />
+                  ) : null}
+                  <span
+                    className={`min-w-0 truncate font-medium ${speaking ? "text-white" : "text-zinc-50"}`}
+                    title={p.identity}
+                  >
+                    {p.name}
+                  </span>
                 </span>
                 <span className="flex shrink-0 gap-1">
                   <button
@@ -426,7 +486,8 @@ export function VoiceLobbiesShell({
                   </button>
                 </span>
               </li>
-            ))}
+            );
+            })}
           </ul>
         </div>
       ) : null}
