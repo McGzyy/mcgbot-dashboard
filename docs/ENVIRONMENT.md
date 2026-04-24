@@ -209,10 +209,27 @@ Some docs mention vars (e.g. milestone chart toggles) that **do not** appear in 
 
 ---
 
-## 9. Updating this document
+## 9. Voice lobbies (dashboard — LiveKit WebRTC)
+
+Used by `app/api/voice/token/route.ts`, `app/components/voice/VoiceLobbiesShell.tsx`, and `lib/voice/*`. Enable the home widget with **`NEXT_PUBLIC_VOICE_LOBBIES_ENABLED=1`** (rebuild after changing).
+
+| Variable | Purpose |
+|----------|---------|
+| **`LIVEKIT_URL`** | WebSocket URL from LiveKit Cloud (e.g. `wss://…livekit.cloud`). |
+| **`LIVEKIT_API_KEY`** | Server API key (mint join tokens). |
+| **`LIVEKIT_API_SECRET`** | Server secret — **never** expose to the browser. |
+| **`LIVEKIT_ROOM_PREFIX`** | Optional; default `mcgbot`. Room names are `{prefix}-lobby-general` / `{prefix}-lobby-mods`. |
+
+Lobby access (see `lib/voice/lobbies.ts`): **Trenching 1–3**, **General Chat**, and **OG Chat** = any signed-in user; **Mod Lounge** = dashboard tier mod/admin (same `/api/me/help-role` logic as the rest of the home page). LiveKit room names look like `{LIVEKIT_ROOM_PREFIX}-lobby-{id}` (e.g. `mcgbot-lobby-mod_lounge`).
+
+---
+
+## 10. Updating this document
 
 When you verify on a **new Node version** or **new OS**, update §1.1 and any install notes that differ. When you add env vars in code, update §7.
 
 ---
 
 *Last aligned with dependency versions in `package.json` and runtime checks documented in this file.*
+
+*(Section 9 voice vars apply to the Next.js dashboard host; rebuild after changing `NEXT_PUBLIC_*`.)*

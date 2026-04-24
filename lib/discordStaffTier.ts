@@ -16,6 +16,8 @@
  * Returns null only on transport/API failure so callers can fall back to env id lists.
  */
 
+import { fetchDiscordGuildMemberRoleIds } from "@/lib/discordGuildMemberRoles";
+
 export type StaffTierFromDiscord = "user" | "mod" | "admin";
 
 function idSet(raw: string | undefined): Set<string> {
@@ -49,28 +51,8 @@ export async function staffTierFromDiscord(
   if (!uid) return null;
 
   try {
-    const memberRes = await fetch(
-      `https://discord.com/api/v10/guilds/${encodeURIComponent(guildId)}/members/${encodeURIComponent(uid)}`,
-      {
-        headers: { Authorization: `Bot ${token}` },
-        cache: "no-store",
-      }
-    );
-
-    if (memberRes.status === 404) {
-      return "user";
-    }
-    if (!memberRes.ok) {
-      console.warn(
-        `[discordStaff] guild member fetch failed (${memberRes.status}) for user ${uid.slice(0, 6)}…`
-      );
-      return null;
-    }
-
-    const member = (await memberRes.json().catch(() => null)) as { roles?: unknown } | null;
-    const roleIds = Array.isArray(member?.roles)
-      ? member!.roles.map((r) => String(r).trim()).filter(Boolean)
-      : [];
+    const roleIds = await fetchDiscordGuildMemberRoleIds(uid);
+    if (roleIds === null) return null;
 
     const adminIds = idSet(process.env.DISCORD_ADMIN_ROLE_IDS);
     const modIds = idSet(process.env.DISCORD_MOD_ROLE_IDS);

@@ -9,6 +9,7 @@ import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { ActivityPopup } from "./components/ActivityPopup";
 import { AddToWatchlistModal } from "./components/AddToWatchlistModal";
 import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
+import { VoiceLobbiesShell } from "./components/voice/VoiceLobbiesShell";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
 import DailyLeaderboardPanel from "@/components/DailyLeaderboardPanel";
@@ -4601,6 +4602,10 @@ export default function Home() {
               </Link>
             </div>
           </PanelCard>
+
+          {String(process.env.NEXT_PUBLIC_VOICE_LOBBIES_ENABLED || "") === "1" ? (
+            <VoiceLobbiesShell helpTier={helpTier} />
+          ) : null}
 
           {(helpTier === "mod" || helpTier === "admin") && (
             <div data-tutorial="dashboard.modQueue">
