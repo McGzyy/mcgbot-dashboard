@@ -8,10 +8,10 @@ import { VOICE_LOBBIES, type VoiceLobbyId } from "@/lib/voice/lobbies";
 import { connectVoiceRoom, disconnectVoiceRoom } from "@/lib/voice/livekitRoom";
 import { tierMeetsLobby } from "@/lib/voice/tierGate";
 
-const CARD_HOVER =
-  "transition-[box-shadow,border-color,ring-color] duration-200 ease-out hover:border-[#2a2a2a] hover:shadow-lg hover:shadow-black/35 hover:ring-1 hover:ring-[#2a2a2a]/30";
-
 const LOBBY_POLL_MS = 8000;
+
+const shellClass =
+  "relative overflow-hidden rounded-2xl border border-zinc-700/35 bg-gradient-to-b from-zinc-900/70 via-[#070707] to-black px-5 py-5 shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_28px_80px_-28px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-md transition-shadow duration-500 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.07),0_32px_100px_-24px_rgba(57,255,20,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]";
 
 type TokenResponse =
   | { ok: true; url: string; token: string; roomName: string; lobbyId: string }
@@ -242,48 +242,66 @@ export function VoiceLobbiesShell({
     : null;
 
   return (
-    <div
-      data-tutorial={dataTutorial}
-      className={`rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="min-w-0 flex-1 text-sm font-semibold tracking-wide text-zinc-100 normal-case">
-          Voice lobbies
-        </h2>
-      </div>
-      <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-        In-browser voice (WebRTC via LiveKit). Mic permission is requested when you join. Next steps:
-        TURN-heavy networks and optional screen share.
-      </p>
+    <div data-tutorial={dataTutorial} className={shellClass}>
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)]/45 to-transparent"
+        aria-hidden
+      />
+      <div className="pointer-events-none absolute -left-24 top-1/2 h-48 w-48 -translate-y-1/2 rounded-full bg-[color:var(--accent)]/[0.06] blur-3xl" aria-hidden />
+      <div className="pointer-events-none absolute -right-20 bottom-0 h-40 w-40 rounded-full bg-sky-500/10 blur-3xl" aria-hidden />
 
-      {error ? <p className="mt-2 text-xs text-red-300/90">{error}</p> : null}
+      <div className="relative flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-semibold tracking-tight text-white">Voice lobbies</h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-[color:var(--accent)]">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--accent)] opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]" />
+              </span>
+              Live
+            </span>
+          </div>
+          <p className="mt-1.5 max-w-xl text-[12px] leading-relaxed text-zinc-400">
+            WebRTC voice via LiveKit — crystal-clear tables. Mic permission when you join; best on
+            wired or solid Wi‑Fi.
+          </p>
+        </div>
+      </div>
+
+      {error ? (
+        <p className="relative mt-3 rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-2 text-xs text-red-200/95">
+          {error}
+        </p>
+      ) : null}
 
       {connectedLobby && connectedLobbyMeta ? (
-        <div className="mt-3 rounded-xl border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/[0.06] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="relative mt-5 overflow-hidden rounded-xl border border-[color:var(--accent)]/30 bg-gradient-to-br from-[color:var(--accent)]/[0.12] via-zinc-950/60 to-black/80 px-4 py-4 shadow-[0_0_40px_-12px_rgba(57,255,20,0.15),inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" aria-hidden />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--accent)]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--accent)]/90">
                 In this room
               </p>
-              <p className="mt-0.5 text-sm font-semibold text-zinc-100">{connectedLobbyMeta.label}</p>
+              <p className="mt-1 text-lg font-semibold tracking-tight text-white">{connectedLobbyMeta.label}</p>
             </div>
-            <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-zinc-200">
+            <span className="shrink-0 rounded-full border border-white/15 bg-black/40 px-3 py-1.5 text-xs font-bold tabular-nums text-zinc-100 shadow-inner shadow-black/40">
               {roomMembers.length} {roomMembers.length === 1 ? "member" : "members"}
             </span>
           </div>
           {roomMembers.length === 0 ? (
-            <p className="mt-2 text-[11px] text-zinc-500">Connecting…</p>
+            <p className="mt-3 text-[11px] text-zinc-500">Connecting…</p>
           ) : (
-            <ul className="mt-2 flex flex-wrap gap-1.5">
+            <ul className="mt-3 flex flex-wrap gap-2">
               {roomMembers.map((m) => (
                 <li
                   key={m.identity}
-                  className="inline-flex max-w-full items-center gap-1 rounded-lg border border-white/[0.08] bg-zinc-950/50 px-2 py-1 text-[11px] text-zinc-200"
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-950/70 px-2.5 py-1.5 text-[11px] text-zinc-200 shadow-sm shadow-black/30"
                   title={m.identity}
                 >
-                  <span className="min-w-0 truncate font-medium text-zinc-100">{m.name}</span>
+                  <span className="min-w-0 truncate font-medium text-zinc-50">{m.name}</span>
                   {m.isLocal ? (
-                    <span className="shrink-0 rounded bg-[color:var(--accent)]/20 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-[color:var(--accent)]">
+                    <span className="shrink-0 rounded-md bg-[color:var(--accent)]/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[color:var(--accent)] ring-1 ring-[color:var(--accent)]/30">
                       You
                     </span>
                   ) : null}
@@ -294,7 +312,7 @@ export function VoiceLobbiesShell({
         </div>
       ) : null}
 
-      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+      <ul className="relative mt-5 grid gap-3 sm:grid-cols-2">
         {VOICE_LOBBIES.map((lobby) => {
           const allowed = lobbyJoinAllowed(lobby, helpTier, lobbyAccess);
           const active = connectedLobby === lobby.id;
@@ -309,43 +327,53 @@ export function VoiceLobbiesShell({
           return (
             <li
               key={lobby.id}
-              className={`flex min-h-[5.5rem] flex-col justify-between gap-2 rounded-xl border px-3 py-2.5 sm:min-h-0 ${
+              className={`group relative flex min-h-[5.75rem] flex-col justify-between gap-2 overflow-hidden rounded-xl border px-3.5 py-3 transition-all duration-200 sm:min-h-0 ${
                 active
-                  ? "border-[color:var(--accent)]/40 bg-[color:var(--accent)]/[0.05] ring-1 ring-[color:var(--accent)]/15"
-                  : "border-white/[0.06] bg-black/20"
+                  ? "border-[color:var(--accent)]/50 bg-gradient-to-b from-[color:var(--accent)]/[0.14] to-zinc-950/70 shadow-[0_0_28px_-8px_rgba(57,255,20,0.25),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-[color:var(--accent)]/25"
+                  : "border-white/[0.08] bg-gradient-to-b from-zinc-900/50 to-zinc-950/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:-translate-y-0.5 hover:border-zinc-500/40 hover:shadow-lg hover:shadow-black/50"
               }`}
             >
-              <div className="min-w-0">
+              {!active ? (
+                <div
+                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_50%_0%,rgba(57,255,20,0.07),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  aria-hidden
+                />
+              ) : null}
+              <div className="relative min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-zinc-100">{lobby.label}</p>
+                  <p className="text-sm font-semibold tracking-tight text-white">{lobby.label}</p>
                   <span
-                    className="shrink-0 rounded-full border border-white/10 bg-zinc-900/80 px-2 py-0.5 text-[10px] font-bold tabular-nums text-zinc-300"
+                    className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tabular-nums ${
+                      active
+                        ? "border-[color:var(--accent)]/40 bg-black/50 text-[color:var(--accent)] shadow-[0_0_12px_-4px_rgba(57,255,20,0.4)]"
+                        : "border-white/10 bg-zinc-950/90 text-zinc-300 shadow-inner shadow-black/40"
+                    }`}
                     title="Participants in this lobby"
                   >
                     {countLabel}
                   </span>
                 </div>
-                <p className="mt-0.5 text-[11px] text-zinc-500">{lobby.description}</p>
+                <p className="mt-1 text-[11px] leading-snug text-zinc-500">{lobby.description}</p>
                 {!allowed ? (
-                  <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-amber-200/80">
+                  <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200/90">
                     Requires {lobbyRequiresLabel(lobby)}
                   </p>
                 ) : null}
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+              <div className="relative flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
                 {active ? (
                   <>
                     <button
                       type="button"
                       onClick={() => void toggleMute()}
-                      className="rounded-lg border border-zinc-600/60 bg-zinc-900/60 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-500"
+                      className="rounded-lg border border-zinc-500/50 bg-zinc-900/80 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 shadow-sm shadow-black/40 transition hover:border-zinc-400 hover:bg-zinc-800"
                     >
                       {muted ? "Unmute" : "Mute"}
                     </button>
                     <button
                       type="button"
                       onClick={disconnect}
-                      className="rounded-lg border border-red-500/35 bg-red-950/25 px-2.5 py-1.5 text-[11px] font-semibold text-red-100 transition hover:border-red-400/50"
+                      className="rounded-lg border border-red-500/40 bg-gradient-to-b from-red-950/50 to-red-950/30 px-3 py-1.5 text-[11px] font-semibold text-red-100 shadow-sm shadow-red-950/50 transition hover:border-red-400/60 hover:from-red-900/60"
                     >
                       Leave
                     </button>
@@ -355,7 +383,7 @@ export function VoiceLobbiesShell({
                     type="button"
                     disabled={!allowed || busyLobby !== null || status !== "authenticated"}
                     onClick={() => void join(lobby.id)}
-                    className="rounded-lg bg-[color:var(--accent)] px-3 py-1.5 text-[11px] font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-500 disabled:opacity-45"
+                    className="rounded-lg bg-gradient-to-b from-[color:var(--accent)] to-green-500 px-3.5 py-1.5 text-[11px] font-bold text-black shadow-[0_0_20px_-6px_rgba(57,255,20,0.55)] transition hover:brightness-110 disabled:opacity-45 disabled:shadow-none"
                   >
                     {busyLobby === lobby.id ? "Joining…" : "Join"}
                   </button>
@@ -367,15 +395,16 @@ export function VoiceLobbiesShell({
       </ul>
 
       {connectedLobby && isStaff && remotePeers.length > 0 ? (
-        <div className="mt-3 rounded-lg border border-white/[0.06] bg-black/30 px-3 py-2">
-          <p className="text-[11px] font-semibold text-zinc-300">Staff · room moderation</p>
-          <ul className="mt-2 space-y-1.5">
+        <div className="relative mt-4 overflow-hidden rounded-xl border border-sky-500/25 bg-gradient-to-br from-sky-950/30 via-zinc-950/50 to-black/60 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/30 to-transparent" aria-hidden />
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200/90">Staff · moderation</p>
+          <ul className="mt-2 space-y-2">
             {remotePeers.map((p) => (
               <li
                 key={p.identity}
-                className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-200"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-black/25 px-2 py-1.5 text-[11px] text-zinc-200"
               >
-                <span className="min-w-0 truncate font-medium text-zinc-100" title={p.identity}>
+                <span className="min-w-0 truncate font-medium text-zinc-50" title={p.identity}>
                   {p.name}
                 </span>
                 <span className="flex shrink-0 gap-1">
@@ -383,7 +412,7 @@ export function VoiceLobbiesShell({
                     type="button"
                     disabled={modBusy !== null}
                     onClick={() => void moderate("mute", p.identity)}
-                    className="rounded-md border border-zinc-600/50 bg-zinc-900/50 px-2 py-1 text-[10px] font-semibold text-zinc-200 transition hover:border-zinc-500 disabled:opacity-45"
+                    className="rounded-md border border-zinc-600/60 bg-zinc-900/70 px-2 py-1 text-[10px] font-semibold text-zinc-100 transition hover:border-zinc-500 disabled:opacity-45"
                   >
                     Mute mic
                   </button>
@@ -391,7 +420,7 @@ export function VoiceLobbiesShell({
                     type="button"
                     disabled={modBusy !== null}
                     onClick={() => void moderate("kick", p.identity)}
-                    className="rounded-md border border-red-500/35 bg-red-950/20 px-2 py-1 text-[10px] font-semibold text-red-100 transition hover:border-red-400/45 disabled:opacity-45"
+                    className="rounded-md border border-red-500/40 bg-red-950/35 px-2 py-1 text-[10px] font-semibold text-red-100 transition hover:border-red-400/55 disabled:opacity-45"
                   >
                     Kick
                   </button>
@@ -407,16 +436,6 @@ export function VoiceLobbiesShell({
         className="pointer-events-none fixed bottom-0 left-0 h-px w-px overflow-hidden opacity-0"
         aria-hidden
       />
-
-      <p className="mt-3 text-[10px] leading-relaxed text-zinc-600">
-        Server env: <span className="font-mono text-zinc-500">LIVEKIT_URL</span>,{" "}
-        <span className="font-mono text-zinc-500">LIVEKIT_API_KEY</span>,{" "}
-        <span className="font-mono text-zinc-500">LIVEKIT_API_SECRET</span>. Optional{" "}
-        <span className="font-mono text-zinc-500">LIVEKIT_ROOM_PREFIX</span>,{" "}
-        <span className="font-mono text-zinc-500">DISCORD_GUILD_ID</span> + bot token for OG role
-        checks (<span className="font-mono text-zinc-500">DISCORD_OG_VOICE_ROLE_ID</span>). Show widget:{" "}
-        <span className="font-mono text-zinc-500">NEXT_PUBLIC_VOICE_LOBBIES_ENABLED=1</span>
-      </p>
     </div>
   );
 }
