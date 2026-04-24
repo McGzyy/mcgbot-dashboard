@@ -55,11 +55,11 @@ export default function LoungeVoiceChatsPage() {
 
   return (
     <div
-      className="relative mx-auto flex min-h-[calc(100dvh-6rem)] w-full max-w-4xl flex-col px-3 pb-12 pt-2 sm:px-5"
+      className="relative mx-auto flex min-h-[calc(100dvh-6rem)] w-full max-w-7xl flex-col px-3 pb-12 pt-2 sm:px-5"
       data-tutorial="lounge.voiceChats"
     >
       <div
-        className="pointer-events-none absolute left-1/2 top-0 h-[min(40vh,320px)] w-[min(100%,720px)] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.09),transparent_70%)]"
+        className="pointer-events-none absolute left-1/2 top-0 h-[min(40vh,320px)] w-[min(100%,900px)] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.09),transparent_70%)]"
         aria-hidden
       />
       <header className="relative mb-6 shrink-0 border-b border-white/[0.06] pb-5">
@@ -67,23 +67,25 @@ export default function LoungeVoiceChatsPage() {
           The Lounge
         </p>
         <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Voice chats</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">
           LiveKit-powered rooms — pick a table, see who is live, and drop in with one tap.
         </p>
       </header>
-      {voiceEnabled ? (
-        <VoiceLobbiesShell helpTier={helpTier} data-tutorial="lounge.voiceChats.panel" />
-      ) : (
-        <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-950/20 to-zinc-950/80 px-5 py-6 text-sm text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-          <p>
-            Voice lobbies are off on this host. Enable{" "}
-            <code className="rounded-md border border-zinc-600 bg-black/50 px-2 py-0.5 font-mono text-xs text-[color:var(--accent)]">
-              NEXT_PUBLIC_VOICE_LOBBIES_ENABLED=1
-            </code>{" "}
-            to unlock.
-          </p>
-        </div>
-      )}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {voiceEnabled ? (
+          <VoiceLobbiesShell helpTier={helpTier} data-tutorial="lounge.voiceChats.panel" />
+        ) : (
+          <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-950/20 to-zinc-950/80 px-5 py-6 text-sm text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <p>
+              Voice lobbies are off on this host. Enable{" "}
+              <code className="rounded-md border border-zinc-600 bg-black/50 px-2 py-0.5 font-mono text-xs text-[color:var(--accent)]">
+                NEXT_PUBLIC_VOICE_LOBBIES_ENABLED=1
+              </code>{" "}
+              to unlock.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

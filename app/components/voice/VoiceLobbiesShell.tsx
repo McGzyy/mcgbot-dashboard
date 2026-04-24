@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { RoomEvent, type Participant, type Room } from "livekit-client";
+import { DisconnectReason, RoomEvent, type Participant, type Room } from "livekit-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { HelpTier } from "@/lib/helpRole";
 import { VOICE_LOBBIES, type VoiceLobbyId } from "@/lib/voice/lobbies";
@@ -68,6 +68,47 @@ function bindRoomPresence(
   };
 }
 
+function voiceDisconnectMessage(reason?: DisconnectReason): string {
+  switch (reason) {
+    case DisconnectReason.CLIENT_INITIATED:
+      return "You left the room.";
+    case DisconnectReason.DUPLICATE_IDENTITY:
+      return "Disconnected: this account joined from another tab or device.";
+    case DisconnectReason.PARTICIPANT_REMOVED:
+      return "You were removed from the room.";
+    case DisconnectReason.ROOM_DELETED:
+      return "This voice room ended.";
+    case DisconnectReason.STATE_MISMATCH:
+    case DisconnectReason.JOIN_FAILURE:
+      return "Could not stay connected. Try joining again.";
+    case DisconnectReason.USER_UNAVAILABLE:
+      return "Disconnected: server unavailable. Try again shortly.";
+    default:
+      return "Connection to voice dropped. Rejoin when you are ready.";
+  }
+}
+
+function bindRoomLifecycle(
+  room: Room,
+  handlers: {
+    onReconnecting: () => void;
+    onReconnected: () => void;
+    onDisconnected: (reason?: DisconnectReason) => void;
+  }
+): () => void {
+  const onReconnecting = () => handlers.onReconnecting();
+  const onReconnected = () => handlers.onReconnected();
+  const onDisconnected = (reason?: DisconnectReason) => handlers.onDisconnected(reason);
+  room.on(RoomEvent.Reconnecting, onReconnecting);
+  room.on(RoomEvent.Reconnected, onReconnected);
+  room.on(RoomEvent.Disconnected, onDisconnected);
+  return () => {
+    room.off(RoomEvent.Reconnecting, onReconnecting);
+    room.off(RoomEvent.Reconnected, onReconnected);
+    room.off(RoomEvent.Disconnected, onDisconnected);
+  };
+}
+
 function lobbyJoinAllowed(
   lobby: (typeof VOICE_LOBBIES)[number],
   helpTier: HelpTier,
@@ -110,10 +151,16 @@ export function VoiceLobbiesShell({
   const [roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
   const [speakingIdentities, setSpeakingIdentities] = useState<string[]>([]);
   const [modBusy, setModBusy] = useState<string | null>(null);
+  const [lobbyListError, setLobbyListError] = useState<string | null>(null);
+  const [lobbiesPhase, setLobbiesPhase] = useState<"boot" | "ready">("boot");
+  const [voiceReconnecting, setVoiceReconnecting] = useState(false);
 
   const roomRef = useRef<Room | null>(null);
   const audioMountRef = useRef<HTMLDivElement | null>(null);
   const detachPeersRef = useRef<(() => void) | null>(null);
+  const detachLifecycleRef = useRef<(() => void) | null>(null);
+  const intentionalLeaveRef = useRef(false);
+  const lobbiesHydratedRef = useRef(false);
 
   const isStaff = helpTier === "mod" || helpTier === "admin";
   const remotePeers = roomMembers.filter((m) => !m.isLocal);
@@ -128,8 +175,14 @@ export function VoiceLobbiesShell({
         lobbies?: Array<{ id: string; canJoin?: boolean; participantCount?: number }>;
       };
       if (!res.ok || json.ok !== true || !Array.isArray(json.lobbies)) {
-        setLobbyAccess({});
-        setCountByLobby({});
+        setLobbyListError(
+          !res.ok ? `Lobby list failed (${res.status}).` : "Lobby list response was invalid."
+        );
+        if (!lobbiesHydratedRef.current) {
+          setLobbyAccess({});
+          setCountByLobby({});
+        }
+        setLobbiesPhase("ready");
         return;
       }
       const access: Partial<Record<VoiceLobbyId, boolean>> = {};
@@ -142,11 +195,18 @@ export function VoiceLobbiesShell({
         const c = row.participantCount;
         counts[known.id] = typeof c === "number" && Number.isFinite(c) ? Math.max(0, c) : 0;
       }
+      setLobbyListError(null);
+      lobbiesHydratedRef.current = true;
       setLobbyAccess(access);
       setCountByLobby(counts);
+      setLobbiesPhase("ready");
     } catch {
-      setLobbyAccess({});
-      setCountByLobby({});
+      setLobbyListError("Network error while refreshing lobbies.");
+      if (!lobbiesHydratedRef.current) {
+        setLobbyAccess({});
+        setCountByLobby({});
+      }
+      setLobbiesPhase("ready");
     }
   }, [status]);
 
@@ -154,6 +214,9 @@ export function VoiceLobbiesShell({
     if (status !== "authenticated") {
       setLobbyAccess(null);
       setCountByLobby(null);
+      setLobbyListError(null);
+      setLobbiesPhase("boot");
+      lobbiesHydratedRef.current = false;
       return;
     }
     void refreshLobbies();
@@ -163,6 +226,9 @@ export function VoiceLobbiesShell({
 
   useEffect(() => {
     return () => {
+      intentionalLeaveRef.current = true;
+      detachLifecycleRef.current?.();
+      detachLifecycleRef.current = null;
       detachPeersRef.current?.();
       detachPeersRef.current = null;
       disconnectVoiceRoom(roomRef.current, audioMountRef.current);
@@ -170,7 +236,10 @@ export function VoiceLobbiesShell({
     };
   }, []);
 
-  const disconnect = useCallback(() => {
+  const teardownVoiceSession = useCallback(() => {
+    setVoiceReconnecting(false);
+    detachLifecycleRef.current?.();
+    detachLifecycleRef.current = null;
     detachPeersRef.current?.();
     detachPeersRef.current = null;
     setRoomMembers([]);
@@ -179,8 +248,14 @@ export function VoiceLobbiesShell({
     roomRef.current = null;
     setConnectedLobby(null);
     setMuted(false);
+  }, []);
+
+  const disconnect = useCallback(() => {
+    intentionalLeaveRef.current = true;
+    teardownVoiceSession();
+    intentionalLeaveRef.current = false;
     void refreshLobbies();
-  }, [refreshLobbies]);
+  }, [refreshLobbies, teardownVoiceSession]);
 
   const join = useCallback(
     async (lobbyId: VoiceLobbyId) => {
@@ -209,8 +284,21 @@ export function VoiceLobbiesShell({
         const room = await connectVoiceRoom(json.url, json.token, audioMountRef.current);
         roomRef.current = room;
         detachPeersRef.current?.();
+        detachLifecycleRef.current?.();
         setSpeakingIdentities([]);
         detachPeersRef.current = bindRoomPresence(room, setRoomMembers, setSpeakingIdentities);
+        setVoiceReconnecting(false);
+        detachLifecycleRef.current = bindRoomLifecycle(room, {
+          onReconnecting: () => setVoiceReconnecting(true),
+          onReconnected: () => setVoiceReconnecting(false),
+          onDisconnected: (reason) => {
+            if (intentionalLeaveRef.current) return;
+            setVoiceReconnecting(false);
+            teardownVoiceSession();
+            setError(voiceDisconnectMessage(reason));
+            void refreshLobbies();
+          },
+        });
         setConnectedLobby(lobbyId);
         setMuted(!room.localParticipant.isMicrophoneEnabled);
         void refreshLobbies();
@@ -220,7 +308,7 @@ export function VoiceLobbiesShell({
         setBusyLobby(null);
       }
     },
-    [busyLobby, disconnect, refreshLobbies, status]
+    [busyLobby, disconnect, refreshLobbies, status, teardownVoiceSession]
   );
 
   const toggleMute = useCallback(async () => {
@@ -292,6 +380,39 @@ export function VoiceLobbiesShell({
         </div>
       </div>
 
+      {lobbiesPhase === "boot" && !lobbyListError ? (
+        <p className="relative mt-2 flex items-center gap-2 text-[11px] text-zinc-500">
+          <span
+            className="inline-flex h-3.5 w-3.5 shrink-0 animate-spin rounded-full border border-zinc-600 border-t-[color:var(--accent)]/70"
+            aria-hidden
+          />
+          Fetching lobby status…
+        </p>
+      ) : null}
+
+      {lobbyListError ? (
+        <div className="relative mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-950/25 px-3 py-2.5 text-[12px] leading-snug text-amber-100/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <span className="min-w-0 flex-1">{lobbyListError} Counts may be stale until refresh succeeds.</span>
+          <button
+            type="button"
+            onClick={() => void refreshLobbies()}
+            className="shrink-0 rounded-md border border-amber-400/35 bg-amber-500/15 px-3 py-1 text-[11px] font-semibold text-amber-50 transition hover:border-amber-300/50 hover:bg-amber-500/25"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
+      {voiceReconnecting && connectedLobby ? (
+        <div className="relative mt-3 flex items-center gap-2 rounded-lg border border-sky-500/25 bg-sky-950/20 px-3 py-2 text-[12px] text-sky-100/95">
+          <span
+            className="inline-flex h-3.5 w-3.5 shrink-0 animate-spin rounded-full border border-sky-600/80 border-t-sky-200"
+            aria-hidden
+          />
+          Reconnecting to voice — hang tight; audio may drop briefly.
+        </div>
+      ) : null}
+
       {error ? (
         <p className="relative mt-3 rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-2 text-xs text-red-200/95">
           {error}
@@ -313,7 +434,13 @@ export function VoiceLobbiesShell({
             </span>
           </div>
           {roomMembers.length === 0 ? (
-            <p className="mt-3 text-[11px] text-zinc-500">Connecting…</p>
+            <p className="mt-3 flex items-center gap-2 text-[11px] text-zinc-500">
+              <span
+                className="inline-flex h-3.5 w-3.5 shrink-0 animate-spin rounded-full border border-zinc-600 border-t-[color:var(--accent)]/70"
+                aria-hidden
+              />
+              Syncing participants…
+            </p>
           ) : (
             <ul className="mt-3 flex flex-wrap gap-2">
               {roomMembers.map((m) => {

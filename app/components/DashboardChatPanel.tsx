@@ -52,6 +52,7 @@ export function DashboardChatPanel({
   const [messages, setMessages] = useState<ChatMessagePayload[]>([]);
   const [loading, setLoading] = useState(true);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [syncStale, setSyncStale] = useState(false);
   const [sending, setSending] = useState(false);
   const [draftByTab, setDraftByTab] = useState<{ general: string; mod: string }>({
     general: "",
@@ -110,6 +111,7 @@ export function DashboardChatPanel({
 
   useEffect(() => {
     stickToBottomRef.current = true;
+    setSyncStale(false);
   }, [tab]);
 
   const handleScrollerScroll = useCallback(() => {
@@ -138,10 +140,16 @@ export function DashboardChatPanel({
               typeof json?.error === "string"
                 ? json.error
                 : `Chat request failed (${res.status}).`;
-            if (mode === "full") setChatError(msg);
+            if (mode === "full") {
+              setChatError(msg);
+              setSyncStale(false);
+            } else {
+              setSyncStale(true);
+            }
             return;
           }
           if (mode === "full") setChatError(null);
+          setSyncStale(false);
           const list = Array.isArray(json?.messages) ? (json.messages as any[]) : [];
           const parsed: ChatMessagePayload[] = list
             .filter((m) => m && typeof m === "object")
@@ -207,8 +215,12 @@ export function DashboardChatPanel({
             .sort((a, b) => a.createdAt - b.createdAt);
           setMessages(parsed.slice(-60));
         } catch {
-          if (mode === "full") setChatError("Could not load chat.");
-          // ignore; keep last good list
+          if (mode === "full") {
+            setChatError("Could not load chat.");
+            setSyncStale(false);
+          } else {
+            setSyncStale(true);
+          }
         } finally {
           if (mode === "full") setLoading(false);
         }
@@ -313,7 +325,32 @@ export function DashboardChatPanel({
           />
           <span className="truncate font-medium text-zinc-400">{channelLabel}</span>
         </span>
-        <span className="shrink-0">{loading ? "Connecting…" : "Live"}</span>
+        <span className="inline-flex shrink-0 items-center gap-2">
+          {loading ? (
+            <>
+              <span
+                className="inline-flex h-3 w-3 animate-spin rounded-full border border-zinc-600 border-t-[color:var(--accent)]/80"
+                aria-hidden
+              />
+              <span>Connecting…</span>
+            </>
+          ) : chatError ? (
+            <span className="text-red-300/90">Offline</span>
+          ) : syncStale ? (
+            <>
+              <span className="font-medium text-amber-400/95">Sync issue</span>
+              <button
+                type="button"
+                onClick={() => load("full")}
+                className="rounded-md border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-100 transition hover:border-amber-400/50 hover:bg-amber-500/20"
+              >
+                Refresh
+              </button>
+            </>
+          ) : (
+            <span>Live</span>
+          )}
+        </span>
       </div>
     </div>
   );
@@ -345,10 +382,21 @@ export function DashboardChatPanel({
               <div className="max-w-md text-center">
                 <p className="text-sm font-semibold text-red-200">Chat unavailable</p>
                 <p className="mt-1 text-xs leading-relaxed text-red-200/80">{chatError}</p>
+                <button
+                  type="button"
+                  onClick={() => load("full")}
+                  className="mt-4 rounded-lg border border-red-400/35 bg-red-950/40 px-4 py-2 text-xs font-semibold text-red-100 transition hover:border-red-300/45 hover:bg-red-900/50"
+                >
+                  Try again
+                </button>
               </div>
             </div>
           ) : loading ? (
-            <div className="flex h-full min-h-[200px] items-center justify-center">
+            <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-3">
+              <span
+                className="inline-flex h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-[color:var(--accent)]/80"
+                aria-hidden
+              />
               <p className="text-sm text-zinc-500">Loading chat…</p>
             </div>
           ) : messages.length === 0 ? (
@@ -486,13 +534,13 @@ export function DashboardChatPanel({
               }
             }}
             placeholder={`Message ${channelLabel}`}
-            disabled={sending}
+            disabled={sending || Boolean(chatError)}
             className="h-10 flex-1 rounded-lg border border-zinc-800/70 bg-[#060606] px-3 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/15 transition focus:border-zinc-700 focus:ring-2 disabled:opacity-60"
           />
           <button
             type="button"
             onClick={() => void send()}
-            disabled={sending || draft.trim() === ""}
+            disabled={sending || draft.trim() === "" || Boolean(chatError)}
             className="h-10 rounded-lg bg-[color:var(--accent)] px-4 text-sm font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {sending ? "Sending…" : "Send"}
