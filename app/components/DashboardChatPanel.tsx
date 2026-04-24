@@ -20,6 +20,10 @@ import { formatJoinedAt } from "@/lib/callDisplayFormat";
 import { userProfileHref } from "@/lib/userProfileHref";
 import { PanelCard } from "@/app/components/PanelCard";
 
+/** Matches voice lobby shell — full-page chat sits in the same visual language. */
+const CHAT_FULL_PAGE_SHELL =
+  "relative overflow-hidden rounded-2xl border border-zinc-700/35 bg-gradient-to-b from-zinc-900/70 via-[#070707] to-black shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_28px_80px_-28px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-md transition-shadow duration-500 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.07),0_32px_100px_-24px_rgba(57,255,20,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]";
+
 type DashboardChatTab = "general" | "mod";
 
 function chatAttachmentIsLikelyImage(a: {
@@ -314,6 +318,10 @@ export function DashboardChatPanel({
     </div>
   );
 
+  const bubbleMaxClass = isFullPage
+    ? "max-w-[min(94%,48rem)]"
+    : "max-w-[min(92%,26rem)]";
+
   function renderFramedChat(
     scrollerClass: string,
     options?: { stretch?: boolean }
@@ -375,7 +383,7 @@ export function DashboardChatPanel({
                     className={`flex w-full min-w-0 ${own ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`min-w-0 max-w-[min(92%,26rem)] overflow-hidden rounded-2xl px-3 py-2.5 ${
+                      className={`min-w-0 ${bubbleMaxClass} overflow-hidden rounded-2xl px-3 py-2.5 ${
                         own
                           ? "rounded-br-md border border-[#39FF14]/10 bg-gradient-to-b from-[#39FF14]/[0.07] via-zinc-900/20 to-zinc-950/40 shadow-[inset_0_1px_0_rgba(57,255,20,0.05)] ring-1 ring-white/[0.04]"
                           : "rounded-bl-md border border-white/[0.06] bg-zinc-900/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] ring-1 ring-black/25"
@@ -527,42 +535,63 @@ export function DashboardChatPanel({
     </button>
   );
 
+  const panelBody = (
+    <>
+      {modStaffSetupHint ? (
+        <p className="mt-1 text-[11px] leading-relaxed text-amber-500/90">
+          Mod tab: set{" "}
+          <code className="rounded border border-amber-500/25 bg-zinc-950 px-1 py-px font-mono text-[10px] text-amber-200/90">
+            DISCORD_MOD_CHAT_CHANNEL_ID
+          </code>{" "}
+          in the server environment (Discord channel ID for{" "}
+          <span className="font-medium">#mod-chat</span>).
+        </p>
+      ) : null}
+      {!popoutOpen ? (
+        <>
+          {chatToolbar}
+          {renderFramedChat(dockedScrollerClass)}
+        </>
+      ) : (
+        <p className="mt-3 rounded-lg border border-zinc-800/60 bg-zinc-900/25 px-3 py-2.5 text-xs leading-relaxed text-zinc-500">
+          Chat is open in the expanded view.{" "}
+          <button
+            type="button"
+            className="font-semibold text-[color:var(--accent)] hover:text-green-400 hover:underline"
+            onClick={() => setPopoutOpen(false)}
+          >
+            Dock here
+          </button>
+        </p>
+      )}
+    </>
+  );
+
   return (
     <>
-      <PanelCard
-        title="Discord chat"
-        titleClassName="normal-case"
-        titleRight={popoutToggle}
-        className={isFullPage ? "flex min-h-0 flex-1 flex-col" : ""}
-      >
-        {modStaffSetupHint ? (
-          <p className="mt-1 text-[11px] leading-relaxed text-amber-500/90">
-            Mod tab: set{" "}
-            <code className="rounded border border-amber-500/25 bg-zinc-950 px-1 py-px font-mono text-[10px] text-amber-200/90">
-              DISCORD_MOD_CHAT_CHANNEL_ID
-            </code>{" "}
-            in the server environment (Discord channel ID for{" "}
-            <span className="font-medium">#mod-chat</span>).
-          </p>
-        ) : null}
-        {!popoutOpen ? (
-          <>
-            {chatToolbar}
-            {renderFramedChat(dockedScrollerClass)}
-          </>
-        ) : (
-          <p className="mt-3 rounded-lg border border-zinc-800/60 bg-zinc-900/25 px-3 py-2.5 text-xs leading-relaxed text-zinc-500">
-            Chat is open in the expanded view.{" "}
-            <button
-              type="button"
-              className="font-semibold text-[color:var(--accent)] hover:text-green-400 hover:underline"
-              onClick={() => setPopoutOpen(false)}
+      {isFullPage ? (
+        <div className={`${CHAT_FULL_PAGE_SHELL} flex min-h-0 flex-1 flex-col`}>
+          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3 sm:px-6 sm:pb-5 sm:pt-4">
+            <PanelCard
+              title="Discord chat"
+              titleClassName="normal-case text-zinc-200"
+              titleRight={popoutToggle}
+              className="flex min-h-0 flex-1 flex-col border-0 bg-transparent shadow-none ring-0 hover:border-transparent hover:shadow-none hover:ring-0"
+              paddingClassName="px-0 py-0"
             >
-              Dock here
-            </button>
-          </p>
-        )}
-      </PanelCard>
+              {panelBody}
+            </PanelCard>
+          </div>
+        </div>
+      ) : (
+        <PanelCard
+          title="Discord chat"
+          titleClassName="normal-case"
+          titleRight={popoutToggle}
+        >
+          {panelBody}
+        </PanelCard>
+      )}
 
       {portalReady && popoutOpen
         ? createPortal(
@@ -580,7 +609,7 @@ export function DashboardChatPanel({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="dashboard-chat-popout-title"
-                className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-700/50 bg-[#070707] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_80px_-20px_rgba(0,0,0,0.85)]"
+                className="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-zinc-700/50 bg-[#070707] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_80px_-20px_rgba(0,0,0,0.85)]"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-800/70 px-4 py-3">
