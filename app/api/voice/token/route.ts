@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { AccessToken } from "livekit-server-sdk";
 import { authOptions } from "@/lib/auth";
 import { resolveHelpTierAsync, type HelpTier } from "@/lib/helpRole";
+import { logServerEvent } from "@/lib/serverStructuredLog";
 import { getLiveKitServerEnv } from "@/lib/voice/livekitEnv";
 import { getVoiceLobbyById, livekitRoomNameForLobby } from "@/lib/voice/lobbies";
 import { canJoinVoiceLobbyAsync } from "@/lib/voice/voiceLobbyAccess";
@@ -25,11 +26,13 @@ export async function POST(request: Request) {
     "user";
 
   if (!userId) {
+    logServerEvent("voice.token.unauthorized", {});
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const livekit = getLiveKitServerEnv();
   if (!livekit) {
+    logServerEvent("voice.token.livekit_unconfigured", { userId });
     return Response.json(
       { ok: false, error: "LiveKit is not configured on this host." },
       { status: 503 }
@@ -40,22 +43,26 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
+    logServerEvent("voice.token.bad_json", { userId });
     return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
 
   const parsed = parseBody(body);
   if (!parsed) {
+    logServerEvent("voice.token.bad_body", { userId });
     return Response.json({ ok: false, error: "Missing lobbyId" }, { status: 400 });
   }
 
   const lobby = getVoiceLobbyById(parsed.lobbyId);
   if (!lobby) {
+    logServerEvent("voice.token.unknown_lobby", { userId, lobbyId: parsed.lobbyId });
     return Response.json({ ok: false, error: "Unknown lobby" }, { status: 400 });
   }
 
   const tier = (await resolveHelpTierAsync(userId)) as HelpTier;
   const allowed = await canJoinVoiceLobbyAsync(lobby, tier, userId);
   if (!allowed) {
+    logServerEvent("voice.token.forbidden", { userId, lobbyId: lobby.id, tier });
     return Response.json({ ok: false, error: "Forbidden for this lobby" }, { status: 403 });
   }
 
@@ -75,6 +82,12 @@ export async function POST(request: Request) {
   });
 
   const jwt = await token.toJwt();
+
+  logServerEvent("voice.token.ok", {
+    userId,
+    lobbyId: lobby.id,
+    roomName,
+  });
 
   return Response.json({
     ok: true,

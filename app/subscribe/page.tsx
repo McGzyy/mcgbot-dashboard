@@ -21,6 +21,14 @@ type CheckoutOk = {
   treasury: string;
 };
 
+type CheckoutVoucherOk = {
+  success: true;
+  activated: true;
+  via: "voucher";
+  plan: { slug: string; label: string; priceUsd: number; durationDays: number };
+  voucher?: { percentOff?: number } | null;
+};
+
 type SiteFlags = {
   maintenance_enabled: boolean;
   maintenance_message: string | null;
@@ -48,6 +56,7 @@ export default function SubscribePage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pollNote, setPollNote] = useState<string | null>(null);
+  const [voucherCode, setVoucherCode] = useState("");
   const [siteFlags, setSiteFlags] = useState<SiteFlags | null>(null);
   const [guildStatus, setGuildStatus] = useState<boolean | null>(null);
 
@@ -174,17 +183,35 @@ export default function SubscribePage() {
       const res = await fetch("/api/subscription/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planSlug: selectedSlug }),
+        body: JSON.stringify({
+          planSlug: selectedSlug,
+          voucherCode: voucherCode.trim() || undefined,
+        }),
       });
-      const json = (await res.json().catch(() => ({}))) as CheckoutOk & {
+      const json = (await res.json().catch(() => ({}))) as (CheckoutOk | CheckoutVoucherOk) & {
         success?: boolean;
         error?: string;
       };
-      if (!res.ok || !json.success || typeof json.solanaPayUrl !== "string") {
+      if (!res.ok || !json.success) {
         setCheckoutError(typeof json.error === "string" ? json.error : "Checkout failed.");
         setCheckout(null);
         return;
       }
+
+      if ((json as any).activated === true && (json as any).via === "voucher") {
+        setCheckout(null);
+        setPollNote("Voucher applied. Activating your session…");
+        await update({ refreshSubscription: true });
+        setVoucherCode("");
+        return;
+      }
+
+      if (typeof (json as any).solanaPayUrl !== "string") {
+        setCheckoutError("Checkout response missing payment URL.");
+        setCheckout(null);
+        return;
+      }
+
       setCheckout(json as CheckoutOk);
     } catch {
       setCheckoutError("Checkout failed.");
@@ -192,7 +219,7 @@ export default function SubscribePage() {
     } finally {
       setBusy(false);
     }
-  }, [selectedSlug]);
+  }, [selectedSlug, update, voucherCode]);
 
   useEffect(() => {
     if (!checkout?.success) return;
@@ -437,6 +464,13 @@ export default function SubscribePage() {
         )}
 
         <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="text"
+            value={voucherCode}
+            onChange={(e) => setVoucherCode(e.target.value)}
+            placeholder="Voucher code (optional)"
+            className="h-10 min-w-[14rem] flex-1 rounded-lg border border-zinc-800/70 bg-[#060606] px-3 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/15 transition focus:border-zinc-700 focus:ring-2"
+          />
           <button
             type="button"
             disabled={

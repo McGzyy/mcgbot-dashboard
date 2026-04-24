@@ -4,7 +4,12 @@ import { authOptions } from "@/lib/auth";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
 import { fetchSolUsd } from "@/lib/subscription/jupiterSolUsd";
 import { lamportsToSolString, usdToLamports } from "@/lib/subscription/solQuote";
-import { createInvoiceRow, getPlanBySlug } from "@/lib/subscription/subscriptionDb";
+import {
+  createInvoiceRow,
+  getPlanBySlug,
+  upsertSubscriptionAfterPayment,
+} from "@/lib/subscription/subscriptionDb";
+import { consumeVoucherForPlan } from "@/lib/subscription/vouchers";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
@@ -87,10 +92,47 @@ export async function POST(request: Request) {
   if (!slug) {
     return Response.json({ success: false, error: "Missing planSlug" }, { status: 400 });
   }
+  const voucherCode = typeof (body as any)?.voucherCode === "string" ? String((body as any).voucherCode) : "";
 
   const plan = await getPlanBySlug(slug);
   if (!plan) {
     return Response.json({ success: false, error: "Unknown plan" }, { status: 400 });
+  }
+
+  let voucherPercentOff = 0;
+  let voucherDurationDaysOverride: number | null = null;
+  if (voucherCode && voucherCode.trim()) {
+    const consumed = await consumeVoucherForPlan({ code: voucherCode, planSlug: plan.slug });
+    if (!consumed.ok) {
+      return Response.json({ success: false, error: consumed.error, code: consumed.code }, { status: 400 });
+    }
+    voucherPercentOff = consumed.voucher.percentOff;
+    voucherDurationDaysOverride = consumed.voucher.durationDaysOverride;
+  }
+
+  const finalDurationDays =
+    typeof voucherDurationDaysOverride === "number" && Number.isFinite(voucherDurationDaysOverride)
+      ? voucherDurationDaysOverride
+      : plan.duration_days;
+
+  const percent = Math.max(0, Math.min(100, voucherPercentOff));
+  const discountedUsd = Math.max(0, plan.price_usd * (1 - percent / 100));
+
+  if (discountedUsd <= 0) {
+    const granted = await upsertSubscriptionAfterPayment({
+      discordId,
+      planId: plan.id,
+      durationDays: finalDurationDays,
+    });
+
+    return Response.json({
+      success: true,
+      activated: true,
+      via: "voucher",
+      plan: { slug: plan.slug, label: plan.label, priceUsd: plan.price_usd, durationDays: finalDurationDays },
+      voucher: { percentOff: percent },
+      subscriptionUpdated: Boolean(granted),
+    });
   }
 
   const solUsd = await fetchSolUsd();
@@ -101,7 +143,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const lamports = usdToLamports(plan.price_usd, solUsd);
+  const lamports = usdToLamports(discountedUsd, solUsd);
   if (lamports <= BigInt(0)) {
     return Response.json({ success: false, error: "Quoted amount invalid" }, { status: 500 });
   }
@@ -132,7 +174,9 @@ export async function POST(request: Request) {
 
   const amountSol = lamportsToSolString(lamports);
   const label = encodeURIComponent("McGBot subscription");
-  const message = encodeURIComponent(`${plan.label} · ${plan.price_usd} USD quoted`);
+  const message = encodeURIComponent(
+    `${plan.label} · ${discountedUsd.toFixed(2)} USD quoted${percent > 0 ? ` (${percent}% off)` : ""}`
+  );
   const solanaPayUrl = `solana:${treasury.toBase58()}?amount=${amountSol}&reference=${encodeURIComponent(
     referencePubkey
   )}&label=${label}&message=${message}`;
@@ -140,7 +184,7 @@ export async function POST(request: Request) {
   return Response.json({
     success: true,
     invoiceId,
-    plan: { slug: plan.slug, label: plan.label, priceUsd: plan.price_usd, durationDays: plan.duration_days },
+    plan: { slug: plan.slug, label: plan.label, priceUsd: discountedUsd, durationDays: finalDurationDays },
     quote: {
       solUsd,
       lamports: lamports.toString(),
@@ -150,5 +194,6 @@ export async function POST(request: Request) {
     treasury: treasury.toBase58(),
     reference: referencePubkey,
     solanaPayUrl,
+    voucher: percent > 0 ? { percentOff: percent } : null,
   });
 }

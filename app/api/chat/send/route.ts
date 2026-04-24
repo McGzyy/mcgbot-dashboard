@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { logServerEvent } from "@/lib/serverStructuredLog";
 import {
   canUseModDashboardChatAsync,
   parseDashboardChatKind,
@@ -24,11 +25,13 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id?.trim() ?? "";
   if (!userId) {
+    logServerEvent("chat.send.unauthorized", {});
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = (await request.json().catch(() => null)) as unknown;
   if (!body || typeof body !== "object") {
+    logServerEvent("chat.send.bad_json", { userId });
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
@@ -36,10 +39,12 @@ export async function POST(request: Request) {
   const content = typeof o.content === "string" ? o.content : "";
   const trimmed = content.trim();
   if (!trimmed) {
+    logServerEvent("chat.send.empty", { userId });
     return Response.json({ error: "Message is empty" }, { status: 400 });
   }
 
   if (trimmed.length > 500) {
+    logServerEvent("chat.send.too_long", { userId, len: trimmed.length });
     return Response.json({ error: "Message too long" }, { status: 400 });
   }
 
@@ -55,6 +60,7 @@ export async function POST(request: Request) {
 
   if (webhookUrl) {
     if (!isDiscordWebhookExecuteUrl(webhookUrl)) {
+      logServerEvent("chat.send.webhook_url_invalid", { userId, channel: kind });
       return Response.json(
         {
           error:
@@ -98,6 +104,7 @@ export async function POST(request: Request) {
   const token = resolveDiscordBotToken();
 
   if (!channelId) {
+    logServerEvent("chat.send.not_configured_channel", { userId, channel: kind });
     return Response.json(
       {
         error:
@@ -109,6 +116,7 @@ export async function POST(request: Request) {
     );
   }
   if (!token) {
+    logServerEvent("chat.send.not_configured_token", { userId, channel: kind });
     return Response.json(
       { error: "Chat is not configured (missing DISCORD_TOKEN or DISCORD_BOT_TOKEN)." },
       { status: 503 }
@@ -132,13 +140,20 @@ export async function POST(request: Request) {
 
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
+      logServerEvent("chat.send.bot_http_error", {
+        userId,
+        channel: kind,
+        status: res.status,
+      });
       return Response.json(
         { error: `Discord API error (${res.status}) ${txt}`.trim() },
         { status: 502 }
       );
     }
+    logServerEvent("chat.send.ok", { userId, channel: kind, via: "bot" });
     return Response.json({ success: true, via: "bot" as const });
   } catch {
+    logServerEvent("chat.send.bot_exception", { userId, channel: kind });
     return Response.json(
       { error: "Failed to send message" },
       { status: 500 }

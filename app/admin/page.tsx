@@ -82,6 +82,20 @@ export default function AdminOverviewPage() {
           hint="Workflow · Inbox ping"
           data-tutorial="admin.card.features"
         />
+        <OverviewCard
+          href="/admin/voice-moderation-audit"
+          title="Voice moderation audit"
+          subtitle="Read-only table of successful LiveKit mute and kick actions (Discord actor + target)."
+          hint="Read · Supabase"
+          data-tutorial="admin.card.voiceAudit"
+        />
+        <OverviewCard
+          href="/admin/vouchers"
+          title="Vouchers"
+          subtitle="Generate discount codes for SOL checkout (tester access, promos, limited-use drops)."
+          hint="Writes · Supabase"
+          data-tutorial="admin.card.vouchers"
+        />
       </div>
     </div>
   );
