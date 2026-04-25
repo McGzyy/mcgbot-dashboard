@@ -26,10 +26,12 @@ const DEFAULT_WIDGETS: WidgetsEnabled = {
   referrals: true,
   hot_now: true,
   quick_actions: true,
+  discord_chat: false,
 };
 
 const WIDGET_KEYS: (keyof WidgetsEnabled)[] = [
   "market",
+  "live_tracked_calls",
   "top_performers",
   "rank",
   "activity",
@@ -40,6 +42,7 @@ const WIDGET_KEYS: (keyof WidgetsEnabled)[] = [
   "referrals",
   "hot_now",
   "quick_actions",
+  "discord_chat",
 ];
 
 const SECONDARY_DASHBOARD_WIDGET_TOGGLES: {
@@ -77,6 +80,12 @@ const SECONDARY_DASHBOARD_WIDGET_TOGGLES: {
     label: "Referrals",
     description: "Show your referrals table on the dashboard.",
     id: "dashboard-widget-referrals",
+  },
+  {
+    key: "discord_chat",
+    label: "Discord chat",
+    description: "Show mirrored community Discord chat on your home dashboard.",
+    id: "dashboard-widget-discord-chat",
   },
 ];
 

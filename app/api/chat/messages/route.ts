@@ -5,8 +5,19 @@ import {
   parseDashboardChatKind,
   resolveDashboardChatChannelId,
 } from "@/lib/dashboardChat";
-import { normalizeDiscordRestMessage } from "@/lib/discordChatMessageSerialize";
-import { resolveHelpTierAsync, type HelpTier } from "@/lib/helpRole";
+import {
+  extractDashboardChatUserIdFromContent,
+  normalizeDiscordRestMessage,
+  stripDashboardChatUserMarkerFromContent,
+} from "@/lib/discordChatMessageSerialize";
+import {
+  helpTierFromMemberRoleIds,
+  mergeHelpTierWithEnv,
+  pickMemberRoleAccentHex,
+} from "@/lib/discordGuildRoleDerive";
+import { fetchDiscordGuildMemberRoleIds } from "@/lib/discordGuildMemberRoles";
+import { fetchDiscordGuildRolesCached } from "@/lib/discordGuildRolesCache";
+import { resolveHelpTier, type HelpTier } from "@/lib/helpRole";
 
 function requireEnv(name: string): string {
   const v = (process.env[name] ?? "").trim();
@@ -52,10 +63,14 @@ export async function GET(request: Request) {
     );
   }
 
+  const qs = new URLSearchParams();
+  qs.set("limit", "30");
+  qs.set("with_member", "true");
+
   const res = await fetch(
     `https://discord.com/api/v10/channels/${encodeURIComponent(
       channelId
-    )}/messages?limit=30`,
+    )}/messages?${qs.toString()}`,
     {
       headers: { Authorization: `Bot ${token}` },
       cache: "no-store",
@@ -73,28 +88,112 @@ export async function GET(request: Request) {
   const raw = (await res.json().catch(() => [])) as unknown;
   const rows = Array.isArray(raw) ? raw : [];
 
-  const authorIds = new Set<string>();
-  for (const row of rows) {
-    if (!row || typeof row !== "object") continue;
-    const o = row as Record<string, unknown>;
-    const author = o.author && typeof o.author === "object" ? (o.author as { id?: unknown }) : null;
-    const aid = typeof author?.id === "string" ? author.id.trim() : "";
-    if (aid) authorIds.add(aid);
+  function asObj(v: unknown): Record<string, unknown> | null {
+    return v && typeof v === "object" ? (v as Record<string, unknown>) : null;
   }
 
-  const tierByAuthor = new Map<string, HelpTier>();
+  function str(v: unknown): string | undefined {
+    return typeof v === "string" && v.trim() ? v : undefined;
+  }
+
+  function memberRoleIdsFromMessage(m: Record<string, unknown>): string[] {
+    const mem = asObj(m.member);
+    const rolesRaw = mem?.roles;
+    if (!Array.isArray(rolesRaw)) return [];
+    return rolesRaw.map((x) => String(x).trim()).filter(Boolean);
+  }
+
+  function effectiveAuthorIdForRow(m: Record<string, unknown>): string | null {
+    const author = asObj(m.author);
+    const authorId = str(author?.id);
+    if (!authorId) return null;
+    const content = String(m.content ?? "");
+    const wid = str(m.webhook_id);
+    if (wid) {
+      const linked = extractDashboardChatUserIdFromContent(content);
+      if (linked) return linked;
+    }
+    return authorId;
+  }
+
+  const guildRoles = (await fetchDiscordGuildRolesCached(token)) ?? [];
+
+  const roleIdsByAuthor = new Map<string, string[]>();
+  const pendingMemberFetch = new Set<string>();
+
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const m = row as Record<string, unknown>;
+    const eff = effectiveAuthorIdForRow(m);
+    if (!eff) continue;
+
+    const wid = str(m.webhook_id);
+    const linked =
+      wid && String(m.content ?? "").trim()
+        ? extractDashboardChatUserIdFromContent(String(m.content ?? ""))
+        : null;
+
+    if (linked) {
+      pendingMemberFetch.add(eff);
+      continue;
+    }
+
+    const mr = memberRoleIdsFromMessage(m);
+    if (mr.length) {
+      roleIdsByAuthor.set(eff, mr);
+    } else {
+      pendingMemberFetch.add(eff);
+    }
+  }
+
   await Promise.all(
-    [...authorIds].map(async (aid) => {
-      tierByAuthor.set(aid, await resolveHelpTierAsync(aid));
+    [...pendingMemberFetch].map(async (uid) => {
+      if (roleIdsByAuthor.has(uid)) return;
+      const ids = await fetchDiscordGuildMemberRoleIds(uid);
+      if (ids && ids.length) roleIdsByAuthor.set(uid, ids);
     })
   );
 
+  const tierByAuthor = new Map<string, HelpTier>();
+  const accentByAuthor = new Map<string, string>();
+
+  for (const [authorId, roleIds] of roleIdsByAuthor) {
+    const fromRoles = helpTierFromMemberRoleIds(roleIds, guildRoles);
+    tierByAuthor.set(authorId, mergeHelpTierWithEnv(authorId, fromRoles));
+    const accent = pickMemberRoleAccentHex(roleIds, guildRoles);
+    if (accent) accentByAuthor.set(authorId, accent);
+  }
+
   const messages = rows
-    .map((row) =>
-      row && typeof row === "object"
-        ? normalizeDiscordRestMessage(row as Record<string, unknown>, tierByAuthor)
-        : null
-    )
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const m = row as Record<string, unknown>;
+      const author = asObj(m.author);
+      const authorId = str(author?.id);
+      if (!authorId) return null;
+
+      const content = String(m.content ?? "");
+      const wid = str(m.webhook_id);
+      const linked =
+        wid && content.trim() ? extractDashboardChatUserIdFromContent(content) : null;
+
+      const rowForNorm =
+        linked && wid
+          ? ({ ...m, content: stripDashboardChatUserMarkerFromContent(content) } as Record<string, unknown>)
+          : m;
+
+      const eff = linked ?? authorId;
+      if (!tierByAuthor.has(eff)) {
+        tierByAuthor.set(eff, resolveHelpTier(eff));
+      }
+
+      const norm = normalizeDiscordRestMessage(rowForNorm, tierByAuthor, accentByAuthor);
+      if (!norm) return null;
+      if (linked) {
+        return { ...norm, authorId: linked };
+      }
+      return norm;
+    })
     .filter((m): m is NonNullable<typeof m> => m != null)
     .sort((a, b) => a.createdAt - b.createdAt);
 

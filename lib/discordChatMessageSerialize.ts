@@ -1,5 +1,26 @@
 import { resolveHelpTier, type HelpTier } from "@/lib/helpRole";
 
+/**
+ * Webhook-posted dashboard chat messages append this trailer so the reader API can recover the
+ * real Discord user id (webhook `author.id` is not the member snowflake).
+ */
+export const DASHBOARD_CHAT_USER_MARKER_RE = /\s*\[\[DASH_USER:(\d{5,25})\]\]\s*$/;
+
+export function dashboardChatUserMarker(discordUserId: string): string {
+  const id = discordUserId.trim();
+  return id ? ` [[DASH_USER:${id}]]` : "";
+}
+
+export function extractDashboardChatUserIdFromContent(content: string): string | null {
+  const m = content.match(DASHBOARD_CHAT_USER_MARKER_RE);
+  const id = m?.[1]?.trim();
+  return id || null;
+}
+
+export function stripDashboardChatUserMarkerFromContent(content: string): string {
+  return content.replace(DASHBOARD_CHAT_USER_MARKER_RE, "").trimEnd();
+}
+
 /** Approximate Discord client role / name accent colors (dark theme). */
 export const DASHBOARD_CHAT_AUTHOR_COLOR: Record<HelpTier, string> = {
   admin: "#F23F43",
@@ -67,6 +88,8 @@ export type ChatMessagePayload = {
   authorName: string;
   authorHandle?: string;
   authorTier: HelpTier;
+  /** Highest visible guild role color (Discord-style), when known. */
+  authorAccentColor?: string;
   content: string;
   contentDisplay: string;
   createdAt: number;
@@ -76,7 +99,8 @@ export type ChatMessagePayload = {
 
 export function normalizeDiscordRestMessage(
   m: Record<string, unknown>,
-  tierByAuthor?: ReadonlyMap<string, HelpTier>
+  tierByAuthor?: ReadonlyMap<string, HelpTier>,
+  accentByAuthor?: ReadonlyMap<string, string>
 ): ChatMessagePayload | null {
   const id = String(m.id ?? "").trim();
   if (!id) return null;
@@ -148,6 +172,7 @@ export function normalizeDiscordRestMessage(
     mentions
   );
   const authorTier = tierByAuthor?.get(authorId) ?? resolveHelpTier(authorId);
+  const accent = accentByAuthor?.get(authorId)?.trim();
 
   return {
     id,
@@ -155,6 +180,7 @@ export function normalizeDiscordRestMessage(
     authorName,
     authorHandle,
     authorTier,
+    authorAccentColor: accent && /^#[0-9A-Fa-f]{6}$/.test(accent) ? accent : undefined,
     content,
     contentDisplay,
     createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),

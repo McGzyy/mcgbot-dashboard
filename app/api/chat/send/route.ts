@@ -11,6 +11,7 @@ import {
   isDiscordWebhookExecuteUrl,
   resolveDashboardChatWebhookUrl,
 } from "@/lib/discordChatWebhook";
+import { dashboardChatUserMarker } from "@/lib/discordChatMessageSerialize";
 
 function requireEnv(name: string): string {
   const v = (process.env[name] ?? "").trim();
@@ -37,15 +38,10 @@ export async function POST(request: Request) {
 
   const o = body as Record<string, unknown>;
   const content = typeof o.content === "string" ? o.content : "";
-  const trimmed = content.trim();
+  let trimmed = content.trim();
   if (!trimmed) {
     logServerEvent("chat.send.empty", { userId });
     return Response.json({ error: "Message is empty" }, { status: 400 });
-  }
-
-  if (trimmed.length > 500) {
-    logServerEvent("chat.send.too_long", { userId, len: trimmed.length });
-    return Response.json({ error: "Message too long" }, { status: 400 });
   }
 
   const kind = parseDashboardChatKind(
@@ -78,9 +74,17 @@ export async function POST(request: Request) {
     ).slice(0, 80);
     const avatarUrl = typeof su?.image === "string" ? su.image : null;
 
+    const marker = dashboardChatUserMarker(userId);
+    const maxLen = Math.max(1, 500 - marker.length);
+    if (trimmed.length > maxLen) {
+      logServerEvent("chat.send.too_long", { userId, len: trimmed.length, maxLen });
+      return Response.json({ error: `Message too long (max ${maxLen} characters)` }, { status: 400 });
+    }
+    const outbound = `${trimmed}${marker}`;
+
     try {
       const res = await executeDashboardChatWebhook(webhookUrl, {
-        content: trimmed,
+        content: outbound,
         username: displayName,
         avatarUrl,
       });
@@ -102,6 +106,11 @@ export async function POST(request: Request) {
 
   const channelId = resolveDashboardChatChannelId(kind);
   const token = resolveDiscordBotToken();
+
+  if (trimmed.length > 500) {
+    logServerEvent("chat.send.too_long", { userId, len: trimmed.length });
+    return Response.json({ error: "Message too long" }, { status: 400 });
+  }
 
   if (!channelId) {
     logServerEvent("chat.send.not_configured_channel", { userId, channel: kind });

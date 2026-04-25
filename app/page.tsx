@@ -9,6 +9,7 @@ import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { ActivityPopup } from "./components/ActivityPopup";
 import { AddToWatchlistModal } from "./components/AddToWatchlistModal";
 import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
+import { DashboardChatPanel } from "./components/DashboardChatPanel";
 import { PanelCard, CARD_HOVER } from "./components/PanelCard";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
@@ -26,10 +27,6 @@ import {
   multipleClass,
 } from "@/lib/callDisplayFormat";
 import { useDashboardHelpRole } from "./hooks/useDashboardHelpRole";
-import {
-  DASHBOARD_CHAT_AUTHOR_COLOR,
-  type ChatMessagePayload,
-} from "@/lib/discordChatMessageSerialize";
 import { userProfileHref } from "@/lib/userProfileHref";
 import {
   useCallback,
@@ -3822,6 +3819,12 @@ export default function Home() {
           <div data-tutorial="dashboard.socialFeed">
           <SocialsFeedPanel />
           </div>
+
+          {widgets !== null && widgetEnabled(widgets, "discord_chat") && (
+            <div data-tutorial="dashboard.discordChat">
+              <DashboardChatPanel feed="dashboard" dashboardChannel="general" pollMs={12000} />
+            </div>
+          )}
 
           <div data-tutorial="dashboard.trending">
           {showTrendingWidget ? <TrendingPanel /> : null}

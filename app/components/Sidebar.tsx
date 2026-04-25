@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   dashboardChrome,
   normalizeStaffRole,
@@ -14,6 +14,11 @@ import {
 } from "@/lib/roleTierStyles";
 import { useMobileSidebar } from "@/app/contexts/MobileSidebarContext";
 import { userProfileHref } from "@/lib/userProfileHref";
+import {
+  applyDashDiscordMarkReadPayload,
+  getDashDiscordLastRead,
+  setDashDiscordLastRead,
+} from "@/lib/discordDashboardChatRead";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -40,6 +45,9 @@ type SidebarBodyProps = {
   staffNav: boolean;
   adminNav: boolean;
   modPendingTotal: number | null;
+  discordGeneralUnread: number;
+  discordModUnread: number;
+  onDiscordChatsNavClick?: () => void;
   getNavItemClass: (active: boolean) => string;
   onNavigate?: () => void;
 };
@@ -53,6 +61,9 @@ function SidebarBody({
   staffNav,
   adminNav,
   modPendingTotal,
+  discordGeneralUnread,
+  discordModUnread,
+  onDiscordChatsNavClick,
   getNavItemClass,
   onNavigate,
 }: SidebarBodyProps) {
@@ -146,7 +157,10 @@ function SidebarBody({
           </p>
           <Link
             href="/lounge/discord-chats"
-            onClick={pick}
+            onClick={() => {
+              void onDiscordChatsNavClick?.();
+              pick?.();
+            }}
             data-tutorial="sidebar.nav.loungeDiscordChats"
             className={getNavItemClass(isActive(pathname, "/lounge/discord-chats"))}
           >
@@ -157,7 +171,27 @@ function SidebarBody({
                   : "opacity-0"
               }`}
             />
-            <span>Discord chats</span>
+            <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+              <span className="truncate">Discord chats</span>
+              <span className="flex shrink-0 items-center gap-1">
+                {discordGeneralUnread > 0 ? (
+                  <span
+                    className="rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-sky-100 ring-1 ring-sky-400/35"
+                    title="New messages in general chat"
+                  >
+                    {discordGeneralUnread >= 100 ? "99+" : discordGeneralUnread}
+                  </span>
+                ) : null}
+                {staffNav && discordModUnread > 0 ? (
+                  <span
+                    className="rounded-full bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-violet-100 ring-1 ring-violet-400/35"
+                    title="New messages in mod chat"
+                  >
+                    {discordModUnread >= 100 ? "99+" : discordModUnread}
+                  </span>
+                ) : null}
+              </span>
+            </span>
           </Link>
           <Link
             href="/lounge/voice-chats"
@@ -294,6 +328,9 @@ export function Sidebar() {
   const [apiRole, setApiRole] = useState<string | null>(null);
   /** Pending mod-queue count (from API); null = not loaded or not staff. */
   const [modPendingTotal, setModPendingTotal] = useState<number | null>(null);
+  /** Unread counts for mirrored dashboard Discord chats (general = all users; mod = staff only). */
+  const [discordGeneralUnread, setDiscordGeneralUnread] = useState(0);
+  const [discordModUnread, setDiscordModUnread] = useState(0);
 
   const profileId = session?.user?.id?.trim() || "";
   const profileName =
@@ -356,6 +393,92 @@ export function Sidebar() {
 
   const sessionTier = (session?.user as { helpTier?: string } | undefined)?.helpTier;
   const viewerTier = normalizeStaffRole(apiRole ?? sessionTier ?? "user");
+
+  const markDiscordChatsNav = useCallback(async () => {
+    if (!profileId) return;
+    try {
+      const r = await fetch("/api/chat/mark-read", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const j = (await r.json().catch(() => null)) as {
+        ok?: boolean;
+        general?: { latestId?: string | null };
+        mod?: { latestId?: string | null };
+      } | null;
+      if (r.ok && j?.ok) applyDashDiscordMarkReadPayload(profileId, j);
+    } catch {
+      /* ignore */
+    }
+    setDiscordGeneralUnread(0);
+    setDiscordModUnread(0);
+  }, [profileId]);
+
+  useEffect(() => {
+    if (pathname !== "/lounge/discord-chats") return;
+    if (status !== "authenticated" || !profileId) return;
+    void markDiscordChatsNav();
+  }, [markDiscordChatsNav, pathname, profileId, status]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !profileId) {
+      setDiscordGeneralUnread(0);
+      setDiscordModUnread(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        let glr = getDashDiscordLastRead(profileId, "general");
+        let mlr = staffNav ? getDashDiscordLastRead(profileId, "mod") : null;
+
+        const qs = new URLSearchParams();
+        if (glr) qs.set("generalLastRead", glr);
+        if (staffNav && mlr) qs.set("modLastRead", mlr);
+
+        const res = await fetch(`/api/chat/unread-counts?${qs.toString()}`, {
+          credentials: "same-origin",
+        });
+        const j = (await res.json().catch(() => null)) as {
+          ok?: boolean;
+          general?: { unread?: number; latestId?: string | null; capped?: boolean };
+          mod?: { unread?: number; latestId?: string | null; capped?: boolean };
+        } | null;
+        if (cancelled || !res.ok || !j?.ok || !j.general) return;
+
+        if (!glr && j.general.latestId) {
+          setDashDiscordLastRead(profileId, "general", j.general.latestId);
+        }
+        if (staffNav && j.mod?.latestId && !mlr) {
+          setDashDiscordLastRead(profileId, "mod", j.mod.latestId);
+        }
+
+        const rawG = typeof j.general.unread === "number" ? j.general.unread : 0;
+        setDiscordGeneralUnread(j.general.capped ? 100 : rawG);
+
+        if (staffNav && j.mod) {
+          const rawM = typeof j.mod.unread === "number" ? j.mod.unread : 0;
+          setDiscordModUnread(j.mod.capped ? 100 : rawM);
+        } else {
+          setDiscordModUnread(0);
+        }
+      } catch {
+        if (!cancelled) {
+          setDiscordGeneralUnread(0);
+          setDiscordModUnread(0);
+        }
+      }
+    };
+
+    void poll();
+    const timer = window.setInterval(() => void poll(), 25_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [profileId, staffNav, status]);
 
   useEffect(() => {
     if (status !== "authenticated" || !staffNav) {
@@ -423,6 +546,9 @@ export function Sidebar() {
     staffNav,
     adminNav,
     modPendingTotal,
+    discordGeneralUnread,
+    discordModUnread,
+    onDiscordChatsNavClick: markDiscordChatsNav,
     getNavItemClass,
   };
 

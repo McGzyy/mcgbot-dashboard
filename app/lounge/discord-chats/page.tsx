@@ -1,8 +1,7 @@
 "use client";
 
-import { signIn, useSession } from "next-auth/react";
 import { DashboardChatPanel } from "@/app/components/DashboardChatPanel";
-import { useDashboardHelpRole } from "@/app/hooks/useDashboardHelpRole";
+import { signIn, useSession } from "next-auth/react";
 
 function discordSignInSafe(callbackUrl: string) {
   if (typeof window === "undefined") return;
@@ -14,18 +13,20 @@ function discordSignInSafe(callbackUrl: string) {
 
 export default function LoungeDiscordChatsPage() {
   const { status } = useSession();
-  const { helpTier, modChatConfigured, loading } = useDashboardHelpRole();
 
-  if (status === "loading" || loading) {
+  if (status === "loading") {
     return (
       <div className="relative flex min-h-[calc(100dvh-6rem)] flex-col items-center justify-center text-zinc-400">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(57,255,20,0.07),transparent_60%)]" aria-hidden />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(57,255,20,0.07),transparent_60%)]"
+          aria-hidden
+        />
         <div className="relative flex flex-col items-center gap-4">
           <div
             className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-700 border-t-[color:var(--accent)] shadow-[0_0_24px_-6px_rgba(57,255,20,0.35)]"
             aria-hidden
           />
-          <p className="text-sm font-medium text-zinc-300">Loading chat terminal…</p>
+          <p className="text-sm font-medium text-zinc-300">Loading Discord terminal…</p>
         </div>
       </div>
     );
@@ -34,11 +35,14 @@ export default function LoungeDiscordChatsPage() {
   if (status !== "authenticated") {
     return (
       <div className="relative mx-auto flex min-h-[calc(100dvh-6rem)] max-w-md flex-col items-center justify-center px-4 text-center">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_20%,rgba(57,255,20,0.08),transparent_65%)]" aria-hidden />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_20%,rgba(57,255,20,0.08),transparent_65%)]"
+          aria-hidden
+        />
         <div className="relative rounded-2xl border border-zinc-700/40 bg-gradient-to-b from-zinc-900/80 to-black/90 px-8 py-10 shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_24px_80px_-24px_rgba(0,0,0,0.85)]">
           <h1 className="text-xl font-semibold tracking-tight text-white">Discord chats</h1>
           <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-            Sign in with Discord to read and send in general and mod channels.
+            Sign in with Discord to mirror selected server channels inside the dashboard.
           </p>
           <button
             type="button"
@@ -54,7 +58,7 @@ export default function LoungeDiscordChatsPage() {
 
   return (
     <div
-      className="relative mx-auto flex min-h-[calc(100dvh-6rem)] w-full max-w-7xl flex-col px-3 pb-12 pt-2 sm:px-5"
+      className="relative mx-auto flex min-h-[calc(100dvh-6rem)] w-full max-w-5xl flex-col px-3 pb-12 pt-2 sm:px-5"
       data-tutorial="lounge.discordChats"
     >
       <div
@@ -62,21 +66,14 @@ export default function LoungeDiscordChatsPage() {
         aria-hidden
       />
       <header className="relative mb-6 shrink-0 border-b border-white/[0.06] pb-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--accent)]/80">
-          The Lounge
-        </p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--accent)]/80">The Lounge</p>
         <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Discord chats</h1>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">
-          General and mod channels — live feed with the same controls as the home dashboard, stretched for a full-width terminal layout.
+          Read-only view of configured channels — click a display name to open the member&apos;s dashboard profile.
         </p>
       </header>
-      <div className="relative flex min-h-0 flex-1 flex-col">
-        <DashboardChatPanel
-          variant="fullPage"
-          showModTab={(helpTier === "mod" || helpTier === "admin") && modChatConfigured}
-          modStaffSetupHint={(helpTier === "mod" || helpTier === "admin") && !modChatConfigured}
-        />
-      </div>
+
+      <DashboardChatPanel />
     </div>
   );
 }
