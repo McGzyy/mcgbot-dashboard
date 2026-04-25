@@ -170,9 +170,16 @@ export async function buildDiscordChatPayloadsFromRestRows(
       if (!norm) return null;
       if (linked) {
         const sum = memberSummaryByAuthor.get(linked);
+        const linkedTier = tierByAuthor.get(linked) ?? resolveHelpTier(linked);
+        const linkedAccent = accentByAuthor.get(linked)?.trim();
         return {
           ...norm,
           authorId: linked,
+          authorTier: linkedTier,
+          authorAccentColor:
+            linkedAccent && /^#[0-9A-Fa-f]{6}$/.test(linkedAccent)
+              ? linkedAccent
+              : norm.authorAccentColor,
           authorName: sum?.displayName ?? norm.authorName,
           authorHandle: sum?.username ? `@${sum.username}` : norm.authorHandle,
         };

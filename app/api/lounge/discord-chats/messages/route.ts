@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { buildDiscordChatPayloadsFromRestRows } from "@/lib/buildDiscordChatPayloadsFromRestRows";
 import { buildDashboardChatTabsForViewer } from "@/lib/dashboardChat";
+import { fetchDiscordGuildRolesCached } from "@/lib/discordGuildRolesCache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,6 +10,29 @@ export const dynamic = "force-dynamic";
 function botToken(): string | null {
   const t = (process.env.DISCORD_BOT_TOKEN ?? process.env.DISCORD_TOKEN ?? "").trim();
   return t || null;
+}
+
+function countRowsWithMemberRoles(rows: unknown[]): number {
+  let n = 0;
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const m = row as Record<string, unknown>;
+    const mem = m.member && typeof m.member === "object" ? (m.member as Record<string, unknown>) : null;
+    const roles = mem?.roles;
+    if (Array.isArray(roles) && roles.length > 0) n++;
+  }
+  return n;
+}
+
+function countRowsWithWebhookId(rows: unknown[]): number {
+  let n = 0;
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const m = row as Record<string, unknown>;
+    const wid = m.webhook_id;
+    if (typeof wid === "string" ? wid.trim().length > 0 : typeof wid === "number") n++;
+  }
+  return n;
 }
 
 export async function GET(req: Request) {
@@ -25,6 +49,7 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const channelParam = (url.searchParams.get("channelId") ?? "").trim();
+  const debug = (url.searchParams.get("debug") ?? "").trim() === "1";
   const tabs = await buildDashboardChatTabsForViewer(viewerId);
   const allow = [...new Set(tabs.map((t) => t.channelId))];
 
@@ -72,11 +97,30 @@ export async function GET(req: Request) {
 
   const messages = await buildDiscordChatPayloadsFromRestRows(arr, token);
 
+  const guildRoles = debug ? await fetchDiscordGuildRolesCached(token).catch(() => null) : null;
+
   return Response.json({
     ok: true as const,
     channelId,
     channelTabs: tabs,
     allowlistedChannelIds: allow,
     messages,
+    ...(debug
+      ? {
+          debug: {
+            guildIdConfigured: !!(process.env.DISCORD_GUILD_ID ?? "").trim(),
+            guildRolesCount: Array.isArray(guildRoles) ? guildRoles.length : null,
+            rows: Array.isArray(arr) ? arr.length : 0,
+            rowsWithMemberRoles: countRowsWithMemberRoles(arr),
+            rowsWithWebhookId: countRowsWithWebhookId(arr),
+            computedAccentColors: messages.filter((m) => !!m.authorAccentColor).length,
+            computedTiers: {
+              admin: messages.filter((m) => m.authorTier === "admin").length,
+              mod: messages.filter((m) => m.authorTier === "mod").length,
+              user: messages.filter((m) => m.authorTier === "user").length,
+            },
+          },
+        }
+      : null),
   });
 }
