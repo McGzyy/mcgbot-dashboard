@@ -41,6 +41,31 @@ function formatTime(ts: number): string {
   }
 }
 
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?.*)?$/i;
+
+function isImageContentType(ct: string | undefined): boolean {
+  return (ct ?? "").trim().toLowerCase().startsWith("image/");
+}
+
+function looksLikeImageFilename(name: string | undefined): boolean {
+  const n = (name ?? "").trim().toLowerCase();
+  return n.length > 0 && IMAGE_EXT_RE.test(n);
+}
+
+function looksLikeImageUrl(url: string): boolean {
+  try {
+    return IMAGE_EXT_RE.test(new URL(url).pathname);
+  } catch {
+    return IMAGE_EXT_RE.test(url);
+  }
+}
+
+function isImageAttachment(a: ChatMessagePayload["attachments"][number]): boolean {
+  if (isImageContentType(a.contentType)) return true;
+  if (looksLikeImageFilename(a.filename)) return true;
+  return looksLikeImageUrl(a.url);
+}
+
 function isChatKind(k: string): k is DashboardChatKind {
   return k === "general" || k === "og" || k === "mod";
 }
@@ -318,27 +343,51 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
                 ) : null}
 
                 {(m.attachments.length > 0 || m.embedImageUrls.length > 0) && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {m.attachments.map((a) => (
-                      <a
-                        key={a.url}
-                        href={a.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-lg border border-zinc-800/60 bg-zinc-950/40 px-2 py-1 text-xs font-semibold text-[color:var(--accent)] hover:border-zinc-600/70 hover:text-white"
-                      >
-                        {a.filename?.trim() ? a.filename : "Attachment"}
-                      </a>
-                    ))}
+                  <div className="mt-2 flex flex-col flex-wrap gap-2 sm:flex-row sm:items-start">
+                    {m.attachments.map((a) =>
+                      isImageAttachment(a) ? (
+                        <a
+                          key={a.url}
+                          href={a.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-block max-w-full rounded-lg border border-zinc-800/60 bg-zinc-950/30 p-1 transition hover:border-zinc-600/70"
+                          title={a.filename?.trim() ? `Open ${a.filename}` : "Open image"}
+                        >
+                          <img
+                            src={a.url}
+                            alt={a.filename?.trim() ? a.filename : "Attachment"}
+                            loading="lazy"
+                            className="max-h-[min(360px,50vh)] max-w-full rounded-md object-contain"
+                          />
+                        </a>
+                      ) : (
+                        <a
+                          key={a.url}
+                          href={a.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-lg border border-zinc-800/60 bg-zinc-950/40 px-2 py-1 text-xs font-semibold text-[color:var(--accent)] hover:border-zinc-600/70 hover:text-white"
+                        >
+                          {a.filename?.trim() ? a.filename : "Attachment"}
+                        </a>
+                      )
+                    )}
                     {m.embedImageUrls.map((u) => (
                       <a
                         key={u}
                         href={u}
                         target="_blank"
                         rel="noreferrer"
-                        className="rounded-lg border border-zinc-800/60 bg-zinc-950/40 px-2 py-1 text-xs font-semibold text-[color:var(--accent)] hover:border-zinc-600/70 hover:text-white"
+                        className="inline-block max-w-full rounded-lg border border-zinc-800/60 bg-zinc-950/30 p-1 transition hover:border-zinc-600/70"
+                        title="Open embed image"
                       >
-                        Embed image
+                        <img
+                          src={u}
+                          alt=""
+                          loading="lazy"
+                          className="max-h-[min(360px,50vh)] max-w-full rounded-md object-contain"
+                        />
                       </a>
                     ))}
                   </div>
