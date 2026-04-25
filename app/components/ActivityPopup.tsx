@@ -1,20 +1,39 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type ActivityPopupItem = {
   text: string;
-  link_chart: string | null;
-  link_post: string | null;
+  /** Solana mint when derivable from activity text / Dex link. */
+  contractAddress: string | null;
+  tokenImageUrl?: string | null;
+  /** Parsed from `($TICKER)` in call lines when present. */
+  tokenTicker?: string | null;
 };
+
+type ActivityPopupProps = {
+  item: ActivityPopupItem | null;
+  onClose: () => void;
+  onViewChart: (args: {
+    contractAddress: string;
+    tokenTicker?: string | null;
+    tokenImageUrl?: string | null;
+  }) => void;
+  onAddToPrivateWatchlist: (mint: string) => Promise<{ ok: boolean; error?: string }>;
+};
+
+const SOLANA_MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 export function ActivityPopup({
   item,
   onClose,
-}: {
-  item: ActivityPopupItem | null;
-  onClose: () => void;
-}) {
+  onViewChart,
+  onAddToPrivateWatchlist,
+}: ActivityPopupProps) {
+  const [wlBusy, setWlBusy] = useState(false);
+  const [wlError, setWlError] = useState<string | null>(null);
+  const [wlOk, setWlOk] = useState(false);
+
   useEffect(() => {
     if (!item) return;
     const onKey = (e: KeyboardEvent) => {
@@ -24,7 +43,38 @@ export function ActivityPopup({
     return () => document.removeEventListener("keydown", onKey);
   }, [item, onClose]);
 
+  useEffect(() => {
+    if (!item) return;
+    setWlBusy(false);
+    setWlError(null);
+    setWlOk(false);
+  }, [item]);
+
+  const handleAddWatchlist = useCallback(async () => {
+    const mint = (item?.contractAddress ?? "").trim();
+    if (!mint || wlBusy) return;
+    setWlBusy(true);
+    setWlError(null);
+    setWlOk(false);
+    try {
+      const res = await onAddToPrivateWatchlist(mint);
+      if (res.ok) {
+        setWlOk(true);
+        window.setTimeout(() => onClose(), 650);
+      } else {
+        setWlError(res.error ?? "Could not add to watchlist");
+      }
+    } catch {
+      setWlError("Request failed");
+    } finally {
+      setWlBusy(false);
+    }
+  }, [item?.contractAddress, onAddToPrivateWatchlist, onClose, wlBusy]);
+
   if (!item) return null;
+
+  const mint = (item.contractAddress ?? "").trim();
+  const mintOk = SOLANA_MINT_RE.test(mint);
 
   return (
     <div
@@ -53,31 +103,52 @@ export function ActivityPopup({
         >
           {item.text}
         </h2>
+
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {item.link_chart ? (
-            <a
-              href={item.link_chart}
-              target="_blank"
-              rel="noopener noreferrer"
+          {mintOk ? (
+            <button
+              type="button"
+              onClick={() => {
+                onViewChart({
+                  contractAddress: mint,
+                  tokenTicker: item.tokenTicker ?? null,
+                  tokenImageUrl: item.tokenImageUrl ?? null,
+                });
+                onClose();
+              }}
               className="inline-flex flex-1 justify-center rounded-lg bg-sky-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-sky-500"
             >
-              View Chart
-            </a>
+              View chart
+            </button>
           ) : null}
-          {item.link_post ? (
-            <a
-              href={item.link_post}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex flex-1 justify-center rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-center text-sm font-semibold text-zinc-100 transition hover:bg-zinc-700"
+
+          {mintOk ? (
+            <button
+              type="button"
+              onClick={() => void handleAddWatchlist()}
+              disabled={wlBusy}
+              className="inline-flex flex-1 justify-center rounded-lg border border-emerald-600/50 bg-emerald-600/15 px-4 py-2.5 text-center text-sm font-semibold text-emerald-100 transition hover:bg-emerald-600/25 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              View Post
-            </a>
+              {wlBusy ? "Adding…" : "+ to Watchlist"}
+            </button>
           ) : null}
-          {!item.link_chart && !item.link_post ? (
-            <p className="text-sm text-zinc-500">No links available for this activity.</p>
+
+          {!mintOk ? (
+            <p className="text-sm text-zinc-500">
+              No Solana contract could be read from this activity (needs a Dex link or mint in the
+              text).
+            </p>
           ) : null}
         </div>
+
+        {wlError ? (
+          <p className="mt-3 text-sm text-red-400" role="alert">
+            {wlError}
+          </p>
+        ) : null}
+        {wlOk ? (
+          <p className="mt-3 text-sm text-[color:var(--accent)]">Added to your private watchlist.</p>
+        ) : null}
       </div>
     </div>
   );

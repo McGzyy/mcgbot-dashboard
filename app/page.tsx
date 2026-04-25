@@ -6,7 +6,7 @@ import {
   type NotificationPriority,
 } from "@/app/contexts/NotificationsContext";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
-import { ActivityPopup } from "./components/ActivityPopup";
+import { ActivityPopup, type ActivityPopupItem } from "./components/ActivityPopup";
 import { AddToWatchlistModal } from "./components/AddToWatchlistModal";
 import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
 import { DashboardChatPanel } from "./components/DashboardChatPanel";
@@ -938,6 +938,23 @@ function resolveCaInActivityText(
       : `https://dexscreener.com/solana/${encodeURIComponent(ca)}`;
 
   return { ca, chartLink };
+}
+
+function resolveActivityMint(item: ActivityItem): string | null {
+  const dex = item.link_chart ?? "";
+  const fromText = resolveCaInActivityText(item.text, dex);
+  if (fromText?.ca) return fromText.ca;
+  if (dex) {
+    const fromDex = extractCaFromDexLink(dex);
+    if (fromDex) return fromDex;
+  }
+  return null;
+}
+
+function parseCallTickerFromActivityText(text: string): string | null {
+  const m = text.match(/\(\$([^)]+)\)/i);
+  const t = m?.[1]?.trim();
+  return t || null;
 }
 
 function renderTextSegmentWithCa(text: string, dexLink: string): ReactNode {
@@ -2861,6 +2878,7 @@ export default function Home() {
   const [watchlistPublic, setWatchlistPublic] = useState<string[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(true);
   const [watchlistUpdatedAt, setWatchlistUpdatedAt] = useState<number | null>(null);
+  const [watchlistRefreshNonce, setWatchlistRefreshNonce] = useState(0);
   const [submitCallValue, setSubmitCallValue] = useState("");
   const [submitCallSubmitting, setSubmitCallSubmitting] = useState(false);
   const [submitCallFeedback, setSubmitCallFeedback] = useState<
@@ -3284,7 +3302,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [addWatchlistOpen, session?.user?.id]);
+  }, [addWatchlistOpen, session?.user?.id, watchlistRefreshNonce]);
 
   useEffect(() => {
     if (!session?.user?.id?.trim()) {
@@ -3433,6 +3451,67 @@ export default function Home() {
     referralVanityForHome && referralVanityForHome.length > 0
       ? `${REF_BASE}/${referralVanityForHome}`
       : referralIdUrl;
+
+  const activityPopupItem = useMemo((): ActivityPopupItem | null => {
+    if (!selectedActivity) return null;
+    const contractAddress = resolveActivityMint(selectedActivity);
+    const tokenTicker =
+      selectedActivity.type === "call"
+        ? parseCallTickerFromActivityText(selectedActivity.text)
+        : null;
+    return {
+      text: selectedActivity.text,
+      contractAddress,
+      tokenImageUrl: selectedActivity.tokenImageUrl ?? null,
+      tokenTicker,
+    };
+  }, [selectedActivity]);
+
+  const handleActivityViewChart = useCallback(
+    (args: {
+      contractAddress: string;
+      tokenTicker?: string | null;
+      tokenImageUrl?: string | null;
+    }) => {
+      openTokenChart({
+        chain: "solana",
+        contractAddress: args.contractAddress,
+        tokenTicker: args.tokenTicker ?? null,
+        tokenName: null,
+        tokenImageUrl: args.tokenImageUrl ?? null,
+      });
+    },
+    [openTokenChart]
+  );
+
+  const handleActivityAddWatchlist = useCallback(
+    async (mint: string) => {
+      try {
+        const res = await fetch("/api/me/watchlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            action: "add",
+            scope: "private",
+            mint: mint.trim(),
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        if (!res.ok) {
+          return {
+            ok: false as const,
+            error: data.error || `Could not save (${res.status})`,
+          };
+        }
+        setWatchlistRefreshNonce((n) => n + 1);
+        return { ok: true as const };
+      } catch {
+        return { ok: false as const, error: "Network error" };
+      }
+    },
+    []
+  );
 
   const notifyComingSoon = useCallback(
     (label: string) => {
@@ -4080,16 +4159,10 @@ export default function Home() {
       </div>
 
       <ActivityPopup
-        item={
-          selectedActivity
-            ? {
-                text: selectedActivity.text,
-                link_chart: selectedActivity.link_chart,
-                link_post: selectedActivity.link_post,
-              }
-            : null
-        }
+        item={activityPopupItem}
         onClose={() => setSelectedActivity(null)}
+        onViewChart={handleActivityViewChart}
+        onAddToPrivateWatchlist={handleActivityAddWatchlist}
       />
 
       <AddToWatchlistModal

@@ -111,7 +111,8 @@ export default function CallTapePage() {
           <span className="font-medium text-zinc-200">Your calls only</span> — not the whole server, not other
           people’s history. Each row is one call credited to <span className="font-medium text-zinc-200">your</span>{" "}
           account (the <span className="font-medium text-zinc-300">Source</span> column just says how it was logged,
-          e.g. you vs McGBot). Use Dex / Post when you want to jump out. For charts and totals from the same data, open{" "}
+          e.g. you vs McGBot). Use <span className="font-medium text-zinc-300">Dex</span> or{" "}
+          <span className="font-medium text-zinc-300">Chart</span> when you want to jump out. For charts and totals from the same data, open{" "}
           <Link href="/performance" className="font-medium text-cyan-300/90 underline-offset-2 hover:underline">
             Performance
           </Link>
@@ -280,16 +281,6 @@ export default function CallTapePage() {
                               className="text-xs font-semibold text-cyan-400/90 hover:text-cyan-300"
                             >
                               Dex
-                            </a>
-                          ) : null}
-                          {r.messageUrl ? (
-                            <a
-                              href={r.messageUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs font-semibold text-zinc-400 hover:text-zinc-200"
-                            >
-                              Post
                             </a>
                           ) : null}
                         </div>
