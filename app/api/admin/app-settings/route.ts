@@ -161,6 +161,10 @@ export async function PATCH(req: Request) {
     const n = Number((o as any).trusted_pro_apply_min_best_x_30d);
     if (Number.isFinite(n)) patch.trusted_pro_apply_min_best_x_30d = n;
   }
+  if ("referral_credit_divisor" in o) {
+    const n = Number((o as any).referral_credit_divisor);
+    if (Number.isFinite(n)) patch.referral_credit_divisor = n;
+  }
 
   const row = await patchDashboardAdminSettings(patch);
   if (!row) {

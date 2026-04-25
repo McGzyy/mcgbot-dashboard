@@ -27,6 +27,14 @@ type ReferralPerformance = {
   topCoins?: TopCoin[];
 };
 
+type RewardSummary = {
+  totalProDaysEarned: number;
+  activePayingReferrals: number;
+  creditDivisor: number;
+  examplePlanDurationDays: number | null;
+  estimatedDaysPerReferralRenewal: number | null;
+};
+
 function initialsFromHandle(name: string): string {
   const s = name.replace(/[^a-z0-9]/gi, "").slice(0, 2);
   return (s || name.slice(0, 2)).toUpperCase() || "—";
@@ -64,6 +72,7 @@ export default function ReferralsPage() {
   const [referralsLoaded, setReferralsLoaded] = useState(false);
   const [referralsError, setReferralsError] = useState<string | null>(null);
   const [refStats, setRefStats] = useState<{ total: number; today: number; week: number } | null>(null);
+  const [rewardSummary, setRewardSummary] = useState<RewardSummary | null>(null);
 
   const discordId = session?.user?.id?.trim() ?? "";
   const idUrl = discordId ? `${REF_BASE}/${discordId}` : "";
@@ -120,6 +129,7 @@ export default function ReferralsPage() {
     if (status !== "authenticated") {
       setReferrals([]);
       setRefStats(null);
+      setRewardSummary(null);
       setReferralsLoaded(status !== "loading");
       setReferralsError(null);
       return;
@@ -135,6 +145,7 @@ export default function ReferralsPage() {
         if (!res.ok) {
           setReferrals([]);
           setRefStats(null);
+          setRewardSummary(null);
           setReferralsError(typeof j.error === "string" ? j.error : "Could not load referrals.");
           return;
         }
@@ -162,10 +173,34 @@ export default function ReferralsPage() {
           today: Number(j.today) || 0,
           week: Number(j.week) || 0,
         });
+
+        const rs = j.rewardSummary as Record<string, unknown> | null | undefined;
+        if (rs && typeof rs === "object") {
+          setRewardSummary({
+            totalProDaysEarned: Number(rs.totalProDaysEarned) || 0,
+            activePayingReferrals: Number(rs.activePayingReferrals) || 0,
+            creditDivisor: Number(rs.creditDivisor) || 5,
+            examplePlanDurationDays:
+              rs.examplePlanDurationDays == null
+                ? null
+                : Number.isFinite(Number(rs.examplePlanDurationDays))
+                  ? Math.floor(Number(rs.examplePlanDurationDays))
+                  : null,
+            estimatedDaysPerReferralRenewal:
+              rs.estimatedDaysPerReferralRenewal == null
+                ? null
+                : Number.isFinite(Number(rs.estimatedDaysPerReferralRenewal))
+                  ? Math.floor(Number(rs.estimatedDaysPerReferralRenewal))
+                  : null,
+          });
+        } else {
+          setRewardSummary(null);
+        }
       } catch {
         if (!cancelled) {
           setReferrals([]);
           setRefStats(null);
+          setRewardSummary(null);
           setReferralsError("Could not load referrals.");
         }
       } finally {
@@ -512,19 +547,80 @@ export default function ReferralsPage() {
         <div className="relative">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Rewards</h2>
-            <span className="rounded-md border border-zinc-700/80 bg-black/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-              Locked
+            <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200/90">
+              Pro days
             </span>
           </div>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
-            Milestone payouts and fee-share tiers ship here next — same ledger-grade treatment as the
-            rest of the terminal.
+            When someone you referred completes a paid subscription (on-chain checkout), you earn bonus Pro
+            time: each of their payments credits you about one slice of their billing period (see divisor N
+            below). Cash milestones can layer on later; this phase is subscription credit only.
           </p>
-          <div className="mt-5 rounded-xl border border-dashed border-violet-500/25 bg-black/30 px-4 py-8 text-center">
-            <p className="text-sm font-medium text-violet-200/90">Program unlocks with referral volume</p>
-            <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-500">
-              When rewards go live, this panel becomes your claim center — no separate micro-sites, no
-              guesswork.
+
+          {!referralsLoaded ? (
+            <div className="mt-5 rounded-xl border border-dashed border-violet-500/25 bg-black/30 px-4 py-8 text-center">
+              <p className="text-sm text-zinc-500">Loading reward snapshot…</p>
+            </div>
+          ) : rewardSummary ? (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
+                  Credited so far
+                </p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">
+                  {rewardSummary.totalProDaysEarned}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">Bonus Pro days added to your membership</p>
+              </div>
+              <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
+                  Paying refs (active sub)
+                </p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">
+                  {rewardSummary.activePayingReferrals}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">Referred users whose Pro is currently valid</p>
+              </div>
+              <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
+                  Divisor N
+                </p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">{rewardSummary.creditDivisor}</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  You get floor(referee paid days ÷ N) days per referee payment (minimum 1).
+                </p>
+              </div>
+              <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
+                  Per renewal (example)
+                </p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">
+                  {rewardSummary.estimatedDaysPerReferralRenewal != null
+                    ? rewardSummary.estimatedDaysPerReferralRenewal
+                    : "—"}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {rewardSummary.examplePlanDurationDays != null
+                    ? `If a referee pays for the ${rewardSummary.examplePlanDurationDays}-day starter plan, one renewal credits you about this many days.`
+                    : "Based on your live subscription plans (first plan row)."}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5 rounded-xl border border-dashed border-zinc-600/40 bg-black/30 px-4 py-6 text-center">
+              <p className="text-sm text-zinc-500">
+                Reward totals need the service role on the server. Check SUPABASE_SERVICE_ROLE_KEY.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-5 rounded-xl border border-dashed border-violet-500/25 bg-black/30 px-4 py-4">
+            <p className="text-xs font-medium text-violet-200/85">Why five referrals can cover you</p>
+            <p className="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-zinc-500">
+              If N is 5 and each referee is on the same paid period length as you, five referees each renewing
+              once in a stretch roughly replaces one full period of your own subscription (5 × 1/5 = 1).
+              In practice, plans differ and renewals do not line up on a calendar — treat this as a rule of
+              thumb, not a guaranteed monthly balance.
             </p>
           </div>
         </div>

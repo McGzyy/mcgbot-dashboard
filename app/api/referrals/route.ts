@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getReferralRewardSummaryForOwner } from "@/lib/referralRewards";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -94,10 +95,13 @@ export async function GET() {
     };
   });
 
+  const rewardSummary = serviceKey ? await getReferralRewardSummaryForOwner(discordId) : null;
+
   return Response.json({
     total,
     today,
     week: weekCount,
     referrals: enriched,
+    rewardSummary,
   });
 }

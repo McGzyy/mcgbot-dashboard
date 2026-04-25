@@ -1,5 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
+const DAY_MS = 86_400_000;
+
 export type SubscriptionPlanRow = {
   id: string;
   slug: string;
@@ -168,7 +170,7 @@ export async function upsertSubscriptionAfterPayment(input: {
     existing?.current_period_end && new Date(String(existing.current_period_end)).getTime() > now
       ? new Date(String(existing.current_period_end))
       : new Date();
-  const end = new Date(base.getTime() + input.durationDays * 86_400_000);
+  const end = new Date(base.getTime() + input.durationDays * DAY_MS);
 
   const { error } = await db.from("subscriptions").upsert(
     {
@@ -182,6 +184,68 @@ export async function upsertSubscriptionAfterPayment(input: {
   );
   if (error) {
     console.error("[subscription] upsertSubscriptionAfterPayment", error);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Extend an existing subscription by N days. Creates a row if none exists.
+ * Does not change the user's plan_id (unless it must create the row).
+ */
+export async function extendSubscriptionDays(input: {
+  discordId: string;
+  days: number;
+  fallbackPlanId?: string | null;
+}): Promise<boolean> {
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+
+  const days = Math.max(0, Math.floor(input.days));
+  if (!Number.isFinite(days) || days <= 0) return false;
+
+  const discordId = input.discordId.trim();
+  if (!discordId) return false;
+
+  const { data: existing, error: selErr } = await db
+    .from("subscriptions")
+    .select("discord_id, plan_id, current_period_end")
+    .eq("discord_id", discordId)
+    .maybeSingle();
+  if (selErr) {
+    console.error("[subscription] extendSubscriptionDays select", selErr);
+    return false;
+  }
+
+  const now = Date.now();
+  const base =
+    existing?.current_period_end && new Date(String(existing.current_period_end)).getTime() > now
+      ? new Date(String(existing.current_period_end))
+      : new Date();
+  const end = new Date(base.getTime() + days * DAY_MS);
+
+  const planId =
+    typeof existing?.plan_id === "string" && existing.plan_id.trim()
+      ? existing.plan_id.trim()
+      : input.fallbackPlanId?.trim() || null;
+
+  if (!planId) {
+    console.error("[subscription] extendSubscriptionDays missing plan_id");
+    return false;
+  }
+
+  const { error } = await db.from("subscriptions").upsert(
+    {
+      discord_id: discordId,
+      plan_id: planId,
+      current_period_end: end.toISOString(),
+      status: "active",
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "discord_id" }
+  );
+  if (error) {
+    console.error("[subscription] extendSubscriptionDays upsert", error);
     return false;
   }
   return true;
