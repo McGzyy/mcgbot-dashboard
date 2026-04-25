@@ -61,7 +61,7 @@ function effectiveAuthorIdForRow(m: Record<string, unknown>): string | null {
 
 /**
  * Turn raw Discord REST `messages` JSON into dashboard `ChatMessagePayload[]`
- * (webhook `[[DASH_USER:…]]` trailer, guild role colors, help tiers).
+ * (webhook DASH_USER trailer in spoiler or plain form, guild role colors, help tiers).
  */
 export async function buildDiscordChatPayloadsFromRestRows(
   rows: unknown[],

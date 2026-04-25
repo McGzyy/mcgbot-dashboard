@@ -1,24 +1,44 @@
 import { resolveHelpTier, type HelpTier } from "@/lib/helpRole";
 
 /**
- * Webhook-posted dashboard chat messages append this trailer so the reader API can recover the
- * real Discord user id (webhook `author.id` is not the member snowflake).
+ * Webhook-posted dashboard chat messages append a trailing marker so the reader API can recover
+ * the real Discord user id (webhook `author.id` is not the member snowflake).
+ *
+ * The marker is wrapped in Discord spoiler markdown (`||…||`) on its own line so the client hides
+ * it by default instead of showing `[[DASH_USER:…]]` as plain text.
  */
-export const DASHBOARD_CHAT_USER_MARKER_RE = /\s*\[\[DASH_USER:(\d{5,25})\]\]\s*$/;
+const DASH_USER_MARKER_EXTRACT_RES: RegExp[] = [
+  /\s*\|\|\s*\[\[DASH_USER:(\d{5,25})\]\]\s*\|\|\s*$/,
+  /\s*\|\|DASH_USER:(\d{5,25})\|\|\s*$/,
+  /\s*\[\[DASH_USER:(\d{5,25})\]\]\s*$/,
+];
+
+const DASH_USER_MARKER_STRIP_RES: RegExp[] = [
+  /\s*\|\|\s*\[\[DASH_USER:\d{5,25}\]\]\s*\|\|\s*$/,
+  /\s*\|\|DASH_USER:\d{5,25}\|\|\s*$/,
+  /\s*\[\[DASH_USER:\d{5,25}\]\]\s*$/,
+];
 
 export function dashboardChatUserMarker(discordUserId: string): string {
   const id = discordUserId.trim();
-  return id ? ` [[DASH_USER:${id}]]` : "";
+  return id ? `\n||[[DASH_USER:${id}]]||` : "";
 }
 
 export function extractDashboardChatUserIdFromContent(content: string): string | null {
-  const m = content.match(DASHBOARD_CHAT_USER_MARKER_RE);
-  const id = m?.[1]?.trim();
-  return id || null;
+  for (const re of DASH_USER_MARKER_EXTRACT_RES) {
+    const m = content.match(re);
+    const id = m?.[1]?.trim();
+    if (id) return id;
+  }
+  return null;
 }
 
 export function stripDashboardChatUserMarkerFromContent(content: string): string {
-  return content.replace(DASHBOARD_CHAT_USER_MARKER_RE, "").trimEnd();
+  let s = content;
+  for (const re of DASH_USER_MARKER_STRIP_RES) {
+    s = s.replace(re, "");
+  }
+  return s.trimEnd();
 }
 
 /** Approximate Discord client role / name accent colors (dark theme). */

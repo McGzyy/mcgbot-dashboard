@@ -71,6 +71,12 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const stickToBottomRef = useRef(true);
 
+  /** New channel tab should open at the latest messages, not keep the previous tab’s scroll offset. */
+  const selectLoungeTab = useCallback((key: DashboardChatKind) => {
+    stickToBottomRef.current = true;
+    setActiveTabKey(key);
+  }, []);
+
   const endpoint = useMemo(() => {
     const qs = new URLSearchParams();
     qs.set("limit", "60");
@@ -142,16 +148,24 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
         setActiveTabKey(nextKey);
         setMessages(data.messages);
       }
-
-      if (stickToBottomRef.current && scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      }
     } catch {
       setError("Network error while loading chat.");
     } finally {
       setLoading(false);
     }
   }, [endpoint, feed, status]);
+
+  useEffect(() => {
+    if (!stickToBottomRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const id = requestAnimationFrame(() => {
+      if (!stickToBottomRef.current) return;
+      const box = scrollRef.current;
+      if (box) box.scrollTop = box.scrollHeight;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [messages]);
 
   const sendMessage = useCallback(async () => {
     const trimmed = draft.trim();
@@ -170,6 +184,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
         return;
       }
       setDraft("");
+      stickToBottomRef.current = true;
       await refresh();
     } catch {
       setSendError("Network error while sending.");
@@ -227,7 +242,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
                   <button
                     key={tab.key}
                     type="button"
-                    onClick={() => setActiveTabKey(tab.key)}
+                    onClick={() => selectLoungeTab(tab.key)}
                     className={
                       active
                         ? "rounded-lg border border-[color:var(--accent)]/50 bg-[color:var(--accent)]/15 px-3 py-1.5 text-xs font-semibold text-white"
