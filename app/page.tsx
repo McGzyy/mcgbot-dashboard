@@ -341,8 +341,24 @@ function callsTodayDeltaLabel(stats: MeStats | null): ReactNode {
 
 function smoothClass(refreshing: boolean): string {
   return refreshing
-    ? "transition-opacity duration-300 ease-out opacity-70"
+    ? "transition-opacity duration-300 ease-out opacity-85"
     : "transition-opacity duration-300 ease-out opacity-100";
+}
+
+function sameMeStats(a: MeStats | null, b: MeStats | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.avgX === b.avgX &&
+    a.medianX === b.medianX &&
+    a.winRate === b.winRate &&
+    a.callsToday === b.callsToday &&
+    (a.callsPriorRollingDay ?? 0) === (b.callsPriorRollingDay ?? 0) &&
+    (a.activeDaysStreak ?? 0) === (b.activeDaysStreak ?? 0) &&
+    a.bestX30d === b.bestX30d &&
+    a.hitRate2x30d === b.hitRate2x30d &&
+    a.totalCalls === b.totalCalls
+  );
 }
 
 type RecentCallRow = {
@@ -3054,7 +3070,8 @@ export default function Home() {
 
     let cancelled = false;
     if (stats === null) setStatsLoading(true);
-    setStatsRefreshing(true);
+    // Only show a refresh “pulse” if values actually change.
+    setStatsRefreshing(false);
 
     fetch("/api/me/stats", { credentials: "same-origin", cache: "no-store" })
       .then((res) => res.json())
@@ -3083,13 +3100,18 @@ export default function Home() {
           const bestX30d = typeof o.bestX30d === "number" ? o.bestX30d : 0;
           const hitRate2x30d =
             typeof o.hitRate2x30d === "number" ? o.hitRate2x30d : 0;
-          setStats({
+          const nextStats: MeStats = {
             ...o,
             medianX,
             bestX30d,
             hitRate2x30d,
             callsPriorRollingDay,
             activeDaysStreak,
+          };
+          setStats((prev) => {
+            if (sameMeStats(prev, nextStats)) return prev;
+            setStatsRefreshing(prev !== null);
+            return nextStats;
           });
         } else {
           // Avoid UI “blinking” to placeholder zeros during refreshes.
@@ -3354,7 +3376,7 @@ export default function Home() {
       .then((res) => (res.ok ? res.json() : null))
       .then((json: unknown) => {
         if (cancelled || !json || typeof json !== "object") {
-          if (!cancelled) setYourWeekRank(null);
+          // Keep previous rank if refresh fails; don’t “blink” to null.
           return;
         }
         const o = json as Record<string, unknown>;
@@ -3366,13 +3388,13 @@ export default function Home() {
               ? rankRaw
               : Number(rankRaw);
         if (!cancelled) {
-          setYourWeekRank(
-            rank !== null && Number.isFinite(rank) && rank > 0 ? rank : null
-          );
+          const next =
+            rank !== null && Number.isFinite(rank) && rank > 0 ? rank : null;
+          setYourWeekRank((prev) => (prev === next ? prev : next));
         }
       })
       .catch(() => {
-        if (!cancelled) setYourWeekRank(null);
+        // Keep previous rank if refresh fails; don’t “blink” to null.
       })
       .finally(() => {
         if (!cancelled) setYourRankLoading(false);
