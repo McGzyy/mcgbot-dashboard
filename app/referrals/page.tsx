@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 
 type Referral = {
   username: string;
@@ -38,10 +39,26 @@ const statCard =
 const panelShell =
   "rounded-2xl border border-zinc-800/60 bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-5 ring-1 ring-white/[0.04] sm:p-6";
 
+const REF_BASE = "https://mcgbot.xyz/ref";
+
+function listEmptyState(title: string, body: string) {
+  return (
+    <div className="rounded-xl border border-dashed border-zinc-700/55 bg-zinc-950/35 px-4 py-10 text-center">
+      <p className="text-sm font-medium text-zinc-400">{title}</p>
+      <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-600">{body}</p>
+    </div>
+  );
+}
+
 export default function ReferralsPage() {
-  const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [performance, setPerformance] = useState<ReferralPerformance[]>([]);
+  const { data: session, status } = useSession();
+  const [referrals] = useState<Referral[]>([]);
+  const [performance] = useState<ReferralPerformance[]>([]);
   const [copied, setCopied] = useState(false);
+
+  const discordId = session?.user?.id?.trim() ?? "";
+  const refUrl = discordId ? `${REF_BASE}/${discordId}` : "";
+  const refReady = status !== "loading" && Boolean(refUrl);
 
   const topReferral = useMemo(
     () => performance.filter((p) => p.calls > 0).sort((a, b) => b.avgX - a.avgX)[0],
@@ -53,9 +70,8 @@ export default function ReferralsPage() {
     [performance]
   );
 
-  const refUrl = "https://mcgbot.xyz/ref/your-id";
-
   const copyLink = useCallback(async () => {
+    if (!refUrl) return;
     try {
       await navigator.clipboard.writeText(refUrl);
       setCopied(true);
@@ -65,28 +81,7 @@ export default function ReferralsPage() {
     }
   }, [refUrl]);
 
-  useEffect(() => {
-    setReferrals([
-      { username: "user_1", joinedAt: "2 hours ago" },
-      { username: "user_2", joinedAt: "5 hours ago" },
-      { username: "user_3", joinedAt: "1 day ago" },
-    ]);
-
-    setPerformance([
-      {
-        username: "user_1",
-        calls: 5,
-        avgX: 2.8,
-        bestX: 4.2,
-        active: true,
-        topCoins: [
-          { symbol: "SOLX", multiplier: 4.2, image: null },
-          { symbol: "ALPHA", multiplier: 3.1, image: null },
-          { symbol: "DGN", multiplier: 2.7, image: null },
-        ],
-      },
-    ]);
-  }, []);
+  const hasReferrals = referrals.length > 0;
 
   return (
     <div className="mx-auto w-full max-w-[1100px] space-y-8 px-4 py-8 sm:px-6 sm:py-10">
@@ -135,12 +130,19 @@ export default function ReferralsPage() {
           </div>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-stretch">
             <div className="min-w-0 flex-1 rounded-xl border border-emerald-500/15 bg-black/40 px-3 py-3 font-mono text-[13px] text-zinc-200 shadow-inner sm:text-sm">
-              {refUrl}
+              {status === "loading" ? (
+                <span className="text-zinc-500">Loading your link…</span>
+              ) : refUrl ? (
+                refUrl
+              ) : (
+                <span className="text-zinc-500">Sign in with Discord to see your referral link.</span>
+              )}
             </div>
             <button
               type="button"
               onClick={() => void copyLink()}
-              className="shrink-0 rounded-xl border border-emerald-400/35 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505] sm:px-6"
+              disabled={!refReady}
+              className="shrink-0 rounded-xl border border-emerald-400/35 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505] enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 sm:px-6"
             >
               {copied ? "Copied" : "Copy"}
             </button>
@@ -186,7 +188,14 @@ export default function ReferralsPage() {
                 ))}
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="flex flex-col justify-center rounded-xl border border-dashed border-yellow-500/20 bg-yellow-500/[0.03] p-4 ring-1 ring-yellow-500/5">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-yellow-500/50">Best performer</p>
+              <p className="mt-3 text-sm leading-snug text-zinc-500">
+                When referred users start calling, your strongest avg / best multiple shows here.
+              </p>
+            </div>
+          )}
 
           <div className={statCard}>
             <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Total referrals</p>
@@ -248,22 +257,29 @@ export default function ReferralsPage() {
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Recent referrals</h2>
             <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Latest</span>
           </div>
-          <ul className="space-y-2">
-            {referrals.map((ref, i) => (
-              <li
-                key={`${ref.username}-${i}`}
-                className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800/50 bg-black/25 px-3 py-2.5 transition hover:border-emerald-500/20 hover:bg-emerald-950/15"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-700/80 bg-zinc-900 text-[11px] font-bold tabular-nums text-zinc-300">
-                    {initialsFromHandle(ref.username)}
+          {hasReferrals ? (
+            <ul className="space-y-2">
+              {referrals.map((ref, i) => (
+                <li
+                  key={`${ref.username}-${i}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800/50 bg-black/25 px-3 py-2.5 transition hover:border-emerald-500/20 hover:bg-emerald-950/15"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-700/80 bg-zinc-900 text-[11px] font-bold tabular-nums text-zinc-300">
+                      {initialsFromHandle(ref.username)}
+                    </div>
+                    <span className="truncate text-sm font-medium text-zinc-100">{ref.username}</span>
                   </div>
-                  <span className="truncate text-sm font-medium text-zinc-100">{ref.username}</span>
-                </div>
-                <span className="shrink-0 text-xs tabular-nums text-zinc-500">{ref.joinedAt}</span>
-              </li>
-            ))}
-          </ul>
+                  <span className="shrink-0 text-xs tabular-nums text-zinc-500">{ref.joinedAt}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            listEmptyState(
+              "No referrals yet",
+              "Share your link above. When someone joins through it, they’ll appear in this list with join time."
+            )
+          )}
         </section>
 
         <section className={panelShell}>
@@ -271,49 +287,56 @@ export default function ReferralsPage() {
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Referral performance</h2>
             <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Avg / best</span>
           </div>
-          <ul className="space-y-2">
-            {performance.map((p, i) => (
-              <li
-                key={`${p.username}-${i}`}
-                className="rounded-xl border border-zinc-800/50 bg-black/25 px-3 py-3 transition hover:border-emerald-500/20 hover:bg-emerald-950/10"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-700/80 bg-zinc-900 text-[11px] font-bold text-zinc-300">
-                      {initialsFromHandle(p.username)}
+          {performance.length > 0 ? (
+            <ul className="space-y-2">
+              {performance.map((p, i) => (
+                <li
+                  key={`${p.username}-${i}`}
+                  className="rounded-xl border border-zinc-800/50 bg-black/25 px-3 py-3 transition hover:border-emerald-500/20 hover:bg-emerald-950/10"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-700/80 bg-zinc-900 text-[11px] font-bold text-zinc-300">
+                        {initialsFromHandle(p.username)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-zinc-100">{p.username}</p>
+                        <p className="text-xs text-zinc-500">{p.calls} calls</p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-zinc-100">{p.username}</p>
-                      <p className="text-xs text-zinc-500">{p.calls} calls</p>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:justify-end">
+                      <span className="text-zinc-500">
+                        Avg{" "}
+                        <span className="font-semibold tabular-nums text-emerald-400">
+                          {p.avgX > 0 ? fmtX(p.avgX) : "—"}
+                        </span>
+                      </span>
+                      <span className="text-zinc-500">
+                        Best{" "}
+                        <span className="font-semibold tabular-nums text-amber-300">
+                          {p.bestX > 0 ? fmtX(p.bestX) : "—"}
+                        </span>
+                      </span>
+                      <span
+                        className={
+                          p.active
+                            ? "rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-200"
+                            : "rounded-md border border-zinc-700/60 bg-zinc-900/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500"
+                        }
+                      >
+                        {p.active ? "Active" : "Idle"}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:justify-end">
-                    <span className="text-zinc-500">
-                      Avg{" "}
-                      <span className="font-semibold tabular-nums text-emerald-400">
-                        {p.avgX > 0 ? fmtX(p.avgX) : "—"}
-                      </span>
-                    </span>
-                    <span className="text-zinc-500">
-                      Best{" "}
-                      <span className="font-semibold tabular-nums text-amber-300">
-                        {p.bestX > 0 ? fmtX(p.bestX) : "—"}
-                      </span>
-                    </span>
-                    <span
-                      className={
-                        p.active
-                          ? "rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-200"
-                          : "rounded-md border border-zinc-700/60 bg-zinc-900/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500"
-                      }
-                    >
-                      {p.active ? "Active" : "Idle"}
-                    </span>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            listEmptyState(
+              "No performance data yet",
+              "After your referrals place calls, avg multiples, bests, and activity show up here."
+            )
+          )}
         </section>
       </div>
 
