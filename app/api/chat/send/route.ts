@@ -11,7 +11,7 @@ import {
   isDiscordWebhookExecuteUrl,
   resolveDashboardChatWebhookUrl,
 } from "@/lib/discordChatWebhook";
-import { dashboardChatUserMarker } from "@/lib/discordChatMessageSerialize";
+import { recordWebhookMessageAuthor } from "@/lib/discordWebhookMessageAuthors";
 
 function requireEnv(name: string): string {
   const v = (process.env[name] ?? "").trim();
@@ -74,17 +74,15 @@ export async function POST(request: Request) {
     ).slice(0, 80);
     const avatarUrl = typeof su?.image === "string" ? su.image : null;
 
-    const marker = dashboardChatUserMarker(userId);
-    const maxLen = Math.max(1, 500 - marker.length);
+    const maxLen = 500;
     if (trimmed.length > maxLen) {
       logServerEvent("chat.send.too_long", { userId, len: trimmed.length, maxLen });
       return Response.json({ error: `Message too long (max ${maxLen} characters)` }, { status: 400 });
     }
-    const outbound = `${trimmed}${marker}`;
 
     try {
       const res = await executeDashboardChatWebhook(webhookUrl, {
-        content: outbound,
+        content: trimmed,
         username: displayName,
         avatarUrl,
       });
@@ -95,6 +93,30 @@ export async function POST(request: Request) {
           { status: 502 }
         );
       }
+
+      const created = (await res.json().catch(() => null)) as unknown;
+      const createdObj = created && typeof created === "object" ? (created as Record<string, unknown>) : null;
+      const rawId = createdObj?.id;
+      let messageId: string | null = null;
+      if (typeof rawId === "string" && /^\d{5,25}$/.test(rawId.trim())) {
+        messageId = rawId.trim();
+      } else if (typeof rawId === "number" && Number.isFinite(rawId)) {
+        try {
+          const s = BigInt(Math.trunc(rawId)).toString();
+          if (/^\d{5,25}$/.test(s)) messageId = s;
+        } catch {
+          messageId = null;
+        }
+      }
+      if (messageId) {
+        const mapped = await recordWebhookMessageAuthor(messageId, userId);
+        if (!mapped) {
+          logServerEvent("chat.send.webhook_author_map_failed", { userId, messageId });
+        }
+      } else {
+        logServerEvent("chat.send.webhook_no_message_id", { userId });
+      }
+
       return Response.json({ success: true, via: "webhook" as const });
     } catch {
       return Response.json(

@@ -1,11 +1,9 @@
 import { resolveHelpTier, type HelpTier } from "@/lib/helpRole";
 
 /**
- * Webhook-posted dashboard chat messages append a trailing marker so the reader API can recover
- * the real Discord user id (webhook `author.id` is not the member snowflake).
- *
- * The marker is wrapped in Discord spoiler markdown (`||…||`) on its own line so the client hides
- * it by default instead of showing `[[DASH_USER:…]]` as plain text.
+ * Legacy webhook messages embedded `[[DASH_USER:<id>]]` (optionally in Discord spoilers) so the
+ * reader could recover the real member id. New sends store id in `discord_webhook_message_authors`
+ * instead; these patterns remain for older messages.
  */
 const DASH_USER_MARKER_EXTRACT_RES: RegExp[] = [
   /\s*\|\|\s*\[\[DASH_USER:(\d{5,25})\]\]\s*\|\|\s*$/,
@@ -18,11 +16,6 @@ const DASH_USER_MARKER_STRIP_RES: RegExp[] = [
   /\s*\|\|DASH_USER:\d{5,25}\|\|\s*$/,
   /\s*\[\[DASH_USER:\d{5,25}\]\]\s*$/,
 ];
-
-export function dashboardChatUserMarker(discordUserId: string): string {
-  const id = discordUserId.trim();
-  return id ? `\n||[[DASH_USER:${id}]]||` : "";
-}
 
 export function extractDashboardChatUserIdFromContent(content: string): string | null {
   for (const re of DASH_USER_MARKER_EXTRACT_RES) {

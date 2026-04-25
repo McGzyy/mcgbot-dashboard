@@ -4,6 +4,7 @@ import {
   stripDashboardChatUserMarkerFromContent,
   type ChatMessagePayload,
 } from "@/lib/discordChatMessageSerialize";
+import { fetchWebhookMessageAuthorMap } from "@/lib/discordWebhookMessageAuthors";
 import {
   helpTierFromMemberRoleIds,
   mergeHelpTierWithEnv,
@@ -46,22 +47,19 @@ function memberRoleIdsFromMessage(m: Record<string, unknown>): string[] {
   return rolesRaw.map((x) => String(x).trim()).filter(Boolean);
 }
 
-function effectiveAuthorIdForRow(m: Record<string, unknown>): string | null {
-  const author = asObj(m.author);
-  const authorId = str(author?.id);
-  if (!authorId) return null;
-  const content = String(m.content ?? "");
-  const wid = readDiscordSnowflake(m.webhook_id);
-  if (wid) {
-    const linked = extractDashboardChatUserIdFromContent(content);
-    if (linked) return linked;
-  }
-  return authorId;
-}
+type RowWork = {
+  m: Record<string, unknown>;
+  authorId: string;
+  messageId: string | null;
+  wid: string | null;
+  content: string;
+  linkedFromContent: string | null;
+};
 
 /**
  * Turn raw Discord REST `messages` JSON into dashboard `ChatMessagePayload[]`
- * (webhook DASH_USER trailer in spoiler or plain form, guild role colors, help tiers).
+ * (webhook author: legacy in-content marker and/or Supabase `discord_webhook_message_authors`,
+ * guild role colors, help tiers).
  */
 export async function buildDiscordChatPayloadsFromRestRows(
   rows: unknown[],
@@ -72,27 +70,47 @@ export async function buildDiscordChatPayloadsFromRestRows(
 
   const guildRoles = (await fetchDiscordGuildRolesCached(token)) ?? [];
 
-  const roleIdsByAuthor = new Map<string, string[]>();
-  const pendingMemberFetch = new Set<string>();
-
+  const works: RowWork[] = [];
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
     const m = row as Record<string, unknown>;
-    const eff = effectiveAuthorIdForRow(m);
-    if (!eff) continue;
-
+    const author = asObj(m.author);
+    const authorId = str(author?.id);
+    if (!authorId) continue;
+    const messageId = readDiscordSnowflake(m.id);
     const wid = readDiscordSnowflake(m.webhook_id);
-    const linked =
-      wid && String(m.content ?? "").trim()
-        ? extractDashboardChatUserIdFromContent(String(m.content ?? ""))
+    const content = String(m.content ?? "");
+    const linkedFromContent =
+      wid && content.trim() ? extractDashboardChatUserIdFromContent(content) : null;
+    works.push({ m, authorId, messageId, wid, content, linkedFromContent });
+  }
+
+  const idsForDb = [
+    ...new Set(
+      works
+        .filter((w) => w.wid && !w.linkedFromContent && w.messageId)
+        .map((w) => w.messageId!)
+    ),
+  ];
+  const authorByMessageId = await fetchWebhookMessageAuthorMap(idsForDb);
+
+  const roleIdsByAuthor = new Map<string, string[]>();
+  const pendingMemberFetch = new Set<string>();
+
+  for (const w of works) {
+    const linkedFromDb =
+      w.wid && !w.linkedFromContent && w.messageId
+        ? (authorByMessageId.get(w.messageId) ?? null)
         : null;
+    const linked = w.linkedFromContent ?? linkedFromDb;
+    const eff = linked ?? w.authorId;
 
     if (linked) {
       pendingMemberFetch.add(eff);
       continue;
     }
 
-    const mr = memberRoleIdsFromMessage(m);
+    const mr = memberRoleIdsFromMessage(w.m);
     if (mr.length) {
       roleIdsByAuthor.set(eff, mr);
     } else {
@@ -118,21 +136,17 @@ export async function buildDiscordChatPayloadsFromRestRows(
     if (accent) accentByAuthor.set(authorId, accent);
   }
 
-  const messages = rows
-    .map((row) => {
-      if (!row || typeof row !== "object") return null;
-      const m = row as Record<string, unknown>;
-      const author = asObj(m.author);
-      const authorId = str(author?.id);
-      if (!authorId) return null;
+  const messages = works
+    .map((w) => {
+      const { m, authorId, messageId, wid, content, linkedFromContent } = w;
+      const linkedFromDb =
+        wid && !linkedFromContent && messageId
+          ? (authorByMessageId.get(messageId) ?? null)
+          : null;
+      const linked = linkedFromContent ?? linkedFromDb ?? null;
 
-      const content = String(m.content ?? "");
-      const wid = readDiscordSnowflake(m.webhook_id);
-      const linked =
-        wid && content.trim() ? extractDashboardChatUserIdFromContent(content) : null;
-
-      const rowForNorm =
-        linked && wid
+      const rowForNorm: Record<string, unknown> =
+        linked && wid && linkedFromContent
           ? ({ ...m, content: stripDashboardChatUserMarkerFromContent(content) } as Record<string, unknown>)
           : m;
 
