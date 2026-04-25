@@ -4,6 +4,7 @@ import { buildDiscordChatPayloadsFromRestRows } from "@/lib/buildDiscordChatPayl
 import { buildDashboardChatTabsForViewer } from "@/lib/dashboardChat";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function botToken(): string | null {
   const t = (process.env.DISCORD_BOT_TOKEN ?? process.env.DISCORD_TOKEN ?? "").trim();
