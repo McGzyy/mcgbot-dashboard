@@ -66,6 +66,9 @@ async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
 
 async function loadDexscreenerHeuristic(tf: Timeframe, limit: number): Promise<TrendingTokenRow[]> {
   const timeKey = pickTimeKey(tf);
+  const minLiqUsd = tf === "5m" ? 7_500 : tf === "24h" ? 25_000 : 12_500;
+  const minVolUsd = tf === "5m" ? 4_000 : tf === "24h" ? 60_000 : 12_000;
+  const minTxns = tf === "5m" ? 8 : tf === "24h" ? 25 : 12;
   const candidates: Array<{ chainId: string; tokenAddress: string }> = [];
 
   const sources = [
@@ -118,10 +121,11 @@ async function loadDexscreenerHeuristic(tf: Timeframe, limit: number): Promise<T
           const volTf = asNum((o.volume as any)?.[timeKey]);
           const txnsTf = asNum((o.txns as any)?.[timeKey]?.buys) + asNum((o.txns as any)?.[timeKey]?.sells);
           // “Trending-like” heuristic: require some liquidity and activity.
-          if (liqUsd < 25_000) continue;
-          if (volTf < 50_000) continue;
-          if (txnsTf < 25) continue;
-          const score = liqUsd * 10 + volTf + txnsTf * 1000;
+          if (liqUsd < minLiqUsd) continue;
+          if (volTf < minVolUsd) continue;
+          if (txnsTf < minTxns) continue;
+          // Score leans into volume+txns, but still prefers liquid pairs.
+          const score = liqUsd * 4 + volTf + txnsTf * 650;
           if (score > bestScore) {
             bestScore = score;
             best = o;
