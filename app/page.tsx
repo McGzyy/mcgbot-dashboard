@@ -71,7 +71,7 @@ type TrendingTokenRow = {
   liquidityUsd: number;
   volumeUsd: number;
   holders: number;
-  source: "Dexscreener" | "Axiom" | "Gecko";
+  source: "Dexscreener" | "Axiom" | "Gecko" | "GMGN";
   timeframe: "5m" | "1h" | "24h";
 };
 
@@ -1366,7 +1366,7 @@ function TrendingPanel() {
 
           <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
             {(
-              ["All", "Dexscreener", "Axiom", "Gecko"] as const
+              ["All", "Dexscreener", "GMGN"] as const
             ).map((s) => (
               <button
                 key={s}
