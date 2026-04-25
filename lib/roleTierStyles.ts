@@ -119,4 +119,9 @@ export const modChrome = {
   railKicker: "text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400/75",
   railMetric:
     "rounded-xl border border-emerald-900/32 bg-black/40 px-3 py-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]",
+  /** In-page section nav (mirrors `adminChrome` — emerald accent) */
+  navActive:
+    "border-emerald-500/35 bg-gradient-to-br from-emerald-950/50 to-zinc-950/80 text-white shadow-[0_0_24px_-4px_rgba(16,185,129,0.28)]",
+  navMarker: "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.75)]",
+  navIconActive: "text-emerald-300",
 } as const;

@@ -43,18 +43,21 @@ export async function GET() {
     const supabase = createDashboardAdminClient();
     if (!supabase) return Response.json({ error: "Supabase not configured" }, { status: 500 });
 
-    const { data, error } = await supabase
+    // Use `.limit(1)` instead of `maybeSingle()`: duplicate `discord_id` rows (constraint drift /
+    // legacy data) make PostgREST return PGRST116 for `maybeSingle()`, which broke POST adds while
+    // GET silently fell back to empty lists.
+    const { data: rows, error } = await supabase
       .from("user_dashboard_settings")
       .select("private_watchlist, public_dashboard_watchlist")
       .eq("discord_id", discordId)
-      .maybeSingle();
+      .limit(1);
 
     if (error) {
       console.error("[me/watchlist] GET:", error);
       return Response.json({ private: [], public: [] } satisfies WatchlistPayload);
     }
 
-    const row = (data ?? {}) as Record<string, unknown>;
+    const row = (rows?.[0] ?? {}) as Record<string, unknown>;
     const payload: WatchlistPayload = {
       private: normalizeList(row.private_watchlist),
       public: normalizeList(row.public_dashboard_watchlist),
@@ -103,18 +106,18 @@ export async function POST(request: Request) {
     const supabase = createDashboardAdminClient();
     if (!supabase) return Response.json({ error: "Supabase not configured" }, { status: 500 });
 
-    const { data: current, error: readErr } = await supabase
+    const { data: rows, error: readErr } = await supabase
       .from("user_dashboard_settings")
       .select("private_watchlist, public_dashboard_watchlist")
       .eq("discord_id", discordId)
-      .maybeSingle();
+      .limit(1);
 
     if (readErr) {
       console.error("[me/watchlist] POST read:", readErr);
       return Response.json({ error: "Failed to load watchlist" }, { status: 500 });
     }
 
-    const row = (current ?? {}) as Record<string, unknown>;
+    const row = (rows?.[0] ?? {}) as Record<string, unknown>;
     const nextPrivate = normalizeList(row.private_watchlist);
     const nextPublic = normalizeList(row.public_dashboard_watchlist);
 

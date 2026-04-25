@@ -9,6 +9,8 @@ import {
   parseTagsList,
   solscanAccountUrl,
 } from "@/lib/modUiUtils";
+import { ModerationDashboardShell } from "@/app/moderation/_components/ModerationDashboardShell";
+import { AdminPanel } from "@/app/admin/_components/adminUi";
 import { modChrome } from "@/lib/roleTierStyles";
 import { StaffStatsRail } from "@/app/moderation/StaffStatsRail";
 import Link from "next/link";
@@ -1212,7 +1214,7 @@ export default function ModerationPage() {
 
   return (
     <div className={modChrome.pageShell}>
-      <div className={`relative mx-auto w-full min-w-0 max-w-6xl pb-20 ${modChrome.pageInner}`}>
+      <div className={`relative mx-auto w-full min-w-0 max-w-[1400px] pb-20 ${modChrome.pageInner}`}>
         <header className="relative border-b border-white/[0.06] pb-8 pt-2" data-tutorial="moderation.header">
           <p className={`text-[10px] font-semibold uppercase tracking-[0.28em] ${modChrome.kicker}`}>
             Staff command center
@@ -1232,10 +1234,21 @@ export default function ModerationPage() {
           </div>
         </header>
 
-        <div
-          className={`sticky top-0 z-20 mb-8 mt-8 rounded-2xl p-5 backdrop-blur-md ${modChrome.headerBg}`}
-          data-tutorial="moderation.liveQueue"
-        >
+        <ModerationDashboardShell>
+          <div className="space-y-8 pt-2">
+            <div data-tutorial="moderation.intro">
+              <h2 className="text-lg font-semibold text-white">Review desk</h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                Use the left rail to jump between queues. Wide layouts keep reports and throughput on the right so mods
+                can scan top-to-bottom without losing context.
+              </p>
+            </div>
+
+            <AdminPanel
+              id="mod-live-queue"
+              className="sticky top-0 z-20 scroll-mt-28 border-l-2 border-l-emerald-500/45 p-5 backdrop-blur-md sm:p-6"
+              data-tutorial="moderation.liveQueue"
+            >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400/75">Live queue</p>
@@ -1321,10 +1334,10 @@ export default function ModerationPage() {
         {data && total === 0 && !queueLoading ? (
           <p className="mt-2 text-[11px] font-medium text-emerald-200/55">Nothing to triage — queue is clear.</p>
         ) : null}
-      </div>
+            </AdminPanel>
 
-      <div className="mt-2 grid gap-8 lg:grid-cols-[1fr_minmax(280px,360px)] lg:items-start">
-        <div className="min-w-0">
+            <div className="grid gap-8 lg:grid-cols-[1fr_minmax(280px,360px)] lg:items-start">
+              <div className="min-w-0 space-y-8">
       {err && !queueLoading && (errVariant === "network" || errVariant === "config") ? (
         <ModQueueErrorPanel
           title={err}
@@ -1358,14 +1371,12 @@ export default function ModerationPage() {
       {!data && !err ? <ModQueueSkeleton /> : null}
 
       {data ? (
-        <div className="grid gap-6 xl:grid-cols-2">
+        <AdminPanel className="p-5 sm:p-6">
+          <div className="grid gap-8 xl:grid-cols-2">
           <div className="space-y-8">
-            <section>
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <span className={modChrome.sectionAccent} aria-hidden />
-                  <h2 className={modChrome.h2}>McGBot calls (X gate)</h2>
-                </div>
+            <section id="mod-calls" className="scroll-mt-28">
+              <div className="mb-4 flex items-end justify-between gap-2 border-b border-white/[0.06] pb-3">
+                <h2 className="text-base font-semibold tracking-tight text-white">McGBot calls (X gate)</h2>
                 <span className="shrink-0 text-xs tabular-nums text-zinc-500">{callN} open</span>
               </div>
               {calls.length === 0 ? (
@@ -1392,11 +1403,8 @@ export default function ModerationPage() {
 
             {callsUser.length > 0 ? (
               <section>
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <span className={modChrome.sectionAccent} aria-hidden />
-                    <h2 className={modChrome.h2}>Other pending tracked calls</h2>
-                  </div>
+                <div className="mb-4 flex items-end justify-between gap-2 border-b border-white/[0.06] pb-3">
+                  <h2 className="text-base font-semibold tracking-tight text-white">Other pending tracked calls</h2>
                   <span className="shrink-0 text-xs tabular-nums text-zinc-500">{callOtherN} open</span>
                 </div>
                 <p className="mb-3 text-xs leading-relaxed text-zinc-600">
@@ -1417,12 +1425,9 @@ export default function ModerationPage() {
             ) : null}
           </div>
 
-          <section>
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className={modChrome.sectionAccent} aria-hidden />
-                <h2 className={modChrome.h2}>Dev submissions</h2>
-              </div>
+          <section id="mod-dev" className="scroll-mt-28">
+            <div className="mb-4 flex items-end justify-between gap-2 border-b border-white/[0.06] pb-3">
+              <h2 className="text-base font-semibold tracking-tight text-white">Dev submissions</h2>
               <span className="shrink-0 text-xs tabular-nums text-zinc-500">{devN} open</span>
             </div>
             {devs.length === 0 ? (
@@ -1438,16 +1443,13 @@ export default function ModerationPage() {
             )}
           </section>
 
-          <section>
-            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className={modChrome.sectionAccent} aria-hidden />
-                <div>
-                  <h2 className={modChrome.h2}>Trusted Pro submissions</h2>
-                  <p className="mt-1 text-xs text-zinc-600">
-                    First 3 approvals per author require staff review. After that, Trusted Pro posts auto-publish.
-                  </p>
-                </div>
+          <section id="mod-tp-submissions" className="scroll-mt-28">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-white/[0.06] pb-4">
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold tracking-tight text-white">Trusted Pro submissions</h2>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                  First 3 approvals per author require staff review. After that, Trusted Pro posts auto-publish.
+                </p>
               </div>
               <button
                 type="button"
@@ -1526,16 +1528,13 @@ export default function ModerationPage() {
             )}
           </section>
 
-          <section>
-            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className={modChrome.sectionAccent} aria-hidden />
-                <div>
-                  <h2 className={modChrome.h2}>Trusted Pro applications</h2>
-                  <p className="mt-1 text-xs text-zinc-600">
-                    Users can apply when they meet hidden thresholds. Approving grants the Trusted Pro flag.
-                  </p>
-                </div>
+          <section id="mod-tp-apps" className="scroll-mt-28">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-white/[0.06] pb-4">
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold tracking-tight text-white">Trusted Pro applications</h2>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                  Users can apply when they meet hidden thresholds. Approving grants the Trusted Pro flag.
+                </p>
               </div>
               <button
                 type="button"
@@ -1618,19 +1617,17 @@ export default function ModerationPage() {
             )}
           </section>
         </div>
+        </AdminPanel>
       ) : null}
         </div>
         <div className="space-y-8">
-          <section>
-            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className={modChrome.sectionAccent} aria-hidden />
-                <div>
-                  <h2 className={modChrome.h2}>Reports</h2>
-                  <p className="mt-1 text-xs text-zinc-600">
-                    User-submitted reports for profiles and calls. Exclude reported calls to remove them from stats.
-                  </p>
-                </div>
+          <AdminPanel id="mod-reports" className="scroll-mt-28 p-5 sm:p-6">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-white/[0.06] pb-4">
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold tracking-tight text-white">Reports</h2>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                  User-submitted reports for profiles and calls. Exclude reported calls to remove them from stats.
+                </p>
               </div>
               <button
                 type="button"
@@ -1849,11 +1846,13 @@ export default function ModerationPage() {
                 </div>
               </div>
             </div>
-          </section>
+          </AdminPanel>
 
           <StaffStatsRail />
         </div>
       </div>
+          </div>
+        </ModerationDashboardShell>
       </div>
     </div>
   );
