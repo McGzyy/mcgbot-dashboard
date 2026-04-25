@@ -78,8 +78,12 @@ async function loadDexscreenerHeuristic(tf: Timeframe, limit: number): Promise<T
 
   for (const url of sources) {
     try {
-      const json = (await fetchJson(url)) as unknown;
-      const arr = Array.isArray(json) ? (json as unknown[]) : [];
+      const json = (await fetchJson(url)) as any;
+      const arr = Array.isArray(json)
+        ? (json as unknown[])
+        : Array.isArray(json?.value)
+          ? (json.value as unknown[])
+          : [];
       for (const item of arr) {
         if (!item || typeof item !== "object") continue;
         const o = item as Record<string, unknown>;
