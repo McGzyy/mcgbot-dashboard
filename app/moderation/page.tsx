@@ -1057,6 +1057,27 @@ export default function ModerationPage() {
     }
   }, [status, tier]);
 
+  const refreshAllModerationData = useCallback(
+    async (opts?: { toastOnOk?: boolean }) => {
+      await Promise.all([
+        loadQueue({ toastOnOk: false }),
+        loadTrustedProPending(),
+        loadTrustedProApplications(),
+        loadReports(),
+      ]);
+      if (opts?.toastOnOk) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Refreshed bot queue, Trusted Pro, applications, and reports.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      }
+    },
+    [loadQueue, loadTrustedProPending, loadTrustedProApplications, loadReports, addNotification]
+  );
+
   const patchReport = useCallback(
     async (kind: "profile" | "call", id: string, patch: { status?: string; staffNotes?: string }) => {
       if (reportBusyId) return;
@@ -1153,21 +1174,21 @@ export default function ModerationPage() {
       const el = e.target as HTMLElement | null;
       if (el?.closest("input, textarea, select, [contenteditable=true]")) return;
       e.preventDefault();
-      void loadQueue({ toastOnOk: true });
+      void refreshAllModerationData({ toastOnOk: true });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [tier, loadQueue]);
+  }, [tier, refreshAllModerationData]);
 
   useEffect(() => {
     if (tier !== "mod" && tier !== "admin") return;
     const POLL_MS = 50_000;
     const id = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      void loadQueue();
+      void refreshAllModerationData();
     }, POLL_MS);
     return () => window.clearInterval(id);
-  }, [tier, loadQueue]);
+  }, [tier, refreshAllModerationData]);
 
   const lastUpdatedLabel = useMemo(() => {
     if (!lastUpdatedAt) return null;
@@ -1229,10 +1250,22 @@ export default function ModerationPage() {
   const callsUser = data?.callApprovalsUser ?? [];
   const devs = data?.devSubmissions ?? [];
   const counts = data?.counts;
-  const total = counts?.total ?? 0;
   const callN = counts?.callApprovals ?? calls.length;
   const callOtherN = counts?.callApprovalsUser ?? callsUser.length;
   const devN = counts?.devSubmissions ?? devs.length;
+
+  const tpSubN = trustedProPending.length;
+  const tpAppN = tpAppsPending.length;
+  const profileRepN = profileReports.length;
+  const callRepN = callReports.length;
+
+  const webListsReady = !trustedProLoading && !tpAppsLoading && !reportsLoading;
+  const botBannerReady = !queueLoading;
+  const grandDisplay =
+    botBannerReady && webListsReady ? (data?.counts?.total ?? 0) + tpSubN + tpAppN + profileRepN + callRepN : null;
+
+  const queueFullyClear =
+    grandDisplay !== null && grandDisplay === 0 && botBannerReady && webListsReady && !err;
 
   return (
     <div className={modChrome.pageShell}>
@@ -1289,27 +1322,41 @@ export default function ModerationPage() {
               ) : null}
               <button
                 type="button"
-                onClick={() => void loadQueue({ toastOnOk: true })}
-                disabled={queueLoading}
+                onClick={() => void refreshAllModerationData({ toastOnOk: true })}
+                disabled={queueLoading || trustedProLoading || tpAppsLoading || reportsLoading}
                 className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold text-emerald-50 shadow-sm transition focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${modChrome.refreshBtn}`}
               >
                 <span
                   className={
-                    queueLoading
+                    queueLoading || trustedProLoading || tpAppsLoading || reportsLoading
                       ? "inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-400/50 border-t-transparent"
                       : ""
                   }
                   aria-hidden
                 />
-                {queueLoading ? "Refreshing…" : "Refresh queue"}
+                {queueLoading || trustedProLoading || tpAppsLoading || reportsLoading
+                  ? "Refreshing…"
+                  : "Refresh all"}
               </button>
             </div>
           </div>
 
-        <div className="mt-5 grid w-full grid-cols-2 gap-3 sm:grid-cols-4" data-tutorial="moderation.queueStats">
-          <div className={modChrome.statTile}>
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">Total</div>
-            <div className="mt-0.5 text-xl font-bold tabular-nums text-zinc-100">{queueLoading ? "…" : total}</div>
+        <div
+          className="mt-5 grid w-full grid-cols-2 gap-3 sm:grid-cols-4"
+          data-tutorial="moderation.queueStats"
+        >
+          <div
+            className={`${modChrome.statTile} ${
+              grandDisplay != null && grandDisplay > 0 ? "ring-1 ring-amber-400/35 ring-offset-2 ring-offset-[#060806]" : ""
+            }`}
+          >
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">
+              Needs review
+            </div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-zinc-100">
+              {grandDisplay === null ? "…" : grandDisplay}
+            </div>
+            <div className="mt-1 text-[9px] leading-snug text-zinc-600">Bot + dashboard below</div>
           </div>
           <div className={modChrome.statTile}>
             <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200/55">McGBot</div>
@@ -1330,31 +1377,49 @@ export default function ModerationPage() {
             </div>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] text-zinc-600">
-            Tip: press{" "}
-            <kbd className="rounded border border-emerald-900/50 bg-emerald-950/40 px-1.5 py-0.5 font-mono text-emerald-200/70">
-              R
-            </kbd>{" "}
-            outside inputs to refresh.
-          </p>
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
-            <span className="rounded-lg border border-emerald-900/35 bg-black/25 px-2 py-1">
-              Trusted Pro submissions{" "}
-              <span className="font-semibold tabular-nums text-zinc-200">
-                {trustedProLoading ? "…" : trustedProPending.length}
-              </span>
-            </span>
-            <span className="rounded-lg border border-emerald-900/35 bg-black/25 px-2 py-1">
-              Trusted Pro applications{" "}
-              <span className="font-semibold tabular-nums text-zinc-200">
-                {tpAppsLoading ? "…" : tpAppsPending.length}
-              </span>
-            </span>
+        <div className="mt-3 grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5 text-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)]">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">TP posts</div>
+            <div className="mt-0.5 text-lg font-bold tabular-nums text-zinc-100">
+              {trustedProLoading ? "…" : tpSubN}
+            </div>
+          </div>
+          <div className="rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5 text-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)]">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">TP apps</div>
+            <div className="mt-0.5 text-lg font-bold tabular-nums text-zinc-100">
+              {tpAppsLoading ? "…" : tpAppN}
+            </div>
+          </div>
+          <div className="rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5 text-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)]">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Profile reports</div>
+            <div className="mt-0.5 text-lg font-bold tabular-nums text-zinc-100">
+              {reportsLoading ? "…" : profileRepN}
+            </div>
+          </div>
+          <div className="rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5 text-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)]">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Call reports</div>
+            <div className="mt-0.5 text-lg font-bold tabular-nums text-zinc-100">
+              {reportsLoading ? "…" : callRepN}
+            </div>
           </div>
         </div>
-        {data && total === 0 && !queueLoading ? (
-          <p className="mt-2 text-[11px] font-medium text-emerald-200/55">Nothing to triage — queue is clear.</p>
+        <p className="mt-3 text-[11px] text-zinc-600">
+          Tip: press{" "}
+          <kbd className="rounded border border-emerald-900/50 bg-emerald-950/40 px-1.5 py-0.5 font-mono text-emerald-200/70">
+            R
+          </kbd>{" "}
+          outside inputs to refresh the bot queue, Trusted Pro queues, and open reports.
+        </p>
+        {queueFullyClear ? (
+          <p className="mt-2 text-[11px] font-medium text-emerald-200/55">
+            Nothing to triage — bot queue and dashboard review lists are clear.
+          </p>
+        ) : null}
+        {grandDisplay != null && grandDisplay > 0 ? (
+          <p className="mt-2 text-[11px] font-medium text-amber-200/70">
+            <span className="tabular-nums">{grandDisplay}</span> open item
+            {grandDisplay === 1 ? "" : "s"} across the bot queue and dashboard lists.
+          </p>
         ) : null}
             </AdminPanel>
 
@@ -1367,9 +1432,11 @@ export default function ModerationPage() {
           detail={errDetail}
           botApiBase={errBotBase}
           variant={errVariant}
-          retrying={queueLoading}
+          retrying={
+            queueLoading || trustedProLoading || tpAppsLoading || reportsLoading
+          }
           onRetry={() => {
-            void loadQueue();
+            void refreshAllModerationData();
           }}
         />
       ) : null}
