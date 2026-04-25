@@ -58,12 +58,12 @@ Use a **known-good contract** you are allowed to test with (not financial advice
 
 ---
 
-### Step 4 — X verification (user side)
+### Step 4 — X account linking (user side, OAuth)
 
 | # | Action | Commands / UI | Verify |
 |---|--------|----------------|--------|
-| 4.1 | Start verification | `#verify-x` flow and/or profile **Verify X** button | Modal or instructions appear; no crash. |
-| 4.2 | Submit for review | Complete flow per server rules | Request lands where mods expect (e.g. mod / X-approval channel — see your `index.js` / server layout). |
+| 4.1 | Start OAuth | profile **Connect X** and/or web dashboard | User sees OAuth link/button and can complete the flow in browser. |
+| 4.2 | Confirm | Finish in browser | Profile shows linked handle; **X Verified** role if configured. |
 
 ---
 

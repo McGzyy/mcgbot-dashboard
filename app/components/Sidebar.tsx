@@ -132,6 +132,14 @@ function SidebarBody({
             />
             <span>Watchlist</span>
           </Link>
+          <Link href="/referrals" onClick={pick} data-tutorial="sidebar.nav.referrals" className={getNavItemClass(isActive(pathname, "/referrals"))}>
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/referrals") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span>Referrals</span>
+          </Link>
 
           <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
             The Lounge

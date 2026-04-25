@@ -285,10 +285,8 @@ Channels below match **current code** (exact name matches unless noted).
   - Not the primary home for the coin approval queue embeds.
 - **`#bot-calls`**
   - **Bot auto-call** output and related monitor traffic for calls (as resolved by bot channel lookup).
-- **`#outside-callers`**
-  - **Outside-caller** X-ingestion **alerts** (CA spotted on a tracked handle).
-- **`#verify-x`**
-  - User-facing X verification flow.
+- **X linking**
+  - User-facing X linking happens via **dashboard OAuth** / profile buttons (no dedicated Discord channel).
 - **`#x-approvals`**
   - Mod-side X verification review posts.
 

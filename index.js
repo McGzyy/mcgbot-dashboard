@@ -163,33 +163,9 @@ const DEV_EDIT_SESSION_TTL_MS = 10 * 60 * 1000;
 
 const xVerificationSessions = new Map();
 const X_VERIFY_SESSION_TTL_MS = 30 * 60 * 1000;
-const X_VERIFY_CHANNEL_NAME = 'verify-x';
-const X_VERIFY_CHANNEL_SLUGS = new Set(['verify-x', 'x-verify']);
-
-function isXVerifyChannelSlug(name) {
-  return X_VERIFY_CHANNEL_SLUGS.has(String(name || ''));
-}
-
-function findXVerifyTextChannel(guild) {
-  if (!guild?.channels?.cache) return null;
-  return (
-    guild.channels.cache.find(
-      ch => ch.isTextBased() && isXVerifyChannelSlug(ch.name)
-    ) || null
-  );
-}
+// X linking is dashboard-first (OAuth). Discord verify channel removed.
 
 const DEV_INTEL_PROMPT_TITLE = '📋 Submit a Dev';
-const DEV_INTEL_CHANNEL_SLUGS = new Set(['dev-intel']);
-
-function findDevIntelTextChannel(guild) {
-  if (!guild?.channels?.cache) return null;
-  return (
-    guild.channels.cache.find(
-      ch => ch.isTextBased() && DEV_INTEL_CHANNEL_SLUGS.has(ch.name)
-    ) || null
-  );
-}
 
 function getModApprovalsChannel(guild) {
   if (!guild?.channels?.cache) return null;
@@ -458,7 +434,7 @@ function buildMcgbotCommandListText(message, { memberCanManageGuild, isBotOwner 
     `• \`!profile\` / \`!myprofile\` — Your caller profile (+ Verify X button)\n` +
     `• \`!credit anonymous\` / \`discord\` / \`xtag\` — Public credit label on calls\n` +
     `• \`!resetstats\` — Reset your tracked stat flags (mods: \`!resetstats @user\`)\n` +
-    `• **X verification:** **#verify-x**, **!profile → Verify X**, or your **web profile** (not a text command)\n` +
+    `• **X linking:** **!profile → Connect X** or your **web dashboard** (OAuth; no mod approval)\n` +
     `• \`!bestcall24h\` / \`!bestcallweek\` / \`!bestcallmonth\` — Best user call windows\n` +
     `• \`!topcaller24h\` / \`!topcallerweek\` / \`!topcallermonth\` — Top caller windows\n` +
     `• \`!bestbot24h\` / \`!bestbotweek\` / \`!bestbotmonth\` — Best bot call windows\n` +
@@ -1588,44 +1564,11 @@ async function handleDevSessionReply(message) {
 }
 
 async function handleXVerificationReply(message) {
-  const channelName = message.channel?.name || '';
-  if (!isXVerifyChannelSlug(channelName)) return false;
-
-  if (message.author.bot) return true;
-
-  upsertUserProfile({
-    discordUserId: message.author.id,
-    username: message.author.username,
-    displayName: message.member?.displayName || message.author.globalName || message.author.username
-  });
-
   return false;
 }
 
-async function ensureDevIntelPrompt(guild) {
-  try {
-    if (!guild) return;
-
-    const intelChannel = findDevIntelTextChannel(guild);
-    if (!intelChannel) return;
-
-    const recentMessages = await intelChannel.messages.fetch({ limit: 10 }).catch(() => null);
-    if (!recentMessages) return;
-
-    const existingBotPrompt = recentMessages.find(
-      msg =>
-        msg.author?.id === client.user.id && msg.embeds?.[0]?.title === DEV_INTEL_PROMPT_TITLE
-    );
-
-    if (existingBotPrompt) return;
-
-    await intelChannel.send({
-      embeds: [buildDevIntelChannelEmbed()],
-      components: buildDevIntelChannelButtons()
-    });
-  } catch (error) {
-    console.error('[DevIntel] Failed to ensure dev-intel prompt:', error.message);
-  }
+async function ensureDevIntelPrompt() {
+  // Dedicated dev-intel channel removed; no-op.
 }
 
 async function handleDevSubmissionApprove(interaction, submissionId) {
@@ -1877,30 +1820,8 @@ async function handleDevSubmissionDeny(interaction, submissionId) {
   await interaction.message.edit({ embeds: [deniedEmbed], components: [] });
 }
 
-async function ensureVerifyXPrompt(guild) {
-  try {
-    if (!guild) return;
-
-    const verifyChannel = findXVerifyTextChannel(guild);
-    if (!verifyChannel) return;
-
-    const recentMessages = await verifyChannel.messages.fetch({ limit: 10 }).catch(() => null);
-    if (!recentMessages) return;
-
-    const existingBotPrompt = recentMessages.find(msg =>
-      msg.author?.id === client.user.id &&
-      msg.embeds?.[0]?.title === '🧪 Verify Your X Handle'
-    );
-
-    if (existingBotPrompt) return;
-
-    await verifyChannel.send({
-      embeds: [buildVerifyXChannelEmbed()],
-      components: buildVerifyXChannelButtons()
-    });
-  } catch (error) {
-    console.error('[VerifyX] Failed to ensure verify prompt:', error.message);
-  }
+async function ensureVerifyXPrompt() {
+  // Dedicated verify-x channel removed; no-op.
 }
 
 client.once('clientReady', async () => {
@@ -1946,8 +1867,7 @@ console.log(`📡 Alerts will post in: #${botChannel.name}`);
   startAutoCallLoop(botChannel);
 }
 
-  await ensureVerifyXPrompt(firstGuild);
-  await ensureDevIntelPrompt(firstGuild);
+  // No-op: legacy verify-x + dev-intel channel prompts removed.
 
   setInterval(() => {
     cleanupExpiredApprovals().catch(err => {
@@ -1968,12 +1888,7 @@ console.log(`📡 Alerts will post in: #${botChannel.name}`);
               await assignXVerifiedRole(member);
             }
 
-            const verifyChannel = findXVerifyTextChannel(guild);
-            if (verifyChannel) {
-              await verifyChannel
-                .send(`✅ <@${discordUserId}> has been verified as **@${handle}** (X DM)`)
-                .catch(() => {});
-            }
+            // verify-x channel removed; DM + profile is the UX.
           }
 
           try {
@@ -2818,7 +2733,7 @@ if (lowerContent === '!scanner off') {
         if (mode === 'verified_x_tag' && !profile.isXVerified) {
           await replyText(
             message,
-            `❌ You do not have a verified X handle yet.\nUse **#${X_VERIFY_CHANNEL_NAME}** or **!myprofile** first.`
+            `❌ You do not have a linked X handle yet.\nUse **!myprofile → Connect X** (or the web dashboard) first.`
           );
           return;
         }

@@ -80,9 +80,9 @@ Treat this as the **main moderation queue**.
 
 Public output for approved low-cap watchlist entries.
 
-#### `#dev-intel`
+#### Dev intel
 
-Public space for dev lookup & context (`!dev`, `!devcard`).
+Dev intel no longer relies on a dedicated `#dev-intel` public channel. Keep dev workflows in the dashboard + mod approvals.
 
 #### `#tracked-devs`
 
