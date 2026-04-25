@@ -82,6 +82,7 @@ const SECONDARY_DASHBOARD_WIDGET_TOGGLES: {
 
 const SETTINGS_NAV = [
   { href: "#account", label: "Account & X" },
+  { href: "#referral-link", label: "Referral link" },
   { href: "#notifications", label: "Notifications" },
   { href: "#public-profile", label: "Public profile" },
   { href: "#dashboard", label: "Dashboard" },
@@ -262,6 +263,14 @@ function SettingsPageInner() {
   const [xMilestoneTagEnabled, setXMilestoneTagEnabled] = useState(false);
   const [xMilestoneTagMinMultiple, setXMilestoneTagMinMultiple] = useState(10);
 
+  const [referralSlug, setReferralSlug] = useState<string | null>(null);
+  const [referralSlugDraft, setReferralSlugDraft] = useState("");
+  const [referralSlugSuggested, setReferralSlugSuggested] = useState("");
+  const [referralCanChange, setReferralCanChange] = useState(true);
+  const [referralCooldownEnds, setReferralCooldownEnds] = useState<string | null>(null);
+  const [referralBusy, setReferralBusy] = useState(false);
+  const [referralMsg, setReferralMsg] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     setSettingsLoading(true);
@@ -277,8 +286,11 @@ function SettingsPageInner() {
       fetch("/api/profile").then((res) =>
         res.json().then((data) => ({ ok: res.ok, data }))
       ),
+      fetch("/api/me/referral-slug", { credentials: "same-origin" }).then((res) =>
+        res.json().then((data) => ({ ok: res.ok, data }))
+      ),
     ])
-      .then(([prefsResult, dashResult, profileResult]) => {
+      .then(([prefsResult, dashResult, profileResult, refSlugResult]) => {
         if (cancelled) return;
 
         const { ok: prefsOk, data: prefsData } = prefsResult;
@@ -339,6 +351,29 @@ function SettingsPageInner() {
           const mm = Number(row.x_milestone_tag_min_multiple);
           setXMilestoneTagMinMultiple(
             Number.isFinite(mm) && mm >= 1 ? Math.min(mm, 500) : 10
+          );
+        }
+
+        const { ok: refOk, data: refData } = refSlugResult;
+        if (
+          refOk &&
+          refData &&
+          typeof refData === "object" &&
+          !("error" in refData && (refData as { error?: unknown }).error)
+        ) {
+          const r = refData as Record<string, unknown>;
+          const slug =
+            typeof r.referral_slug === "string" && r.referral_slug.trim()
+              ? r.referral_slug.trim().toLowerCase()
+              : null;
+          setReferralSlug(slug);
+          setReferralSlugDraft(slug ?? "");
+          setReferralSlugSuggested(
+            typeof r.suggested_slug === "string" ? r.suggested_slug : ""
+          );
+          setReferralCanChange(r.can_change_slug === true);
+          setReferralCooldownEnds(
+            typeof r.cooldown_ends_at === "string" ? r.cooldown_ends_at : null
           );
         }
       })
@@ -514,6 +549,82 @@ function SettingsPageInner() {
       setXBusy(false);
     }
   }, []);
+
+  const refreshReferralSlug = useCallback(async () => {
+    try {
+      const res = await fetch("/api/me/referral-slug", { credentials: "same-origin" });
+      const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) return;
+      const slug =
+        typeof j.referral_slug === "string" && j.referral_slug.trim()
+          ? j.referral_slug.trim().toLowerCase()
+          : null;
+      setReferralSlug(slug);
+      setReferralSlugDraft(slug ?? "");
+      setReferralSlugSuggested(typeof j.suggested_slug === "string" ? j.suggested_slug : "");
+      setReferralCanChange(j.can_change_slug === true);
+      setReferralCooldownEnds(
+        typeof j.cooldown_ends_at === "string" ? j.cooldown_ends_at : null
+      );
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const saveReferralSlug = useCallback(async () => {
+    if (referralBusy) return;
+    setReferralBusy(true);
+    setReferralMsg(null);
+    try {
+      const trimmed = referralSlugDraft.trim().toLowerCase();
+      const res = await fetch("/api/me/referral-slug", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          slug: trimmed.length > 0 ? trimmed : null,
+        }),
+      });
+      const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) {
+        setReferralMsg(typeof j.error === "string" ? j.error : "Could not update link.");
+        return;
+      }
+      setReferralMsg("Referral link saved.");
+      await refreshReferralSlug();
+    } catch {
+      setReferralMsg("Network error.");
+    } finally {
+      setReferralBusy(false);
+    }
+  }, [referralBusy, referralSlugDraft, refreshReferralSlug]);
+
+  const removeReferralSlug = useCallback(async () => {
+    if (referralBusy) return;
+    setReferralBusy(true);
+    setReferralMsg(null);
+    try {
+      const res = await fetch("/api/me/referral-slug", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ clear: true }),
+      });
+      const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) {
+        setReferralMsg(
+          typeof j.error === "string" ? j.error : "Could not remove vanity link."
+        );
+        return;
+      }
+      setReferralMsg("Vanity link removed. Your numeric ID link still works.");
+      await refreshReferralSlug();
+    } catch {
+      setReferralMsg("Network error.");
+    } finally {
+      setReferralBusy(false);
+    }
+  }, [referralBusy, refreshReferralSlug]);
 
   const handleSave = useCallback(async () => {
     setSaveState("saving");
@@ -816,6 +927,105 @@ function SettingsPageInner() {
         </div>
         </div>
       </SettingsSection>
+      </div>
+
+      <div data-tutorial="settings.referralLink">
+        <SettingsSection
+          id="referral-link"
+          title="Referral link"
+          description="Optional short link for mcgbot.xyz/ref/… — your numeric Discord ID link always works as a fallback."
+        >
+          {referralMsg ? (
+            <p
+              className={`mb-3 text-sm ${
+                /error|Could not|taken|cooldown|reserved|not allowed|Network/i.test(
+                  referralMsg
+                )
+                  ? "text-red-400/90"
+                  : "text-emerald-400/90"
+              }`}
+            >
+              {referralMsg}
+            </p>
+          ) : null}
+
+          {!referralCanChange && referralCooldownEnds ? (
+            <p className="mb-3 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
+              You can change this again after{" "}
+              <span className="font-semibold tabular-nums text-amber-50">
+                {new Date(referralCooldownEnds).toLocaleString()}
+              </span>{" "}
+              (30-day cooldown).
+            </p>
+          ) : null}
+
+          <div className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5">
+            <label htmlFor="referral-slug-input" className="text-sm font-medium text-zinc-100">
+              Vanity segment
+            </label>
+            <p className="mt-1 text-xs text-zinc-500">
+              3–32 characters: lowercase letters, numbers, hyphens only. Names that look like site
+              pages or brands are blocked. Old vanity links stop working as soon as you change or
+              remove this.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+              <div className="flex min-w-0 flex-1 items-center rounded-lg border border-zinc-700/80 bg-zinc-950/50 font-mono text-sm text-zinc-200">
+                <span className="shrink-0 pl-3 text-zinc-500">mcgbot.xyz/ref/</span>
+                <input
+                  id="referral-slug-input"
+                  type="text"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  value={referralSlugDraft}
+                  onChange={(e) => setReferralSlugDraft(e.target.value.toLowerCase())}
+                  disabled={settingsLoading || referralBusy || !referralCanChange}
+                  placeholder="your-name"
+                  className="min-w-0 flex-1 bg-transparent py-2.5 pr-3 text-zinc-100 outline-none placeholder:text-zinc-600 disabled:opacity-50"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => void saveReferralSlug()}
+                disabled={
+                  settingsLoading ||
+                  referralBusy ||
+                  !referralCanChange ||
+                  referralSlugDraft.trim().toLowerCase() === (referralSlug ?? "")
+                }
+                className="shrink-0 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40"
+              >
+                {referralBusy ? "Saving…" : "Save link"}
+              </button>
+            </div>
+
+            {referralSlugSuggested.length >= 3 ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReferralSlugDraft(referralSlugSuggested)}
+                  disabled={settingsLoading || referralBusy || !referralCanChange}
+                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-40"
+                >
+                  Use suggested ({referralSlugSuggested})
+                </button>
+              </div>
+            ) : null}
+
+            {referralSlug ? (
+              <div className="mt-4 border-t border-zinc-800/60 pt-4">
+                <button
+                  type="button"
+                  onClick={() => void removeReferralSlug()}
+                  disabled={settingsLoading || referralBusy || !referralCanChange}
+                  className="rounded-lg border border-red-500/35 bg-red-950/20 px-3 py-2 text-xs font-semibold text-red-200/95 transition hover:border-red-400/45 hover:bg-red-950/35 disabled:opacity-40"
+                >
+                  Remove vanity link (ID link only)
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </SettingsSection>
       </div>
 
       <div data-tutorial="settings.notifications">

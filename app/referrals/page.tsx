@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 
 type Referral = {
@@ -55,10 +56,49 @@ export default function ReferralsPage() {
   const [referrals] = useState<Referral[]>([]);
   const [performance] = useState<ReferralPerformance[]>([]);
   const [copied, setCopied] = useState(false);
+  const [referralVanitySlug, setReferralVanitySlug] = useState<string | null>(null);
+  const [slugLoaded, setSlugLoaded] = useState(false);
 
   const discordId = session?.user?.id?.trim() ?? "";
-  const refUrl = discordId ? `${REF_BASE}/${discordId}` : "";
-  const refReady = status !== "loading" && Boolean(refUrl);
+  const idUrl = discordId ? `${REF_BASE}/${discordId}` : "";
+  const vanityUrl =
+    referralVanitySlug && referralVanitySlug.length > 0
+      ? `${REF_BASE}/${referralVanitySlug}`
+      : null;
+  const primaryShareUrl = vanityUrl ?? idUrl;
+  const refReady = status !== "loading" && Boolean(primaryShareUrl);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !discordId) {
+      setReferralVanitySlug(null);
+      setSlugLoaded(status !== "loading");
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/referral-slug", { credentials: "same-origin" });
+        const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        if (cancelled) return;
+        if (!res.ok) {
+          setReferralVanitySlug(null);
+          return;
+        }
+        const s =
+          typeof j.referral_slug === "string" && j.referral_slug.trim()
+            ? j.referral_slug.trim().toLowerCase()
+            : null;
+        setReferralVanitySlug(s);
+      } catch {
+        if (!cancelled) setReferralVanitySlug(null);
+      } finally {
+        if (!cancelled) setSlugLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, discordId]);
 
   const topReferral = useMemo(
     () => performance.filter((p) => p.calls > 0).sort((a, b) => b.avgX - a.avgX)[0],
@@ -71,15 +111,24 @@ export default function ReferralsPage() {
   );
 
   const copyLink = useCallback(async () => {
-    if (!refUrl) return;
+    if (!primaryShareUrl) return;
     try {
-      await navigator.clipboard.writeText(refUrl);
+      await navigator.clipboard.writeText(primaryShareUrl);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2200);
     } catch {
       /* ignore */
     }
-  }, [refUrl]);
+  }, [primaryShareUrl]);
+
+  const copyIdLink = useCallback(async () => {
+    if (!idUrl) return;
+    try {
+      await navigator.clipboard.writeText(idUrl);
+    } catch {
+      /* ignore */
+    }
+  }, [idUrl]);
 
   const hasReferrals = referrals.length > 0;
 
@@ -121,19 +170,28 @@ export default function ReferralsPage() {
             <div>
               <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Your link</h2>
               <p className="mt-1 text-xs text-emerald-100/45">
-                Share anywhere — signups attach to this URL until you rotate keys (coming soon).
+                Share your vanity link if you set one; the numeric link always works and never
+                changes.
               </p>
             </div>
-            <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200/90">
-              Live
-            </span>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Link
+                href="/settings#referral-link"
+                className="rounded-md border border-zinc-600/80 bg-zinc-900/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800"
+              >
+                Edit in settings
+              </Link>
+              <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200/90">
+                Live
+              </span>
+            </div>
           </div>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-stretch">
             <div className="min-w-0 flex-1 rounded-xl border border-emerald-500/15 bg-black/40 px-3 py-3 font-mono text-[13px] text-zinc-200 shadow-inner sm:text-sm">
-              {status === "loading" ? (
+              {status === "loading" || !slugLoaded ? (
                 <span className="text-zinc-500">Loading your link…</span>
-              ) : refUrl ? (
-                refUrl
+              ) : primaryShareUrl ? (
+                primaryShareUrl
               ) : (
                 <span className="text-zinc-500">Sign in with Discord to see your referral link.</span>
               )}
@@ -147,6 +205,21 @@ export default function ReferralsPage() {
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
+          {vanityUrl && idUrl ? (
+            <div className="mt-3 flex flex-col gap-2 rounded-lg border border-zinc-800/60 bg-black/20 px-3 py-3 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                <span className="font-medium text-zinc-400">Fallback ID link</span>{" "}
+                <span className="break-all font-mono text-zinc-500">{idUrl}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => void copyIdLink()}
+                className="shrink-0 self-start rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold text-zinc-200 transition hover:bg-zinc-800 sm:self-center"
+              >
+                Copy ID link
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
 

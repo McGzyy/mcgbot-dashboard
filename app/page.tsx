@@ -2835,6 +2835,32 @@ export default function Home() {
   /** Bumps after submit-call success so stats / lists refetch without a full page reload. */
   const [homeDataRefreshNonce, setHomeDataRefreshNonce] = useState(0);
   const { helpTier } = useDashboardHelpRole();
+  const [referralVanityForHome, setReferralVanityForHome] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.user?.id?.trim()) {
+      setReferralVanityForHome(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/referral-slug", { credentials: "same-origin" });
+        const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        if (cancelled || !res.ok) return;
+        const s =
+          typeof j.referral_slug === "string" && j.referral_slug.trim()
+            ? j.referral_slug.trim().toLowerCase()
+            : null;
+        if (!cancelled) setReferralVanityForHome(s);
+      } catch {
+        if (!cancelled) setReferralVanityForHome(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, session?.user?.id]);
 
   /** Refetch stats / charts / rank while monitoring updates Supabase in the background. */
   useEffect(() => {
@@ -3353,10 +3379,14 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [loadActivity]);
 
-  const referralUrl =
+  const referralIdUrl =
     session?.user?.id != null && session.user.id !== ""
       ? `${REF_BASE}/${session.user.id}`
       : "";
+  const referralUrl =
+    referralVanityForHome && referralVanityForHome.length > 0
+      ? `${REF_BASE}/${referralVanityForHome}`
+      : referralIdUrl;
 
   const notifyComingSoon = useCallback(
     (label: string) => {

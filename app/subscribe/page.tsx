@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Plan = {
   slug: string;
@@ -49,6 +50,11 @@ function formatExpiry(iso: string): string {
 
 export default function SubscribePage() {
   const { data: session, status, update } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const referralRef = (searchParams?.get("ref") ?? "").trim();
+  const referralReferrerId = /^\d{17,19}$/.test(referralRef) ? referralRef : "";
+  const [refClaimed, setRefClaimed] = useState(false);
   const [plans, setPlans] = useState<Plan[] | null>(null);
   const [plansError, setPlansError] = useState<string | null>(null);
   const [selectedSlug, setSelectedSlug] = useState<string>("");
@@ -125,6 +131,41 @@ export default function SubscribePage() {
       cancelled = true;
     };
   }, [status]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.user?.id?.trim()) return;
+    if (!referralReferrerId) return;
+    if (refClaimed) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/referrals/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ referrerDiscordId: referralReferrerId }),
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          setRefClaimed(true);
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("ref");
+            window.history.replaceState({}, "", url.toString());
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // non-blocking
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refClaimed, referralReferrerId, session?.user?.id, status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -273,7 +314,13 @@ export default function SubscribePage() {
           </p>
           <button
             type="button"
-            onClick={() => void signIn("discord", { callbackUrl: "/subscribe" })}
+            onClick={() =>
+              void signIn("discord", {
+                callbackUrl: referralReferrerId
+                  ? `/subscribe?ref=${encodeURIComponent(referralReferrerId)}`
+                  : "/subscribe",
+              })
+            }
             className="rounded-lg bg-[#5865F2] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4752c4]"
           >
             Login with Discord
