@@ -25,9 +25,20 @@ function normalizeMint(raw: unknown): string | null {
 }
 
 function normalizeList(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
+  if (raw == null) return [];
+  let arr: unknown = raw;
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t) return [];
+    try {
+      arr = JSON.parse(t) as unknown;
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(arr)) return [];
   const out: string[] = [];
-  for (const v of raw) {
+  for (const v of arr) {
     const mint = normalizeMint(v);
     if (mint && !out.includes(mint)) out.push(mint);
   }
@@ -113,8 +124,9 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (readErr) {
-      console.error("[me/watchlist] POST read:", readErr);
-      return Response.json({ error: "Failed to load watchlist" }, { status: 500 });
+      // Same recovery as GET: never block adds on a read glitch or PostgREST edge case; if the row
+      // truly cannot be written, upsert below will surface the real error.
+      console.error("[me/watchlist] POST read (continuing with empty lists):", readErr);
     }
 
     const row = (rows?.[0] ?? {}) as Record<string, unknown>;
