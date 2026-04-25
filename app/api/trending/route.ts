@@ -19,6 +19,20 @@ type TrendingTokenRow = {
 type CacheEntry = { at: number; payload: { rows: TrendingTokenRow[] } };
 const cache = new Map<string, CacheEntry>();
 
+type DebugInfo = {
+  timeframe: Timeframe;
+  source: Source;
+  dexscreener: {
+    boostsSeen: number;
+    heuristicCandidatesSeen: number;
+    tokenPairsFetched: number;
+    tokenPairsMatched: number;
+  };
+  gmgn: {
+    rowsSeen: number;
+  };
+};
+
 function clampTimeframe(tf: string | null): Timeframe {
   if (tf === "5m" || tf === "1h" || tf === "24h") return tf;
   return "1h";
@@ -64,7 +78,11 @@ async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
   }
 }
 
-async function loadDexscreenerHeuristic(tf: Timeframe, limit: number): Promise<TrendingTokenRow[]> {
+async function loadDexscreenerHeuristic(
+  tf: Timeframe,
+  limit: number,
+  dbg?: DebugInfo
+): Promise<TrendingTokenRow[]> {
   const timeKey = pickTimeKey(tf);
   const minLiqUsd = tf === "5m" ? 7_500 : tf === "24h" ? 25_000 : 12_500;
   const minVolUsd = tf === "5m" ? 4_000 : tf === "24h" ? 60_000 : 12_000;
@@ -97,6 +115,8 @@ async function loadDexscreenerHeuristic(tf: Timeframe, limit: number): Promise<T
     }
   }
 
+  if (dbg) dbg.dexscreener.heuristicCandidatesSeen += candidates.length;
+
   const uniq = Array.from(new Map(candidates.map((c) => [c.tokenAddress, c])).values())
     .slice(0, Math.max(limit * 3, 60));
   if (uniq.length === 0) return [];
@@ -110,6 +130,7 @@ async function loadDexscreenerHeuristic(tf: Timeframe, limit: number): Promise<T
       const idx = i++;
       const tokenAddress = uniq[idx]!.tokenAddress;
       try {
+        if (dbg) dbg.dexscreener.tokenPairsFetched += 1;
         const json = (await fetchJson(
           `https://api.dexscreener.com/token-pairs/v1/solana/${encodeURIComponent(tokenAddress)}`
         )) as { value?: unknown };
@@ -137,6 +158,8 @@ async function loadDexscreenerHeuristic(tf: Timeframe, limit: number): Promise<T
         }
         if (!best) continue;
 
+          if (dbg) dbg.dexscreener.tokenPairsMatched += 1;
+
         const base = (best.baseToken as any) ?? {};
         const symbol = String(base.symbol ?? "").trim();
         const mint = String(base.address ?? "").trim();
@@ -163,11 +186,16 @@ async function loadDexscreenerHeuristic(tf: Timeframe, limit: number): Promise<T
   return out;
 }
 
-async function loadDexscreener(tf: Timeframe, limit: number): Promise<TrendingTokenRow[]> {
+async function loadDexscreener(
+  tf: Timeframe,
+  limit: number,
+  dbg?: DebugInfo
+): Promise<TrendingTokenRow[]> {
   const top = (await fetchJson(
     `https://api.dexscreener.com/token-boosts/top/v1?limit=${encodeURIComponent(String(limit))}`
   )) as { value?: unknown };
   const rowsRaw = Array.isArray(top?.value) ? (top.value as unknown[]) : [];
+  if (dbg) dbg.dexscreener.boostsSeen += rowsRaw.length;
   const addrs: string[] = [];
   for (const r of rowsRaw) {
     if (!r || typeof r !== "object") continue;
@@ -177,7 +205,7 @@ async function loadDexscreener(tf: Timeframe, limit: number): Promise<TrendingTo
     if (addr) addrs.push(addr);
   }
   const uniq = Array.from(new Set(addrs)).slice(0, limit);
-  if (uniq.length === 0) return await loadDexscreenerHeuristic(tf, limit);
+  if (uniq.length === 0) return await loadDexscreenerHeuristic(tf, limit, dbg);
 
   const timeKey = pickTimeKey(tf);
   const out: TrendingTokenRow[] = [];
@@ -190,6 +218,7 @@ async function loadDexscreener(tf: Timeframe, limit: number): Promise<TrendingTo
       const idx = i++;
       const tokenAddress = uniq[idx]!;
       try {
+        if (dbg) dbg.dexscreener.tokenPairsFetched += 1;
         const json = (await fetchJson(
           `https://api.dexscreener.com/token-pairs/v1/solana/${encodeURIComponent(tokenAddress)}`
         )) as { value?: unknown };
@@ -211,6 +240,8 @@ async function loadDexscreener(tf: Timeframe, limit: number): Promise<TrendingTo
           }
         }
         if (!best) continue;
+
+        if (dbg) dbg.dexscreener.tokenPairsMatched += 1;
 
         const base = (best.baseToken as any) ?? {};
         const symbol = String(base.symbol ?? "").trim();
@@ -236,12 +267,12 @@ async function loadDexscreener(tf: Timeframe, limit: number): Promise<TrendingTo
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
   if (out.length === 0) {
-    return await loadDexscreenerHeuristic(tf, limit);
+    return await loadDexscreenerHeuristic(tf, limit, dbg);
   }
   return out;
 }
 
-async function loadGmgn(tf: Timeframe, limit: number): Promise<TrendingTokenRow[]> {
+async function loadGmgn(tf: Timeframe, limit: number, dbg?: DebugInfo): Promise<TrendingTokenRow[]> {
   // GMGN is often protected (Cloudflare). This adapter is best-effort: if blocked, return empty.
   const period = tf === "5m" ? "5m" : tf === "24h" ? "24h" : "1h";
   const url = `https://gmgn.ai/defi/quotation/v1/rank/sol/swaps/${encodeURIComponent(period)}?orderby=volume&direction=desc`;
@@ -250,7 +281,9 @@ async function loadGmgn(tf: Timeframe, limit: number): Promise<TrendingTokenRow[
   const list = Array.isArray((data as any).rank) ? (data as any).rank : Array.isArray((data as any).data) ? (data as any).data : Array.isArray((data as any).list) ? (data as any).list : [];
   if (!Array.isArray(list)) return [];
   const out: TrendingTokenRow[] = [];
-  for (const item of list.slice(0, limit)) {
+  const sliced = list.slice(0, limit);
+  if (dbg) dbg.gmgn.rowsSeen += sliced.length;
+  for (const item of sliced) {
     if (!item || typeof item !== "object") continue;
     const o = item as any;
     const mint = String(o.address ?? o.mint ?? o.contract_address ?? "").trim();
@@ -275,6 +308,19 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const timeframe = clampTimeframe(searchParams.get("timeframe"));
   const source = clampSource(searchParams.get("source"));
+  const wantDebug = searchParams.get("debug") === "1";
+
+  const dbg: DebugInfo = {
+    timeframe,
+    source,
+    dexscreener: {
+      boostsSeen: 0,
+      heuristicCandidatesSeen: 0,
+      tokenPairsFetched: 0,
+      tokenPairsMatched: 0,
+    },
+    gmgn: { rowsSeen: 0 },
+  };
 
   const cacheKey = `${timeframe}:${source}`;
   const hit = cache.get(cacheKey);
@@ -289,8 +335,10 @@ export async function GET(req: Request) {
   const limit = 24;
   const tasks: Array<{ name: Exclude<Source, "All">; p: Promise<TrendingTokenRow[]> }> = [];
 
-  if (source === "All" || source === "Dexscreener") tasks.push({ name: "Dexscreener", p: loadDexscreener(timeframe, limit) });
-  if (source === "All" || source === "GMGN") tasks.push({ name: "GMGN", p: loadGmgn(timeframe, limit) });
+  if (source === "All" || source === "Dexscreener")
+    tasks.push({ name: "Dexscreener", p: loadDexscreener(timeframe, limit, dbg) });
+  if (source === "All" || source === "GMGN")
+    tasks.push({ name: "GMGN", p: loadGmgn(timeframe, limit, dbg) });
   // Placeholders for future adapters:
   // - CoinGecko trending doesn’t include Solana mint addresses; needs extra mapping step.
   // - Axiom/Padre often require authenticated or blocked endpoints.
@@ -303,7 +351,10 @@ export async function GET(req: Request) {
     const s = settled[i]!;
     if (s.status === "fulfilled") {
       merged.push(...s.value);
-      health[name] = { ok: true, count: s.value.length };
+      health[name] =
+        s.value.length > 0
+          ? { ok: true, count: s.value.length }
+          : { ok: false, count: 0, error: "empty" };
     } else {
       health[name] = { ok: false, count: 0, error: String(s.reason?.message ?? s.reason ?? "failed") };
     }
@@ -326,7 +377,7 @@ export async function GET(req: Request) {
     .sort((a, b) => b.volumeUsd - a.volumeUsd)
     .slice(0, limit);
 
-  const payload = { rows: finalRows, health };
+  const payload = wantDebug ? { rows: finalRows, health, debug: dbg } : { rows: finalRows, health };
   cache.set(cacheKey, { at: Date.now(), payload });
 
   return Response.json(payload, {
