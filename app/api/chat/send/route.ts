@@ -13,6 +13,9 @@ import {
 } from "@/lib/discordChatWebhook";
 import { recordWebhookMessageAuthor } from "@/lib/discordWebhookMessageAuthors";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 function requireEnv(name: string): string {
   const v = (process.env[name] ?? "").trim();
   return v;

@@ -7,6 +7,9 @@ import {
 } from "@/lib/dashboardChat";
 import { buildDiscordChatPayloadsFromRestRows } from "@/lib/buildDiscordChatPayloadsFromRestRows";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 function requireEnv(name: string): string {
   const v = (process.env[name] ?? "").trim();
   return v;
