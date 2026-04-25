@@ -34,15 +34,13 @@ export async function GET(request: Request) {
   const token = resolveDiscordBotToken();
 
   if (!channelId) {
-    return Response.json(
-      {
-        error:
-          kind === "mod"
-            ? "Mod chat is not configured (missing DISCORD_MOD_CHAT_CHANNEL_ID)."
-            : "Chat is not configured (missing DISCORD_GENERAL_CHAT_CHANNEL_ID or DISCORD_CHAT_CHANNEL_ID).",
-      },
-      { status: 503 }
-    );
+    const msg =
+      kind === "mod"
+        ? "Mod chat is not configured (missing DISCORD_MOD_CHAT_CHANNEL_ID)."
+        : kind === "og"
+          ? "OG chat is not configured (missing DISCORD_OG_CHAT_CHANNEL_ID)."
+          : "Chat is not configured (missing DISCORD_GENERAL_CHAT_CHANNEL_ID or DISCORD_CHAT_CHANNEL_ID).";
+    return Response.json({ error: msg }, { status: 503 });
   }
   if (!token) {
     return Response.json(

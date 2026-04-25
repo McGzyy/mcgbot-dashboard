@@ -1,47 +1,13 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { buildDiscordChatPayloadsFromRestRows } from "@/lib/buildDiscordChatPayloadsFromRestRows";
-import {
-  canUseModDashboardChatAsync,
-  resolveDashboardChatChannelId,
-} from "@/lib/dashboardChat";
+import { buildDashboardChatTabsForViewer } from "@/lib/dashboardChat";
 
 export const runtime = "nodejs";
-
-function parseIdList(raw: string | undefined): string[] {
-  if (!raw?.trim()) return [];
-  return raw
-    .split(/[\s,]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
 
 function botToken(): string | null {
   const t = (process.env.DISCORD_BOT_TOKEN ?? process.env.DISCORD_TOKEN ?? "").trim();
   return t || null;
-}
-
-/**
- * Lounge mirrors explicit allowlists, or falls back to the same channels as dashboard chat
- * (`DISCORD_GENERAL_CHAT_CHANNEL_ID` / `DISCORD_CHAT_CHANNEL_ID`, plus mod for staff).
- */
-async function allowlistedChannelIdsForViewer(viewerDiscordId: string): Promise<string[]> {
-  const fromLounge = parseIdList(process.env.DISCORD_LOUNGE_CHAT_CHANNEL_IDS);
-  if (fromLounge.length) return [...new Set(fromLounge)];
-
-  const fromDash = parseIdList(process.env.DISCORD_DASHBOARD_CHAT_CHANNEL_IDS);
-  if (fromDash.length) return [...new Set(fromDash)];
-
-  const out: string[] = [];
-  const general = resolveDashboardChatChannelId("general");
-  if (general) out.push(general);
-
-  if (await canUseModDashboardChatAsync(viewerDiscordId)) {
-    const mod = resolveDashboardChatChannelId("mod");
-    if (mod) out.push(mod);
-  }
-
-  return [...new Set(out)];
 }
 
 export async function GET(req: Request) {
@@ -58,22 +24,22 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const channelParam = (url.searchParams.get("channelId") ?? "").trim();
-  const allow = await allowlistedChannelIdsForViewer(viewerId);
-  if (!allow.length) {
+  const tabs = await buildDashboardChatTabsForViewer(viewerId);
+  const allow = [...new Set(tabs.map((t) => t.channelId))];
+
+  if (!tabs.length) {
     return Response.json(
       {
         error: "No Discord channels configured",
         hint:
-          "Set DISCORD_LOUNGE_CHAT_CHANNEL_IDS (optional), or configure the same channels as dashboard chat: DISCORD_GENERAL_CHAT_CHANNEL_ID (or DISCORD_CHAT_CHANNEL_ID). Staff also need DISCORD_MOD_CHAT_CHANNEL_ID for mod chat in the channel switcher.",
+          "Set DISCORD_GENERAL_CHAT_CHANNEL_ID (or DISCORD_CHAT_CHANNEL_ID), optional DISCORD_OG_CHAT_CHANNEL_ID, DISCORD_MOD_CHAT_CHANNEL_ID for staff, and matching webhook URLs for sending. Or set DISCORD_LOUNGE_CHAT_CHANNEL_IDS as comma-separated channel ids (maps to General / OG / Mod slots).",
       },
       { status: 503 }
     );
   }
 
-  const channelId = (channelParam && allow.includes(channelParam) ? channelParam : allow[0])!;
-  if (channelParam && !allow.includes(channelParam)) {
-    return Response.json({ error: "Unknown channel" }, { status: 400 });
-  }
+  const defaultId = tabs[0]!.channelId;
+  const channelId = channelParam && allow.includes(channelParam) ? channelParam : defaultId;
 
   const limitRaw = Number(url.searchParams.get("limit") ?? "40");
   const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 40;
@@ -108,6 +74,7 @@ export async function GET(req: Request) {
   return Response.json({
     ok: true as const,
     channelId,
+    channelTabs: tabs,
     allowlistedChannelIds: allow,
     messages,
   });

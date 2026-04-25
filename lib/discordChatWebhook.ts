@@ -5,6 +5,9 @@ export function resolveDashboardChatWebhookUrl(kind: DashboardChatKind): string 
   if (kind === "general") {
     return (process.env.DISCORD_GENERAL_CHAT_WEBHOOK_URL ?? "").trim() || null;
   }
+  if (kind === "og") {
+    return (process.env.DISCORD_OG_CHAT_WEBHOOK_URL ?? "").trim() || null;
+  }
   return (process.env.DISCORD_MOD_CHAT_WEBHOOK_URL ?? "").trim() || null;
 }
 

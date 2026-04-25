@@ -21,6 +21,24 @@ function str(v: unknown): string | undefined {
   return typeof v === "string" && v.trim() ? v : undefined;
 }
 
+/** Discord REST sometimes returns `webhook_id` as a number; normalize for webhook + marker logic. */
+function readDiscordSnowflake(v: unknown): string | null {
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (/^\d{5,25}$/.test(s)) return s;
+    return null;
+  }
+  if (typeof v === "number" && Number.isFinite(v)) {
+    try {
+      const s = BigInt(Math.trunc(v)).toString();
+      if (/^\d{5,25}$/.test(s)) return s;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 function memberRoleIdsFromMessage(m: Record<string, unknown>): string[] {
   const mem = asObj(m.member);
   const rolesRaw = mem?.roles;
@@ -33,7 +51,7 @@ function effectiveAuthorIdForRow(m: Record<string, unknown>): string | null {
   const authorId = str(author?.id);
   if (!authorId) return null;
   const content = String(m.content ?? "");
-  const wid = str(m.webhook_id);
+  const wid = readDiscordSnowflake(m.webhook_id);
   if (wid) {
     const linked = extractDashboardChatUserIdFromContent(content);
     if (linked) return linked;
@@ -63,7 +81,7 @@ export async function buildDiscordChatPayloadsFromRestRows(
     const eff = effectiveAuthorIdForRow(m);
     if (!eff) continue;
 
-    const wid = str(m.webhook_id);
+    const wid = readDiscordSnowflake(m.webhook_id);
     const linked =
       wid && String(m.content ?? "").trim()
         ? extractDashboardChatUserIdFromContent(String(m.content ?? ""))
@@ -109,7 +127,7 @@ export async function buildDiscordChatPayloadsFromRestRows(
       if (!authorId) return null;
 
       const content = String(m.content ?? "");
-      const wid = str(m.webhook_id);
+      const wid = readDiscordSnowflake(m.webhook_id);
       const linked =
         wid && content.trim() ? extractDashboardChatUserIdFromContent(content) : null;
 

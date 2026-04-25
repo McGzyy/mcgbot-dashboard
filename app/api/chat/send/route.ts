@@ -114,15 +114,13 @@ export async function POST(request: Request) {
 
   if (!channelId) {
     logServerEvent("chat.send.not_configured_channel", { userId, channel: kind });
-    return Response.json(
-      {
-        error:
-          kind === "mod"
-            ? "Mod chat is not configured (set DISCORD_MOD_CHAT_WEBHOOK_URL or DISCORD_MOD_CHAT_CHANNEL_ID + DISCORD_TOKEN)."
-            : "Chat is not configured (set DISCORD_GENERAL_CHAT_WEBHOOK_URL or DISCORD_GENERAL_CHAT_CHANNEL_ID + DISCORD_TOKEN).",
-      },
-      { status: 503 }
-    );
+    const err =
+      kind === "mod"
+        ? "Mod chat is not configured (set DISCORD_MOD_CHAT_WEBHOOK_URL or DISCORD_MOD_CHAT_CHANNEL_ID + DISCORD_TOKEN)."
+        : kind === "og"
+          ? "OG chat is not configured (set DISCORD_OG_CHAT_WEBHOOK_URL or DISCORD_OG_CHAT_CHANNEL_ID + DISCORD_TOKEN)."
+          : "Chat is not configured (set DISCORD_GENERAL_CHAT_WEBHOOK_URL or DISCORD_GENERAL_CHAT_CHANNEL_ID + DISCORD_TOKEN).";
+    return Response.json({ error: err }, { status: 503 });
   }
   if (!token) {
     logServerEvent("chat.send.not_configured_token", { userId, channel: kind });
