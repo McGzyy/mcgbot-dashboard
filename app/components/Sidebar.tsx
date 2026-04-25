@@ -182,12 +182,7 @@ function SidebarBody({
                 isActive(pathname, "/bot-calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
-            <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-              <span className="truncate">Bot calls</span>
-              <span className="shrink-0 rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fuchsia-100/90">
-                Pro
-              </span>
-            </span>
+            <span>Bot calls</span>
           </Link>
           <Link href="/trusted-pro" onClick={pick} data-tutorial="sidebar.nav.trustedPro" className={getNavItemClass(isActive(pathname, "/trusted-pro"))}>
             <div
@@ -195,12 +190,7 @@ function SidebarBody({
                 isActive(pathname, "/trusted-pro") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
-            <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-              <span className="truncate">Trusted Pro</span>
-              <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100/90">
-                Pro
-              </span>
-            </span>
+            <span>Trusted Pro</span>
           </Link>
           <Link href="/leaderboard" onClick={pick} data-tutorial="sidebar.nav.leaderboard" className={getNavItemClass(isActive(pathname, "/leaderboard"))}>
             <div
