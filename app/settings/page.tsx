@@ -815,6 +815,25 @@ function SettingsPageInner() {
               </button>
             </div>
           </header>
+          <div className="mt-4 sm:hidden">
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={settingsLoading || saveState === "saving"}
+              className="w-full rounded-lg bg-gradient-to-r from-cyan-600 to-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-950/25 transition hover:from-cyan-500 hover:to-sky-500 disabled:opacity-50"
+            >
+              {saveState === "saving" ? "Saving…" : "Save changes"}
+            </button>
+            {saveMessage ? (
+              <p
+                className={`mt-2 text-xs ${
+                  saveState === "error" ? "text-red-400/90" : "text-emerald-400/90"
+                }`}
+              >
+                {saveMessage}
+              </p>
+            ) : null}
+          </div>
 
           <div className="mt-8 space-y-6 lg:mt-10 lg:space-y-7">
       <div data-tutorial="settings.account">

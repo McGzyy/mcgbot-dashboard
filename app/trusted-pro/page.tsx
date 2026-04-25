@@ -385,9 +385,10 @@ export default function TrustedProPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs text-zinc-500">
-                    CA <span className="font-mono text-zinc-300">{shortAddr(c.contract_address)}</span>{" "}
+                    CA{" "}
+                    <span className="break-all font-mono text-zinc-300">{shortAddr(c.contract_address)}</span>{" "}
                     <span className="text-zinc-700">·</span>{" "}
-                    <span className="font-mono">{c.author_discord_id}</span>
+                    <span className="break-all font-mono">{c.author_discord_id}</span>
                   </p>
                   <p className="mt-2 text-sm font-semibold text-zinc-100">{c.thesis}</p>
                   {c.narrative ? (
@@ -416,7 +417,7 @@ export default function TrustedProPage() {
 
       {submitOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
           role="dialog"
           aria-modal="true"
           aria-label="Submit Trusted Pro call"
@@ -424,7 +425,7 @@ export default function TrustedProPage() {
             if (e.target === e.currentTarget) setSubmitOpen(false);
           }}
         >
-          <div className="w-full max-w-2xl rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
+          <div className="mt-10 w-full max-w-2xl rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">Submit Trusted Pro call</h3>
@@ -435,11 +436,13 @@ export default function TrustedProPage() {
               <button
                 type="button"
                 onClick={() => setSubmitOpen(false)}
-                className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-2 py-1 text-xs text-zinc-300 hover:bg-[#0a0a0a]"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-[#1a1a1a] bg-[#0a0a0a] text-zinc-300 transition hover:bg-zinc-900/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
                 aria-label="Close"
                 disabled={submitting}
               >
-                Esc
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
@@ -492,7 +495,7 @@ export default function TrustedProPage() {
 
       {applyOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
           role="dialog"
           aria-modal="true"
           aria-label="Become a Trusted Pro"
@@ -500,7 +503,7 @@ export default function TrustedProPage() {
             if (e.target === e.currentTarget) setApplyOpen(false);
           }}
         >
-          <div className="w-full max-w-lg rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
+          <div className="mt-10 w-full max-w-lg rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">Become a Trusted Pro</h3>
@@ -511,11 +514,13 @@ export default function TrustedProPage() {
               <button
                 type="button"
                 onClick={() => setApplyOpen(false)}
-                className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-2 py-1 text-xs text-zinc-300 hover:bg-[#0a0a0a]"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-[#1a1a1a] bg-[#0a0a0a] text-zinc-300 transition hover:bg-zinc-900/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
                 aria-label="Close"
                 disabled={applyBusy}
               >
-                Esc
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             </div>
 

@@ -426,7 +426,7 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
   const topCalls = teasers?.week.topCalls ?? [];
 
   return (
-    <div className="relative min-h-[calc(100vh-3rem)] px-4 py-10 sm:px-6">
+    <div className="relative min-h-[calc(100vh-3rem)] px-0 py-10">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.12),transparent_55%),radial-gradient(circle_at_bottom,rgba(56,189,248,0.10),transparent_50%)]"
         aria-hidden
@@ -4068,11 +4068,23 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setSubmitCallOpen(false)}
-                className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-2 py-1 text-xs text-zinc-300 hover:bg-[#0a0a0a]"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-[#1a1a1a] bg-[#0a0a0a] text-zinc-300 transition hover:bg-zinc-900/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
                 aria-label="Close"
                 disabled={submitCallSubmitting}
               >
-                Esc
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                  aria-hidden
+                >
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             </div>
 

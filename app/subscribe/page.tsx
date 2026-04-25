@@ -394,7 +394,7 @@ export default function SubscribePage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-100">
-      <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
+      <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
           <span className="relative block h-9 w-9">
             <Image src="/brand/mcgbot-logo-v2.png" alt="McGBot" fill className="object-contain" sizes="36px" />
@@ -410,7 +410,7 @@ export default function SubscribePage() {
         </button>
       </header>
 
-      <main className="mx-auto flex max-w-2xl flex-col gap-10 px-6 py-12">
+      <main className="mx-auto flex max-w-2xl flex-col gap-10 px-4 py-10 sm:px-6 sm:py-12">
         <section className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -510,13 +510,13 @@ export default function SubscribePage() {
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <input
             type="text"
             value={voucherCode}
             onChange={(e) => setVoucherCode(e.target.value)}
             placeholder="Voucher code (optional)"
-            className="h-10 min-w-[14rem] flex-1 rounded-lg border border-zinc-800/70 bg-[#060606] px-3 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/15 transition focus:border-zinc-700 focus:ring-2"
+            className="h-10 w-full flex-1 rounded-lg border border-zinc-800/70 bg-[#060606] px-3 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/15 transition focus:border-zinc-700 focus:ring-2 sm:min-w-[14rem]"
           />
           <button
             type="button"
@@ -527,7 +527,7 @@ export default function SubscribePage() {
               guildStatus === false
             }
             onClick={() => void startCheckout()}
-            className="rounded-lg bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {busy
               ? "Preparing…"

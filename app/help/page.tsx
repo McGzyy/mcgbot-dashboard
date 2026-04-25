@@ -110,7 +110,7 @@ function HelpPageContent() {
     "rounded-2xl border border-white/[0.07] bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-black/55 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] backdrop-blur-sm";
 
   return (
-    <div className="relative mx-auto w-full max-w-6xl px-4 py-8 sm:py-10">
+    <div className="relative mx-auto w-full max-w-6xl px-0 py-8 sm:py-10">
       <div
         className="pointer-events-none absolute inset-x-0 -top-32 h-72 bg-[radial-gradient(ellipse_70%_55%_at_50%_0%,rgba(57,255,20,0.11),transparent_65%)] sm:-top-40 sm:h-96"
         aria-hidden
@@ -515,10 +515,12 @@ function HelpPageContent() {
                   <button
                     type="button"
                     onClick={() => setBugOpen(false)}
-                    className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+                    className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/25"
                     aria-label="Close"
                   >
-                    Esc
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
 
@@ -713,10 +715,12 @@ function HelpPageContent() {
                   <button
                     type="button"
                     onClick={() => setFeatureOpen(false)}
-                    className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+                    className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/25"
                     aria-label="Close"
                   >
-                    Esc
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
 

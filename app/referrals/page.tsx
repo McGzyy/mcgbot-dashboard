@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { formatJoinedAt } from "@/lib/callDisplayFormat";
 
 type Referral = {
-  username: string;
-  joinedAt: string;
+  userId: string;
+  joinedAt: number;
+  displayName: string | null;
+  avatarUrl: string | null;
 };
 
 type TopCoin = {
@@ -38,7 +41,7 @@ const statCard =
   "rounded-xl border border-emerald-500/15 bg-emerald-950/[0.12] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] transition hover:border-emerald-500/25 hover:bg-emerald-950/20";
 
 const panelShell =
-  "rounded-2xl border border-zinc-800/60 bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-5 ring-1 ring-white/[0.04] sm:p-6";
+  "rounded-2xl border border-zinc-800/60 bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 ring-1 ring-white/[0.04] sm:p-6";
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
@@ -53,11 +56,14 @@ function listEmptyState(title: string, body: string) {
 
 export default function ReferralsPage() {
   const { data: session, status } = useSession();
-  const [referrals] = useState<Referral[]>([]);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
   const [performance] = useState<ReferralPerformance[]>([]);
   const [copied, setCopied] = useState(false);
   const [referralVanitySlug, setReferralVanitySlug] = useState<string | null>(null);
   const [slugLoaded, setSlugLoaded] = useState(false);
+  const [referralsLoaded, setReferralsLoaded] = useState(false);
+  const [referralsError, setReferralsError] = useState<string | null>(null);
+  const [refStats, setRefStats] = useState<{ total: number; today: number; week: number } | null>(null);
 
   const discordId = session?.user?.id?.trim() ?? "";
   const idUrl = discordId ? `${REF_BASE}/${discordId}` : "";
@@ -110,6 +116,67 @@ export default function ReferralsPage() {
     [performance]
   );
 
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setReferrals([]);
+      setRefStats(null);
+      setReferralsLoaded(status !== "loading");
+      setReferralsError(null);
+      return;
+    }
+    let cancelled = false;
+    setReferralsLoaded(false);
+    setReferralsError(null);
+    void (async () => {
+      try {
+        const res = await fetch("/api/referrals", { credentials: "same-origin" });
+        const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        if (cancelled) return;
+        if (!res.ok) {
+          setReferrals([]);
+          setRefStats(null);
+          setReferralsError(typeof j.error === "string" ? j.error : "Could not load referrals.");
+          return;
+        }
+
+        const rows = Array.isArray(j.referrals) ? (j.referrals as Record<string, unknown>[]) : [];
+        const mapped = rows
+          .map((r) => ({
+            userId: typeof r.referred_user_id === "string" ? r.referred_user_id : "",
+            joinedAt: typeof r.joined_at === "number" ? r.joined_at : Number(r.joined_at),
+            displayName:
+              typeof r.referred_display_name === "string" && r.referred_display_name.trim()
+                ? r.referred_display_name.trim()
+                : null,
+            avatarUrl:
+              typeof r.referred_avatar_url === "string" && r.referred_avatar_url.trim()
+                ? r.referred_avatar_url.trim()
+                : null,
+          }))
+          .filter((r) => r.userId && Number.isFinite(r.joinedAt) && r.joinedAt > 0)
+          .sort((a, b) => b.joinedAt - a.joinedAt);
+
+        setReferrals(mapped);
+        setRefStats({
+          total: Number(j.total) || mapped.length,
+          today: Number(j.today) || 0,
+          week: Number(j.week) || 0,
+        });
+      } catch {
+        if (!cancelled) {
+          setReferrals([]);
+          setRefStats(null);
+          setReferralsError("Could not load referrals.");
+        }
+      } finally {
+        if (!cancelled) setReferralsLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
+
   const copyLink = useCallback(async () => {
     if (!primaryShareUrl) return;
     try {
@@ -131,12 +198,13 @@ export default function ReferralsPage() {
   }, [idUrl]);
 
   const hasReferrals = referrals.length > 0;
+  const nowMs = Date.now();
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] space-y-8 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto w-full max-w-[1100px] space-y-6 px-0 py-6 sm:space-y-8 sm:py-10">
       {/* Hero */}
       <header
-        className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[#070708] p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8"
+        className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[#070708] p-5 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8"
         data-tutorial="referrals.hero"
       >
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_38%,rgba(16,185,129,0.05)_50%,transparent_62%)]" />
@@ -165,16 +233,16 @@ export default function ReferralsPage() {
           className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-400/80 via-emerald-500/50 to-teal-700/40"
           aria-hidden
         />
-        <div className="relative px-5 py-5 sm:px-6 sm:py-6">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
+        <div className="relative px-4 py-4 sm:px-6 sm:py-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3">
+            <div className="min-w-0">
               <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Your link</h2>
               <p className="mt-1 text-xs text-emerald-100/45">
                 Share your vanity link if you set one; the numeric link always works and never
                 changes.
               </p>
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
               <Link
                 href="/settings#referral-link"
                 className="rounded-md border border-zinc-600/80 bg-zinc-900/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800"
@@ -187,7 +255,7 @@ export default function ReferralsPage() {
             </div>
           </div>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-stretch">
-            <div className="min-w-0 flex-1 rounded-xl border border-emerald-500/15 bg-black/40 px-3 py-3 font-mono text-[13px] text-zinc-200 shadow-inner sm:text-sm">
+            <div className="min-w-0 flex-1 break-all rounded-xl border border-emerald-500/15 bg-black/40 px-3 py-3 font-mono text-[12px] text-zinc-200 shadow-inner sm:text-sm">
               {status === "loading" || !slugLoaded ? (
                 <span className="text-zinc-500">Loading your link…</span>
               ) : primaryShareUrl ? (
@@ -200,21 +268,21 @@ export default function ReferralsPage() {
               type="button"
               onClick={() => void copyLink()}
               disabled={!refReady}
-              className="shrink-0 rounded-xl border border-emerald-400/35 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505] enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 sm:px-6"
+              className="w-full shrink-0 rounded-xl border border-emerald-400/35 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505] enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-6"
             >
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
           {vanityUrl && idUrl ? (
             <div className="mt-3 flex flex-col gap-2 rounded-lg border border-zinc-800/60 bg-black/20 px-3 py-3 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
-              <span>
+              <span className="min-w-0">
                 <span className="font-medium text-zinc-400">Fallback ID link</span>{" "}
                 <span className="break-all font-mono text-zinc-500">{idUrl}</span>
               </span>
               <button
                 type="button"
                 onClick={() => void copyIdLink()}
-                className="shrink-0 self-start rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold text-zinc-200 transition hover:bg-zinc-800 sm:self-center"
+                className="w-full shrink-0 self-stretch rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-[11px] font-semibold text-zinc-200 transition hover:bg-zinc-800 sm:w-auto sm:self-center sm:py-1"
               >
                 Copy ID link
               </button>
@@ -272,20 +340,26 @@ export default function ReferralsPage() {
 
           <div className={statCard}>
             <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Total referrals</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-zinc-50">{referrals.length}</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-zinc-50">
+              {referralsLoaded ? (refStats?.total ?? referrals.length) : "—"}
+            </p>
             <p className="mt-1 text-xs text-zinc-600">All-time signups</p>
           </div>
 
           <div className={statCard}>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Active in network</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-zinc-50">{activeCount}</p>
-            <p className="mt-1 text-xs text-zinc-600">With recent activity</p>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Today</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-zinc-50">
+              {referralsLoaded ? (refStats?.today ?? 0) : "—"}
+            </p>
+            <p className="mt-1 text-xs text-zinc-600">New signups (24h)</p>
           </div>
 
           <div className={statCard}>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Conversion</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-zinc-50">—</p>
-            <p className="mt-1 text-xs text-zinc-600">Click → signup (wired later)</p>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">This week</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-zinc-50">
+              {referralsLoaded ? (refStats?.week ?? 0) : "—"}
+            </p>
+            <p className="mt-1 text-xs text-zinc-600">New signups (7d)</p>
           </div>
         </div>
       </section>
@@ -330,20 +404,39 @@ export default function ReferralsPage() {
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Recent referrals</h2>
             <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Latest</span>
           </div>
-          {hasReferrals ? (
+          {referralsError ? (
+            <p className="rounded-lg border border-red-500/25 bg-red-950/20 px-3 py-2 text-sm text-red-200/90">
+              {referralsError}
+            </p>
+          ) : !referralsLoaded ? (
+            listEmptyState("Loading…", "Fetching your referrals.")
+          ) : hasReferrals ? (
             <ul className="space-y-2">
               {referrals.map((ref, i) => (
                 <li
-                  key={`${ref.username}-${i}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800/50 bg-black/25 px-3 py-2.5 transition hover:border-emerald-500/20 hover:bg-emerald-950/15"
+                  key={`${ref.userId}-${i}`}
+                  className="flex flex-col gap-2 rounded-xl border border-zinc-800/50 bg-black/25 px-3 py-2.5 transition hover:border-emerald-500/20 hover:bg-emerald-950/15 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-700/80 bg-zinc-900 text-[11px] font-bold tabular-nums text-zinc-300">
-                      {initialsFromHandle(ref.username)}
+                      {ref.avatarUrl ? (
+                        <img
+                          src={ref.avatarUrl}
+                          alt=""
+                          className="h-full w-full rounded-lg object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        initialsFromHandle(ref.displayName ?? ref.userId)
+                      )}
                     </div>
-                    <span className="truncate text-sm font-medium text-zinc-100">{ref.username}</span>
+                    <span className="min-w-0 truncate text-sm font-medium text-zinc-100">
+                      {ref.displayName ?? `${ref.userId.slice(0, 6)}…${ref.userId.slice(-6)}`}
+                    </span>
                   </div>
-                  <span className="shrink-0 text-xs tabular-nums text-zinc-500">{ref.joinedAt}</span>
+                  <span className="shrink-0 pl-12 text-xs tabular-nums text-zinc-500 sm:pl-0 sm:text-right">
+                    {formatJoinedAt(ref.joinedAt, nowMs)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -414,7 +507,7 @@ export default function ReferralsPage() {
       </div>
 
       {/* Rewards */}
-      <section className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/[0.2] via-[#08060f] to-zinc-950 p-6 ring-1 ring-violet-500/10 sm:p-8">
+      <section className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/[0.2] via-[#08060f] to-zinc-950 p-5 ring-1 ring-violet-500/10 sm:p-8">
         <div className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-violet-500/10 blur-3xl" />
         <div className="relative">
           <div className="flex flex-wrap items-center gap-2">

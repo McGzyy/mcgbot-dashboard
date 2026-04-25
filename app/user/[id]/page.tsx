@@ -2073,7 +2073,7 @@ export default function UserProfilePage() {
               ) : (
                 <>
                   <div
-                    className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-700/50 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 sm:gap-x-4"
+                    className="mt-2 hidden grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-700/50 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 sm:grid sm:gap-x-4"
                     aria-hidden
                   >
                     <span>Call</span>
@@ -2102,7 +2102,7 @@ export default function UserProfilePage() {
                       return (
                       <li
                         key={`${call.token}-${String(call.time)}-${i}`}
-                        className="group grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 py-2.5 text-zinc-300 transition first:pt-2 hover:bg-zinc-800/25 sm:gap-x-4"
+                        className="group flex flex-col gap-2 py-2.5 text-zinc-300 transition first:pt-2 hover:bg-zinc-800/25 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-x-4"
                       >
                         <span className="min-w-0 text-[13px] leading-snug">
                           <div className="flex min-w-0 items-start gap-2">
@@ -2122,14 +2122,14 @@ export default function UserProfilePage() {
                                 href={dexUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="block truncate font-medium text-cyan-200/90 underline decoration-cyan-500/30 underline-offset-2 transition hover:text-cyan-100 hover:decoration-cyan-400/50"
+                                className="block font-medium text-cyan-200/90 underline decoration-cyan-500/30 underline-offset-2 transition hover:text-cyan-100 hover:decoration-cyan-400/50 sm:truncate"
                                 title={titleMint}
                               >
                                 {summary}
                               </a>
                             ) : (
                               <span
-                                className="block truncate font-medium text-zinc-100"
+                                className="block font-medium text-zinc-100 sm:truncate"
                                 title={titleMint}
                               >
                                 {summary}
@@ -2180,8 +2180,25 @@ export default function UserProfilePage() {
                             ) : null}
                           </div>
                         </span>
+                        <div className="flex items-center justify-between gap-3 text-xs sm:hidden">
+                          <span
+                            className={`font-semibold tabular-nums ${multipleClass(call.multiple)}`}
+                          >
+                            <span className="inline-flex items-center gap-2">
+                              {call.multiple.toFixed(1)}x
+                              {call.excludedFromStats ? (
+                                <span className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+                                  Excluded
+                                </span>
+                              ) : null}
+                            </span>
+                          </span>
+                          <span className="tabular-nums text-zinc-500">
+                            {formatJoinedAt(callTimeMs(call.time), nowMs)}
+                          </span>
+                        </div>
                         <span
-                          className={`shrink-0 text-right text-sm font-semibold tabular-nums ${multipleClass(
+                          className={`hidden shrink-0 text-right text-sm font-semibold tabular-nums sm:block ${multipleClass(
                             call.multiple
                           )}`}
                         >
@@ -2194,7 +2211,7 @@ export default function UserProfilePage() {
                             ) : null}
                           </span>
                         </span>
-                        <span className="shrink-0 text-right text-sm text-zinc-500">
+                        <span className="hidden shrink-0 text-right text-sm text-zinc-500 sm:block">
                           {formatJoinedAt(callTimeMs(call.time), nowMs)}
                         </span>
                       </li>
@@ -2481,7 +2498,7 @@ export default function UserProfilePage() {
 
       {editOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
           role="dialog"
           aria-modal="true"
           aria-label="Edit profile"
@@ -2489,7 +2506,7 @@ export default function UserProfilePage() {
             if (e.target === e.currentTarget) setEditOpen(false);
           }}
         >
-          <div className="w-full max-w-lg rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+          <div className="mt-10 w-full max-w-lg rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">
@@ -2502,10 +2519,12 @@ export default function UserProfilePage() {
               <button
                 type="button"
                 onClick={() => setEditOpen(false)}
-                className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/25"
                 aria-label="Close"
               >
-                Esc
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
@@ -2673,7 +2692,7 @@ export default function UserProfilePage() {
 
       {reportOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
           role="dialog"
           aria-modal="true"
           aria-label="Report user"
@@ -2681,7 +2700,7 @@ export default function UserProfilePage() {
             if (e.target === e.currentTarget) setReportOpen(false);
           }}
         >
-          <div className="w-full max-w-lg rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+          <div className="mt-10 w-full max-w-lg rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">Report user</h3>
@@ -2692,10 +2711,12 @@ export default function UserProfilePage() {
               <button
                 type="button"
                 onClick={() => setReportOpen(false)}
-                className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/25"
                 aria-label="Close"
               >
-                Esc
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             </div>
 

@@ -316,7 +316,135 @@ export default function BotCallsPage() {
         className="mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
         data-tutorial="botCalls.table"
       >
-        <div className="overflow-x-auto">
+        {/* Mobile: stacked rows (avoid horizontal scroll) */}
+        <div className="sm:hidden">
+          {loading && rows.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-zinc-500">Loading…</div>
+          ) : rows.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-zinc-500">
+              No bot calls in this window yet.
+            </div>
+          ) : (
+            <ul className="divide-y divide-zinc-800/60">
+              {rows.map((r) => {
+                const iso = callTimeIso(r.callTime);
+                const dex = r.callCa ? dexscreenerTokenUrl("solana", r.callCa) : null;
+                const k = String(r.id || r.callCa + String(r.callTime));
+                const flash = flashKeys.has(k);
+                return (
+                  <li
+                    key={k}
+                    className={`px-4 py-3 transition ${
+                      flash
+                        ? "bg-fuchsia-500/10 shadow-[inset_0_0_0_1px_rgba(217,70,239,0.35)]"
+                        : "hover:bg-zinc-900/40"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-zinc-100">
+                          {formatCalledSnapshotLine({
+                            tokenName: r.tokenName,
+                            tokenTicker: r.tokenTicker,
+                            callMarketCapUsd: r.callMarketCapUsd ?? null,
+                            callCa: r.callCa,
+                          })}
+                        </p>
+                        <p className="mt-1 text-[11px] text-zinc-500">
+                          {iso ? formatRelativeTime(iso) : "—"}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-semibold tabular-nums text-emerald-300">
+                          {Number.isFinite(r.liveMultiple) ? `${r.liveMultiple.toFixed(2)}×` : "—"}
+                        </div>
+                        <div className="mt-0.5 text-xs font-medium tabular-nums text-zinc-400">
+                          ATH{" "}
+                          {Number.isFinite(r.athMultiple) && r.athMultiple > 0
+                            ? `${r.athMultiple.toFixed(2)}×`
+                            : "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+                      <span className="rounded-md border border-fuchsia-500/20 bg-fuchsia-500/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-fuchsia-100/85">
+                        Bot
+                      </span>
+                      {r.excludedFromStats ? (
+                        <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-red-200">
+                          Excluded
+                        </span>
+                      ) : (
+                        <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-emerald-200/90">
+                          Counted
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReportCall(r);
+                          setReportReason("scam");
+                          setReportDetails("");
+                          setReportEvidence("");
+                          setReportOpen(true);
+                        }}
+                        className="text-rose-300/90 hover:text-rose-200"
+                        title="Report this call"
+                      >
+                        Report
+                      </button>
+                      {r.callCa ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openTokenChart({
+                              chain: "solana",
+                              contractAddress: r.callCa,
+                              tokenTicker: r.tokenTicker,
+                              tokenName: r.tokenName,
+                              tokenImageUrl: r.tokenImageUrl ?? null,
+                            })
+                          }
+                          className="text-emerald-300/95 hover:text-emerald-200"
+                          title="Live chart (TradingView)"
+                        >
+                          Chart
+                        </button>
+                      ) : null}
+                      {dex ? (
+                        <a
+                          href={dex}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-cyan-400/90 hover:text-cyan-300"
+                        >
+                          Dex
+                        </a>
+                      ) : null}
+                      {r.messageUrl ? (
+                        <a
+                          href={r.messageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-zinc-400 hover:text-zinc-200"
+                        >
+                          Post
+                        </a>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Desktop/tablet: wide table */}
+        <div className="hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="border-b border-zinc-800/90 bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               <tr>
@@ -522,10 +650,12 @@ export default function BotCallsPage() {
               <button
                 type="button"
                 onClick={() => setReportOpen(false)}
-                className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/25"
                 aria-label="Close"
               >
-                Esc
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             </div>
 

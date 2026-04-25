@@ -11,6 +11,7 @@ export async function GET() {
 
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
     console.error("Missing Supabase env vars");
@@ -21,6 +22,7 @@ export async function GET() {
   }
 
   const supabase = createClient(url, key);
+  const admin = serviceKey ? createClient(url, serviceKey) : null;
 
   const discordId = String(session.user.id);
 
@@ -44,10 +46,58 @@ export async function GET() {
   const today = rows.filter((r) => r.joined_at >= now - day).length;
   const weekCount = rows.filter((r) => r.joined_at >= now - week).length;
 
+  const referredIds = Array.from(
+    new Set(
+      rows
+        .map((r: any) => String(r?.referred_user_id ?? "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  const usersById: Record<
+    string,
+    { displayName: string | null; avatarUrl: string | null }
+  > = {};
+
+  if (admin && referredIds.length > 0) {
+    const { data: users, error: userErr } = await admin
+      .from("users")
+      .select("discord_id, discord_display_name, discord_avatar_url")
+      .in("discord_id", referredIds);
+
+    if (userErr) {
+      console.error("[referrals] users lookup:", userErr);
+    } else if (Array.isArray(users)) {
+      for (const u of users as any[]) {
+        const id = String(u?.discord_id ?? "").trim();
+        if (!id) continue;
+        const displayName =
+          typeof u?.discord_display_name === "string" && u.discord_display_name.trim()
+            ? u.discord_display_name.trim()
+            : null;
+        const avatarUrl =
+          typeof u?.discord_avatar_url === "string" && u.discord_avatar_url.trim()
+            ? u.discord_avatar_url.trim()
+            : null;
+        usersById[id] = { displayName, avatarUrl };
+      }
+    }
+  }
+
+  const enriched = rows.map((r: any) => {
+    const id = String(r?.referred_user_id ?? "").trim();
+    const u = id ? usersById[id] : undefined;
+    return {
+      ...r,
+      referred_display_name: u?.displayName ?? null,
+      referred_avatar_url: u?.avatarUrl ?? null,
+    };
+  });
+
   return Response.json({
     total,
     today,
     week: weekCount,
-    referrals: rows,
+    referrals: enriched,
   });
 }

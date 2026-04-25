@@ -67,7 +67,8 @@ export const dashboardChrome = {
     "pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_110%_70%_at_50%_-25%,rgba(56,189,248,0.11),transparent_52%),radial-gradient(ellipse_55%_45%_at_100%_0%,rgba(16,185,129,0.06),transparent_42%),radial-gradient(ellipse_50%_50%_at_0%_100%,rgba(139,92,246,0.045),transparent_48%)]",
   mainGrid:
     "pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.028)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.028)_1px,transparent_1px)] bg-[length:44px_44px] opacity-[0.35] [mask-image:linear-gradient(to_bottom,black_0%,black_55%,transparent_100%)]",
-  contentWell: "relative z-[1] mx-auto w-full max-w-[1680px] px-5 pb-12 pt-1 sm:px-8 sm:pb-14 sm:pt-2",
+  contentWell:
+    "relative z-[1] mx-auto w-full max-w-[1680px] px-3 pb-10 pt-1 sm:px-8 sm:pb-14 sm:pt-2 min-[480px]:px-5",
   /** Bottom edge uses `topBarBottomRule` so the line fades left like the market strip (no full-width `border-b`). */
   topBar:
     "relative bg-zinc-950/85 backdrop-blur-xl shadow-[0_1px_0_0_rgba(56,189,248,0.07),0_12px_40px_-20px_rgba(0,0,0,0.65)]",

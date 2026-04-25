@@ -413,7 +413,7 @@ export function TopBar() {
     <>
       <header className={`sticky top-0 z-50 ${dashboardChrome.topBar}`} role="banner">
       {/* TOP ROW (existing header content) */}
-      <div className="flex items-center justify-between px-4 sm:px-6 py-2">
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5 sm:px-6 sm:py-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
             type="button"
@@ -426,9 +426,21 @@ export function TopBar() {
               <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
             </svg>
           </button>
+          <button
+            type="button"
+            onClick={openTokenSearch}
+            data-tutorial="nav.tokenSearchMobile"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-800/70 bg-zinc-900/25 text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900/40 hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 sm:hidden"
+            aria-label="Open token search"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden>
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3-3" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {status === "loading" ? (
             <div className="h-9 w-24 animate-pulse rounded-md bg-zinc-800/80" />
           ) : (
@@ -446,14 +458,27 @@ export function TopBar() {
                 </span>
               </button>
               {canTip ? (
-                <button
-                  type="button"
-                  onClick={() => setTipOpen(true)}
-                  data-tutorial="nav.tip"
-                  className="hidden h-9 items-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15 sm:inline-flex"
-                >
-                  Tip McGBot
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setTipOpen(true)}
+                    data-tutorial="nav.tip"
+                    className="hidden h-9 items-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15 sm:inline-flex"
+                  >
+                    Tip McGBot
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTipOpen(true)}
+                    data-tutorial="nav.tipMobile"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 sm:hidden"
+                    aria-label="Tip McGBot"
+                  >
+                    <span className="text-sm font-black leading-none" aria-hidden>
+                      ◎
+                    </span>
+                  </button>
+                </>
               ) : null}
               <div className="relative" ref={notifRef} data-tutorial="nav.notifications">
                 <button
@@ -491,7 +516,7 @@ export function TopBar() {
                 </button>
                 {openNotifications ? (
                   <div
-                    className="absolute right-0 z-50 mt-2 max-h-96 w-80 overflow-y-auto rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-xl"
+                    className="absolute right-0 z-50 mt-2 max-h-[min(24rem,70dvh)] w-[min(20rem,calc(100vw-1.25rem))] overflow-y-auto rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-xl sm:w-80"
                     role="region"
                     aria-label="Notification list"
                   >
@@ -547,7 +572,7 @@ export function TopBar() {
                         {(session.user?.name ?? "?").slice(0, 1).toUpperCase()}
                       </div>
                     )}
-                    <span className="max-w-[140px] truncate text-left text-sm font-medium text-zinc-100 sm:max-w-[200px]">
+                    <span className="hidden max-w-[200px] truncate text-left text-sm font-medium text-zinc-100 sm:inline">
                       {session.user?.name ?? "User"}
                     </span>
                   </button>
@@ -689,8 +714,8 @@ export function TopBar() {
         <div className={dashboardChrome.marketStripRow}>
           <div className={dashboardChrome.marketStripTopRule} aria-hidden />
           <div className={dashboardChrome.marketStripBackdrop} aria-hidden />
-          <div className="relative z-10 px-4 py-2 text-xs sm:px-6">
-            <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+          <div className="relative z-10 px-3 py-1.5 text-[10px] leading-snug sm:px-6 sm:py-2 sm:text-xs">
+            <div className="flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-1.5 sm:gap-x-3">
               <div className="flex shrink-0 items-center gap-2 text-zinc-500">
                 {userCountsLoading && !userCounts ? (
                   <div className="flex items-center gap-2">
@@ -741,16 +766,22 @@ export function TopBar() {
                   |
                 </span>
 
-                <span className="rounded-md border border-zinc-800/55 bg-zinc-900/55 px-2 py-1 text-zinc-400">
-                  PumpFun Vol{" "}
+                <span
+                  className="rounded-md border border-zinc-800/55 bg-zinc-900/55 px-1.5 py-0.5 text-zinc-400 sm:px-2 sm:py-1"
+                  title="PumpFun volume"
+                >
+                  <span className="sm:hidden">PF vol </span>
+                  <span className="hidden sm:inline">PumpFun Vol </span>
                   <span className="font-medium text-zinc-200">{formatUsdCompact(market.pumpVolume)}</span>
                 </span>
 
-                <span className="rounded-md border border-zinc-800/55 bg-zinc-900/55 px-2 py-1 text-zinc-400">
-                  Traders <span className="font-medium text-zinc-200">{formatCount(market.activeTraders)}</span>
+                <span className="rounded-md border border-zinc-800/55 bg-zinc-900/55 px-1.5 py-0.5 text-zinc-400 sm:px-2 sm:py-1">
+                  <span className="sm:hidden">Tr. </span>
+                  <span className="hidden sm:inline">Traders </span>
+                  <span className="font-medium text-zinc-200">{formatCount(market.activeTraders)}</span>
                 </span>
 
-                <span className="shrink-0 text-zinc-500">
+                <span className="hidden min-[380px]:inline shrink-0 text-zinc-500 sm:inline">
                   Updated{" "}
                   <span className="font-medium tabular-nums text-zinc-300">{marketUpdatedLabel}</span>
                 </span>
@@ -911,10 +942,22 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-900/60"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/40 text-zinc-300 transition hover:bg-zinc-900/60 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
             aria-label="Close"
           >
-            Esc
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+              aria-hidden
+            >
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
@@ -1132,10 +1175,22 @@ function TokenSearchModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-2 py-1 text-xs text-zinc-300 hover:bg-[#0a0a0a]"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-[#1a1a1a] bg-[#0a0a0a] text-zinc-300 transition hover:bg-zinc-900/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
             aria-label="Close"
           >
-            Esc
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+              aria-hidden
+            >
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
