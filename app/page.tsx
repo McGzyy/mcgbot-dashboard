@@ -1267,6 +1267,7 @@ function TrendingPanel() {
   const [source, setSource] = useState<"All" | TrendingTokenRow["source"]>("All");
   const [apiRows, setApiRows] = useState<TrendingTokenRow[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
+  const [apiHealth, setApiHealth] = useState<Record<string, { ok: boolean; count: number; error?: string }> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1279,6 +1280,11 @@ function TrendingPanel() {
       .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
       .then(({ ok, json }) => {
         if (cancelled) return;
+        setApiHealth(
+          ok && json && typeof json === "object" && (json as any).health && typeof (json as any).health === "object"
+            ? ((json as any).health as Record<string, { ok: boolean; count: number; error?: string }>)
+            : null
+        );
         const rowsRaw =
           ok && json && typeof json === "object" && Array.isArray((json as any).rows)
             ? ((json as any).rows as unknown[])
@@ -1311,7 +1317,10 @@ function TrendingPanel() {
         setApiRows(parsed);
       })
       .catch(() => {
-        if (!cancelled) setApiRows([]);
+        if (!cancelled) {
+          setApiRows([]);
+          setApiHealth(null);
+        }
       })
       .finally(() => {
         if (!cancelled) setApiLoading(false);
@@ -1381,7 +1390,15 @@ function TrendingPanel() {
         </div>
 
         <div className="text-[11px] text-zinc-500">
-          {apiLoading ? "Loading…" : "Live • feed wired"}
+          {apiLoading
+            ? "Loading…"
+            : apiHealth
+              ? Object.entries(apiHealth)
+                  .map(([k, v]) =>
+                    v.ok ? `${k} ✓${v.count ? ` (${v.count})` : ""}` : `${k} blocked`
+                  )
+                  .join(" • ")
+              : "Live • feed wired"}
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 const CACHE_TTL_MS = 25_000;
+const FETCH_TIMEOUT_MS = 8_000;
 
 type Timeframe = "5m" | "1h" | "24h";
 type Source = "All" | "Dexscreener" | "Gecko" | "Axiom" | "GMGN";
@@ -42,16 +43,116 @@ function asNum(v: unknown): number {
 }
 
 async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
-  const res = await fetch(url, {
-    ...init,
-    cache: "no-store",
-    headers: {
-      "accept": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return await res.json();
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      ...init,
+      cache: "no-store",
+      signal: ac.signal,
+      headers: {
+        accept: "application/json",
+        "accept-language": "en-US,en;q=0.9",
+        "user-agent": "mcgbot-dashboard/1.0 (+https://mcgbot.xyz)",
+        ...(init?.headers ?? {}),
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function loadDexscreenerHeuristic(tf: Timeframe, limit: number): Promise<TrendingTokenRow[]> {
+  const timeKey = pickTimeKey(tf);
+  const candidates: Array<{ chainId: string; tokenAddress: string }> = [];
+
+  const sources = [
+    "https://api.dexscreener.com/token-profiles/latest/v1",
+    "https://api.dexscreener.com/token-profiles/recent-updates/v1",
+  ];
+
+  for (const url of sources) {
+    try {
+      const json = (await fetchJson(url)) as unknown;
+      const arr = Array.isArray(json) ? (json as unknown[]) : [];
+      for (const item of arr) {
+        if (!item || typeof item !== "object") continue;
+        const o = item as Record<string, unknown>;
+        const chainId = String(o.chainId ?? "").toLowerCase();
+        if (chainId !== "solana") continue;
+        const tokenAddress = String(o.tokenAddress ?? "").trim();
+        if (tokenAddress) candidates.push({ chainId, tokenAddress });
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const uniq = Array.from(new Map(candidates.map((c) => [c.tokenAddress, c])).values())
+    .slice(0, Math.max(limit * 3, 60));
+  if (uniq.length === 0) return [];
+
+  const out: TrendingTokenRow[] = [];
+  const concurrency = 6;
+  let i = 0;
+
+  async function worker() {
+    while (i < uniq.length && out.length < limit) {
+      const idx = i++;
+      const tokenAddress = uniq[idx]!.tokenAddress;
+      try {
+        const json = (await fetchJson(
+          `https://api.dexscreener.com/token-pairs/v1/solana/${encodeURIComponent(tokenAddress)}`
+        )) as { value?: unknown };
+        const pairsRaw = Array.isArray(json?.value) ? (json.value as unknown[]) : [];
+        if (pairsRaw.length === 0) continue;
+
+        let best: Record<string, unknown> | null = null;
+        let bestScore = -1;
+        for (const p of pairsRaw) {
+          if (!p || typeof p !== "object") continue;
+          const o = p as Record<string, unknown>;
+          const liqUsd = asNum((o.liquidity as any)?.usd);
+          const volTf = asNum((o.volume as any)?.[timeKey]);
+          const txnsTf = asNum((o.txns as any)?.[timeKey]?.buys) + asNum((o.txns as any)?.[timeKey]?.sells);
+          // “Trending-like” heuristic: require some liquidity and activity.
+          if (liqUsd < 25_000) continue;
+          if (volTf < 50_000) continue;
+          if (txnsTf < 25) continue;
+          const score = liqUsd * 10 + volTf + txnsTf * 1000;
+          if (score > bestScore) {
+            bestScore = score;
+            best = o;
+          }
+        }
+        if (!best) continue;
+
+        const base = (best.baseToken as any) ?? {};
+        const symbol = String(base.symbol ?? "").trim();
+        const mint = String(base.address ?? "").trim();
+        if (!symbol || !mint) continue;
+
+        out.push({
+          symbol,
+          mint,
+          priceUsd: asNum(best.priceUsd),
+          changePct: asNum((best.priceChange as any)?.[timeKey]),
+          liquidityUsd: asNum((best.liquidity as any)?.usd),
+          volumeUsd: asNum((best.volume as any)?.[timeKey]),
+          holders: 0,
+          source: "Dexscreener",
+          timeframe: tf,
+        });
+      } catch {
+        // ignore per-token failures
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  return out;
 }
 
 async function loadDexscreener(tf: Timeframe, limit: number): Promise<TrendingTokenRow[]> {
@@ -68,7 +169,7 @@ async function loadDexscreener(tf: Timeframe, limit: number): Promise<TrendingTo
     if (addr) addrs.push(addr);
   }
   const uniq = Array.from(new Set(addrs)).slice(0, limit);
-  if (uniq.length === 0) return [];
+  if (uniq.length === 0) return await loadDexscreenerHeuristic(tf, limit);
 
   const timeKey = pickTimeKey(tf);
   const out: TrendingTokenRow[] = [];
@@ -126,6 +227,9 @@ async function loadDexscreener(tf: Timeframe, limit: number): Promise<TrendingTo
   }
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  if (out.length === 0) {
+    return await loadDexscreenerHeuristic(tf, limit);
+  }
   return out;
 }
 
@@ -175,18 +279,26 @@ export async function GET(req: Request) {
   }
 
   const limit = 24;
-  const tasks: Array<Promise<TrendingTokenRow[]>> = [];
+  const tasks: Array<{ name: Exclude<Source, "All">; p: Promise<TrendingTokenRow[]> }> = [];
 
-  if (source === "All" || source === "Dexscreener") tasks.push(loadDexscreener(timeframe, limit));
-  if (source === "All" || source === "GMGN") tasks.push(loadGmgn(timeframe, limit));
+  if (source === "All" || source === "Dexscreener") tasks.push({ name: "Dexscreener", p: loadDexscreener(timeframe, limit) });
+  if (source === "All" || source === "GMGN") tasks.push({ name: "GMGN", p: loadGmgn(timeframe, limit) });
   // Placeholders for future adapters:
   // - CoinGecko trending doesn’t include Solana mint addresses; needs extra mapping step.
   // - Axiom/Padre often require authenticated or blocked endpoints.
 
-  const settled = await Promise.allSettled(tasks);
+  const settled = await Promise.allSettled(tasks.map((t) => t.p));
   const merged: TrendingTokenRow[] = [];
-  for (const s of settled) {
-    if (s.status === "fulfilled") merged.push(...s.value);
+  const health: Record<string, { ok: boolean; count: number; error?: string }> = {};
+  for (let i = 0; i < settled.length; i++) {
+    const name = tasks[i]!.name;
+    const s = settled[i]!;
+    if (s.status === "fulfilled") {
+      merged.push(...s.value);
+      health[name] = { ok: true, count: s.value.length };
+    } else {
+      health[name] = { ok: false, count: 0, error: String(s.reason?.message ?? s.reason ?? "failed") };
+    }
   }
 
   // If a specific source was requested, filter to it.
@@ -206,7 +318,7 @@ export async function GET(req: Request) {
     .sort((a, b) => b.volumeUsd - a.volumeUsd)
     .slice(0, limit);
 
-  const payload = { rows: finalRows };
+  const payload = { rows: finalRows, health };
   cache.set(cacheKey, { at: Date.now(), payload });
 
   return Response.json(payload, {
