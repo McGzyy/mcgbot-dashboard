@@ -5,6 +5,7 @@ import {
   type ChatMessagePayload,
 } from "@/lib/discordChatMessageSerialize";
 import { fetchWebhookMessageAuthorMap } from "@/lib/discordWebhookMessageAuthors";
+import { fetchDiscordGuildMemberSummary } from "@/lib/discordGuildMemberSummary";
 import {
   helpTierFromMemberRoleIds,
   mergeHelpTierWithEnv,
@@ -95,6 +96,7 @@ export async function buildDiscordChatPayloadsFromRestRows(
   const authorByMessageId = await fetchWebhookMessageAuthorMap(idsForDb);
 
   const roleIdsByAuthor = new Map<string, string[]>();
+  const memberSummaryByAuthor = new Map<string, { displayName: string; username: string }>();
   const pendingMemberFetch = new Set<string>();
 
   for (const w of works) {
@@ -120,9 +122,18 @@ export async function buildDiscordChatPayloadsFromRestRows(
 
   await Promise.all(
     [...pendingMemberFetch].map(async (uid) => {
-      if (roleIdsByAuthor.has(uid)) return;
-      const ids = await fetchDiscordGuildMemberRoleIds(uid);
-      if (ids && ids.length) roleIdsByAuthor.set(uid, ids);
+      if (!roleIdsByAuthor.has(uid)) {
+        const ids = await fetchDiscordGuildMemberRoleIds(uid);
+        if (ids && ids.length) roleIdsByAuthor.set(uid, ids);
+      }
+
+      if (!memberSummaryByAuthor.has(uid)) {
+        const sum = await fetchDiscordGuildMemberSummary(uid);
+        if (sum?.displayName) {
+          memberSummaryByAuthor.set(uid, { displayName: sum.displayName, username: sum.username });
+          if (!roleIdsByAuthor.has(uid) && sum.roleIds.length) roleIdsByAuthor.set(uid, sum.roleIds);
+        }
+      }
     })
   );
 
@@ -158,7 +169,13 @@ export async function buildDiscordChatPayloadsFromRestRows(
       const norm = normalizeDiscordRestMessage(rowForNorm, tierByAuthor, accentByAuthor);
       if (!norm) return null;
       if (linked) {
-        return { ...norm, authorId: linked };
+        const sum = memberSummaryByAuthor.get(linked);
+        return {
+          ...norm,
+          authorId: linked,
+          authorName: sum?.displayName ?? norm.authorName,
+          authorHandle: sum?.username ? `@${sum.username}` : norm.authorHandle,
+        };
       }
       return norm;
     })
