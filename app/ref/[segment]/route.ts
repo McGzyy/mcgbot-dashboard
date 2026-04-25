@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -7,9 +7,10 @@ export const dynamic = "force-dynamic";
  * Resolves vanity slug or numeric discord id to a referrer discord id, then forwards to /subscribe.
  */
 export async function GET(
-  _req: Request,
-  { params }: { params: { segment: string } }
+  _req: NextRequest,
+  context: { params: Promise<{ segment: string }> }
 ) {
+  const params = await context.params;
   const raw = String(params?.segment ?? "").trim();
   if (!raw) return NextResponse.redirect(new URL("/subscribe", "https://mcgbot.xyz"));
 
