@@ -106,7 +106,7 @@ export function AddToWatchlistModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+      className="fixed inset-0 z-50 grid min-h-[100dvh] place-items-center overflow-y-auto bg-black/60 px-4 py-8 sm:py-10"
       role="dialog"
       aria-modal="true"
       aria-label="Add to watchlist"
@@ -114,7 +114,7 @@ export function AddToWatchlistModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="mt-10 w-full max-w-md rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
+      <div className="my-auto w-full max-w-md rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-zinc-100">Add to watchlist</h3>
