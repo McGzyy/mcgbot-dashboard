@@ -2795,7 +2795,6 @@ export default function Home() {
   const oauthErrorHandledRef = useRef(false);
   const lastSeenActivityKeysRef = useRef(new Set<string>());
   const activitySourceModeRef = useRef<"all" | "following" | null>(null);
-  const activityFeedSectionRef = useRef<HTMLDivElement | null>(null);
   const [copied, setCopied] = useState(false);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsRefreshing, setStatsRefreshing] = useState(false);
@@ -3739,7 +3738,7 @@ export default function Home() {
 
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 flex flex-col gap-3">
-          <div ref={activityFeedSectionRef} data-tutorial="dashboard.activityFeed">
+          <div data-tutorial="dashboard.activityFeed">
           {widgetEnabled(widgets, "activity") && (
             <div className="min-h-[420px]">
               <ActivityFeedPanel
@@ -3822,32 +3821,13 @@ export default function Home() {
                   >
                     Create Alert
                   </button>
-                  <button
-                    type="button"
-                    data-tutorial="dashboard.quickActions.followingFeed"
-                    onClick={() => {
-                      setFeedMode("following");
-                      if (widgetEnabled(widgets, "activity")) {
-                        window.requestAnimationFrame(() => {
-                          activityFeedSectionRef.current?.scrollIntoView({
-                            behavior: "smooth",
-                            block: "start",
-                          });
-                        });
-                      } else {
-                        addNotification({
-                          id: crypto.randomUUID(),
-                          text: "Turn on the Live Activity widget in Settings to use a following-only feed.",
-                          type: "call",
-                          createdAt: Date.now(),
-                          priority: "low",
-                        });
-                      }
-                    }}
-                    className="rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                  <Link
+                    href="/referrals"
+                    data-tutorial="dashboard.quickActions.referrals"
+                    className="flex items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
-                    Following
-                  </button>
+                    Referrals
+                  </Link>
                 </div>
 
                 <button

@@ -2,7 +2,7 @@
 
 import { signIn, useSession } from "next-auth/react";
 import { VoiceLobbiesShell } from "@/app/components/voice/VoiceLobbiesShell";
-import { useDashboardHelpRole } from "@/app/hooks/useDashboardHelpRole";
+import { useVoiceSession } from "@/app/contexts/VoiceSessionContext";
 
 function discordSignInSafe(callbackUrl: string) {
   if (typeof window === "undefined") return;
@@ -14,10 +14,10 @@ function discordSignInSafe(callbackUrl: string) {
 
 export default function LoungeVoiceChatsPage() {
   const { status } = useSession();
-  const { helpTier, loading } = useDashboardHelpRole();
+  const { helpTierLoading } = useVoiceSession();
   const voiceEnabled = String(process.env.NEXT_PUBLIC_VOICE_LOBBIES_ENABLED || "") === "1";
 
-  if (status === "loading" || loading) {
+  if (status === "loading" || (status === "authenticated" && voiceEnabled && helpTierLoading)) {
     return (
       <div className="relative flex min-h-[calc(100dvh-6rem)] flex-col items-center justify-center text-zinc-400">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(57,255,20,0.07),transparent_60%)]" aria-hidden />
@@ -73,7 +73,7 @@ export default function LoungeVoiceChatsPage() {
       </header>
       <div className="relative flex min-h-0 flex-1 flex-col">
         {voiceEnabled ? (
-          <VoiceLobbiesShell helpTier={helpTier} data-tutorial="lounge.voiceChats.panel" />
+          <VoiceLobbiesShell data-tutorial="lounge.voiceChats.panel" />
         ) : (
           <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-950/20 to-zinc-950/80 px-5 py-6 text-sm text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
             <p>

@@ -1,457 +1,54 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useVoiceSession } from "@/app/contexts/VoiceSessionContext";
+import { ConnectionState } from "livekit-client";
+import { useMemo } from "react";
+import { VOICE_LOBBIES } from "@/lib/voice/lobbies";
 import {
-  ConnectionState,
-  DisconnectReason,
-  RoomEvent,
-  type Participant,
-  type Room,
-} from "livekit-client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { HelpTier } from "@/lib/helpRole";
-import { VOICE_LOBBIES, type VoiceLobbyId } from "@/lib/voice/lobbies";
-import { connectVoiceRoom, disconnectVoiceRoom } from "@/lib/voice/livekitRoom";
-import { tierMeetsLobby } from "@/lib/voice/tierGate";
-
-const LOBBY_POLL_MS = 8000;
+  connectionStateLabel,
+  connectionStatePillClass,
+  lobbyJoinAllowed,
+  lobbyRequiresLabel,
+} from "@/lib/voice/voiceLobbyRoomUtils";
 
 const shellClass =
   "relative overflow-hidden rounded-2xl border border-zinc-700/35 bg-gradient-to-b from-zinc-900/70 via-[#070707] to-black px-5 py-5 shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_28px_80px_-28px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-md transition-shadow duration-500 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.07),0_32px_100px_-24px_rgba(57,255,20,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]";
 
-type TokenResponse =
-  | { ok: true; url: string; token: string; roomName: string; lobbyId: string }
-  | { ok: false; error?: string };
-
-type RoomMember = { identity: string; name: string; isLocal: boolean };
-
-function speakerIdentities(speakers: readonly Participant[]): string[] {
-  return speakers.map((s) => s.identity);
-}
-
-/** Member list + LiveKit active speaker highlights. */
-function bindRoomPresence(
-  room: Room,
-  onMembers: (members: RoomMember[]) => void,
-  onSpeakingIdentities: (ids: string[]) => void
-): () => void {
-  const syncMembers = () => {
-    const lp = room.localParticipant;
-    const members: RoomMember[] = [
-      {
-        identity: lp.identity,
-        name: (lp.name && lp.name.trim()) || lp.identity,
-        isLocal: true,
-      },
-      ...Array.from(room.remoteParticipants.values()).map((p) => ({
-        identity: p.identity,
-        name: (p.name && p.name.trim()) || p.identity,
-        isLocal: false as const,
-      })),
-    ];
-    members.sort((a, b) => {
-      if (a.isLocal !== b.isLocal) return a.isLocal ? -1 : 1;
-      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-    });
-    onMembers(members);
-  };
-
-  const onSpeakers = (speakers: Participant[]) => {
-    onSpeakingIdentities(speakerIdentities(speakers));
-  };
-
-  syncMembers();
-  onSpeakingIdentities(speakerIdentities(room.activeSpeakers ?? []));
-
-  room.on(RoomEvent.ParticipantConnected, syncMembers);
-  room.on(RoomEvent.ParticipantDisconnected, syncMembers);
-  room.on(RoomEvent.ActiveSpeakersChanged, onSpeakers);
-
-  return () => {
-    room.off(RoomEvent.ParticipantConnected, syncMembers);
-    room.off(RoomEvent.ParticipantDisconnected, syncMembers);
-    room.off(RoomEvent.ActiveSpeakersChanged, onSpeakers);
-  };
-}
-
-function voiceDisconnectMessage(reason?: DisconnectReason): string {
-  switch (reason) {
-    case DisconnectReason.CLIENT_INITIATED:
-      return "You left the room.";
-    case DisconnectReason.DUPLICATE_IDENTITY:
-      return "Disconnected: this account joined from another tab or device.";
-    case DisconnectReason.PARTICIPANT_REMOVED:
-      return "You were removed from the room.";
-    case DisconnectReason.ROOM_DELETED:
-      return "This voice room ended.";
-    case DisconnectReason.STATE_MISMATCH:
-    case DisconnectReason.JOIN_FAILURE:
-      return "Could not stay connected. Try joining again.";
-    case DisconnectReason.USER_UNAVAILABLE:
-      return "Disconnected: server unavailable. Try again shortly.";
-    default:
-      return "Connection to voice dropped. Rejoin when you are ready.";
-  }
-}
-
-function bindRoomLifecycle(
-  room: Room,
-  handlers: {
-    onConnectionState?: (state: ConnectionState) => void;
-    onMediaDevicesChanged?: () => void;
-    onDisconnected: (reason?: DisconnectReason) => void;
-  }
-): () => void {
-  const onConn = (state: ConnectionState) => handlers.onConnectionState?.(state);
-  const onMd = () => handlers.onMediaDevicesChanged?.();
-  const onDisconnected = (reason?: DisconnectReason) => handlers.onDisconnected(reason);
-  handlers.onConnectionState?.(room.state);
-  room.on(RoomEvent.ConnectionStateChanged, onConn);
-  room.on(RoomEvent.MediaDevicesChanged, onMd);
-  room.on(RoomEvent.Disconnected, onDisconnected);
-  return () => {
-    room.off(RoomEvent.ConnectionStateChanged, onConn);
-    room.off(RoomEvent.MediaDevicesChanged, onMd);
-    room.off(RoomEvent.Disconnected, onDisconnected);
-  };
-}
-
-function connectionStateLabel(state: ConnectionState | null): string {
-  if (state === null) return "—";
-  switch (state) {
-    case ConnectionState.Connected:
-      return "Connected";
-    case ConnectionState.Connecting:
-      return "Connecting…";
-    case ConnectionState.Reconnecting:
-      return "Reconnecting…";
-    case ConnectionState.SignalReconnecting:
-      return "Syncing signal…";
-    case ConnectionState.Disconnected:
-      return "Disconnected";
-    default:
-      return "—";
-  }
-}
-
-function connectionStatePillClass(state: ConnectionState | null): string {
-  if (state === null) return "border-white/10 bg-zinc-950/80 text-zinc-400";
-  switch (state) {
-    case ConnectionState.Connected:
-      return "border-[color:var(--accent)]/40 bg-[color:var(--accent)]/10 text-[color:var(--accent)]";
-    case ConnectionState.Connecting:
-      return "border-zinc-500/40 bg-zinc-900/80 text-zinc-200";
-    case ConnectionState.Reconnecting:
-    case ConnectionState.SignalReconnecting:
-      return "border-sky-400/35 bg-sky-950/40 text-sky-100";
-    case ConnectionState.Disconnected:
-      return "border-red-500/35 bg-red-950/30 text-red-100";
-    default:
-      return "border-white/10 bg-zinc-950/80 text-zinc-400";
-  }
-}
-
-function lobbyJoinAllowed(
-  lobby: (typeof VOICE_LOBBIES)[number],
-  helpTier: HelpTier,
-  lobbyAccess: Partial<Record<VoiceLobbyId, boolean>> | null
-): boolean {
-  if (lobby.joinRule === "og_discord_or_staff") {
-    if (tierMeetsLobby("mod", helpTier)) return true;
-    if (lobbyAccess === null) return false;
-    return lobbyAccess[lobby.id] === true;
-  }
-  return tierMeetsLobby(lobby.minTier, helpTier);
-}
-
-function lobbyRequiresLabel(lobby: (typeof VOICE_LOBBIES)[number]): string {
-  if (lobby.joinRule === "og_discord_or_staff") {
-    return "the OGs Discord role (mods and admins always)";
-  }
-  if (lobby.minTier === "mod") return "mod or admin";
-  if (lobby.minTier === "admin") return "admin";
-  return "sign-in";
-}
-
 export function VoiceLobbiesShell({
-  helpTier,
   "data-tutorial": dataTutorial = "dashboard.voiceLobbies",
 }: {
-  helpTier: HelpTier;
   "data-tutorial"?: string;
 }) {
-  const { status } = useSession();
-
-  const [busyLobby, setBusyLobby] = useState<VoiceLobbyId | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [connectedLobby, setConnectedLobby] = useState<VoiceLobbyId | null>(null);
-  const [muted, setMuted] = useState(false);
-  const [lobbyAccess, setLobbyAccess] = useState<Partial<Record<VoiceLobbyId, boolean>> | null>(null);
-  const [countByLobby, setCountByLobby] = useState<Partial<Record<VoiceLobbyId, number>> | null>(
-    null
-  );
-  const [roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
-  const [speakingIdentities, setSpeakingIdentities] = useState<string[]>([]);
-  const [modBusy, setModBusy] = useState<string | null>(null);
-  const [lobbyListError, setLobbyListError] = useState<string | null>(null);
-  const [lobbiesPhase, setLobbiesPhase] = useState<"boot" | "ready">("boot");
-  const [voiceReconnecting, setVoiceReconnecting] = useState(false);
-  const [lkConnection, setLkConnection] = useState<ConnectionState | null>(null);
-  const [audioInputs, setAudioInputs] = useState<Array<{ deviceId: string; label: string }>>([]);
-  const [micDeviceId, setMicDeviceId] = useState("");
-  const [micSwitchBusy, setMicSwitchBusy] = useState(false);
-
-  const roomRef = useRef<Room | null>(null);
-  const audioMountRef = useRef<HTMLDivElement | null>(null);
-  const detachPeersRef = useRef<(() => void) | null>(null);
-  const detachLifecycleRef = useRef<(() => void) | null>(null);
-  const intentionalLeaveRef = useRef(false);
-  const lobbiesHydratedRef = useRef(false);
+  const {
+    helpTier,
+    status,
+    busyLobby,
+    error,
+    connectedLobby,
+    muted,
+    lobbyAccess,
+    countByLobby,
+    roomMembers,
+    speakingIdentities,
+    modBusy,
+    lobbyListError,
+    lobbiesPhase,
+    voiceReconnecting,
+    lkConnection,
+    audioInputs,
+    micDeviceId,
+    micSwitchBusy,
+    refreshLobbies,
+    disconnect,
+    join,
+    toggleMute,
+    moderate,
+    switchMic,
+  } = useVoiceSession();
 
   const isStaff = helpTier === "mod" || helpTier === "admin";
   const remotePeers = roomMembers.filter((m) => !m.isLocal);
   const speakingSet = useMemo(() => new Set(speakingIdentities), [speakingIdentities]);
-
-  const refreshLobbies = useCallback(async () => {
-    if (status !== "authenticated") return;
-    try {
-      const res = await fetch("/api/voice/lobbies", { credentials: "same-origin" });
-      const json = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        lobbies?: Array<{ id: string; canJoin?: boolean; participantCount?: number }>;
-      };
-      if (!res.ok || json.ok !== true || !Array.isArray(json.lobbies)) {
-        setLobbyListError(
-          !res.ok ? `Lobby list failed (${res.status}).` : "Lobby list response was invalid."
-        );
-        if (!lobbiesHydratedRef.current) {
-          setLobbyAccess({});
-          setCountByLobby({});
-        }
-        setLobbiesPhase("ready");
-        return;
-      }
-      const access: Partial<Record<VoiceLobbyId, boolean>> = {};
-      const counts: Partial<Record<VoiceLobbyId, number>> = {};
-      for (const row of json.lobbies) {
-        const raw = String(row.id || "").trim().toLowerCase();
-        const known = VOICE_LOBBIES.find((l) => l.id === raw);
-        if (!known) continue;
-        access[known.id] = row.canJoin === true;
-        const c = row.participantCount;
-        counts[known.id] = typeof c === "number" && Number.isFinite(c) ? Math.max(0, c) : 0;
-      }
-      setLobbyListError(null);
-      lobbiesHydratedRef.current = true;
-      setLobbyAccess(access);
-      setCountByLobby(counts);
-      setLobbiesPhase("ready");
-    } catch {
-      setLobbyListError("Network error while refreshing lobbies.");
-      if (!lobbiesHydratedRef.current) {
-        setLobbyAccess({});
-        setCountByLobby({});
-      }
-      setLobbiesPhase("ready");
-    }
-  }, [status]);
-
-  useEffect(() => {
-    if (status !== "authenticated") {
-      setLobbyAccess(null);
-      setCountByLobby(null);
-      setLobbyListError(null);
-      setLobbiesPhase("boot");
-      lobbiesHydratedRef.current = false;
-      return;
-    }
-    void refreshLobbies();
-    const id = window.setInterval(() => void refreshLobbies(), LOBBY_POLL_MS);
-    return () => window.clearInterval(id);
-  }, [status, refreshLobbies]);
-
-  useEffect(() => {
-    return () => {
-      intentionalLeaveRef.current = true;
-      detachLifecycleRef.current?.();
-      detachLifecycleRef.current = null;
-      detachPeersRef.current?.();
-      detachPeersRef.current = null;
-      disconnectVoiceRoom(roomRef.current, audioMountRef.current);
-      roomRef.current = null;
-    };
-  }, []);
-
-  const teardownVoiceSession = useCallback(() => {
-    setVoiceReconnecting(false);
-    setLkConnection(null);
-    setAudioInputs([]);
-    setMicDeviceId("");
-    setMicSwitchBusy(false);
-    detachLifecycleRef.current?.();
-    detachLifecycleRef.current = null;
-    detachPeersRef.current?.();
-    detachPeersRef.current = null;
-    setRoomMembers([]);
-    setSpeakingIdentities([]);
-    disconnectVoiceRoom(roomRef.current, audioMountRef.current);
-    roomRef.current = null;
-    setConnectedLobby(null);
-    setMuted(false);
-  }, []);
-
-  const refreshInputDevices = useCallback(async () => {
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) {
-      setAudioInputs([]);
-      return;
-    }
-    try {
-      const raw = await navigator.mediaDevices.enumerateDevices();
-      const inputs = raw
-        .filter((d) => d.kind === "audioinput")
-        .map((d, i) => ({
-          deviceId: d.deviceId,
-          label: (d.label && d.label.trim()) || `Microphone ${i + 1}`,
-        }));
-      setAudioInputs(inputs);
-      const room = roomRef.current;
-      const active = room?.getActiveDevice("audioinput");
-      if (active && inputs.some((x) => x.deviceId === active)) {
-        setMicDeviceId(active);
-      } else if (inputs[0]) {
-        setMicDeviceId(inputs[0].deviceId);
-      }
-    } catch {
-      setAudioInputs([]);
-    }
-  }, []);
-
-  const switchMic = useCallback(
-    async (deviceId: string) => {
-      const room = roomRef.current;
-      if (!room || !deviceId) return;
-      setMicSwitchBusy(true);
-      setError(null);
-      try {
-        await room.switchActiveDevice("audioinput", deviceId, true);
-        setMicDeviceId(room.getActiveDevice("audioinput") ?? deviceId);
-        await refreshInputDevices();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not switch microphone.");
-      } finally {
-        setMicSwitchBusy(false);
-      }
-    },
-    [refreshInputDevices]
-  );
-
-  const disconnect = useCallback(() => {
-    intentionalLeaveRef.current = true;
-    teardownVoiceSession();
-    intentionalLeaveRef.current = false;
-    void refreshLobbies();
-  }, [refreshLobbies, teardownVoiceSession]);
-
-  const join = useCallback(
-    async (lobbyId: VoiceLobbyId) => {
-      if (status !== "authenticated" || busyLobby) return;
-      setError(null);
-      setBusyLobby(lobbyId);
-      try {
-        if (roomRef.current) disconnect();
-
-        const res = await fetch("/api/voice/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ lobbyId }),
-        });
-        const json = (await res.json().catch(() => ({}))) as TokenResponse;
-        if (!res.ok || !json || json.ok !== true) {
-          setError(
-            typeof (json as { error?: string }).error === "string"
-              ? (json as { error: string }).error
-              : "Could not join."
-          );
-          return;
-        }
-
-        const room = await connectVoiceRoom(json.url, json.token, audioMountRef.current);
-        roomRef.current = room;
-        detachPeersRef.current?.();
-        detachLifecycleRef.current?.();
-        setSpeakingIdentities([]);
-        detachPeersRef.current = bindRoomPresence(room, setRoomMembers, setSpeakingIdentities);
-        setLkConnection(room.state);
-        setVoiceReconnecting(
-          room.state === ConnectionState.Reconnecting ||
-            room.state === ConnectionState.SignalReconnecting
-        );
-        detachLifecycleRef.current = bindRoomLifecycle(room, {
-          onConnectionState: (s) => {
-            setLkConnection(s);
-            setVoiceReconnecting(
-              s === ConnectionState.Reconnecting || s === ConnectionState.SignalReconnecting
-            );
-          },
-          onMediaDevicesChanged: () => {
-            void refreshInputDevices();
-          },
-          onDisconnected: (reason) => {
-            if (intentionalLeaveRef.current) return;
-            setVoiceReconnecting(false);
-            teardownVoiceSession();
-            setError(voiceDisconnectMessage(reason));
-            void refreshLobbies();
-          },
-        });
-        setConnectedLobby(lobbyId);
-        setMuted(!room.localParticipant.isMicrophoneEnabled);
-        const initialMic = room.getActiveDevice("audioinput");
-        if (initialMic) setMicDeviceId(initialMic);
-        void refreshInputDevices();
-        void refreshLobbies();
-      } catch {
-        setError("Connection failed.");
-      } finally {
-        setBusyLobby(null);
-      }
-    },
-    [busyLobby, disconnect, refreshInputDevices, refreshLobbies, status, teardownVoiceSession]
-  );
-
-  const toggleMute = useCallback(async () => {
-    const room = roomRef.current;
-    if (!room) return;
-    const wantOn = !room.localParticipant.isMicrophoneEnabled;
-    await room.localParticipant.setMicrophoneEnabled(wantOn).catch(() => {});
-    setMuted(!room.localParticipant.isMicrophoneEnabled);
-  }, []);
-
-  const moderate = useCallback(
-    async (action: "mute" | "kick", targetIdentity: string) => {
-      if (!connectedLobby || modBusy) return;
-      setError(null);
-      setModBusy(`${action}:${targetIdentity}`);
-      try {
-        const res = await fetch("/api/voice/moderate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ lobbyId: connectedLobby, targetIdentity, action }),
-        });
-        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-        if (!res.ok || json.ok !== true) {
-          setError(typeof json.error === "string" ? json.error : "Moderation failed.");
-        }
-      } catch {
-        setError("Moderation failed.");
-      } finally {
-        setModBusy(null);
-      }
-    },
-    [connectedLobby, modBusy]
-  );
 
   if (status === "unauthenticated") {
     return null;
@@ -729,58 +326,52 @@ export function VoiceLobbiesShell({
             {remotePeers.map((p) => {
               const speaking = speakingSet.has(p.identity);
               return (
-              <li
-                key={p.identity}
-                className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-[11px] transition-[box-shadow,background-color,border-color] duration-150 ${
-                  speaking
-                    ? "border-[color:var(--accent)]/45 bg-[color:var(--accent)]/10 text-zinc-100 shadow-[0_0_18px_-6px_rgba(57,255,20,0.45)] ring-1 ring-[color:var(--accent)]/30"
-                    : "border-white/[0.06] bg-black/25 text-zinc-200"
-                }`}
-              >
-                <span className="flex min-w-0 items-center gap-1.5">
-                  {speaking ? (
+                <li
+                  key={p.identity}
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-[11px] transition-[box-shadow,background-color,border-color] duration-150 ${
+                    speaking
+                      ? "border-[color:var(--accent)]/45 bg-[color:var(--accent)]/10 text-zinc-100 shadow-[0_0_18px_-6px_rgba(57,255,20,0.45)] ring-1 ring-[color:var(--accent)]/30"
+                      : "border-white/[0.06] bg-black/25 text-zinc-200"
+                  }`}
+                >
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    {speaking ? (
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full bg-[color:var(--accent)] shadow-[0_0_8px_2px_rgba(57,255,20,0.5)]"
+                        aria-hidden
+                      />
+                    ) : null}
                     <span
-                      className="h-2 w-2 shrink-0 rounded-full bg-[color:var(--accent)] shadow-[0_0_8px_2px_rgba(57,255,20,0.5)]"
-                      aria-hidden
-                    />
-                  ) : null}
-                  <span
-                    className={`min-w-0 truncate font-medium ${speaking ? "text-white" : "text-zinc-50"}`}
-                    title={p.identity}
-                  >
-                    {p.name}
+                      className={`min-w-0 truncate font-medium ${speaking ? "text-white" : "text-zinc-50"}`}
+                      title={p.identity}
+                    >
+                      {p.name}
+                    </span>
                   </span>
-                </span>
-                <span className="flex shrink-0 gap-1">
-                  <button
-                    type="button"
-                    disabled={modBusy !== null}
-                    onClick={() => void moderate("mute", p.identity)}
-                    className="rounded-md border border-zinc-600/60 bg-zinc-900/70 px-2 py-1 text-[10px] font-semibold text-zinc-100 transition hover:border-zinc-500 disabled:opacity-45"
-                  >
-                    Mute mic
-                  </button>
-                  <button
-                    type="button"
-                    disabled={modBusy !== null}
-                    onClick={() => void moderate("kick", p.identity)}
-                    className="rounded-md border border-red-500/40 bg-red-950/35 px-2 py-1 text-[10px] font-semibold text-red-100 transition hover:border-red-400/55 disabled:opacity-45"
-                  >
-                    Kick
-                  </button>
-                </span>
-              </li>
-            );
+                  <span className="flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      disabled={modBusy !== null}
+                      onClick={() => void moderate("mute", p.identity)}
+                      className="rounded-md border border-zinc-600/60 bg-zinc-900/70 px-2 py-1 text-[10px] font-semibold text-zinc-100 transition hover:border-zinc-500 disabled:opacity-45"
+                    >
+                      Mute mic
+                    </button>
+                    <button
+                      type="button"
+                      disabled={modBusy !== null}
+                      onClick={() => void moderate("kick", p.identity)}
+                      className="rounded-md border border-red-500/40 bg-red-950/35 px-2 py-1 text-[10px] font-semibold text-red-100 transition hover:border-red-400/55 disabled:opacity-45"
+                    >
+                      Kick
+                    </button>
+                  </span>
+                </li>
+              );
             })}
           </ul>
         </div>
       ) : null}
-
-      <div
-        ref={audioMountRef}
-        className="pointer-events-none fixed bottom-0 left-0 h-px w-px overflow-hidden opacity-0"
-        aria-hidden
-      />
     </div>
   );
 }
