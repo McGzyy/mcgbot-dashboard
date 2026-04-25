@@ -77,11 +77,11 @@ export function ActivityPopup({
   const mintOk = SOLANA_MINT_RE.test(mint);
 
   const btnBase =
-    "inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:opacity-50";
+    "inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-semibold tracking-tight transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100";
 
   return (
     <div
-      className="activity-popup-backdrop fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="activity-popup-backdrop fixed inset-0 z-[200] flex items-center justify-center bg-black/82 p-4 backdrop-blur-md"
       onClick={onClose}
       role="presentation"
     >
@@ -89,7 +89,7 @@ export function ActivityPopup({
         role="dialog"
         aria-modal="true"
         aria-labelledby="activity-popup-title"
-        className="activity-popup-panel relative w-full max-w-lg rounded-2xl border border-white/[0.08] bg-gradient-to-b from-zinc-900/98 to-zinc-950 p-5 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.75)] sm:p-6"
+        className="activity-popup-panel relative w-full max-w-lg rounded-2xl border border-zinc-700/90 bg-zinc-950 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_56px_-8px_rgba(0,0,0,0.85),inset_0_1px_0_0_rgba(255,255,255,0.06)] sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -125,7 +125,7 @@ export function ActivityPopup({
                     });
                     onClose();
                   }}
-                  className={`${btnBase} bg-sky-600 text-white hover:bg-sky-500 focus-visible:ring-sky-500/60`}
+                  className={`${btnBase} border-sky-400/35 bg-gradient-to-b from-sky-500 to-sky-700 text-white [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.22),0_8px_20px_-6px_rgba(14,165,233,0.55)] hover:from-sky-400 hover:to-sky-600 hover:border-sky-300/45 focus-visible:ring-sky-400/55`}
                 >
                   View chart
                 </button>
@@ -133,7 +133,7 @@ export function ActivityPopup({
                   type="button"
                   onClick={() => void handleAddWatchlist()}
                   disabled={wlBusy}
-                  className={`${btnBase} bg-emerald-700/90 text-white hover:bg-emerald-600 focus-visible:ring-emerald-500/50`}
+                  className={`${btnBase} border-emerald-500/35 bg-gradient-to-b from-emerald-600 to-emerald-800 text-white [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.18),0_8px_20px_-6px_rgba(16,185,129,0.45)] hover:from-emerald-500 hover:to-emerald-700 hover:border-emerald-400/40 focus-visible:ring-emerald-400/50`}
                 >
                   {wlBusy ? "Adding…" : "Add to watchlist"}
                 </button>
@@ -142,7 +142,7 @@ export function ActivityPopup({
           </>
         ) : (
           <div className="mt-6 border-t border-white/[0.06] pt-5">
-            <p className="rounded-xl border border-white/[0.06] bg-black/25 px-4 py-3 text-sm leading-relaxed text-zinc-400">
+            <p className="rounded-xl border border-zinc-700/80 bg-zinc-900 px-4 py-3 text-sm leading-relaxed text-zinc-400">
               No Solana contract could be read from this activity. It needs a Dexscreener link or a
               mint in the text.
             </p>
@@ -152,14 +152,14 @@ export function ActivityPopup({
         <div className="mt-4 min-h-[3rem]">
           {wlError ? (
             <div
-              className="rounded-xl border border-red-500/30 bg-red-950/35 px-3 py-2.5 text-sm leading-snug text-red-100/95"
+              className="rounded-xl border border-red-600/40 bg-red-950 px-3 py-2.5 text-sm leading-snug text-red-100"
               role="alert"
             >
               {wlError}
             </div>
           ) : null}
           {wlOk ? (
-            <div className="rounded-xl border border-emerald-500/25 bg-emerald-950/30 px-3 py-2.5 text-sm font-medium text-emerald-100/95">
+            <div className="rounded-xl border border-emerald-600/35 bg-emerald-950 px-3 py-2.5 text-sm font-medium text-emerald-50">
               Added to your private watchlist.
             </div>
           ) : null}
