@@ -13,6 +13,7 @@ import { ModerationDashboardShell } from "@/app/moderation/_components/Moderatio
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import { modChrome } from "@/lib/roleTierStyles";
 import { StaffStatsRail } from "@/app/moderation/StaffStatsRail";
+import { userProfileHref } from "@/lib/userProfileHref";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -69,7 +70,22 @@ type TrustedProApplicationRow = {
   snapshot_win_rate: number;
   snapshot_best_x_30d: number;
   created_at: string;
+  /** From `users` + `call_performance` via `/api/mod/trusted-pro-applications/pending`. */
+  applicant_display_name: string | null;
+  applicant_avatar_url: string | null;
+  applicant_referral_slug: string | null;
+  applicant_call_username: string | null;
 };
+
+function tpApplicantHeadline(r: TrustedProApplicationRow): string {
+  const d = r.applicant_display_name?.trim();
+  if (d) return d;
+  const slug = r.applicant_referral_slug?.trim();
+  if (slug) return `@${slug}`;
+  const u = r.applicant_call_username?.trim();
+  if (u) return u;
+  return "Applicant";
+}
 
 function shortAddr(ca: string) {
   const s = ca.trim();
@@ -919,6 +935,8 @@ export default function ModerationPage() {
         const applicant = typeof o.applicant_discord_id === "string" ? o.applicant_discord_id : "";
         const createdAt = typeof o.created_at === "string" ? o.created_at : "";
         if (!id || !applicant || !createdAt) continue;
+        const strOrNull = (v: unknown) =>
+          typeof v === "string" && v.trim() ? v.trim() : null;
         parsed.push({
           id,
           applicant_discord_id: applicant,
@@ -928,6 +946,10 @@ export default function ModerationPage() {
           snapshot_win_rate: Number(o.snapshot_win_rate || 0) || 0,
           snapshot_best_x_30d: Number(o.snapshot_best_x_30d || 0) || 0,
           created_at: createdAt,
+          applicant_display_name: strOrNull(o.applicant_display_name),
+          applicant_avatar_url: strOrNull(o.applicant_avatar_url),
+          applicant_referral_slug: strOrNull(o.applicant_referral_slug),
+          applicant_call_username: strOrNull(o.applicant_call_username),
         });
       }
       setTpAppsPending(parsed);
@@ -1561,53 +1583,121 @@ export default function ModerationPage() {
                 No pending applications.
               </div>
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-4">
                 {tpAppsPending.map((r) => {
                   const draft = tpAppsNotes[r.id] ?? "";
+                  const headline = tpApplicantHeadline(r);
+                  const initial = headline.trim().slice(0, 1).toUpperCase() || "?";
                   return (
-                    <li key={r.id} className={modChrome.card}>
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-zinc-100">
-                            <span className="font-mono text-zinc-300">{r.applicant_discord_id}</span>
-                          </p>
-                          <p className="mt-1 text-[11px] text-zinc-500">
-                            Calls <span className="font-semibold tabular-nums text-zinc-200">{r.snapshot_total_calls}</span>{" "}
-                            · Avg X <span className="font-semibold tabular-nums text-zinc-200">{r.snapshot_avg_x.toFixed(2)}</span>{" "}
-                            · Win <span className="font-semibold tabular-nums text-zinc-200">{r.snapshot_win_rate.toFixed(1)}%</span>{" "}
-                            · Best 30d <span className="font-semibold tabular-nums text-zinc-200">{r.snapshot_best_x_30d.toFixed(2)}x</span>
-                          </p>
-                          {r.application_note ? (
-                            <p className="mt-2 text-xs leading-relaxed text-zinc-300">{r.application_note}</p>
-                          ) : null}
+                    <li
+                      key={r.id}
+                      className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-zinc-900/90 to-zinc-950/95 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:p-5"
+                    >
+                      <div className="flex gap-4">
+                        <div className="shrink-0">
+                          {r.applicant_avatar_url ? (
+                            <img
+                              src={r.applicant_avatar_url}
+                              alt=""
+                              className="h-12 w-12 rounded-full border border-zinc-700/80 bg-zinc-900 object-cover"
+                            />
+                          ) : (
+                            <div
+                              className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800/90 text-sm font-bold text-zinc-300"
+                              aria-hidden
+                            >
+                              {initial}
+                            </div>
+                          )}
                         </div>
-                        <span className="text-[11px] tabular-nums text-zinc-500" title={r.created_at}>
-                          {formatRelativeTime(r.created_at)}
-                        </span>
-                      </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-base font-semibold tracking-tight text-white">{headline}</p>
+                              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-zinc-500">
+                                <span className="font-mono text-zinc-400">{r.applicant_discord_id}</span>
+                                <span className="text-zinc-600" aria-hidden>
+                                  ·
+                                </span>
+                                <Link
+                                  href={userProfileHref({
+                                    discordId: r.applicant_discord_id,
+                                    displayName: r.applicant_display_name,
+                                  })}
+                                  className="font-medium text-emerald-400/90 hover:text-emerald-300 hover:underline"
+                                >
+                                  Open profile
+                                </Link>
+                              </p>
+                            </div>
+                            <span
+                              className="shrink-0 rounded-md border border-zinc-700/80 bg-black/35 px-2 py-1 text-[11px] tabular-nums text-zinc-400"
+                              title={r.created_at}
+                            >
+                              {formatRelativeTime(r.created_at)}
+                            </span>
+                          </div>
 
-                      <div className="mt-3 grid gap-2">
-                        <textarea
-                          value={draft}
-                          onChange={(e) => setTpAppsNotes((m) => ({ ...m, [r.id]: e.target.value }))}
-                          className="min-h-[64px] w-full resize-y rounded-lg border border-emerald-900/35 bg-black/25 px-3 py-2 text-xs text-zinc-200 outline-none ring-emerald-500/20 focus:ring-2"
-                          placeholder="Staff notes (optional)…"
-                        />
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => void actTpApp(r.id, "deny")}
-                            className="rounded-lg border border-red-500/30 bg-red-950/25 px-3 py-1.5 text-xs font-semibold text-red-100/90 transition hover:border-red-400/45"
-                          >
-                            Deny
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void actTpApp(r.id, "approve")}
-                            className="rounded-lg border border-emerald-500/30 bg-emerald-950/35 px-3 py-1.5 text-xs font-semibold text-emerald-100/90 transition hover:border-emerald-400/50"
-                          >
-                            Approve
-                          </button>
+                          <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <div className="rounded-lg border border-white/[0.06] bg-black/25 px-2.5 py-2">
+                              <dt className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Calls</dt>
+                              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-100">
+                                {r.snapshot_total_calls}
+                              </dd>
+                            </div>
+                            <div className="rounded-lg border border-white/[0.06] bg-black/25 px-2.5 py-2">
+                              <dt className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Avg X</dt>
+                              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-100">
+                                {r.snapshot_avg_x.toFixed(2)}
+                              </dd>
+                            </div>
+                            <div className="rounded-lg border border-white/[0.06] bg-black/25 px-2.5 py-2">
+                              <dt className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Win</dt>
+                              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-100">
+                                {r.snapshot_win_rate.toFixed(1)}%
+                              </dd>
+                            </div>
+                            <div className="rounded-lg border border-white/[0.06] bg-black/25 px-2.5 py-2">
+                              <dt className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Best 30d</dt>
+                              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-100">
+                                {r.snapshot_best_x_30d.toFixed(2)}x
+                              </dd>
+                            </div>
+                          </dl>
+
+                          {r.application_note ? (
+                            <div className="mt-4 rounded-lg border border-zinc-800/90 bg-black/30 px-3 py-2.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                                Applicant note
+                              </p>
+                              <p className="mt-1 text-sm leading-relaxed text-zinc-300">{r.application_note}</p>
+                            </div>
+                          ) : null}
+
+                          <div className="mt-4 grid gap-2 border-t border-white/[0.06] pt-4">
+                            <textarea
+                              value={draft}
+                              onChange={(e) => setTpAppsNotes((m) => ({ ...m, [r.id]: e.target.value }))}
+                              className="min-h-[72px] w-full resize-y rounded-lg border border-zinc-700/80 bg-black/35 px-3 py-2 text-sm text-zinc-200 outline-none ring-emerald-500/25 placeholder:text-zinc-600 focus:ring-2"
+                              placeholder="Staff notes (optional)…"
+                            />
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void actTpApp(r.id, "deny")}
+                                className="rounded-lg border border-red-500/35 bg-red-950/30 px-4 py-2 text-xs font-semibold text-red-100 transition hover:border-red-400/50 hover:bg-red-950/45"
+                              >
+                                Deny
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void actTpApp(r.id, "approve")}
+                                className="rounded-lg border border-emerald-500/40 bg-emerald-600/20 px-4 py-2 text-xs font-semibold text-emerald-50 transition hover:border-emerald-400/55 hover:bg-emerald-600/30"
+                              >
+                                Approve
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </li>
