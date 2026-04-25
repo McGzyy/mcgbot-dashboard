@@ -1508,6 +1508,10 @@ function RankPanel({
 
   /** Weekly rank from API; shown for every range until multi-period API exists. */
   const displayRank = yourWeekRank;
+  const winRateLabel =
+    stats === null || (stats.totalCalls ?? 0) <= 0
+      ? "—"
+      : `${stats.winRate.toFixed(0)}%`;
 
   const shellRing = "";
 
@@ -1577,7 +1581,7 @@ function RankPanel({
               <div className="text-right">
                 <div className="text-sm text-zinc-500">Win rate</div>
                 <div className="font-medium text-zinc-200">
-                  {stats === null ? "—" : `${stats.winRate.toFixed(0)}%`}
+                  {winRateLabel}
                 </div>
               </div>
             </div>
@@ -3052,7 +3056,7 @@ export default function Home() {
     if (stats === null) setStatsLoading(true);
     setStatsRefreshing(true);
 
-    fetch("/api/me/stats")
+    fetch("/api/me/stats", { credentials: "same-origin", cache: "no-store" })
       .then((res) => res.json())
       .then((json: unknown) => {
         if (cancelled) return;
@@ -3088,32 +3092,38 @@ export default function Home() {
             activeDaysStreak,
           });
         } else {
-          setStats({
-            avgX: 0,
-            medianX: 0,
-            winRate: 0,
-            callsToday: 0,
-            callsPriorRollingDay: 0,
-            activeDaysStreak: 0,
-            bestX30d: 0,
-            hitRate2x30d: 0,
-            totalCalls: 0,
-          });
+          // Avoid UI “blinking” to placeholder zeros during refreshes.
+          // Only fall back to zeros if we have never loaded stats successfully.
+          setStats((prev) =>
+            prev ?? {
+              avgX: 0,
+              medianX: 0,
+              winRate: 0,
+              callsToday: 0,
+              callsPriorRollingDay: 0,
+              activeDaysStreak: 0,
+              bestX30d: 0,
+              hitRate2x30d: 0,
+              totalCalls: 0,
+            }
+          );
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setStats({
-            avgX: 0,
-            medianX: 0,
-            winRate: 0,
-            callsToday: 0,
-            callsPriorRollingDay: 0,
-            activeDaysStreak: 0,
-            bestX30d: 0,
-            hitRate2x30d: 0,
-            totalCalls: 0,
-          });
+          setStats((prev) =>
+            prev ?? {
+              avgX: 0,
+              medianX: 0,
+              winRate: 0,
+              callsToday: 0,
+              callsPriorRollingDay: 0,
+              activeDaysStreak: 0,
+              bestX30d: 0,
+              hitRate2x30d: 0,
+              totalCalls: 0,
+            }
+          );
         }
       })
       .finally(() => {
@@ -3126,7 +3136,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id, homeDataRefreshNonce, stats]);
+  }, [session?.user?.id, homeDataRefreshNonce]);
 
   useEffect(() => {
     if (!session?.user?.id?.trim()) {
@@ -3340,7 +3350,7 @@ export default function Home() {
     let cancelled = false;
     setYourRankLoading(true);
 
-    fetch("/api/me/leaderboard-rank")
+    fetch("/api/me/leaderboard-rank", { credentials: "same-origin", cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((json: unknown) => {
         if (cancelled || !json || typeof json !== "object") {
@@ -3625,7 +3635,7 @@ export default function Home() {
                   WIN RATE
                 </div>
                 <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
-                  {stats === null ? "—" : `${stats.winRate.toFixed(0)}%`}
+                  {stats === null || (stats.totalCalls ?? 0) <= 0 ? "—" : `${stats.winRate.toFixed(0)}%`}
                 </div>
               </div>
 
