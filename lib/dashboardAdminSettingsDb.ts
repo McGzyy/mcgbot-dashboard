@@ -22,10 +22,7 @@ export type DashboardAdminSettingsRow = {
   trusted_pro_apply_min_best_x_30d: number;
   /** Incremented to invalidate all NextAuth JWTs (force re-login). */
   session_invalidation_epoch: number;
-  /**
-   * Each paid referee subscription period credits the referrer floor(duration_days / divisor) Pro days (min 1).
-   * Default 5 → one-fifth of the referee's paid period per renewal.
-   */
+  /** Legacy column from an earlier referral experiment; not used by the dashboard until a policy ships. */
   referral_credit_divisor: number;
   updated_at: string;
   updated_by_discord_id: string | null;
@@ -143,7 +140,6 @@ export async function patchDashboardAdminSettings(input: {
   trusted_pro_apply_min_win_rate?: number;
   trusted_pro_apply_min_best_x_30d?: number;
   session_invalidation_epoch?: number;
-  referral_credit_divisor?: number;
   updatedByDiscordId: string;
 }): Promise<DashboardAdminSettingsRow | null> {
   const db = getSupabaseAdmin();
@@ -219,10 +215,6 @@ export async function patchDashboardAdminSettings(input: {
   if (typeof input.session_invalidation_epoch === "number" && Number.isFinite(input.session_invalidation_epoch)) {
     next.session_invalidation_epoch = Math.max(0, Math.floor(input.session_invalidation_epoch));
   }
-  if (typeof input.referral_credit_divisor === "number" && Number.isFinite(input.referral_credit_divisor)) {
-    next.referral_credit_divisor = Math.min(60, Math.max(1, Math.floor(input.referral_credit_divisor)));
-  }
-
   const { data, error } = await db
     .from("dashboard_admin_settings")
     .upsert(

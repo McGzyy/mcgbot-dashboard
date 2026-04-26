@@ -12,7 +12,7 @@ import {
   matchConfirmedNativeSolPayment,
 } from "@/lib/solana/matchNativePayment";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { maybeAwardReferralProCreditForPaidInvoice } from "@/lib/referralRewards";
+import { recordPendingReferralEventForPaidInvoice } from "@/lib/referralRewards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -124,11 +124,10 @@ async function runReconcile(): Promise<Response> {
             planId: inv.plan_id,
             durationDays: days,
           });
-          await maybeAwardReferralProCreditForPaidInvoice({
+          await recordPendingReferralEventForPaidInvoice({
             referredUserId: inv.discord_id,
             invoiceId: inv.id,
-            durationDays: days,
-            planIdForFallback: inv.plan_id,
+            refereePeriodDays: days,
             source: "reconcile-subscriptions",
           });
         }

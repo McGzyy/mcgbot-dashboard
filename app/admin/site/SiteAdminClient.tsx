@@ -35,8 +35,6 @@ type AppSettings = {
   trusted_pro_apply_min_best_x_30d: number;
   /** Incremented when admins force global logout; invalidates JWTs until re-auth. */
   session_invalidation_epoch: number;
-  /** Each referee paid period credits the referrer floor(period_days / divisor) Pro days (min 1). Default 5 = one-fifth. */
-  referral_credit_divisor: number;
   updated_at?: string;
   updated_by_discord_id?: string | null;
 };
@@ -163,7 +161,6 @@ export function SiteAdminClient() {
           trusted_pro_apply_min_avg_x: settings.trusted_pro_apply_min_avg_x,
           trusted_pro_apply_min_win_rate: settings.trusted_pro_apply_min_win_rate,
           trusted_pro_apply_min_best_x_30d: settings.trusted_pro_apply_min_best_x_30d,
-          referral_credit_divisor: settings.referral_credit_divisor,
         }),
       });
       const json = (await res.json().catch(() => ({}))) as {
@@ -388,29 +385,6 @@ export function SiteAdminClient() {
             />
           </label>
         </div>
-      </SettingsSection>
-
-      <SettingsSection
-        kicker="Referrals"
-        title="Pro-day credit (1/N of a referee period)"
-        description="When a referred user completes a paid subscription invoice (matched by the reconcile cron), the referrer receives floor(referee_period_days / N) bonus Pro days on their own subscription, at least 1 day per payment. Example: N = 5 and the referee pays for 30 days, the referrer gets 6 days. Optional env REFERRAL_CREDIT_DIVISOR overrides this for emergencies."
-      >
-        <label className="block max-w-sm">
-          <span className="text-xs font-semibold text-zinc-300">Divisor N (1–60)</span>
-          <input
-            type="number"
-            min={1}
-            max={60}
-            value={settings?.referral_credit_divisor ?? 5}
-            onChange={(e) => {
-              const raw = Number(e.target.value);
-              const n = Number.isFinite(raw) ? Math.floor(raw) : 5;
-              const clamped = Math.min(60, Math.max(1, n));
-              setSettings((s) => (s ? { ...s, referral_credit_divisor: clamped } : s));
-            }}
-            className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
-          />
-        </label>
       </SettingsSection>
 
       {settingsError ? (

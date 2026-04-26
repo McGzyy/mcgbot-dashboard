@@ -1,54 +1,24 @@
-import { getDashboardAdminSettings } from "@/lib/dashboardAdminSettingsDb";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { extendSubscriptionDays, listActivePlans } from "@/lib/subscription/subscriptionDb";
 
-/** Ledger row `reward_key` for any credited slice tied to a referee subscription payment. */
-export const REFERRAL_REWARD_KEY_SUBSCRIPTION_PAYMENT = "pro_days_subscription_payment";
-
-function divisorFromEnv(): number | null {
-  const raw = (process.env.REFERRAL_CREDIT_DIVISOR ?? "").trim();
-  if (!raw) return null;
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return null;
-  const d = Math.floor(n);
-  if (d < 1 || d > 60) return null;
-  return d;
-}
-
-export async function getReferralCreditDivisor(): Promise<number> {
-  const env = divisorFromEnv();
-  if (env != null) return env;
-  const row = await getDashboardAdminSettings();
-  const d = row?.referral_credit_divisor;
-  if (typeof d === "number" && Number.isFinite(d)) {
-    const n = Math.floor(d);
-    if (n >= 1 && n <= 60) return n;
-  }
-  return 5;
-}
-
-/** Pro days credited to referrer for one referee billing period of `durationDays`. */
-export function computeReferralAwardDays(durationDays: number, divisor: number): number {
-  const dur = Math.max(0, Math.floor(durationDays));
-  const div = Math.max(1, Math.floor(divisor));
-  if (dur <= 0) return 0;
-  return Math.max(1, Math.floor(dur / div));
-}
+/** Ledger row type for a referee subscription payment we may reward later (policy TBD). */
+export const REFERRAL_EVENT_KEY_SUBSCRIPTION_PAYMENT = "subscription_payment_qualifying";
 
 /**
- * When a referee completes a paid subscription invoice, credit the referrer a slice of that period.
+ * Record a qualifying paid subscription invoice for the referee. Does not extend anyone's Pro time.
  * Idempotent via `referral_rewards.idempotency_key` (one row per invoice).
  */
-export async function maybeAwardReferralProCreditForPaidInvoice(input: {
+export async function recordPendingReferralEventForPaidInvoice(input: {
   referredUserId: string;
   invoiceId: string;
-  durationDays: number;
-  planIdForFallback: string;
+  refereePeriodDays: number;
   source: "reconcile-subscriptions";
-}): Promise<{ ok: true; awarded: boolean } | { ok: false; error: string }> {
+}): Promise<{ ok: true; recorded: boolean } | { ok: false; error: string }> {
   const referredUserId = input.referredUserId.trim();
   const invoiceId = input.invoiceId.trim();
   if (!referredUserId || !invoiceId) return { ok: false, error: "missing_ids" };
+
+  const periodDays = Math.max(0, Math.floor(input.refereePeriodDays));
+  if (!Number.isFinite(periodDays) || periodDays <= 0) return { ok: true, recorded: false };
 
   const db = getSupabaseAdmin();
   if (!db) return { ok: false, error: "db_not_configured" };
@@ -66,12 +36,8 @@ export async function maybeAwardReferralProCreditForPaidInvoice(input: {
 
   const owner = typeof (refRow as any)?.owner_discord_id === "string" ? String((refRow as any).owner_discord_id) : "";
   const ownerDiscordId = owner.trim();
-  if (!ownerDiscordId) return { ok: true, awarded: false };
-  if (ownerDiscordId === referredUserId) return { ok: true, awarded: false };
-
-  const divisor = await getReferralCreditDivisor();
-  const awardDays = computeReferralAwardDays(input.durationDays, divisor);
-  if (awardDays <= 0) return { ok: true, awarded: false };
+  if (!ownerDiscordId) return { ok: true, recorded: false };
+  if (ownerDiscordId === referredUserId) return { ok: true, recorded: false };
 
   const idempotencyKey = `paid_invoice:${invoiceId}`;
 
@@ -79,37 +45,32 @@ export async function maybeAwardReferralProCreditForPaidInvoice(input: {
     idempotency_key: idempotencyKey,
     owner_discord_id: ownerDiscordId,
     referred_user_id: referredUserId,
-    reward_key: REFERRAL_REWARD_KEY_SUBSCRIPTION_PAYMENT,
-    award_days: awardDays,
+    reward_key: REFERRAL_EVENT_KEY_SUBSCRIPTION_PAYMENT,
+    award_days: null,
+    status: "pending",
+    referee_period_days: periodDays,
     source: input.source,
     source_invoice_id: invoiceId,
     note: null,
   });
   if (insErr) {
-    if (insErr.code === "23505") return { ok: true, awarded: false };
+    if (insErr.code === "23505") return { ok: true, recorded: false };
     console.error("[referralRewards] insert ledger", insErr);
     return { ok: false, error: "ledger_insert_failed" };
   }
 
-  const extended = await extendSubscriptionDays({
-    discordId: ownerDiscordId,
-    days: awardDays,
-    fallbackPlanId: input.planIdForFallback ?? null,
-  });
-  if (!extended) {
-    return { ok: false, error: "extend_failed" };
-  }
-
-  return { ok: true, awarded: true };
+  return { ok: true, recorded: true };
 }
 
 export type ReferralRewardPublicSummary = {
-  totalProDaysEarned: number;
+  /** Qualifying paid-invoice events not yet tied to a reward policy. */
+  pendingQualifyingPayments: number;
+  /** Rows already settled under a prior policy (e.g. legacy auto Pro days). */
+  grantedLedgerRows: number;
+  voidedLedgerRows: number;
   activePayingReferrals: number;
-  creditDivisor: number;
-  /** Example using the shortest active plan's duration (sorted like checkout). */
-  examplePlanDurationDays: number | null;
-  estimatedDaysPerReferralRenewal: number | null;
+  /** Sum of award_days on granted rows only (historical; not a promise of future value). */
+  legacyGrantedProDaysTotal: number;
 };
 
 export async function getReferralRewardSummaryForOwner(ownerDiscordId: string): Promise<ReferralRewardPublicSummary | null> {
@@ -119,21 +80,29 @@ export async function getReferralRewardSummaryForOwner(ownerDiscordId: string): 
   const db = getSupabaseAdmin();
   if (!db) return null;
 
-  const divisor = await getReferralCreditDivisor();
-
   const { data: rewardRows, error: rwErr } = await db
     .from("referral_rewards")
-    .select("award_days")
+    .select("status, award_days")
     .eq("owner_discord_id", owner);
   if (rwErr) {
-    console.error("[referralRewards] sum rewards", rwErr);
+    console.error("[referralRewards] list rewards", rwErr);
     return null;
   }
-  let totalProDaysEarned = 0;
+
+  let pendingQualifyingPayments = 0;
+  let grantedLedgerRows = 0;
+  let voidedLedgerRows = 0;
+  let legacyGrantedProDaysTotal = 0;
+
   if (Array.isArray(rewardRows)) {
-    for (const r of rewardRows as { award_days?: unknown }[]) {
-      const n = Number(r?.award_days);
-      if (Number.isFinite(n) && n > 0) totalProDaysEarned += Math.floor(n);
+    for (const r of rewardRows as { status?: unknown; award_days?: unknown }[]) {
+      const st = typeof r.status === "string" ? r.status.trim() : "";
+      if (st === "pending") pendingQualifyingPayments += 1;
+      else if (st === "granted") {
+        grantedLedgerRows += 1;
+        const n = Number(r.award_days);
+        if (Number.isFinite(n) && n > 0) legacyGrantedProDaysTotal += Math.floor(n);
+      } else if (st === "voided") voidedLedgerRows += 1;
     }
   }
 
@@ -168,22 +137,11 @@ export async function getReferralRewardSummaryForOwner(ownerDiscordId: string): 
     }
   }
 
-  const plans = await listActivePlans();
-  const firstPlan = plans[0];
-  const examplePlanDurationDays =
-    firstPlan && Number.isFinite(Number(firstPlan.duration_days))
-      ? Math.max(1, Math.floor(Number(firstPlan.duration_days)))
-      : null;
-  const estimatedDaysPerReferralRenewal =
-    examplePlanDurationDays != null && examplePlanDurationDays > 0
-      ? computeReferralAwardDays(examplePlanDurationDays, divisor)
-      : null;
-
   return {
-    totalProDaysEarned,
+    pendingQualifyingPayments,
+    grantedLedgerRows,
+    voidedLedgerRows,
     activePayingReferrals,
-    creditDivisor: divisor,
-    examplePlanDurationDays,
-    estimatedDaysPerReferralRenewal,
+    legacyGrantedProDaysTotal,
   };
 }

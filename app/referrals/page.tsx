@@ -28,11 +28,11 @@ type ReferralPerformance = {
 };
 
 type RewardSummary = {
-  totalProDaysEarned: number;
+  pendingQualifyingPayments: number;
+  grantedLedgerRows: number;
+  voidedLedgerRows: number;
   activePayingReferrals: number;
-  creditDivisor: number;
-  examplePlanDurationDays: number | null;
-  estimatedDaysPerReferralRenewal: number | null;
+  legacyGrantedProDaysTotal: number;
 };
 
 function initialsFromHandle(name: string): string {
@@ -177,21 +177,11 @@ export default function ReferralsPage() {
         const rs = j.rewardSummary as Record<string, unknown> | null | undefined;
         if (rs && typeof rs === "object") {
           setRewardSummary({
-            totalProDaysEarned: Number(rs.totalProDaysEarned) || 0,
+            pendingQualifyingPayments: Number(rs.pendingQualifyingPayments) || 0,
+            grantedLedgerRows: Number(rs.grantedLedgerRows) || 0,
+            voidedLedgerRows: Number(rs.voidedLedgerRows) || 0,
             activePayingReferrals: Number(rs.activePayingReferrals) || 0,
-            creditDivisor: Number(rs.creditDivisor) || 5,
-            examplePlanDurationDays:
-              rs.examplePlanDurationDays == null
-                ? null
-                : Number.isFinite(Number(rs.examplePlanDurationDays))
-                  ? Math.floor(Number(rs.examplePlanDurationDays))
-                  : null,
-            estimatedDaysPerReferralRenewal:
-              rs.estimatedDaysPerReferralRenewal == null
-                ? null
-                : Number.isFinite(Number(rs.estimatedDaysPerReferralRenewal))
-                  ? Math.floor(Number(rs.estimatedDaysPerReferralRenewal))
-                  : null,
+            legacyGrantedProDaysTotal: Number(rs.legacyGrantedProDaysTotal) || 0,
           });
         } else {
           setRewardSummary(null);
@@ -547,14 +537,13 @@ export default function ReferralsPage() {
         <div className="relative">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Rewards</h2>
-            <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200/90">
-              Pro days
+            <span className="rounded-md border border-violet-500/25 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-200/90">
+              Attribution
             </span>
           </div>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
-            When someone you referred completes a paid subscription (on-chain checkout), you earn bonus Pro
-            time: each of their payments credits you about one slice of their billing period (see divisor N
-            below). Cash milestones can layer on later; this phase is subscription credit only.
+            We record qualifying subscription payments from people you referred. Nothing is auto-credited to
+            your membership until we publish a reward policy; this panel is your transparent ledger preview.
           </p>
 
           {!referralsLoaded ? (
@@ -565,12 +554,14 @@ export default function ReferralsPage() {
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
-                  Credited so far
+                  Pending events
                 </p>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">
-                  {rewardSummary.totalProDaysEarned}
+                  {rewardSummary.pendingQualifyingPayments}
                 </p>
-                <p className="mt-1 text-xs text-zinc-500">Bonus Pro days added to your membership</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Paid referee checkouts we logged; not valued in days or cash yet.
+                </p>
               </div>
               <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
@@ -583,44 +574,43 @@ export default function ReferralsPage() {
               </div>
               <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
-                  Divisor N
+                  Settled rows
                 </p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">{rewardSummary.creditDivisor}</p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  You get floor(referee paid days ÷ N) days per referee payment (minimum 1).
-                </p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">{rewardSummary.grantedLedgerRows}</p>
+                <p className="mt-1 text-xs text-zinc-500">Ledger rows marked granted (incl. any legacy auto-credits).</p>
               </div>
               <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
-                  Per renewal (example)
+                  Legacy Pro days total
                 </p>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">
-                  {rewardSummary.estimatedDaysPerReferralRenewal != null
-                    ? rewardSummary.estimatedDaysPerReferralRenewal
-                    : "—"}
+                  {rewardSummary.legacyGrantedProDaysTotal}
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {rewardSummary.examplePlanDurationDays != null
-                    ? `If a referee pays for the ${rewardSummary.examplePlanDurationDays}-day starter plan, one renewal credits you about this many days.`
-                    : "Based on your live subscription plans (first plan row)."}
+                  Sum of day credits on granted rows only; not a promise of future payouts.
                 </p>
               </div>
             </div>
           ) : (
             <div className="mt-5 rounded-xl border border-dashed border-zinc-600/40 bg-black/30 px-4 py-6 text-center">
               <p className="text-sm text-zinc-500">
-                Reward totals need the service role on the server. Check SUPABASE_SERVICE_ROLE_KEY.
+                Ledger summary needs the service role on the server. Check SUPABASE_SERVICE_ROLE_KEY.
               </p>
             </div>
           )}
 
+          {rewardSummary != null && rewardSummary.voidedLedgerRows > 0 ? (
+            <p className="mt-4 text-xs text-zinc-600">
+              Voided ledger rows:{" "}
+              <span className="font-mono tabular-nums text-zinc-500">{rewardSummary.voidedLedgerRows}</span>
+            </p>
+          ) : null}
+
           <div className="mt-5 rounded-xl border border-dashed border-violet-500/25 bg-black/30 px-4 py-4">
-            <p className="text-xs font-medium text-violet-200/85">Why five referrals can cover you</p>
+            <p className="text-xs font-medium text-violet-200/85">What happens next</p>
             <p className="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-zinc-500">
-              If N is 5 and each referee is on the same paid period length as you, five referees each renewing
-              once in a stretch roughly replaces one full period of your own subscription (5 × 1/5 = 1).
-              In practice, plans differ and renewals do not line up on a calendar — treat this as a rule of
-              thumb, not a guaranteed monthly balance.
+              When you are ready to ship a reward policy, we can map pending rows to Pro time, points, or cash
+              in a controlled step (batch or admin-triggered) without rewriting attribution.
             </p>
           </div>
         </div>
