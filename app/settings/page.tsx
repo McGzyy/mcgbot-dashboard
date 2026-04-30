@@ -1,6 +1,13 @@
 "use client";
 
 import type { WidgetsEnabled } from "@/app/api/dashboard-settings/route";
+import {
+  DEFAULT_NOTIFICATION_SOUND,
+  NOTIFICATION_SOUND_OPTIONS,
+  parseNotificationSoundType,
+  previewNotificationSound,
+  type NotificationSoundId,
+} from "@/lib/notificationSounds";
 import { dispatchPreferencesUpdated } from "@/lib/preferencesEvents";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -115,7 +122,7 @@ type PrefsState = {
   include_global: boolean;
   min_multiple: number;
   sound_enabled: boolean;
-  sound_type: "classic" | "soft_pop" | "soft_chime";
+  sound_type: NotificationSoundId;
 };
 
 type ProfileVisibility = {
@@ -253,7 +260,7 @@ function SettingsPageInner() {
     include_global: false,
     min_multiple: 2,
     sound_enabled: true,
-    sound_type: "soft_pop",
+    sound_type: DEFAULT_NOTIFICATION_SOUND,
   });
   const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>(
     DEFAULT_PROFILE_VISIBILITY
@@ -314,13 +321,7 @@ function SettingsPageInner() {
         } else {
           const d = prefsData as Record<string, unknown>;
           const own_calls = !!d.own_calls;
-          const st = d.sound_type;
-          const sound_type: PrefsState["sound_type"] =
-            st === "soft_chime"
-              ? "soft_chime"
-              : st === "soft_pop" || st === "ping"
-                ? "soft_pop"
-                : "classic";
+          const sound_type = parseNotificationSoundType(d.sound_type);
           setPrefs({
             own_calls,
             include_following: own_calls ? false : !!d.include_following,
@@ -1145,28 +1146,36 @@ function SettingsPageInner() {
               Sound type
             </label>
             <p className="mt-0.5 text-xs text-zinc-500">
-              Choose the sound used for in-dashboard notifications.
+              Pick a preset for in-dashboard toasts. Subtle options are listed first;
+              Classic uses the original short MP3 clip.
             </p>
-            <select
-              id="notification-sound-type"
-              value={prefs.sound_type}
-              onChange={(e) => {
-                const v = e.target.value;
-                setPrefs((prev) => ({
-                  ...prev,
-                  sound_type:
-                    v === "soft_pop" || v === "soft_chime"
-                      ? (v as PrefsState["sound_type"])
-                      : "classic",
-                }));
-              }}
-              disabled={settingsLoading || !prefs.sound_enabled}
-              className="mt-3 w-full max-w-[260px] rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50"
-            >
-              <option value="classic">Classic ping</option>
-              <option value="soft_pop">Soft pop</option>
-              <option value="soft_chime">Soft chime</option>
-            </select>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
+              <select
+                id="notification-sound-type"
+                value={prefs.sound_type}
+                onChange={(e) => {
+                  const v = parseNotificationSoundType(e.target.value);
+                  setPrefs((prev) => ({ ...prev, sound_type: v }));
+                }}
+                disabled={settingsLoading || !prefs.sound_enabled}
+                className="w-full min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50 sm:max-w-md"
+              >
+                {NOTIFICATION_SOUND_OPTIONS.map(({ id, label }) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => previewNotificationSound(prefs.sound_type)}
+                disabled={settingsLoading || !prefs.sound_enabled}
+                aria-label="Play a sample of the selected notification sound"
+                className="shrink-0 rounded-md border border-zinc-600 bg-zinc-900/80 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Play sample
+              </button>
+            </div>
           </div>
 
           <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/35 px-3 py-3 sm:col-span-2 sm:px-4">

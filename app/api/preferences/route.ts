@@ -1,6 +1,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  DEFAULT_NOTIFICATION_SOUND,
+  parseNotificationSoundType,
+} from "@/lib/notificationSounds";
 
 const DEFAULTS = {
   own_calls: true,
@@ -8,18 +12,8 @@ const DEFAULTS = {
   include_global: false,
   min_multiple: 2,
   sound_enabled: true,
-  sound_type: "soft_pop" as const,
+  sound_type: DEFAULT_NOTIFICATION_SOUND,
 };
-
-type SoundType = "classic" | "soft_pop" | "soft_chime";
-
-function parseSoundType(raw: unknown): SoundType {
-  const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  if (s === "soft_chime") return "soft_chime";
-  if (s === "soft_pop" || s === "ping") return "soft_pop";
-  if (s === "classic") return "classic";
-  return DEFAULTS.sound_type;
-}
 
 export async function GET() {
   try {
@@ -84,7 +78,9 @@ export async function GET() {
         typeof row.sound_enabled === "boolean"
           ? row.sound_enabled
           : DEFAULTS.sound_enabled,
-      sound_type: parseSoundType((row as any).sound_type ?? DEFAULTS.sound_type),
+      sound_type: parseNotificationSoundType(
+        (row as any).sound_type ?? DEFAULTS.sound_type
+      ),
     });
   } catch (e) {
     console.error("[preferences API] GET:", e);
@@ -139,7 +135,9 @@ export async function POST(request: Request) {
         ? o.sound_enabled
         : DEFAULTS.sound_enabled;
 
-    const sound_type = parseSoundType(o.sound_type ?? DEFAULTS.sound_type);
+    const sound_type = parseNotificationSoundType(
+      o.sound_type ?? DEFAULTS.sound_type
+    );
 
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_ANON_KEY;

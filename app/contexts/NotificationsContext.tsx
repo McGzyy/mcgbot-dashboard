@@ -1,6 +1,12 @@
 "use client";
 
 import { MCBGOT_PREFERENCES_UPDATED } from "@/lib/preferencesEvents";
+import {
+  isClassicMp3Sound,
+  parseNotificationSoundType,
+  playNotificationWebSound,
+  type NotificationSoundId,
+} from "@/lib/notificationSounds";
 import { useSession } from "next-auth/react";
 import {
   createContext,
@@ -33,8 +39,6 @@ const FADE_OUT_MS = 200;
 let lastSoundTime = 0;
 let audioCtx: AudioContext | null = null;
 
-type NotificationSoundType = "classic" | "soft_pop" | "soft_chime";
-
 function safeAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   const AC = (window.AudioContext || (window as any).webkitAudioContext) as
@@ -43,76 +47,6 @@ function safeAudioContext(): AudioContext | null {
   if (!AC) return null;
   if (!audioCtx) audioCtx = new AC();
   return audioCtx;
-}
-
-function parseSoundType(raw: unknown): NotificationSoundType {
-  const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  if (s === "soft_chime") return "soft_chime";
-  if (s === "soft_pop" || s === "ping") return "soft_pop";
-  if (s === "classic") return "classic";
-  return "soft_pop";
-}
-
-function playWebAudioSound(type: NotificationSoundType): void {
-  const ctx = safeAudioContext();
-  if (!ctx) return;
-
-  // Some browsers require user gesture; resume is best-effort.
-  if (ctx.state === "suspended") {
-    void ctx.resume().catch(() => {});
-  }
-
-  const now = ctx.currentTime;
-
-  // Master gain keeps everything quiet by default.
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0.0, now);
-  master.gain.linearRampToValueAtTime(0.18, now + 0.008);
-  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
-  master.connect(ctx.destination);
-
-  if (type === "soft_pop") {
-    // A tiny sine "pop": fast pitch drop + very short envelope.
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = "sine";
-    o.frequency.setValueAtTime(520, now);
-    o.frequency.exponentialRampToValueAtTime(220, now + 0.09);
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.85, now + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-    o.connect(g);
-    g.connect(master);
-    o.start(now);
-    o.stop(now + 0.18);
-    return;
-  }
-
-  if (type === "soft_chime") {
-    // Soft chime: two harmonics + longer decay.
-    master.gain.setValueAtTime(0.0, now);
-    master.gain.linearRampToValueAtTime(0.14, now + 0.01);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
-
-    const mk = (freq: number, detune: number) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = "sine";
-      o.frequency.setValueAtTime(freq, now);
-      o.detune.setValueAtTime(detune, now);
-      g.gain.setValueAtTime(0.0001, now);
-      g.gain.exponentialRampToValueAtTime(0.65, now + 0.015);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
-      o.connect(g);
-      g.connect(master);
-      o.start(now);
-      o.stop(now + 0.62);
-    };
-
-    mk(660, -8);
-    mk(990, 6);
-    return;
-  }
 }
 
 type NotificationsContextValue = {
@@ -135,7 +69,9 @@ export function useNotifications(): NotificationsContextValue {
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { status: sessionStatus } = useSession();
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [soundType, setSoundType] = useState<NotificationSoundType>("soft_pop");
+  const [soundType, setSoundType] = useState<NotificationSoundId>(
+    parseNotificationSoundType(undefined)
+  );
   const [notifications, setNotifications] = useState<DashboardNotification[]>(
     []
   );
@@ -164,7 +100,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           }
           const d = data as Record<string, unknown>;
           setSoundEnabled(!!d.sound_enabled);
-          setSoundType(parseSoundType((d as any).sound_type));
+          setSoundType(parseNotificationSoundType((d as any).sound_type));
         })
         .catch(() => {});
     };
@@ -202,12 +138,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         const now = Date.now();
 
         if (now - lastSoundTime > 500) {
-          if (soundType === "classic") {
+          if (isClassicMp3Sound(soundType)) {
             const audio = new Audio("/sounds/ping.mp3");
             audio.volume = 0.22;
             void audio.play().catch(() => {});
           } else {
-            playWebAudioSound(soundType);
+            const ctx = safeAudioContext();
+            if (ctx) playNotificationWebSound(ctx, soundType);
           }
 
           lastSoundTime = now;
