@@ -7,20 +7,22 @@ create table if not exists public.subscription_plans (
   label text not null,
   duration_days int not null check (duration_days > 0),
   price_usd numeric(12, 2) not null check (price_usd >= 0),
+  discount_percent int not null default 0 check (discount_percent >= 0 and discount_percent <= 100),
   sort_order int not null default 0,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
 
-insert into public.subscription_plans (slug, label, duration_days, price_usd, sort_order)
+insert into public.subscription_plans (slug, label, duration_days, price_usd, discount_percent, sort_order)
 values
-  ('monthly', 'Monthly', 30, 19.00, 1),
-  ('six_month', '6 months', 180, 99.00, 2),
-  ('annual', '12 months', 365, 179.00, 3)
+  ('monthly', 'Monthly', 30, 19.00, 0, 1),
+  ('six_month', '6 months', 180, 99.00, 10, 2),
+  ('annual', '12 months', 365, 179.00, 20, 3)
 on conflict (slug) do update set
   label = excluded.label,
   duration_days = excluded.duration_days,
   price_usd = excluded.price_usd,
+  discount_percent = excluded.discount_percent,
   sort_order = excluded.sort_order,
   active = true;
 

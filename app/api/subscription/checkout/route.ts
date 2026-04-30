@@ -115,8 +115,12 @@ export async function POST(request: Request) {
       ? voucherDurationDaysOverride
       : plan.duration_days;
 
-  const percent = Math.max(0, Math.min(100, voucherPercentOff));
-  const discountedUsd = Math.max(0, plan.price_usd * (1 - percent / 100));
+  const planPercent = Math.max(0, Math.min(100, Math.round(Number((plan as any).discount_percent ?? 0) || 0)));
+  const listUsd = Math.max(0, Number(plan.price_usd));
+  const afterPlanUsd = Math.max(0, listUsd * (1 - planPercent / 100));
+
+  const voucherPercent = Math.max(0, Math.min(100, voucherPercentOff));
+  const discountedUsd = Math.max(0, afterPlanUsd * (1 - voucherPercent / 100));
 
   if (discountedUsd <= 0) {
     const granted = await upsertSubscriptionAfterPayment({
@@ -129,8 +133,8 @@ export async function POST(request: Request) {
       success: true,
       activated: true,
       via: "voucher",
-      plan: { slug: plan.slug, label: plan.label, priceUsd: plan.price_usd, durationDays: finalDurationDays },
-      voucher: { percentOff: percent },
+      plan: { slug: plan.slug, label: plan.label, priceUsd: discountedUsd, durationDays: finalDurationDays },
+      voucher: { percentOff: voucherPercent },
       subscriptionUpdated: Boolean(granted),
     });
   }
@@ -175,7 +179,11 @@ export async function POST(request: Request) {
   const amountSol = lamportsToSolString(lamports);
   const label = encodeURIComponent("McGBot subscription");
   const message = encodeURIComponent(
-    `${plan.label} · ${discountedUsd.toFixed(2)} USD quoted${percent > 0 ? ` (${percent}% off)` : ""}`
+    `${plan.label} · ${discountedUsd.toFixed(2)} USD quoted${
+      planPercent > 0 || voucherPercent > 0
+        ? ` (${planPercent > 0 ? `${planPercent}% plan` : ""}${planPercent > 0 && voucherPercent > 0 ? " + " : ""}${voucherPercent > 0 ? `${voucherPercent}% voucher` : ""} off)`
+        : ""
+    }`
   );
   const solanaPayUrl = `solana:${treasury.toBase58()}?amount=${amountSol}&reference=${encodeURIComponent(
     referencePubkey
@@ -194,6 +202,7 @@ export async function POST(request: Request) {
     treasury: treasury.toBase58(),
     reference: referencePubkey,
     solanaPayUrl,
-    voucher: percent > 0 ? { percentOff: percent } : null,
+    voucher: voucherPercent > 0 ? { percentOff: voucherPercent } : null,
+    planDiscount: planPercent > 0 ? { percentOff: planPercent, listPriceUsd: listUsd } : null,
   });
 }

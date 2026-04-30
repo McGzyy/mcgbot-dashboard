@@ -8,6 +8,7 @@ export type SubscriptionPlanRow = {
   label: string;
   duration_days: number;
   price_usd: number;
+  discount_percent?: number | null;
 };
 
 export async function listActivePlans(): Promise<SubscriptionPlanRow[]> {
@@ -15,7 +16,7 @@ export async function listActivePlans(): Promise<SubscriptionPlanRow[]> {
   if (!db) return [];
   const { data, error } = await db
     .from("subscription_plans")
-    .select("id, slug, label, duration_days, price_usd")
+    .select("id, slug, label, duration_days, price_usd, discount_percent")
     .eq("active", true)
     .order("sort_order", { ascending: true });
   if (error || !data) return [];
@@ -27,7 +28,7 @@ export async function getPlanBySlug(slug: string): Promise<SubscriptionPlanRow |
   if (!db) return null;
   const { data, error } = await db
     .from("subscription_plans")
-    .select("id, slug, label, duration_days, price_usd")
+    .select("id, slug, label, duration_days, price_usd, discount_percent")
     .eq("slug", slug)
     .eq("active", true)
     .maybeSingle();

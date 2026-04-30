@@ -96,6 +96,13 @@ export default function AdminOverviewPage() {
           hint="Writes · Supabase"
           data-tutorial="admin.card.vouchers"
         />
+        <OverviewCard
+          href="/admin/subscription-plans"
+          title="Subscription plans"
+          subtitle="Edit plan labels, durations, prices, and built-in discounts."
+          hint="Writes · Supabase"
+          data-tutorial="admin.card.subscriptionPlans"
+        />
       </div>
     </div>
   );

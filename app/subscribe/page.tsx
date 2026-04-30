@@ -12,6 +12,8 @@ type Plan = {
   slug: string;
   label: string;
   priceUsd: number;
+  listPriceUsd?: number;
+  discountPercent?: number;
   durationDays: number;
 };
 
@@ -262,8 +264,13 @@ export default function SubscribePage() {
   const featuredSlug = useMemo(() => {
     if (!plans?.length) return "";
     let best = plans[0]!;
+    let bestScore = best.durationDays > 0 ? best.priceUsd / best.durationDays : Number.POSITIVE_INFINITY;
     for (const p of plans) {
-      if ((p.durationDays ?? 0) > (best.durationDays ?? 0)) best = p;
+      const score = p.durationDays > 0 ? p.priceUsd / p.durationDays : Number.POSITIVE_INFINITY;
+      if (score < bestScore) {
+        best = p;
+        bestScore = score;
+      }
     }
     return best.slug;
   }, [plans]);
@@ -584,6 +591,9 @@ export default function SubscribePage() {
             {plans.map((p) => {
               const sel = p.slug === selectedSlug;
               const featured = featuredSlug && p.slug === featuredSlug;
+              const discountPercent = Math.max(0, Math.min(100, Math.round(Number(p.discountPercent ?? 0) || 0)));
+              const listPriceUsd = Number.isFinite(Number(p.listPriceUsd)) ? Number(p.listPriceUsd) : null;
+              const showDiscount = discountPercent > 0 && listPriceUsd != null && listPriceUsd > p.priceUsd;
               return (
                 <button
                   key={p.slug}
@@ -605,16 +615,30 @@ export default function SubscribePage() {
                       <span className="text-sm font-semibold text-white">{p.label}</span>
                       <span className="mt-1 block text-xs text-zinc-500">{p.durationDays} days</span>
                     </div>
-                    {featured ? (
-                      <span className="rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]/90">
-                        Best value
-                      </span>
-                    ) : null}
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      {featured ? (
+                        <span className="rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]/90">
+                          Best value
+                        </span>
+                      ) : null}
+                      {showDiscount ? (
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-200">
+                          {discountPercent}% off
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
 
                   <div className="mt-4 flex items-baseline gap-2">
-                    <span className="text-2xl font-semibold tabular-nums text-zinc-100">${p.priceUsd}</span>
+                    <span className="text-2xl font-semibold tabular-nums text-zinc-100">
+                      ${p.priceUsd.toFixed(2)}
+                    </span>
                     <span className="text-xs text-zinc-500">USD</span>
+                    {showDiscount ? (
+                      <span className="ml-auto text-xs tabular-nums text-zinc-500 line-through">
+                        ${listPriceUsd!.toFixed(2)}
+                      </span>
+                    ) : null}
                   </div>
                   <span className="mt-3 text-[11px] text-zinc-500">
                     SOL amount is quoted at checkout

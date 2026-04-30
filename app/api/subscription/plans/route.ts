@@ -4,6 +4,12 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function clampPercent(raw: unknown): number {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
 export async function GET() {
   if (!getSupabaseAdmin()) {
     return Response.json(
@@ -29,5 +35,20 @@ export async function GET() {
       { status: 503 }
     );
   }
-  return Response.json({ success: true, plans });
+
+  const shaped = plans.map((p) => {
+    const discountPercent = clampPercent((p as any).discount_percent);
+    const listPriceUsd = Number(p.price_usd);
+    const priceUsd = Math.max(0, listPriceUsd * (1 - discountPercent / 100));
+    return {
+      slug: p.slug,
+      label: p.label,
+      durationDays: p.duration_days,
+      priceUsd,
+      listPriceUsd,
+      discountPercent,
+    };
+  });
+
+  return Response.json({ success: true, plans: shaped });
 }
