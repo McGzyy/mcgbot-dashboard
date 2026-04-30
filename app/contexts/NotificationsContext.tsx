@@ -2,7 +2,6 @@
 
 import { MCBGOT_PREFERENCES_UPDATED } from "@/lib/preferencesEvents";
 import {
-  isClassicMp3Sound,
   parseNotificationSoundType,
   playNotificationWebSound,
   type NotificationSoundId,
@@ -138,15 +137,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         const now = Date.now();
 
         if (now - lastSoundTime > 500) {
-          if (isClassicMp3Sound(soundType)) {
-            const audio = new Audio("/sounds/ping.mp3");
-            audio.volume = 0.22;
-            void audio.play().catch(() => {});
-          } else {
-            const ctx = safeAudioContext();
-            if (ctx) playNotificationWebSound(ctx, soundType);
-          }
-
+          const ctx = safeAudioContext();
+          if (ctx) playNotificationWebSound(ctx, soundType);
           lastSoundTime = now;
         }
       }

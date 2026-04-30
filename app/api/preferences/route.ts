@@ -1,10 +1,10 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
   DEFAULT_NOTIFICATION_SOUND,
   parseNotificationSoundType,
 } from "@/lib/notificationSounds";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 const DEFAULTS = {
   own_calls: true,
@@ -23,17 +23,14 @@ export async function GET() {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
-    if (!url || !key) {
-      console.error("Missing Supabase env vars");
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      console.error("[preferences] GET: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
       return Response.json(
-        { error: "Supabase not configured" },
-        { status: 500 }
+        { error: "Server storage not configured" },
+        { status: 503 }
       );
     }
-
-    const supabase = createClient(url, key) as SupabaseClient;
 
     const { data, error } = await supabase
       .from("user_preferences")
@@ -139,17 +136,14 @@ export async function POST(request: Request) {
       o.sound_type ?? DEFAULTS.sound_type
     );
 
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
-    if (!url || !key) {
-      console.error("Missing Supabase env vars");
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      console.error("[preferences] POST: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
       return Response.json(
-        { error: "Supabase not configured" },
-        { status: 500 }
+        { error: "Server storage not configured" },
+        { status: 503 }
       );
     }
-
-    const supabase = createClient(url, key) as SupabaseClient;
 
     const { error } = await supabase.from("user_preferences").upsert(
       {

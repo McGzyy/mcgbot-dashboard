@@ -1,9 +1,48 @@
 /**
- * In-dashboard notification sounds (stored in user_preferences.sound_type).
- * All except `classic` are synthesized via Web Audio (no extra assets).
+ * In-dashboard notification sounds (user_preferences.sound_type).
+ * All presets are synthesized via Web Audio (no MP3 assets).
  */
 
 export const NOTIFICATION_SOUND_IDS = [
+  "airy_ding",
+  "double_knock",
+  "interval_ping",
+  "marimba_pair",
+  "tri_tone",
+  "nudge_warm",
+  "bright_inbox",
+  "descending_trio",
+  "handbell_single",
+  "layered_chime",
+  "soft_chime",
+] as const;
+
+export type NotificationSoundId = (typeof NOTIFICATION_SOUND_IDS)[number];
+
+export const DEFAULT_NOTIFICATION_SOUND: NotificationSoundId = "airy_ding";
+
+/** UI: id + label (notification-style tones first; harmonic shimmer kept as requested). */
+export const NOTIFICATION_SOUND_OPTIONS: {
+  id: NotificationSoundId;
+  label: string;
+}[] = [
+  { id: "airy_ding", label: "Airy ding — light system-style ping" },
+  { id: "double_knock", label: "Double knock — two soft taps" },
+  { id: "interval_ping", label: "Interval ping — fifth harmony, short" },
+  { id: "marimba_pair", label: "Marimba pair — two wooden notes" },
+  { id: "tri_tone", label: "Tri-tone — quick major triad" },
+  { id: "nudge_warm", label: "Nudge warm — soft two-note bump" },
+  { id: "bright_inbox", label: "Bright inbox — crisp triplet rise" },
+  { id: "descending_trio", label: "Descending trio — message-style fall" },
+  { id: "handbell_single", label: "Handbell — single warm strike" },
+  { id: "layered_chime", label: "Layered chime — staggered harmonics" },
+  { id: "soft_chime", label: "Soft chime — harmonic shimmer" },
+];
+
+const ID_SET = new Set<string>(NOTIFICATION_SOUND_IDS);
+
+/** Old ids from prior releases → map to current default so DB rows still work. */
+const LEGACY_SOUND_IDS = new Set([
   "gentle_bell",
   "minimal_drop",
   "glass_ping",
@@ -11,79 +50,33 @@ export const NOTIFICATION_SOUND_IDS = [
   "pulse_two",
   "warm_pluck",
   "soft_pop",
-  "soft_chime",
   "classic",
-] as const;
-
-export type NotificationSoundId = (typeof NOTIFICATION_SOUND_IDS)[number];
-
-export const DEFAULT_NOTIFICATION_SOUND: NotificationSoundId = "gentle_bell";
-
-/** UI: value + human-readable label (order = suggested try order, subtle first). */
-export const NOTIFICATION_SOUND_OPTIONS: {
-  id: NotificationSoundId;
-  label: string;
-}[] = [
-  { id: "gentle_bell", label: "Gentle bell — soft single tone" },
-  { id: "minimal_drop", label: "Minimal drop — very quiet thump" },
-  { id: "glass_ping", label: "Glass ping — short bright tick" },
-  { id: "digital_tap", label: "Digital tap — tiny UI blip" },
-  { id: "pulse_two", label: "Pulse two — two soft rising notes" },
-  { id: "warm_pluck", label: "Warm pluck — mellow plucked tone" },
-  { id: "soft_pop", label: "Soft pop — small pitch drop" },
-  { id: "soft_chime", label: "Soft chime — harmonic shimmer" },
-  { id: "classic", label: "Classic ping — original MP3 alert" },
-];
-
-const ID_SET = new Set<string>(NOTIFICATION_SOUND_IDS);
+  "ping",
+]);
 
 export function parseNotificationSoundType(raw: unknown): NotificationSoundId {
   const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  if (s === "ping") return "soft_pop";
   if (ID_SET.has(s)) return s as NotificationSoundId;
+  if (LEGACY_SOUND_IDS.has(s)) return DEFAULT_NOTIFICATION_SOUND;
   return DEFAULT_NOTIFICATION_SOUND;
 }
 
-export function isClassicMp3Sound(type: NotificationSoundId): boolean {
-  return type === "classic";
-}
-
 function connectMaster(ctx: AudioContext, peak: number, hold: number, tail: number): GainNode {
-  const now = ctx.currentTime;
+  const t = ctx.currentTime;
   const master = ctx.createGain();
-  master.gain.setValueAtTime(0.0, now);
-  master.gain.linearRampToValueAtTime(peak, now + 0.006);
-  master.gain.exponentialRampToValueAtTime(0.0001, now + hold + tail);
+  master.gain.setValueAtTime(0.0, t);
+  master.gain.linearRampToValueAtTime(peak, t + 0.006);
+  master.gain.exponentialRampToValueAtTime(0.0001, t + hold + tail);
   master.connect(ctx.destination);
   return master;
 }
 
-/** Plays every sound id except `classic` (that uses /sounds/ping.mp3 in the caller). */
 export function playNotificationWebSound(ctx: AudioContext, type: NotificationSoundId): void {
-  if (type === "classic") return;
-
   if (ctx.state === "suspended") {
     void ctx.resume().catch(() => {});
   }
 
   const now = ctx.currentTime;
-
-  if (type === "soft_pop") {
-    const master = connectMaster(ctx, 0.18, 0.02, 0.26);
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = "sine";
-    o.frequency.setValueAtTime(520, now);
-    o.frequency.exponentialRampToValueAtTime(220, now + 0.09);
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.85, now + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-    o.connect(g);
-    g.connect(master);
-    o.start(now);
-    o.stop(now + 0.18);
-    return;
-  }
 
   if (type === "soft_chime") {
     const master = ctx.createGain();
@@ -111,111 +104,255 @@ export function playNotificationWebSound(ctx: AudioContext, type: NotificationSo
     return;
   }
 
-  if (type === "gentle_bell") {
-    const master = connectMaster(ctx, 0.12, 0.02, 0.45);
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = "triangle";
-    o.frequency.setValueAtTime(523.25, now);
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.55, now + 0.012);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
-    o.connect(g);
-    g.connect(master);
-    o.start(now);
-    o.stop(now + 0.48);
-    return;
-  }
-
-  if (type === "minimal_drop") {
-    const master = connectMaster(ctx, 0.09, 0.01, 0.2);
+  if (type === "airy_ding") {
+    const master = connectMaster(ctx, 0.11, 0.02, 0.24);
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = "sine";
-    o.frequency.setValueAtTime(185, now);
-    o.frequency.exponentialRampToValueAtTime(95, now + 0.11);
+    o.frequency.setValueAtTime(1046.5, now);
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.7, now + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+    g.gain.exponentialRampToValueAtTime(0.72, now + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
     o.connect(g);
     g.connect(master);
     o.start(now);
-    o.stop(now + 0.16);
+    o.stop(now + 0.22);
     return;
   }
 
-  if (type === "glass_ping") {
-    const master = connectMaster(ctx, 0.11, 0.015, 0.22);
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = "sine";
-    o.frequency.setValueAtTime(1560, now);
-    o.frequency.linearRampToValueAtTime(2200, now + 0.035);
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.55, now + 0.006);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-    o.connect(g);
-    g.connect(master);
-    o.start(now);
-    o.stop(now + 0.15);
-    return;
-  }
-
-  if (type === "digital_tap") {
-    const master = connectMaster(ctx, 0.1, 0.01, 0.06);
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = "triangle";
-    o.frequency.setValueAtTime(1180, now);
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.5, now + 0.004);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
-    o.connect(g);
-    g.connect(master);
-    o.start(now);
-    o.stop(now + 0.055);
-    return;
-  }
-
-  if (type === "pulse_two") {
+  if (type === "double_knock") {
     const master = ctx.createGain();
     master.gain.setValueAtTime(0.0, now);
-    master.gain.linearRampToValueAtTime(0.11, now + 0.005);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+    master.gain.linearRampToValueAtTime(0.12, now + 0.004);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
     master.connect(ctx.destination);
 
-    const pulse = (t0: number, freq: number) => {
+    const knock = (t0: number) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(659.25, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.55, t0 + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
+      o.connect(g);
+      g.connect(master);
+      o.start(t0);
+      o.stop(t0 + 0.085);
+    };
+    knock(now);
+    knock(now + 0.09);
+    return;
+  }
+
+  if (type === "interval_ping") {
+    const master = connectMaster(ctx, 0.1, 0.02, 0.18);
+    const f1 = 523.25;
+    const f2 = 783.99;
+    const o1 = ctx.createOscillator();
+    const o2 = ctx.createOscillator();
+    const g1 = ctx.createGain();
+    const g2 = ctx.createGain();
+    o1.type = "sine";
+    o2.type = "sine";
+    o1.frequency.setValueAtTime(f1, now);
+    o2.frequency.setValueAtTime(f2, now);
+    for (const g of [g1, g2]) {
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.42, now + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+    }
+    o1.connect(g1);
+    o2.connect(g2);
+    g1.connect(master);
+    g2.connect(master);
+    o1.start(now);
+    o2.start(now);
+    o1.stop(now + 0.16);
+    o2.stop(now + 0.16);
+    return;
+  }
+
+  if (type === "marimba_pair") {
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0, now);
+    master.gain.linearRampToValueAtTime(0.11, now + 0.004);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+    master.connect(ctx.destination);
+
+    const hit = (t0: number, freq: number) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "triangle";
+      o.frequency.setValueAtTime(freq, t0);
+      o.frequency.exponentialRampToValueAtTime(freq * 0.55, t0 + 0.05);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.48, t0 + 0.003);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.065);
+      o.connect(g);
+      g.connect(master);
+      o.start(t0);
+      o.stop(t0 + 0.075);
+    };
+    hit(now, 392);
+    hit(now + 0.065, 587.33);
+    return;
+  }
+
+  if (type === "tri_tone") {
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0, now);
+    master.gain.linearRampToValueAtTime(0.11, now + 0.004);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+    master.connect(ctx.destination);
+
+    const tone = (t0: number, freq: number) => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
       o.type = "sine";
       o.frequency.setValueAtTime(freq, t0);
       g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.46, t0 + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.068);
+      o.connect(g);
+      g.connect(master);
+      o.start(t0);
+      o.stop(t0 + 0.078);
+    };
+    tone(now, 698.46);
+    tone(now + 0.07, 880.0);
+    tone(now + 0.14, 1046.5);
+    return;
+  }
+
+  if (type === "nudge_warm") {
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0, now);
+    master.gain.linearRampToValueAtTime(0.1, now + 0.004);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+    master.connect(ctx.destination);
+
+    const bump = (t0: number, freq: number) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.48, t0 + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.1);
+      o.connect(g);
+      g.connect(master);
+      o.start(t0);
+      o.stop(t0 + 0.12);
+    };
+    bump(now, 277.18);
+    bump(now + 0.11, 349.23);
+    return;
+  }
+
+  if (type === "bright_inbox") {
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0, now);
+    master.gain.linearRampToValueAtTime(0.12, now + 0.005);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+    master.connect(ctx.destination);
+
+    const blip = (t0: number, freq: number) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.52, t0 + 0.004);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.055);
       o.connect(g);
       g.connect(master);
       o.start(t0);
       o.stop(t0 + 0.065);
     };
-    pulse(now, 392);
-    pulse(now + 0.09, 523.25);
+    blip(now, 783.99);
+    blip(now + 0.075, 987.77);
+    blip(now + 0.15, 1174.66);
     return;
   }
 
-  if (type === "warm_pluck") {
-    const master = connectMaster(ctx, 0.13, 0.02, 0.28);
+  if (type === "descending_trio") {
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0, now);
+    master.gain.linearRampToValueAtTime(0.11, now + 0.005);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+    master.connect(ctx.destination);
+
+    const note = (t0: number, freq: number) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.085);
+      o.connect(g);
+      g.connect(master);
+      o.start(t0);
+      o.stop(t0 + 0.095);
+    };
+    note(now, 880);
+    note(now + 0.095, 659.25);
+    note(now + 0.19, 523.25);
+    return;
+  }
+
+  if (type === "handbell_single") {
+    const master = connectMaster(ctx, 0.1, 0.03, 0.55);
     const o = ctx.createOscillator();
     const g = ctx.createGain();
-    o.type = "sine";
-    o.frequency.setValueAtTime(330, now);
-    o.frequency.exponentialRampToValueAtTime(165, now + 0.12);
+    o.type = "triangle";
+    o.frequency.setValueAtTime(523.25, now);
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.58, now + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    g.gain.exponentialRampToValueAtTime(0.52, now + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.52);
     o.connect(g);
     g.connect(master);
     o.start(now);
-    o.stop(now + 0.26);
+    o.stop(now + 0.58);
+
+    const o2 = ctx.createOscillator();
+    const g2 = ctx.createGain();
+    o2.type = "sine";
+    o2.frequency.setValueAtTime(1046.5, now);
+    g2.gain.setValueAtTime(0.0001, now);
+    g2.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+    g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    o2.connect(g2);
+    g2.connect(master);
+    o2.start(now);
+    o2.stop(now + 0.5);
+    return;
+  }
+
+  if (type === "layered_chime") {
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0, now);
+    master.gain.linearRampToValueAtTime(0.12, now + 0.012);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+    master.connect(ctx.destination);
+
+    const partial = (t0: number, freq: number, peak: number) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.48);
+      o.connect(g);
+      g.connect(master);
+      o.start(t0);
+      o.stop(t0 + 0.52);
+    };
+    partial(now, 523.25, 0.45);
+    partial(now + 0.028, 659.25, 0.38);
+    partial(now + 0.055, 783.99, 0.32);
     return;
   }
 
@@ -235,14 +372,8 @@ function previewAudioContext(): AudioContext | null {
   return previewAudioCtx;
 }
 
-/** Play one sample of the chosen preset (settings preview; matches live toast behavior). */
+/** Play one sample of the chosen preset (settings preview; matches live toasts). */
 export function previewNotificationSound(type: NotificationSoundId): void {
-  if (isClassicMp3Sound(type)) {
-    const audio = new Audio("/sounds/ping.mp3");
-    audio.volume = 0.22;
-    void audio.play().catch(() => {});
-    return;
-  }
   const ctx = previewAudioContext();
   if (!ctx) return;
   playNotificationWebSound(ctx, type);

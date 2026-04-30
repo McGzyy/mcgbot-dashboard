@@ -655,25 +655,29 @@ function SettingsPageInner() {
         sound_type: prefs.sound_type,
       };
 
-      try {
-        const prefRes = await fetch("/api/preferences", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "same-origin",
-          body: JSON.stringify(preferences),
-        });
-
-        if (!prefRes.ok) {
-          const text = await prefRes.text();
-          console.warn("Preferences failed (non-blocking):", text);
-        } else {
-          dispatchPreferencesUpdated();
-        }
-      } catch (err) {
-        console.warn("Preferences error (non-blocking):", err);
+      const prefRes = await fetch("/api/preferences", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify(preferences),
+      });
+      const prefJson = (await prefRes.json().catch(() => ({}))) as Record<
+        string,
+        unknown
+      >;
+      if (!prefRes.ok) {
+        const apiErr =
+          typeof prefJson.error === "string" ? prefJson.error.trim() : "";
+        throw new Error(
+          apiErr ||
+            (prefRes.status === 503
+              ? "Could not save preferences: server is missing Supabase service role (SUPABASE_SERVICE_ROLE_KEY)."
+              : "Could not save notification preferences.")
+        );
       }
+      dispatchPreferencesUpdated();
 
       try {
         const profRes = await fetch("/api/profile", {
@@ -1146,8 +1150,8 @@ function SettingsPageInner() {
               Sound type
             </label>
             <p className="mt-0.5 text-xs text-zinc-500">
-              Pick a preset for in-dashboard toasts. Subtle options are listed first;
-              Classic uses the original short MP3 clip.
+              Short notification-style tones for in-dashboard toasts (all synthesized in
+              your browser).
             </p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
               <select
