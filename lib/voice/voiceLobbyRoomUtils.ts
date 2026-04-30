@@ -15,6 +15,13 @@ import { tierMeetsLobby } from "@/lib/voice/tierGate";
 
 export type VoiceRoomMember = { identity: string; name: string; isLocal: boolean };
 
+export type BindRoomPresenceOptions = {
+  /** Fired when a remote participant connects (not you). */
+  onRemoteParticipantJoined?: () => void;
+  /** Fired when a remote participant disconnects (not you). */
+  onRemoteParticipantLeft?: () => void;
+};
+
 export function speakerIdentities(speakers: readonly Participant[]): string[] {
   return speakers.map((s) => s.identity);
 }
@@ -23,7 +30,8 @@ export function speakerIdentities(speakers: readonly Participant[]): string[] {
 export function bindRoomPresence(
   room: Room,
   onMembers: (members: VoiceRoomMember[]) => void,
-  onSpeakingIdentities: (ids: string[]) => void
+  onSpeakingIdentities: (ids: string[]) => void,
+  presenceOpts?: BindRoomPresenceOptions
 ): () => void {
   const syncMembers = () => {
     const lp = room.localParticipant;
@@ -53,13 +61,27 @@ export function bindRoomPresence(
   syncMembers();
   onSpeakingIdentities(speakerIdentities(room.activeSpeakers ?? []));
 
-  room.on(RoomEvent.ParticipantConnected, syncMembers);
-  room.on(RoomEvent.ParticipantDisconnected, syncMembers);
+  const onParticipantConnected = (p: Participant) => {
+    syncMembers();
+    if (p.identity !== room.localParticipant.identity) {
+      presenceOpts?.onRemoteParticipantJoined?.();
+    }
+  };
+
+  const onParticipantDisconnected = (p: Participant) => {
+    syncMembers();
+    if (p.identity !== room.localParticipant.identity) {
+      presenceOpts?.onRemoteParticipantLeft?.();
+    }
+  };
+
+  room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
+  room.on(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
   room.on(RoomEvent.ActiveSpeakersChanged, onSpeakers);
 
   return () => {
-    room.off(RoomEvent.ParticipantConnected, syncMembers);
-    room.off(RoomEvent.ParticipantDisconnected, syncMembers);
+    room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
+    room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
     room.off(RoomEvent.ActiveSpeakersChanged, onSpeakers);
   };
 }

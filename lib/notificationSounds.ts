@@ -5,13 +5,11 @@
 
 export const NOTIFICATION_SOUND_IDS = [
   "airy_ding",
-  "double_knock",
   "interval_ping",
-  "marimba_pair",
   "tri_tone",
-  "nudge_warm",
   "bright_inbox",
   "descending_trio",
+  "double_knock",
   "handbell_single",
   "layered_chime",
   "soft_chime",
@@ -19,24 +17,34 @@ export const NOTIFICATION_SOUND_IDS = [
 
 export type NotificationSoundId = (typeof NOTIFICATION_SOUND_IDS)[number];
 
-export const DEFAULT_NOTIFICATION_SOUND: NotificationSoundId = "airy_ding";
+export const DEFAULT_NOTIFICATION_SOUND: NotificationSoundId = "soft_chime";
 
-/** UI: id + label (notification-style tones first; harmonic shimmer kept as requested). */
+/** You connect to a voice room (local join). */
+export const VOICE_LOCAL_JOIN_SOUND: NotificationSoundId = "bright_inbox";
+
+/** You disconnect from a voice room (local leave). */
+export const VOICE_LOCAL_LEAVE_SOUND: NotificationSoundId = "descending_trio";
+
+/** Someone else joins while you are in the room. */
+export const VOICE_REMOTE_JOIN_SOUND: NotificationSoundId = "airy_ding";
+
+/** Someone else leaves while you are in the room. */
+export const VOICE_REMOTE_LEAVE_SOUND: NotificationSoundId = "double_knock";
+
+/** UI: id + label */
 export const NOTIFICATION_SOUND_OPTIONS: {
   id: NotificationSoundId;
   label: string;
 }[] = [
+  { id: "soft_chime", label: "Soft chime — harmonic shimmer (default)" },
   { id: "airy_ding", label: "Airy ding — light system-style ping" },
-  { id: "double_knock", label: "Double knock — two soft taps" },
   { id: "interval_ping", label: "Interval ping — fifth harmony, short" },
-  { id: "marimba_pair", label: "Marimba pair — two wooden notes" },
   { id: "tri_tone", label: "Tri-tone — quick major triad" },
-  { id: "nudge_warm", label: "Nudge warm — soft two-note bump" },
   { id: "bright_inbox", label: "Bright inbox — crisp triplet rise" },
   { id: "descending_trio", label: "Descending trio — message-style fall" },
+  { id: "double_knock", label: "Double knock — two soft taps" },
   { id: "handbell_single", label: "Handbell — single warm strike" },
   { id: "layered_chime", label: "Layered chime — staggered harmonics" },
-  { id: "soft_chime", label: "Soft chime — harmonic shimmer" },
 ];
 
 const ID_SET = new Set<string>(NOTIFICATION_SOUND_IDS);
@@ -52,6 +60,8 @@ const LEGACY_SOUND_IDS = new Set([
   "soft_pop",
   "classic",
   "ping",
+  "marimba_pair",
+  "nudge_warm",
 ]);
 
 export function parseNotificationSoundType(raw: unknown): NotificationSoundId {
@@ -120,31 +130,6 @@ export function playNotificationWebSound(ctx: AudioContext, type: NotificationSo
     return;
   }
 
-  if (type === "double_knock") {
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(0.0, now);
-    master.gain.linearRampToValueAtTime(0.12, now + 0.004);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-    master.connect(ctx.destination);
-
-    const knock = (t0: number) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = "sine";
-      o.frequency.setValueAtTime(659.25, t0);
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.55, t0 + 0.005);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
-      o.connect(g);
-      g.connect(master);
-      o.start(t0);
-      o.stop(t0 + 0.085);
-    };
-    knock(now);
-    knock(now + 0.09);
-    return;
-  }
-
   if (type === "interval_ping") {
     const master = connectMaster(ctx, 0.1, 0.02, 0.18);
     const f1 = 523.25;
@@ -173,32 +158,6 @@ export function playNotificationWebSound(ctx: AudioContext, type: NotificationSo
     return;
   }
 
-  if (type === "marimba_pair") {
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(0.0, now);
-    master.gain.linearRampToValueAtTime(0.11, now + 0.004);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
-    master.connect(ctx.destination);
-
-    const hit = (t0: number, freq: number) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = "triangle";
-      o.frequency.setValueAtTime(freq, t0);
-      o.frequency.exponentialRampToValueAtTime(freq * 0.55, t0 + 0.05);
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.48, t0 + 0.003);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.065);
-      o.connect(g);
-      g.connect(master);
-      o.start(t0);
-      o.stop(t0 + 0.075);
-    };
-    hit(now, 392);
-    hit(now + 0.065, 587.33);
-    return;
-  }
-
   if (type === "tri_tone") {
     const master = ctx.createGain();
     master.gain.setValueAtTime(0.0, now);
@@ -222,31 +181,6 @@ export function playNotificationWebSound(ctx: AudioContext, type: NotificationSo
     tone(now, 698.46);
     tone(now + 0.07, 880.0);
     tone(now + 0.14, 1046.5);
-    return;
-  }
-
-  if (type === "nudge_warm") {
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(0.0, now);
-    master.gain.linearRampToValueAtTime(0.1, now + 0.004);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
-    master.connect(ctx.destination);
-
-    const bump = (t0: number, freq: number) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = "sine";
-      o.frequency.setValueAtTime(freq, t0);
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.48, t0 + 0.006);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.1);
-      o.connect(g);
-      g.connect(master);
-      o.start(t0);
-      o.stop(t0 + 0.12);
-    };
-    bump(now, 277.18);
-    bump(now + 0.11, 349.23);
     return;
   }
 
@@ -299,6 +233,31 @@ export function playNotificationWebSound(ctx: AudioContext, type: NotificationSo
     note(now, 880);
     note(now + 0.095, 659.25);
     note(now + 0.19, 523.25);
+    return;
+  }
+
+  if (type === "double_knock") {
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0, now);
+    master.gain.linearRampToValueAtTime(0.12, now + 0.004);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    master.connect(ctx.destination);
+
+    const knock = (t0: number) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(659.25, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.55, t0 + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
+      o.connect(g);
+      g.connect(master);
+      o.start(t0);
+      o.stop(t0 + 0.085);
+    };
+    knock(now);
+    knock(now + 0.09);
     return;
   }
 
@@ -361,6 +320,7 @@ export function playNotificationWebSound(ctx: AudioContext, type: NotificationSo
 }
 
 let previewAudioCtx: AudioContext | null = null;
+let voiceCueAudioCtx: AudioContext | null = null;
 
 function previewAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -370,6 +330,38 @@ function previewAudioContext(): AudioContext | null {
   if (!AC) return null;
   if (!previewAudioCtx) previewAudioCtx = new AC();
   return previewAudioCtx;
+}
+
+function voiceCueAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const AC = (window.AudioContext || (window as any).webkitAudioContext) as
+    | (new () => AudioContext)
+    | undefined;
+  if (!AC) return null;
+  if (!voiceCueAudioCtx) voiceCueAudioCtx = new AC();
+  return voiceCueAudioCtx;
+}
+
+function playPresetCue(type: NotificationSoundId): void {
+  const ctx = voiceCueAudioContext();
+  if (!ctx) return;
+  playNotificationWebSound(ctx, type);
+}
+
+export function playVoiceLocalJoinCue(): void {
+  playPresetCue(VOICE_LOCAL_JOIN_SOUND);
+}
+
+export function playVoiceLocalLeaveCue(): void {
+  playPresetCue(VOICE_LOCAL_LEAVE_SOUND);
+}
+
+export function playVoiceRemoteJoinCue(): void {
+  playPresetCue(VOICE_REMOTE_JOIN_SOUND);
+}
+
+export function playVoiceRemoteLeaveCue(): void {
+  playPresetCue(VOICE_REMOTE_LEAVE_SOUND);
 }
 
 /** Play one sample of the chosen preset (settings preview; matches live toasts). */

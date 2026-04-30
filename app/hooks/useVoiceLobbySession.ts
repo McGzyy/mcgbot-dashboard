@@ -18,6 +18,12 @@ import {
   bindRoomPresence,
   voiceDisconnectMessage,
 } from "@/lib/voice/voiceLobbyRoomUtils";
+import {
+  playVoiceLocalJoinCue,
+  playVoiceLocalLeaveCue,
+  playVoiceRemoteJoinCue,
+  playVoiceRemoteLeaveCue,
+} from "@/lib/notificationSounds";
 import type { VoiceRoomMember } from "@/lib/voice/voiceLobbyRoomUtils";
 
 const LOBBY_POLL_MS = 8000;
@@ -147,6 +153,10 @@ export function useVoiceLobbySession(
   }, [status, refreshLobbies]);
 
   const teardownVoiceSession = useCallback(() => {
+    const hadRoom = roomRef.current != null;
+    if (hadRoom) {
+      playVoiceLocalLeaveCue();
+    }
     setVoiceReconnecting(false);
     setLkConnection(null);
     setAudioInputs([]);
@@ -180,6 +190,9 @@ export function useVoiceLobbySession(
       detachLifecycleRef.current = null;
       detachPeersRef.current?.();
       detachPeersRef.current = null;
+      if (roomRef.current) {
+        playVoiceLocalLeaveCue();
+      }
       disconnectVoiceRoom(roomRef.current, audioMountRef.current);
       roomRef.current = null;
     };
@@ -266,7 +279,19 @@ export function useVoiceLobbySession(
         detachPeersRef.current?.();
         detachLifecycleRef.current?.();
         setSpeakingIdentities([]);
-        detachPeersRef.current = bindRoomPresence(room, setRoomMembers, setSpeakingIdentities);
+        detachPeersRef.current = bindRoomPresence(
+          room,
+          setRoomMembers,
+          setSpeakingIdentities,
+          {
+            onRemoteParticipantJoined: () => {
+              playVoiceRemoteJoinCue();
+            },
+            onRemoteParticipantLeft: () => {
+              playVoiceRemoteLeaveCue();
+            },
+          }
+        );
         setLkConnection(room.state);
         setVoiceReconnecting(
           room.state === ConnectionState.Reconnecting ||
@@ -292,6 +317,7 @@ export function useVoiceLobbySession(
         });
         setConnectedLobby(lobbyId);
         setJoinedAtMs(Date.now());
+        playVoiceLocalJoinCue();
         setMuted(!room.localParticipant.isMicrophoneEnabled);
         const initialMic = room.getActiveDevice("audioinput");
         if (initialMic) setMicDeviceId(initialMic);
