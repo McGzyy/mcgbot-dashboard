@@ -1,5 +1,6 @@
 "use client";
 
+import { MCBGOT_PREFERENCES_UPDATED } from "@/lib/preferencesEvents";
 import { useSession } from "next-auth/react";
 import {
   createContext,
@@ -46,9 +47,10 @@ function safeAudioContext(): AudioContext | null {
 
 function parseSoundType(raw: unknown): NotificationSoundType {
   const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  if (s === "soft_pop") return "soft_pop";
   if (s === "soft_chime") return "soft_chime";
-  return "classic";
+  if (s === "soft_pop" || s === "ping") return "soft_pop";
+  if (s === "classic") return "classic";
+  return "soft_pop";
 }
 
 function playWebAudioSound(type: NotificationSoundType): void {
@@ -133,7 +135,7 @@ export function useNotifications(): NotificationsContextValue {
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { status: sessionStatus } = useSession();
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [soundType, setSoundType] = useState<NotificationSoundType>("classic");
+  const [soundType, setSoundType] = useState<NotificationSoundType>("soft_pop");
   const [notifications, setNotifications] = useState<DashboardNotification[]>(
     []
   );
@@ -169,9 +171,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
     loadSoundPref();
     window.addEventListener("focus", loadSoundPref);
+    window.addEventListener(MCBGOT_PREFERENCES_UPDATED, loadSoundPref);
+    const onVis = () => {
+      if (document.visibilityState === "visible") loadSoundPref();
+    };
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       cancelled = true;
       window.removeEventListener("focus", loadSoundPref);
+      window.removeEventListener(MCBGOT_PREFERENCES_UPDATED, loadSoundPref);
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, [sessionStatus]);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { WidgetsEnabled } from "@/app/api/dashboard-settings/route";
+import { dispatchPreferencesUpdated } from "@/lib/preferencesEvents";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -252,7 +253,7 @@ function SettingsPageInner() {
     include_global: false,
     min_multiple: 2,
     sound_enabled: true,
-    sound_type: "classic",
+    sound_type: "soft_pop",
   });
   const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>(
     DEFAULT_PROFILE_VISIBILITY
@@ -315,7 +316,11 @@ function SettingsPageInner() {
           const own_calls = !!d.own_calls;
           const st = d.sound_type;
           const sound_type: PrefsState["sound_type"] =
-            st === "soft_pop" || st === "soft_chime" ? st : "classic";
+            st === "soft_chime"
+              ? "soft_chime"
+              : st === "soft_pop" || st === "ping"
+                ? "soft_pop"
+                : "classic";
           setPrefs({
             own_calls,
             include_following: own_calls ? false : !!d.include_following,
@@ -662,6 +667,8 @@ function SettingsPageInner() {
         if (!prefRes.ok) {
           const text = await prefRes.text();
           console.warn("Preferences failed (non-blocking):", text);
+        } else {
+          dispatchPreferencesUpdated();
         }
       } catch (err) {
         console.warn("Preferences error (non-blocking):", err);

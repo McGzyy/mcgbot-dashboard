@@ -8,16 +8,17 @@ const DEFAULTS = {
   include_global: false,
   min_multiple: 2,
   sound_enabled: true,
-  sound_type: "classic" as const,
+  sound_type: "soft_pop" as const,
 };
 
 type SoundType = "classic" | "soft_pop" | "soft_chime";
 
 function parseSoundType(raw: unknown): SoundType {
   const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  if (s === "soft_pop") return "soft_pop";
   if (s === "soft_chime") return "soft_chime";
-  return "classic";
+  if (s === "soft_pop" || s === "ping") return "soft_pop";
+  if (s === "classic") return "classic";
+  return DEFAULTS.sound_type;
 }
 
 export async function GET() {
