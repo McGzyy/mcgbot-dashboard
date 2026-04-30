@@ -5,6 +5,7 @@ import Image from "next/image";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { QRCodeSVG } from "qrcode.react";
 
 import { DISCORD_SERVER_INVITE_URL } from "@/lib/discordInvite";
 
@@ -55,6 +56,14 @@ function formatExpiry(iso: string): string {
 function resolveDiscordInviteUrl(siteFlags: SiteFlags | null): string {
   const fromSite = siteFlags?.discord_invite_url?.trim();
   return fromSite || DISCORD_SERVER_INVITE_URL;
+}
+
+function buildWalletBrowseUrl(input: { wallet: "phantom" | "solflare" | "backpack"; url: string; ref: string }): string {
+  const u = encodeURIComponent(input.url);
+  const r = encodeURIComponent(input.ref);
+  if (input.wallet === "phantom") return `https://phantom.app/ul/browse/${u}?ref=${r}`;
+  if (input.wallet === "solflare") return `https://solflare.com/ul/v1/browse/${u}?ref=${r}`;
+  return `https://backpack.app/ul/v1/browse/${u}?ref=${r}`;
 }
 
 /** Signed in but not in guild: send user to Discord so they can join, then return to subscribe. */
@@ -702,12 +711,52 @@ export default function SubscribePage() {
         {pollNote ? <p className="text-sm text-[color:var(--accent)]">{pollNote}</p> : null}
 
         {checkout ? (
-          <section className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950/50 p-5">
-            <h2 className="text-sm font-semibold text-white">Pay with Solana Pay</h2>
-            <p className="text-xs leading-relaxed text-zinc-500">
-              Open the link in a Solana wallet that supports Solana Pay, or send the exact SOL amount to the treasury
-              with the reference account included (as your wallet adds when using the link).
-            </p>
+          <section className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-white">Pay with a wallet</h2>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+                  Use the buttons below (recommended), or scan the QR code on mobile.
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+                <QRCodeSVG value={checkout.solanaPayUrl} size={96} bgColor="transparent" fgColor="#e4e4e7" />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={buildWalletBrowseUrl({ wallet: "phantom", url: checkout.solanaPayUrl, ref: "https://mcgbot.xyz/subscribe" })}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:bg-white/10"
+              >
+                Open in Phantom
+              </a>
+              <a
+                href={buildWalletBrowseUrl({ wallet: "solflare", url: checkout.solanaPayUrl, ref: "https://mcgbot.xyz/subscribe" })}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:bg-white/10"
+              >
+                Open in Solflare
+              </a>
+              <a
+                href={buildWalletBrowseUrl({ wallet: "backpack", url: checkout.solanaPayUrl, ref: "https://mcgbot.xyz/subscribe" })}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:bg-white/10"
+              >
+                Open in Backpack
+              </a>
+            </div>
+
+            <ol className="space-y-1 text-xs text-zinc-400">
+              <li>
+                <span className="font-semibold text-zinc-200">1.</span> Open in your wallet (or scan QR).
+              </li>
+              <li>
+                <span className="font-semibold text-zinc-200">2.</span> Confirm the payment (amount + reference are pre-filled).
+              </li>
+              <li>
+                <span className="font-semibold text-zinc-200">3.</span> Keep this tab open — we’ll activate automatically after confirmation.
+              </li>
+            </ol>
+
             <dl className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
               <div>
                 <dt className="text-zinc-500">Amount</dt>
