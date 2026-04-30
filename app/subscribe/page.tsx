@@ -58,14 +58,6 @@ function resolveDiscordInviteUrl(siteFlags: SiteFlags | null): string {
   return fromSite || DISCORD_SERVER_INVITE_URL;
 }
 
-function buildWalletBrowseUrl(input: { wallet: "phantom" | "solflare" | "backpack"; url: string; ref: string }): string {
-  const u = encodeURIComponent(input.url);
-  const r = encodeURIComponent(input.ref);
-  if (input.wallet === "phantom") return `https://phantom.app/ul/browse/${u}?ref=${r}`;
-  if (input.wallet === "solflare") return `https://solflare.com/ul/v1/browse/${u}?ref=${r}`;
-  return `https://backpack.app/ul/v1/browse/${u}?ref=${r}`;
-}
-
 /** Signed in but not in guild: send user to Discord so they can join, then return to subscribe. */
 function SubscribeDiscordGuildRedirect() {
   useEffect(() => {
@@ -726,23 +718,14 @@ export default function SubscribePage() {
 
             <div className="flex flex-wrap gap-2">
               <a
-                href={buildWalletBrowseUrl({ wallet: "phantom", url: checkout.solanaPayUrl, ref: "https://mcgbot.xyz/subscribe" })}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:bg-white/10"
+                href={checkout.solanaPayUrl}
+                className="rounded-xl border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-3 py-2 text-xs font-semibold text-[color:var(--accent)]/95 transition hover:bg-[color:var(--accent)]/15"
               >
-                Open in Phantom
+                Open in wallet (Solana Pay)
               </a>
-              <a
-                href={buildWalletBrowseUrl({ wallet: "solflare", url: checkout.solanaPayUrl, ref: "https://mcgbot.xyz/subscribe" })}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:bg-white/10"
-              >
-                Open in Solflare
-              </a>
-              <a
-                href={buildWalletBrowseUrl({ wallet: "backpack", url: checkout.solanaPayUrl, ref: "https://mcgbot.xyz/subscribe" })}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:bg-white/10"
-              >
-                Open in Backpack
-              </a>
+              <span className="self-center text-xs text-zinc-500">
+                Don’t have a wallet yet? Install Phantom or Solflare.
+              </span>
             </div>
 
             <ol className="space-y-1 text-xs text-zinc-400">
