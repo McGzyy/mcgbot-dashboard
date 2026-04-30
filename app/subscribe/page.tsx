@@ -587,7 +587,7 @@ export default function SubscribePage() {
         ) : plans == null ? (
           <p className="text-sm text-zinc-500">Loading plans…</p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3">
             {plans.map((p) => {
               const sel = p.slug === selectedSlug;
               const featured = featuredSlug && p.slug === featuredSlug;
@@ -600,10 +600,10 @@ export default function SubscribePage() {
                   type="button"
                   onClick={() => setSelectedSlug(p.slug)}
                   className={[
-                    "group relative flex flex-col overflow-hidden rounded-2xl border px-4 py-4 text-left transition",
+                    "group relative flex min-h-[152px] flex-col overflow-hidden rounded-2xl border px-5 py-5 text-left transition",
                     sel
-                      ? "border-[color:var(--accent)]/55 bg-[linear-gradient(180deg,rgba(34,197,94,0.14),rgba(0,0,0,0.25))] shadow-[0_0_0_1px_rgba(34,197,94,0.20),0_18px_60px_rgba(0,0,0,0.55)]"
-                      : "border-zinc-800/80 bg-zinc-950/40 hover:border-zinc-700 hover:bg-zinc-950/55",
+                      ? "border-[color:var(--accent)]/55 bg-[linear-gradient(180deg,rgba(34,197,94,0.16),rgba(0,0,0,0.22))] shadow-[0_0_0_1px_rgba(34,197,94,0.22),0_22px_80px_rgba(0,0,0,0.6)]"
+                      : "border-zinc-800/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(0,0,0,0.22))] hover:border-zinc-700 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(0,0,0,0.28))]",
                   ].join(" ")}
                 >
                   <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
@@ -611,7 +611,7 @@ export default function SubscribePage() {
                   </div>
 
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="pr-2">
                       <span className="text-sm font-semibold text-white">{p.label}</span>
                       <span className="mt-1 block text-xs text-zinc-500">{p.durationDays} days</span>
                     </div>
@@ -622,7 +622,7 @@ export default function SubscribePage() {
                         </span>
                       ) : null}
                       {showDiscount ? (
-                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-200">
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-100">
                           {discountPercent}% off
                         </span>
                       ) : null}
@@ -655,7 +655,7 @@ export default function SubscribePage() {
             value={voucherCode}
             onChange={(e) => setVoucherCode(e.target.value)}
             placeholder="Voucher code (optional)"
-            className="h-10 w-full flex-1 rounded-lg border border-zinc-800/70 bg-[#060606] px-3 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/15 transition focus:border-zinc-700 focus:ring-2 sm:min-w-[14rem]"
+            className="h-11 w-full flex-1 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-zinc-100 outline-none ring-[color:var(--accent)]/15 transition placeholder:text-zinc-500 focus:border-white/15 focus:ring-2 sm:min-w-[16rem]"
           />
           <button
             type="button"
@@ -665,7 +665,7 @@ export default function SubscribePage() {
               (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin)
             }
             onClick={() => void startCheckout()}
-            className="w-full rounded-lg bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            className="h-11 w-full rounded-xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-5 text-sm font-semibold text-black shadow-[0_18px_60px_rgba(34,197,94,0.22)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {busy
               ? "Preparing…"
