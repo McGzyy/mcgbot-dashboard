@@ -112,6 +112,7 @@ export default function SubscribePage() {
   const [busy, setBusy] = useState(false);
   const [pollNote, setPollNote] = useState<string | null>(null);
   const [voucherCode, setVoucherCode] = useState("");
+  const [showVoucher, setShowVoucher] = useState(false);
   const [siteFlags, setSiteFlags] = useState<SiteFlags | null>(null);
   const [guildStatus, setGuildStatus] = useState<boolean | null>(null);
 
@@ -461,8 +462,8 @@ export default function SubscribePage() {
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-100">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.16),transparent_60%)] blur-2xl" />
-        <div className="absolute -bottom-56 right-[-12rem] h-[560px] w-[560px] rounded-full bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.10),transparent_60%)] blur-2xl" />
+        <div className="absolute -top-52 left-1/2 h-[620px] w-[980px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.18),transparent_62%)] blur-3xl" />
+        <div className="absolute -bottom-72 right-[-14rem] h-[620px] w-[620px] rounded-full bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.12),transparent_62%)] blur-3xl" />
       </div>
 
       <header className="sticky top-0 z-10 border-b border-zinc-800/80 bg-black/40 px-4 py-4 backdrop-blur sm:px-6">
@@ -490,79 +491,61 @@ export default function SubscribePage() {
       </header>
 
       <main className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-10 sm:px-6 sm:py-12">
-        <section className="grid items-start gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div>
+        <div className="mx-auto w-full max-w-3xl">
+          <div className="text-center">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
               Membership
             </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl">
               {siteFlags?.paywall_title?.trim() || "Unlock premium access"}
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300/90">
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300/90">
               Pay in SOL at checkout (USD amount is quoted from Jupiter and refreshes each time you start checkout).
               After you send payment, confirmation may take a minute while the server polls the chain.
             </p>
             {siteFlags?.paywall_subtitle ? (
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300">{siteFlags.paywall_subtitle}</p>
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300">
+                {siteFlags.paywall_subtitle}
+              </p>
             ) : null}
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                  Secure checkout
-                </p>
-                <p className="mt-1 text-sm font-semibold text-zinc-100">Solana Pay</p>
-                <p className="mt-1 text-xs text-zinc-500">Fast quotes, exact amount</p>
-              </div>
-              <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                  Instant access
-                </p>
-                <p className="mt-1 text-sm font-semibold text-zinc-100">Auto-activates</p>
-                <p className="mt-1 text-xs text-zinc-500">We poll on-chain for you</p>
-              </div>
-              <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                  Transparent
-                </p>
-                <p className="mt-1 text-sm font-semibold text-zinc-100">No surprises</p>
-                <p className="mt-1 text-xs text-zinc-500">Clear duration & pricing</p>
-              </div>
-            </div>
           </div>
 
-          <div className="rounded-2xl border border-white/5 bg-black/30 p-5 shadow-[0_30px_120px_rgba(0,0,0,0.55)]">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-              Status
-            </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Discord auth</p>
-                <p className="mt-1 text-sm font-semibold text-zinc-100">Connected</p>
-                <p className="mt-1 text-xs text-zinc-500">Session active</p>
-              </div>
-              <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Discord server</p>
-                <p className="mt-1 text-sm font-semibold text-zinc-100">
-                  {guildStatus === null ? "Checking…" : guildStatus ? "Member" : "Not in server"}
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">Required for checkout</p>
-              </div>
-              <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Subscription</p>
-                <p className="mt-1 text-sm font-semibold text-zinc-100">
-                  {active || exempt ? "Active" : "Not active"}
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  {periodEnd ? `Until ${formatExpiry(periodEnd)}` : "Unlock full access"}
-                </p>
-              </div>
-            </div>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs">
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-zinc-200">
+              Discord: Connected
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-zinc-200">
+              Server: {guildStatus === null ? "Checking…" : guildStatus ? "Member" : "Not in server"}
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-zinc-200">
+              Access: {active || exempt ? "Active" : "Not active"}
+              {periodEnd ? <span className="text-zinc-400"> · until {formatExpiry(periodEnd)}</span> : null}
+            </span>
           </div>
-        </section>
+        </div>
 
-        <section className="grid gap-8 lg:grid-cols-[1fr_0.65fr] lg:items-start">
-          <div className="space-y-6">
+        <section className="mx-auto w-full max-w-3xl">
+          <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.075),rgba(0,0,0,0.30))] p-6 shadow-[0_30px_140px_rgba(0,0,0,0.65)] sm:p-7">
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                  Choose a plan
+                </p>
+                <p className="mt-2 text-sm text-zinc-300">
+                  Pick your tier. Discounts are applied automatically.
+                </p>
+              </div>
+              <a
+                href={resolveDiscordInviteUrl(siteFlags)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold text-[#949cf7] underline-offset-4 hover:underline"
+              >
+                Open Discord
+              </a>
+            </div>
+
+            <div className="mt-5 space-y-6">
         {siteFlags?.maintenance_enabled && isDashboardAdmin ? (
           <p className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
             Maintenance mode is on for everyone else. You can still use checkout as a dashboard admin.
@@ -582,117 +565,135 @@ export default function SubscribePage() {
           </p>
         ) : null}
 
-        {plansError ? (
-          <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{plansError}</p>
-        ) : plans == null ? (
-          <p className="text-sm text-zinc-500">Loading plans…</p>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-3">
-            {plans.map((p) => {
-              const sel = p.slug === selectedSlug;
-              const featured = featuredSlug && p.slug === featuredSlug;
-              const discountPercent = Math.max(0, Math.min(100, Math.round(Number(p.discountPercent ?? 0) || 0)));
-              const listPriceUsd = Number.isFinite(Number(p.listPriceUsd)) ? Number(p.listPriceUsd) : null;
-              const showDiscount = discountPercent > 0 && listPriceUsd != null && listPriceUsd > p.priceUsd;
-              return (
-                <button
-                  key={p.slug}
-                  type="button"
-                  onClick={() => setSelectedSlug(p.slug)}
-                  className={[
-                    "group relative flex min-h-[152px] flex-col overflow-hidden rounded-2xl border px-5 py-5 text-left transition",
-                    sel
-                      ? "border-[color:var(--accent)]/55 bg-[linear-gradient(180deg,rgba(34,197,94,0.16),rgba(0,0,0,0.22))] shadow-[0_0_0_1px_rgba(34,197,94,0.22),0_22px_80px_rgba(0,0,0,0.6)]"
-                      : "border-zinc-800/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(0,0,0,0.22))] hover:border-zinc-700 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(0,0,0,0.28))]",
-                  ].join(" ")}
-                >
-                  <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
-                    <div className="absolute -top-24 left-1/2 h-40 w-64 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.18),transparent_60%)] blur-2xl" />
-                  </div>
+            {plansError ? (
+              <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{plansError}</p>
+            ) : plans == null ? (
+              <p className="text-sm text-zinc-500">Loading plans…</p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-3">
+                {plans.map((p) => {
+                  const sel = p.slug === selectedSlug;
+                  const featured = featuredSlug && p.slug === featuredSlug;
+                  const discountPercent = Math.max(0, Math.min(100, Math.round(Number(p.discountPercent ?? 0) || 0)));
+                  const listPriceUsd = Number.isFinite(Number(p.listPriceUsd)) ? Number(p.listPriceUsd) : null;
+                  const showDiscount = discountPercent > 0 && listPriceUsd != null && listPriceUsd > p.priceUsd;
+                  return (
+                    <button
+                      key={p.slug}
+                      type="button"
+                      onClick={() => setSelectedSlug(p.slug)}
+                      className={[
+                        "group relative flex min-h-[172px] flex-col overflow-hidden rounded-2xl border px-6 py-6 text-left transition",
+                        sel
+                          ? "border-[color:var(--accent)]/55 bg-[linear-gradient(180deg,rgba(34,197,94,0.16),rgba(0,0,0,0.22))] shadow-[0_0_0_1px_rgba(34,197,94,0.22),0_22px_80px_rgba(0,0,0,0.6)]"
+                          : "border-zinc-800/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(0,0,0,0.22))] hover:border-zinc-700 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(0,0,0,0.28))]",
+                      ].join(" ")}
+                    >
+                      <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
+                        <div className="absolute -top-24 left-1/2 h-40 w-64 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.18),transparent_60%)] blur-2xl" />
+                      </div>
 
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="pr-2">
-                      <span className="text-sm font-semibold text-white">{p.label}</span>
-                      <span className="mt-1 block text-xs text-zinc-500">{p.durationDays} days</span>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-end gap-1">
-                      {featured ? (
-                        <span className="rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]/90">
-                          Best value
-                        </span>
-                      ) : null}
-                      {showDiscount ? (
-                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-100">
-                          {discountPercent}% off
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="pr-2">
+                          <span className="text-base font-semibold text-white">{p.label}</span>
+                          <span className="mt-1 block text-xs text-zinc-500">{p.durationDays} days</span>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-end gap-1">
+                          {featured ? (
+                            <span className="rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]/90">
+                              Best value
+                            </span>
+                          ) : null}
+                          {showDiscount ? (
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-100">
+                              {discountPercent}% off
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
 
-                  <div className="mt-4 flex items-baseline gap-2">
-                    <span className="text-2xl font-semibold tabular-nums text-zinc-100">
-                      ${p.priceUsd.toFixed(2)}
-                    </span>
-                    <span className="text-xs text-zinc-500">USD</span>
-                    {showDiscount ? (
-                      <span className="ml-auto text-xs tabular-nums text-zinc-500 line-through">
-                        ${listPriceUsd!.toFixed(2)}
+                      <div className="mt-4 flex items-baseline gap-2">
+                        <span className="text-[28px] font-semibold leading-none tabular-nums text-zinc-100">
+                          ${p.priceUsd.toFixed(2)}
+                        </span>
+                        <span className="text-xs text-zinc-500">USD</span>
+                        {showDiscount ? (
+                          <span className="ml-auto text-xs tabular-nums text-zinc-500 line-through">
+                            ${listPriceUsd!.toFixed(2)}
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className="mt-3 text-[11px] text-zinc-500">
+                        SOL amount is quoted at checkout
                       </span>
-                    ) : null}
-                  </div>
-                  <span className="mt-3 text-[11px] text-zinc-500">
-                    SOL amount is quoted at checkout
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <input
-            type="text"
-            value={voucherCode}
-            onChange={(e) => setVoucherCode(e.target.value)}
-            placeholder="Voucher code (optional)"
-            className="h-11 w-full flex-1 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-zinc-100 outline-none ring-[color:var(--accent)]/15 transition placeholder:text-zinc-500 focus:border-white/15 focus:ring-2 sm:min-w-[16rem]"
-          />
-          <button
-            type="button"
-            disabled={
-              busy ||
-              !selectedPlan ||
-              (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin)
-            }
-            onClick={() => void startCheckout()}
-            className="h-11 w-full rounded-xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-5 text-sm font-semibold text-black shadow-[0_18px_60px_rgba(34,197,94,0.22)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-          >
-            {busy
-              ? "Preparing…"
-              : siteFlags?.subscribe_button_label?.trim() || "Start checkout"}
-          </button>
-          {checkout ? (
-            <button
-              type="button"
-              onClick={() => {
-                setCheckout(null);
-                setCheckoutError(null);
-                setPollNote(null);
-              }}
-              className="text-sm text-zinc-500 hover:text-zinc-300"
-            >
-              Cancel quote
-            </button>
-          ) : null}
-          <a
-            href={resolveDiscordInviteUrl(siteFlags)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm font-medium text-[#949cf7] underline-offset-4 hover:underline"
-          >
-            Discord server
-          </a>
-        </div>
+            <div className="mt-6 flex flex-col gap-3">
+              <button
+                type="button"
+                disabled={
+                  busy ||
+                  !selectedPlan ||
+                  (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin)
+                }
+                onClick={() => void startCheckout()}
+                className="h-12 w-full rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_24px_80px_rgba(34,197,94,0.22)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {busy ? "Preparing…" : siteFlags?.subscribe_button_label?.trim() || "Start checkout"}
+              </button>
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowVoucher((v) => !v)}
+                  className="text-xs font-semibold text-zinc-400 hover:text-zinc-200"
+                >
+                  {showVoucher ? "Hide voucher code" : "Have a code?"}
+                </button>
+
+                {checkout ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCheckout(null);
+                      setCheckoutError(null);
+                      setPollNote(null);
+                    }}
+                    className="text-xs font-semibold text-zinc-400 hover:text-zinc-200"
+                  >
+                    Cancel quote
+                  </button>
+                ) : (
+                  <span className="text-xs text-zinc-500">
+                    You won’t be charged until you confirm in your wallet.
+                  </span>
+                )}
+              </div>
+
+              {showVoucher ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    Voucher code
+                  </label>
+                  <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <input
+                      type="text"
+                      value={voucherCode}
+                      onChange={(e) => setVoucherCode(e.target.value)}
+                      placeholder="e.g. TEST100"
+                      className="h-11 w-full flex-1 rounded-xl border border-white/10 bg-black/30 px-4 text-sm text-zinc-100 outline-none ring-[color:var(--accent)]/15 transition placeholder:text-zinc-500 focus:border-white/15 focus:ring-2"
+                    />
+                    <p className="text-xs text-zinc-500">
+                      Applied when you start checkout.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
 
         {checkoutError ? (
           <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{checkoutError}</p>
@@ -750,54 +751,25 @@ export default function SubscribePage() {
           </section>
         ) : null}
 
-        <section className="rounded-xl border border-zinc-800/80 bg-zinc-950/30 p-5 text-xs leading-relaxed text-zinc-500">
-          <p className="font-semibold text-zinc-300">Refunds</p>
-          <p className="mt-2">
-            For refunds, contact a moderator in the McGBot Discord. A short automated refund window after purchase is
-            planned for a later release; until then, moderators handle requests case by case.
-          </p>
-        </section>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <section className="rounded-2xl border border-white/10 bg-white/5 p-5 text-xs leading-relaxed text-zinc-500">
+            <p className="font-semibold text-zinc-200">What you get</p>
+            <ul className="mt-2 space-y-1.5 text-zinc-400">
+              <li>Full dashboard access (premium tools & views)</li>
+              <li>Access stays active for the full plan duration</li>
+              <li>Automatic activation after on-chain confirmation</li>
+            </ul>
+          </section>
+          <section className="rounded-2xl border border-white/10 bg-white/5 p-5 text-xs leading-relaxed text-zinc-500">
+            <p className="font-semibold text-zinc-200">Refunds</p>
+            <p className="mt-2">
+              For refunds, contact a moderator in the McGBot Discord. A short automated refund window after purchase is
+              planned for a later release; until then, moderators handle requests case by case.
+            </p>
+          </section>
+        </div>
+
           </div>
-
-          <aside className="space-y-4">
-            <div className="rounded-2xl border border-white/5 bg-black/30 p-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                What you get
-              </p>
-              <ul className="mt-3 space-y-2 text-sm text-zinc-300">
-                <li className="flex gap-2">
-                  <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]/80" />
-                  <span>Full dashboard access (premium tools & views)</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]/80" />
-                  <span>Access stays active for the full plan duration</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]/80" />
-                  <span>Automatic activation after on-chain confirmation</span>
-                </li>
-              </ul>
-              <div className="mt-4 rounded-xl border border-white/5 bg-white/5 px-4 py-3 text-xs text-zinc-400">
-                Tip: if you’re new, start monthly — you can upgrade later.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-950/30 p-5 text-xs leading-relaxed text-zinc-500">
-              <p className="font-semibold text-zinc-300">Need help?</p>
-              <p className="mt-2">
-                If checkout doesn’t activate within a couple minutes, refresh this page or ask in Discord.
-              </p>
-              <a
-                href={resolveDiscordInviteUrl(siteFlags)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex text-xs font-semibold text-[#949cf7] underline-offset-4 hover:underline"
-              >
-                Open Discord
-              </a>
-            </div>
-          </aside>
         </section>
       </main>
     </div>
