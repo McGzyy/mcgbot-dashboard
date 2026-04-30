@@ -259,6 +259,15 @@ export default function SubscribePage() {
     [plans, selectedSlug]
   );
 
+  const featuredSlug = useMemo(() => {
+    if (!plans?.length) return "";
+    let best = plans[0]!;
+    for (const p of plans) {
+      if ((p.durationDays ?? 0) > (best.durationDays ?? 0)) best = p;
+    }
+    return best.slug;
+  }, [plans]);
+
   const startCheckout = useCallback(async () => {
     setCheckoutError(null);
     setPollNote(null);
@@ -444,66 +453,109 @@ export default function SubscribePage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-100">
-      <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <span className="relative block h-9 w-9">
-            <Image src="/brand/mcgbot-logo-v2.png" alt="McGBot" fill className="object-contain" sizes="36px" />
-          </span>
-          McGBot
-        </Link>
-        <button
-          type="button"
-          onClick={() => void signOut({ callbackUrl: "/" })}
-          className="text-xs font-medium text-zinc-500 hover:text-zinc-300"
-        >
-          Log out
-        </button>
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.16),transparent_60%)] blur-2xl" />
+        <div className="absolute -bottom-56 right-[-12rem] h-[560px] w-[560px] rounded-full bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.10),transparent_60%)] blur-2xl" />
+      </div>
+
+      <header className="sticky top-0 z-10 border-b border-zinc-800/80 bg-black/40 px-4 py-4 backdrop-blur sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
+            <span className="relative block h-9 w-9">
+              <Image
+                src="/brand/mcgbot-logo-v2.png"
+                alt="McGBot"
+                fill
+                className="object-contain"
+                sizes="36px"
+              />
+            </span>
+            McGBot
+          </Link>
+          <button
+            type="button"
+            onClick={() => void signOut({ callbackUrl: "/" })}
+            className="rounded-md px-2 py-1 text-xs font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+          >
+            Log out
+          </button>
+        </div>
       </header>
 
-      <main className="mx-auto flex max-w-2xl flex-col gap-10 px-4 py-10 sm:px-6 sm:py-12">
-        <section className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-              Discord auth
+      <main className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-10 sm:px-6 sm:py-12">
+        <section className="grid items-start gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+              Membership
             </p>
-            <p className="mt-1 text-sm font-semibold text-zinc-100">Connected</p>
-            <p className="mt-1 text-xs text-zinc-500">Session active</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl">
+              {siteFlags?.paywall_title?.trim() || "Unlock premium access"}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300/90">
+              Pay in SOL at checkout (USD amount is quoted from Jupiter and refreshes each time you start checkout).
+              After you send payment, confirmation may take a minute while the server polls the chain.
+            </p>
+            {siteFlags?.paywall_subtitle ? (
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300">{siteFlags.paywall_subtitle}</p>
+            ) : null}
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Secure checkout
+                </p>
+                <p className="mt-1 text-sm font-semibold text-zinc-100">Solana Pay</p>
+                <p className="mt-1 text-xs text-zinc-500">Fast quotes, exact amount</p>
+              </div>
+              <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Instant access
+                </p>
+                <p className="mt-1 text-sm font-semibold text-zinc-100">Auto-activates</p>
+                <p className="mt-1 text-xs text-zinc-500">We poll on-chain for you</p>
+              </div>
+              <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Transparent
+                </p>
+                <p className="mt-1 text-sm font-semibold text-zinc-100">No surprises</p>
+                <p className="mt-1 text-xs text-zinc-500">Clear duration & pricing</p>
+              </div>
+            </div>
           </div>
-          <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
+
+          <div className="rounded-2xl border border-white/5 bg-black/30 p-5 shadow-[0_30px_120px_rgba(0,0,0,0.55)]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-              Discord server
+              Status
             </p>
-            <p className="mt-1 text-sm font-semibold text-zinc-100">
-              {guildStatus === null ? "Checking…" : guildStatus ? "Member" : "Not in server"}
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">Required for checkout</p>
-          </div>
-          <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-              Subscription
-            </p>
-            <p className="mt-1 text-sm font-semibold text-zinc-100">
-              {active || exempt ? "Active" : "Not active"}
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">
-              {periodEnd ? `Until ${formatExpiry(periodEnd)}` : "Unlock full access"}
-            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Discord auth</p>
+                <p className="mt-1 text-sm font-semibold text-zinc-100">Connected</p>
+                <p className="mt-1 text-xs text-zinc-500">Session active</p>
+              </div>
+              <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Discord server</p>
+                <p className="mt-1 text-sm font-semibold text-zinc-100">
+                  {guildStatus === null ? "Checking…" : guildStatus ? "Member" : "Not in server"}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">Required for checkout</p>
+              </div>
+              <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Subscription</p>
+                <p className="mt-1 text-sm font-semibold text-zinc-100">
+                  {active || exempt ? "Active" : "Not active"}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {periodEnd ? `Until ${formatExpiry(periodEnd)}` : "Unlock full access"}
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {siteFlags?.paywall_title?.trim() || "Choose a plan"}
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-            Pay in SOL at checkout (USD amount is quoted from Jupiter and refreshes each time you start checkout).
-            After you send payment, confirmation may take a minute while the server polls the chain.
-          </p>
-          {siteFlags?.paywall_subtitle ? (
-            <p className="mt-2 text-sm leading-relaxed text-zinc-300">{siteFlags.paywall_subtitle}</p>
-          ) : null}
-        </div>
-
+        <section className="grid gap-8 lg:grid-cols-[1fr_0.65fr] lg:items-start">
+          <div className="space-y-6">
         {siteFlags?.maintenance_enabled && isDashboardAdmin ? (
           <p className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
             Maintenance mode is on for everyone else. You can still use checkout as a dashboard admin.
@@ -531,22 +583,42 @@ export default function SubscribePage() {
           <div className="grid gap-3 sm:grid-cols-3">
             {plans.map((p) => {
               const sel = p.slug === selectedSlug;
+              const featured = featuredSlug && p.slug === featuredSlug;
               return (
                 <button
                   key={p.slug}
                   type="button"
                   onClick={() => setSelectedSlug(p.slug)}
                   className={[
-                    "flex flex-col rounded-xl border px-4 py-4 text-left transition",
+                    "group relative flex flex-col overflow-hidden rounded-2xl border px-4 py-4 text-left transition",
                     sel
-                      ? "border-[color:var(--accent)]/50 bg-[color:var(--accent)]/10 shadow-[0_0_20px_rgba(34,197,94,0.12)]"
-                      : "border-zinc-800 bg-zinc-950/40 hover:border-zinc-700",
+                      ? "border-[color:var(--accent)]/55 bg-[linear-gradient(180deg,rgba(34,197,94,0.14),rgba(0,0,0,0.25))] shadow-[0_0_0_1px_rgba(34,197,94,0.20),0_18px_60px_rgba(0,0,0,0.55)]"
+                      : "border-zinc-800/80 bg-zinc-950/40 hover:border-zinc-700 hover:bg-zinc-950/55",
                   ].join(" ")}
                 >
-                  <span className="text-sm font-semibold text-white">{p.label}</span>
-                  <span className="mt-1 text-xs text-zinc-500">{p.durationDays} days</span>
-                  <span className="mt-3 text-lg font-bold tabular-nums text-zinc-100">${p.priceUsd}</span>
-                  <span className="text-[11px] text-zinc-500">USD (placeholder)</span>
+                  <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
+                    <div className="absolute -top-24 left-1/2 h-40 w-64 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.18),transparent_60%)] blur-2xl" />
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-sm font-semibold text-white">{p.label}</span>
+                      <span className="mt-1 block text-xs text-zinc-500">{p.durationDays} days</span>
+                    </div>
+                    {featured ? (
+                      <span className="rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]/90">
+                        Best value
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4 flex items-baseline gap-2">
+                    <span className="text-2xl font-semibold tabular-nums text-zinc-100">${p.priceUsd}</span>
+                    <span className="text-xs text-zinc-500">USD</span>
+                  </div>
+                  <span className="mt-3 text-[11px] text-zinc-500">
+                    SOL amount is quoted at checkout
+                  </span>
                 </button>
               );
             })}
@@ -660,6 +732,48 @@ export default function SubscribePage() {
             For refunds, contact a moderator in the McGBot Discord. A short automated refund window after purchase is
             planned for a later release; until then, moderators handle requests case by case.
           </p>
+        </section>
+          </div>
+
+          <aside className="space-y-4">
+            <div className="rounded-2xl border border-white/5 bg-black/30 p-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                What you get
+              </p>
+              <ul className="mt-3 space-y-2 text-sm text-zinc-300">
+                <li className="flex gap-2">
+                  <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]/80" />
+                  <span>Full dashboard access (premium tools & views)</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]/80" />
+                  <span>Access stays active for the full plan duration</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]/80" />
+                  <span>Automatic activation after on-chain confirmation</span>
+                </li>
+              </ul>
+              <div className="mt-4 rounded-xl border border-white/5 bg-white/5 px-4 py-3 text-xs text-zinc-400">
+                Tip: if you’re new, start monthly — you can upgrade later.
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-950/30 p-5 text-xs leading-relaxed text-zinc-500">
+              <p className="font-semibold text-zinc-300">Need help?</p>
+              <p className="mt-2">
+                If checkout doesn’t activate within a couple minutes, refresh this page or ask in Discord.
+              </p>
+              <a
+                href={resolveDiscordInviteUrl(siteFlags)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex text-xs font-semibold text-[#949cf7] underline-offset-4 hover:underline"
+              >
+                Open Discord
+              </a>
+            </div>
+          </aside>
         </section>
       </main>
     </div>
