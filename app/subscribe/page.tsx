@@ -566,8 +566,7 @@ export default function SubscribePage() {
             disabled={
               busy ||
               !selectedPlan ||
-              (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin) ||
-              guildStatus === false
+              (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin)
             }
             onClick={() => void startCheckout()}
             className="w-full rounded-lg bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
