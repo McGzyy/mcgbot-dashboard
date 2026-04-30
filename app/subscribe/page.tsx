@@ -769,6 +769,7 @@ export default function SubscribePage() {
           </section>
         </div>
 
+            </div>
           </div>
         </section>
       </main>
