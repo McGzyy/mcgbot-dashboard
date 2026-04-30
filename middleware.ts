@@ -14,6 +14,7 @@ function isStaticPath(pathname: string): boolean {
 
 function isPublicForAnonymous(pathname: string): boolean {
   if (pathname === "/") return true;
+  if (pathname === "/join") return true;
   if (pathname.startsWith("/auth")) return true;
   if (pathname.startsWith("/subscribe")) return true;
   return false;
@@ -34,6 +35,7 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (isCronApi(pathname)) return true;
   if (pathname.startsWith("/auth")) return true;
   if (pathname === "/maintenance") return true;
+  if (pathname === "/join") return true;
   if (pathname === "/api/public/site-flags" && method === "GET") return true;
   if (pathname === "/api/subscription/plans" && method === "GET") return true;
   if (pathname === "/api/debug-env" && method === "GET") return true;
@@ -91,6 +93,11 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
   if (isStaticPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  /** Server redirect to Discord invite; must bypass subscription gate for signed-in non-members. */
+  if (pathname === "/join") {
     return NextResponse.next();
   }
 

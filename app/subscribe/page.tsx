@@ -6,6 +6,8 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { DISCORD_SERVER_INVITE_URL } from "@/lib/discordInvite";
+
 type Plan = {
   slug: string;
   label: string;
@@ -46,6 +48,51 @@ function formatExpiry(iso: string): string {
   const t = new Date(iso).getTime();
   if (!Number.isFinite(t)) return iso;
   return new Date(t).toLocaleString();
+}
+
+function resolveDiscordInviteUrl(siteFlags: SiteFlags | null): string {
+  const fromSite = siteFlags?.discord_invite_url?.trim();
+  return fromSite || DISCORD_SERVER_INVITE_URL;
+}
+
+/** Signed in but not in guild: send user to Discord so they can join, then return to subscribe. */
+function SubscribeDiscordGuildRedirect() {
+  useEffect(() => {
+    window.location.replace(DISCORD_SERVER_INVITE_URL);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#050505] text-zinc-100">
+      <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-4 sm:px-6">
+        <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
+          <span className="relative block h-9 w-9">
+            <Image src="/brand/mcgbot-logo-v2.png" alt="McGBot" fill className="object-contain" sizes="36px" />
+          </span>
+          McGBot
+        </Link>
+        <button
+          type="button"
+          onClick={() => void signOut({ callbackUrl: "/" })}
+          className="text-xs font-medium text-zinc-500 hover:text-zinc-300"
+        >
+          Log out
+        </button>
+      </header>
+      <main className="mx-auto flex max-w-lg flex-col items-center gap-6 px-6 py-16 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">Join the McGBot Discord</h1>
+        <p className="text-sm leading-relaxed text-zinc-400">
+          Checkout requires membership in the server. You are being redirected to the invite link now. After you join,
+          come back here to subscribe.
+        </p>
+        <a
+          href={DISCORD_SERVER_INVITE_URL}
+          className="rounded-lg bg-[#5865F2] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4752c4]"
+        >
+          Open Discord invite
+        </a>
+      </main>
+    </div>
+  );
 }
 
 export default function SubscribePage() {
@@ -310,7 +357,8 @@ export default function SubscribePage() {
             <p className="text-sm leading-relaxed text-zinc-300">{siteFlags.paywall_subtitle}</p>
           ) : null}
           <p className="text-sm leading-relaxed text-zinc-400">
-            Sign in with Discord to continue. You need to be in the McGBot Discord server before checkout.
+            Sign in with Discord to continue. You need to be in the McGBot Discord server before checkout — you will be
+            sent to the invite after you sign in if you are not a member yet.
           </p>
           <button
             type="button"
@@ -325,16 +373,14 @@ export default function SubscribePage() {
           >
             Login with Discord
           </button>
-          {siteFlags?.discord_invite_url?.trim() ? (
-            <a
-              href={siteFlags.discord_invite_url.trim()}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-fit text-sm font-medium text-[#949cf7] underline-offset-4 hover:underline"
-            >
-              Join the McGBot Discord
-            </a>
-          ) : null}
+          <a
+            href={resolveDiscordInviteUrl(siteFlags)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit text-sm font-medium text-[#949cf7] underline-offset-4 hover:underline"
+          >
+            Join the McGBot Discord
+          </a>
         </main>
       </div>
     );
@@ -392,10 +438,13 @@ export default function SubscribePage() {
     );
   }
 
+  if (guildStatus === false) {
+    return <SubscribeDiscordGuildRedirect />;
+  }
+
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-100">
       <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
           <span className="relative block h-9 w-9">
             <Image src="/brand/mcgbot-logo-v2.png" alt="McGBot" fill className="object-contain" sizes="36px" />
           </span>
@@ -440,13 +489,6 @@ export default function SubscribePage() {
             </p>
           </div>
         </section>
-
-        {guildStatus === false ? (
-          <p className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            You’re signed in, but not in the Discord server yet. Join the server first, then come back and start
-            checkout.
-          </p>
-        ) : null}
 
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -546,16 +588,14 @@ export default function SubscribePage() {
               Cancel quote
             </button>
           ) : null}
-          {siteFlags?.discord_invite_url?.trim() ? (
-            <a
-              href={siteFlags.discord_invite_url.trim()}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-[#949cf7] underline-offset-4 hover:underline"
-            >
-              Discord server
-            </a>
-          ) : null}
+          <a
+            href={resolveDiscordInviteUrl(siteFlags)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-[#949cf7] underline-offset-4 hover:underline"
+          >
+            Discord server
+          </a>
         </div>
 
         {checkoutError ? (
