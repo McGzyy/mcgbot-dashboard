@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import Stripe from "stripe";
 import { authOptions } from "@/lib/auth";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
 import { checkoutBaseUrl, getStripe } from "@/lib/subscription/stripeServer";
@@ -138,56 +139,75 @@ export async function POST(request: Request) {
   }
 
   let discounts: { coupon: string }[] | undefined;
-  if (voucherPercent > 0 && voucherPercent < 100) {
-    const coupon = await stripe.coupons.create({
-      percent_off: voucherPercent,
-      duration: "once",
-      name: `Voucher ${plan.slug}`.slice(0, 40),
-    });
-    discounts = [{ coupon: coupon.id }];
-  }
+  try {
+    if (voucherPercent > 0 && voucherPercent < 100) {
+      const coupon = await stripe.coupons.create({
+        percent_off: voucherPercent,
+        duration: "once",
+        name: `Voucher ${plan.slug}`.slice(0, 40),
+      });
+      discounts = [{ coupon: coupon.id }];
+    }
 
-  const base = checkoutBaseUrl();
-  const successUrl = `${base}/subscribe?stripe=done&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${base}/subscribe?stripe=cancel`;
+    const base = checkoutBaseUrl();
+    const successUrl = `${base}/subscribe?stripe=done&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${base}/subscribe?stripe=cancel`;
 
-  const existingCustomerId = await getSubscriptionStripeCustomerId(discordId);
+    const existingCustomerId = await getSubscriptionStripeCustomerId(discordId);
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    client_reference_id: discordId.slice(0, 200),
-    ...(existingCustomerId
-      ? { customer: existingCustomerId }
-      : { customer_creation: "always" as const }),
-    line_items: [{ price: stripePriceId, quantity: 1 }],
-    allow_promotion_codes: true,
-    ...(discounts ? { discounts } : {}),
-    metadata: {
-      discord_id: discordId,
-      plan_id: plan.id,
-      plan_slug: plan.slug,
-    },
-    subscription_data: {
+    // Stripe forbids `allow_promotion_codes` and `discounts` on the same session.
+    const allowPromotionCodes = !discounts?.length;
+
+    const checkoutSession = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      client_reference_id: discordId.slice(0, 200),
+      ...(existingCustomerId
+        ? { customer: existingCustomerId }
+        : { customer_creation: "always" as const }),
+      line_items: [{ price: stripePriceId, quantity: 1 }],
+      ...(allowPromotionCodes ? { allow_promotion_codes: true } : {}),
+      ...(discounts ? { discounts } : {}),
       metadata: {
         discord_id: discordId,
         plan_id: plan.id,
         plan_slug: plan.slug,
       },
-    },
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-  });
+      subscription_data: {
+        metadata: {
+          discord_id: discordId,
+          plan_id: plan.id,
+          plan_slug: plan.slug,
+        },
+      },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+    });
 
-  if (!checkoutSession.url) {
-    return Response.json({ success: false, error: "Stripe did not return a checkout URL." }, { status: 500 });
+    if (!checkoutSession.url) {
+      return Response.json({ success: false, error: "Stripe did not return a checkout URL." }, { status: 500 });
+    }
+
+    return Response.json({
+      success: true,
+      url: checkoutSession.url,
+      plan: { slug: plan.slug, label: plan.label, priceUsd: discountedUsd, durationDays: plan.duration_days },
+      voucher: voucherPercent > 0 ? { percentOff: voucherPercent } : null,
+      planDiscount: planPercent > 0 ? { percentOff: planPercent, listPriceUsd: listUsd } : null,
+      billing: "stripe_subscription" as const,
+    });
+  } catch (e: unknown) {
+    console.error("[create-checkout-session]", e);
+    if (e instanceof Stripe.errors.StripeError) {
+      return Response.json(
+        {
+          success: false,
+          error: e.message,
+          code: e.code ?? "stripe_error",
+        },
+        { status: typeof e.statusCode === "number" && e.statusCode >= 400 && e.statusCode < 600 ? e.statusCode : 502 }
+      );
+    }
+    const message = e instanceof Error ? e.message : "unknown_error";
+    return Response.json({ success: false, error: message, code: "checkout_failed" }, { status: 502 });
   }
-
-  return Response.json({
-    success: true,
-    url: checkoutSession.url,
-    plan: { slug: plan.slug, label: plan.label, priceUsd: discountedUsd, durationDays: plan.duration_days },
-    voucher: voucherPercent > 0 ? { percentOff: voucherPercent } : null,
-    planDiscount: planPercent > 0 ? { percentOff: planPercent, listPriceUsd: listUsd } : null,
-    billing: "stripe_subscription" as const,
-  });
 }
