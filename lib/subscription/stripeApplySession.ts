@@ -1,7 +1,13 @@
 import type Stripe from "stripe";
 
-import { upsertSubscriptionAfterPayment } from "@/lib/subscription/subscriptionDb";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { upsertSubscriptionAfterPayment } from "@/lib/subscription/subscriptionDb";
+import { getStripe } from "@/lib/subscription/stripeServer";
+import {
+  deleteStripeCheckoutApplied,
+  insertStripeCheckoutAppliedIfNew,
+  syncDiscordSubscriptionFromStripeSubscription,
+} from "@/lib/subscription/stripeSubscriptionSync";
 
 export type StripeApplyResult = { ok: true } | { ok: false; error: string };
 
@@ -9,6 +15,10 @@ export type StripeApplyResult = { ok: true } | { ok: false; error: string };
  * Idempotent: webhook and verify-session may both run; duplicate webhooks are ignored.
  */
 export async function applyPaidStripeCheckoutSession(session: Stripe.Checkout.Session): Promise<StripeApplyResult> {
+  if (session.mode === "subscription") {
+    return applySubscriptionCheckoutSession(session);
+  }
+
   if (session.mode !== "payment") {
     return { ok: false, error: "unsupported_mode" };
   }
@@ -67,6 +77,72 @@ export async function applyPaidStripeCheckoutSession(session: Stripe.Checkout.Se
   if (!granted) {
     await db.from("stripe_checkout_applied").delete().eq("checkout_session_id", session.id);
     return { ok: false, error: "subscription_update_failed" };
+  }
+
+  return { ok: true };
+}
+
+async function applySubscriptionCheckoutSession(session: Stripe.Checkout.Session): Promise<StripeApplyResult> {
+  if (session.status !== "complete") {
+    return { ok: false, error: "checkout_not_complete" };
+  }
+
+  const md = session.metadata ?? {};
+  const discordId = typeof md.discord_id === "string" ? md.discord_id.trim() : "";
+  if (!discordId) {
+    return { ok: false, error: "missing_metadata" };
+  }
+
+  const subRef = session.subscription;
+  const subscriptionId =
+    typeof subRef === "string" ? subRef.trim() : subRef && typeof subRef === "object" && "id" in subRef
+      ? String((subRef as { id: string }).id).trim()
+      : "";
+  if (!subscriptionId) {
+    return { ok: false, error: "missing_subscription" };
+  }
+
+  const gate = await insertStripeCheckoutAppliedIfNew({
+    checkoutSessionId: session.id,
+    discordId,
+  });
+  if (!gate.inserted) {
+    if (gate.duplicate) {
+      return { ok: true };
+    }
+    return { ok: false, error: gate.error };
+  }
+
+  const stripe = getStripe();
+  if (!stripe) {
+    await deleteStripeCheckoutApplied(session.id);
+    return { ok: false, error: "stripe_not_configured" };
+  }
+
+  let subscription: Stripe.Subscription | null = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const st = subscription.status;
+      if (st !== "incomplete" && st !== "incomplete_expired") {
+        break;
+      }
+    } catch (e) {
+      console.error("[stripe apply] retrieve subscription", subscriptionId, e);
+      subscription = null;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+  }
+  if (!subscription) {
+    await deleteStripeCheckoutApplied(session.id);
+    return { ok: false, error: "retrieve_failed" };
+  }
+
+  const synced = await syncDiscordSubscriptionFromStripeSubscription({ stripe, subscription });
+  if (!synced.ok) {
+    await deleteStripeCheckoutApplied(session.id);
+    return { ok: false, error: synced.error };
   }
 
   return { ok: true };

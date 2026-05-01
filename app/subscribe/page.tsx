@@ -543,8 +543,8 @@ export default function SubscribePage() {
               {siteFlags?.paywall_title?.trim() || "Unlock premium access"}
             </h1>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300/90">
-              Pay securely with a card via Stripe. After payment you will return here and your dashboard access updates
-              automatically.
+              Pay securely with a card via Stripe. Plans renew automatically on Stripe&apos;s billing schedule until you
+              cancel; each successful renewal extends your dashboard access so it stays continuous.
             </p>
             {siteFlags?.paywall_subtitle ? (
               <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300">
@@ -575,7 +575,8 @@ export default function SubscribePage() {
                   Choose a plan
                 </p>
                 <p className="mt-2 text-sm text-zinc-300">
-                  Pick your tier. Discounts are applied automatically.
+                  Pick your tier. Card billing is managed in Stripe (you can use a promotion code at checkout if you have
+                  one).
                 </p>
               </div>
               <a
@@ -639,7 +640,9 @@ export default function SubscribePage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="pr-2">
                           <span className="text-base font-semibold text-white">{p.label}</span>
-                          <span className="mt-1 block text-xs text-zinc-500">{p.durationDays} days</span>
+                          <span className="mt-1 block text-xs text-zinc-500">
+                            Renews automatically · shown length {p.durationDays} days
+                          </span>
                         </div>
                         <div className="flex flex-wrap items-center justify-end gap-1">
                           {featured ? (
@@ -666,7 +669,7 @@ export default function SubscribePage() {
                           </span>
                         ) : null}
                       </div>
-                      <span className="mt-3 text-[11px] text-zinc-500">Billed in USD at checkout</span>
+                      <span className="mt-3 text-[11px] text-zinc-500">USD · recurring in Stripe</span>
                     </button>
                   );
                 })}
@@ -731,8 +734,8 @@ export default function SubscribePage() {
             <p className="font-semibold text-zinc-200">What you get</p>
             <ul className="mt-2 space-y-1.5 text-zinc-400">
               <li>Full dashboard access (premium tools & views)</li>
-              <li>Access stays active for the full plan duration</li>
-              <li>Automatic activation after Stripe confirms payment</li>
+              <li>Access follows your current Stripe billing period (renewals extend the end date)</li>
+              <li>Activation after checkout; renewals update access via Stripe webhooks</li>
             </ul>
           </section>
           <section className="rounded-2xl border border-white/10 bg-white/5 p-5 text-xs leading-relaxed text-zinc-500">

@@ -2,7 +2,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
 import { checkoutBaseUrl, getStripe } from "@/lib/subscription/stripeServer";
-import { getPlanBySlug, upsertSubscriptionAfterPayment } from "@/lib/subscription/subscriptionDb";
+import {
+  getPlanBySlug,
+  getSubscriptionStripeCustomerId,
+  upsertSubscriptionAfterPayment,
+} from "@/lib/subscription/subscriptionDb";
 import { consumeVoucherForPlan } from "@/lib/subscription/vouchers";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
@@ -93,7 +97,10 @@ export async function POST(request: Request) {
       ? voucherDurationDaysOverride
       : plan.duration_days;
 
-  const planPercent = Math.max(0, Math.min(100, Math.round(Number((plan as { discount_percent?: number }).discount_percent ?? 0) || 0)));
+  const planPercent = Math.max(
+    0,
+    Math.min(100, Math.round(Number((plan as { discount_percent?: number }).discount_percent ?? 0) || 0))
+  );
   const listUsd = Math.max(0, Number(plan.price_usd));
   const afterPlanUsd = Math.max(0, listUsd * (1 - planPercent / 100));
 
@@ -117,37 +124,55 @@ export async function POST(request: Request) {
     });
   }
 
-  const priceCents = Math.round(discountedUsd * 100);
-  if (priceCents < 50) {
-    return Response.json({ success: false, error: "Amount below Stripe minimum ($0.50)." }, { status: 400 });
+  const stripePriceId = typeof plan.stripe_price_id === "string" ? plan.stripe_price_id.trim() : "";
+  if (!stripePriceId) {
+    return Response.json(
+      {
+        success: false,
+        error:
+          "This plan is not linked to Stripe yet. In Supabase, set `subscription_plans.stripe_price_id` to your recurring Price ID (price_…) from the Stripe Dashboard, then try again.",
+        code: "missing_stripe_price",
+      },
+      { status: 503 }
+    );
+  }
+
+  let discounts: { coupon: string }[] | undefined;
+  if (voucherPercent > 0 && voucherPercent < 100) {
+    const coupon = await stripe.coupons.create({
+      percent_off: voucherPercent,
+      duration: "once",
+      name: `Voucher ${plan.slug}`.slice(0, 40),
+    });
+    discounts = [{ coupon: coupon.id }];
   }
 
   const base = checkoutBaseUrl();
   const successUrl = `${base}/subscribe?stripe=done&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${base}/subscribe?stripe=cancel`;
 
+  const existingCustomerId = await getSubscriptionStripeCustomerId(discordId);
+
   const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "payment",
+    mode: "subscription",
     client_reference_id: discordId.slice(0, 200),
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: priceCents,
-          product_data: {
-            name: `McGBot — ${plan.label}`,
-            description: `${finalDurationDays} days dashboard access`,
-          },
-        },
-      },
-    ],
+    ...(existingCustomerId
+      ? { customer: existingCustomerId }
+      : { customer_creation: "always" as const }),
+    line_items: [{ price: stripePriceId, quantity: 1 }],
+    allow_promotion_codes: true,
+    ...(discounts ? { discounts } : {}),
     metadata: {
       discord_id: discordId,
       plan_id: plan.id,
-      duration_days: String(finalDurationDays),
-      price_cents: String(priceCents),
       plan_slug: plan.slug,
+    },
+    subscription_data: {
+      metadata: {
+        discord_id: discordId,
+        plan_id: plan.id,
+        plan_slug: plan.slug,
+      },
     },
     success_url: successUrl,
     cancel_url: cancelUrl,
@@ -160,8 +185,9 @@ export async function POST(request: Request) {
   return Response.json({
     success: true,
     url: checkoutSession.url,
-    plan: { slug: plan.slug, label: plan.label, priceUsd: discountedUsd, durationDays: finalDurationDays },
+    plan: { slug: plan.slug, label: plan.label, priceUsd: discountedUsd, durationDays: plan.duration_days },
     voucher: voucherPercent > 0 ? { percentOff: voucherPercent } : null,
     planDiscount: planPercent > 0 ? { percentOff: planPercent, listPriceUsd: listUsd } : null,
+    billing: "stripe_subscription" as const,
   });
 }

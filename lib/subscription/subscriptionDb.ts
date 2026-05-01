@@ -9,6 +9,8 @@ export type SubscriptionPlanRow = {
   duration_days: number;
   price_usd: number;
   discount_percent?: number | null;
+  /** Stripe Price ID (`price_...`); recurring amount/interval live in Stripe. */
+  stripe_price_id?: string | null;
 };
 
 export async function listActivePlans(): Promise<SubscriptionPlanRow[]> {
@@ -16,7 +18,7 @@ export async function listActivePlans(): Promise<SubscriptionPlanRow[]> {
   if (!db) return [];
   const { data, error } = await db
     .from("subscription_plans")
-    .select("id, slug, label, duration_days, price_usd, discount_percent")
+    .select("id, slug, label, duration_days, price_usd, discount_percent, stripe_price_id")
     .eq("active", true)
     .order("sort_order", { ascending: true });
   if (error || !data) return [];
@@ -28,7 +30,7 @@ export async function getPlanBySlug(slug: string): Promise<SubscriptionPlanRow |
   if (!db) return null;
   const { data, error } = await db
     .from("subscription_plans")
-    .select("id, slug, label, duration_days, price_usd, discount_percent")
+    .select("id, slug, label, duration_days, price_usd, discount_percent, stripe_price_id")
     .eq("slug", slug)
     .eq("active", true)
     .maybeSingle();
@@ -46,6 +48,67 @@ export async function getSubscriptionEnd(discordId: string): Promise<string | nu
     .maybeSingle();
   if (error || !data?.current_period_end) return null;
   return String(data.current_period_end);
+}
+
+export async function getSubscriptionStripeCustomerId(discordId: string): Promise<string | null> {
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const { data, error } = await db
+    .from("subscriptions")
+    .select("stripe_customer_id")
+    .eq("discord_id", discordId.trim())
+    .maybeSingle();
+  if (error || !data) return null;
+  const c = typeof data.stripe_customer_id === "string" ? data.stripe_customer_id.trim() : "";
+  return c || null;
+}
+
+export async function getPlanIdByStripeSubscriptionId(subscriptionId: string): Promise<string | null> {
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const { data, error } = await db
+    .from("subscriptions")
+    .select("plan_id")
+    .eq("stripe_subscription_id", subscriptionId.trim())
+    .maybeSingle();
+  if (error || !data?.plan_id) return null;
+  const id = String(data.plan_id).trim();
+  return id || null;
+}
+
+/**
+ * Writes dashboard access window from Stripe (current_period_end) and stores Stripe ids.
+ * Replaces any previous period for this Discord id — Stripe is the source of truth.
+ */
+export async function upsertSubscriptionFromStripe(input: {
+  discordId: string;
+  planId: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string;
+  currentPeriodEndIso: string;
+  stripeStatus: string;
+}): Promise<boolean> {
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+
+  const { error } = await db.from("subscriptions").upsert(
+    {
+      discord_id: input.discordId.trim(),
+      plan_id: input.planId.trim(),
+      current_period_end: input.currentPeriodEndIso,
+      status: "active",
+      stripe_customer_id: input.stripeCustomerId?.trim() || null,
+      stripe_subscription_id: input.stripeSubscriptionId.trim(),
+      stripe_status: input.stripeStatus.slice(0, 64),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "discord_id" }
+  );
+  if (error) {
+    console.error("[subscription] upsertSubscriptionFromStripe", error);
+    return false;
+  }
+  return true;
 }
 
 export async function createInvoiceRow(input: {

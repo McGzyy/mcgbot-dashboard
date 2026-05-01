@@ -38,7 +38,13 @@ export async function POST(request: Request) {
 
   const result = await applyPaidStripeCheckoutSession(checkoutSession);
   if (!result.ok) {
-    return Response.json({ success: false, error: result.error }, { status: 400 });
+    const status =
+      result.error === "checkout_not_complete" || result.error === "not_paid" ? 409 : 400;
+    const message =
+      result.error === "checkout_not_complete"
+        ? "Checkout is still finalizing. Wait a few seconds and try again, or refresh the page."
+        : result.error;
+    return Response.json({ success: false, error: message }, { status });
   }
 
   return Response.json({ success: true });
