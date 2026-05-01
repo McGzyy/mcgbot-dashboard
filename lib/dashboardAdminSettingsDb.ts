@@ -24,6 +24,12 @@ export type DashboardAdminSettingsRow = {
   session_invalidation_epoch: number;
   /** Legacy column from an earlier referral experiment; not used by the dashboard until a policy ships. */
   referral_credit_divisor: number;
+  /** Show optional Stripe test checkout on /subscribe (requires stripe_test_price_id). */
+  stripe_test_checkout_enabled: boolean;
+  /** Stripe `price_…` for test checkout; must match API key mode. */
+  stripe_test_price_id: string | null;
+  /** `subscription_plans.id` for checkout metadata; if null, server uses plan slug `monthly`. */
+  stripe_test_plan_id: string | null;
   updated_at: string;
   updated_by_discord_id: string | null;
 };
@@ -50,6 +56,9 @@ function defaultRow(): DashboardAdminSettingsRow {
     trusted_pro_apply_min_best_x_30d: 0,
     session_invalidation_epoch: 0,
     referral_credit_divisor: 5,
+    stripe_test_checkout_enabled: false,
+    stripe_test_price_id: null,
+    stripe_test_plan_id: null,
     updated_at: now,
     updated_by_discord_id: null,
   };
@@ -117,6 +126,15 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
       }
       return 5;
     })(),
+    stripe_test_checkout_enabled: (r as { stripe_test_checkout_enabled?: unknown }).stripe_test_checkout_enabled === true,
+    stripe_test_price_id:
+      typeof (r as { stripe_test_price_id?: unknown }).stripe_test_price_id === "string"
+        ? String((r as { stripe_test_price_id?: string }).stripe_test_price_id).trim() || null
+        : null,
+    stripe_test_plan_id:
+      typeof (r as { stripe_test_plan_id?: unknown }).stripe_test_plan_id === "string"
+        ? String((r as { stripe_test_plan_id?: string }).stripe_test_plan_id).trim() || null
+        : null,
     updated_at: typeof r.updated_at === "string" ? r.updated_at : new Date().toISOString(),
     updated_by_discord_id: typeof r.updated_by_discord_id === "string" ? r.updated_by_discord_id : null,
   };
@@ -140,6 +158,9 @@ export async function patchDashboardAdminSettings(input: {
   trusted_pro_apply_min_win_rate?: number;
   trusted_pro_apply_min_best_x_30d?: number;
   session_invalidation_epoch?: number;
+  stripe_test_checkout_enabled?: boolean;
+  stripe_test_price_id?: string | null;
+  stripe_test_plan_id?: string | null;
   updatedByDiscordId: string;
 }): Promise<DashboardAdminSettingsRow | null> {
   const db = getSupabaseAdmin();
@@ -215,6 +236,19 @@ export async function patchDashboardAdminSettings(input: {
   if (typeof input.session_invalidation_epoch === "number" && Number.isFinite(input.session_invalidation_epoch)) {
     next.session_invalidation_epoch = Math.max(0, Math.floor(input.session_invalidation_epoch));
   }
+  if (typeof input.stripe_test_checkout_enabled === "boolean") {
+    next.stripe_test_checkout_enabled = input.stripe_test_checkout_enabled;
+  }
+  if ("stripe_test_price_id" in input) {
+    const raw = input.stripe_test_price_id;
+    const s = raw == null ? "" : String(raw).trim();
+    next.stripe_test_price_id = s ? s.slice(0, 128) : null;
+  }
+  if ("stripe_test_plan_id" in input) {
+    const raw = input.stripe_test_plan_id;
+    const s = raw == null ? "" : String(raw).trim();
+    next.stripe_test_plan_id = s ? s.slice(0, 64) : null;
+  }
   const { data, error } = await db
     .from("dashboard_admin_settings")
     .upsert(
@@ -238,6 +272,9 @@ export async function patchDashboardAdminSettings(input: {
         trusted_pro_apply_min_best_x_30d: next.trusted_pro_apply_min_best_x_30d,
         session_invalidation_epoch: next.session_invalidation_epoch,
         referral_credit_divisor: next.referral_credit_divisor,
+        stripe_test_checkout_enabled: next.stripe_test_checkout_enabled,
+        stripe_test_price_id: next.stripe_test_price_id,
+        stripe_test_plan_id: next.stripe_test_plan_id,
         updated_at: next.updated_at,
         updated_by_discord_id: next.updated_by_discord_id,
       },

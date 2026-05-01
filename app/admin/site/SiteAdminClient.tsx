@@ -27,6 +27,9 @@ type AppSettings = {
   paywall_title: string | null;
   subscribe_button_label: string | null;
   discord_invite_url: string | null;
+  stripe_test_checkout_enabled: boolean;
+  stripe_test_price_id: string | null;
+  stripe_test_plan_id: string | null;
   /** ISO-8601 UTC; stats APIs ignore call_performance before this instant. */
   stats_cutover_at: string | null;
   trusted_pro_apply_min_total_calls: number;
@@ -156,6 +159,9 @@ export function SiteAdminClient() {
           paywall_title: settings.paywall_title,
           subscribe_button_label: settings.subscribe_button_label,
           discord_invite_url: settings.discord_invite_url,
+          stripe_test_checkout_enabled: settings.stripe_test_checkout_enabled,
+          stripe_test_price_id: settings.stripe_test_price_id,
+          stripe_test_plan_id: settings.stripe_test_plan_id,
           stats_cutover_at: settings.stats_cutover_at,
           trusted_pro_apply_min_total_calls: settings.trusted_pro_apply_min_total_calls,
           trusted_pro_apply_min_avg_x: settings.trusted_pro_apply_min_avg_x,
@@ -639,6 +645,49 @@ export function SiteAdminClient() {
                       setSettings((s) => (s ? { ...s, discord_invite_url: e.target.value } : s))
                     }
                     placeholder="https://discord.gg/…"
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
+                  />
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-emerald-600 focus:ring-emerald-500/50"
+                    checked={Boolean(settings.stripe_test_checkout_enabled)}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, stripe_test_checkout_enabled: e.target.checked } : s))
+                    }
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-white">Show Stripe test checkout on /subscribe</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      Adds a second button for a dedicated Stripe Price (e.g. $1/mo test product). Same guild and
+                      maintenance rules as normal checkout. Set the Price ID below; it must match your Stripe secret key
+                      mode (test vs live).
+                    </span>
+                  </span>
+                </label>
+
+                <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Stripe test Price ID (optional)
+                  <input
+                    value={settings.stripe_test_price_id ?? ""}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, stripe_test_price_id: e.target.value || null } : s))
+                    }
+                    placeholder="price_…"
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
+                  />
+                </label>
+
+                <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Test checkout plan UUID (optional)
+                  <input
+                    value={settings.stripe_test_plan_id ?? ""}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, stripe_test_plan_id: e.target.value.trim() || null } : s))
+                    }
+                    placeholder="subscription_plans.id — defaults to monthly if empty"
                     className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   />
                 </label>

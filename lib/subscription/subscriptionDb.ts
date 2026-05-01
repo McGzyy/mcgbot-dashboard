@@ -38,6 +38,21 @@ export async function getPlanBySlug(slug: string): Promise<SubscriptionPlanRow |
   return data as SubscriptionPlanRow;
 }
 
+/** By primary key (any active flag); used for Stripe test-checkout metadata when admin sets `stripe_test_plan_id`. */
+export async function getPlanById(planId: string): Promise<SubscriptionPlanRow | null> {
+  const id = planId.trim();
+  if (!id) return null;
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const { data, error } = await db
+    .from("subscription_plans")
+    .select("id, slug, label, duration_days, price_usd, discount_percent, stripe_price_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as SubscriptionPlanRow;
+}
+
 export async function getSubscriptionEnd(discordId: string): Promise<string | null> {
   const db = getSupabaseAdmin();
   if (!db) return null;

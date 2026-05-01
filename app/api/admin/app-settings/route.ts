@@ -161,6 +161,39 @@ export async function PATCH(req: Request) {
     const n = Number((o as any).trusted_pro_apply_min_best_x_30d);
     if (Number.isFinite(n)) patch.trusted_pro_apply_min_best_x_30d = n;
   }
+  if (typeof o.stripe_test_checkout_enabled === "boolean") {
+    patch.stripe_test_checkout_enabled = o.stripe_test_checkout_enabled;
+  }
+  if ("stripe_test_price_id" in o) {
+    const raw = o.stripe_test_price_id;
+    if (raw == null || raw === "") {
+      patch.stripe_test_price_id = null;
+    } else if (typeof raw === "string") {
+      const t = raw.trim().slice(0, 128);
+      if (t && !/^price_[a-zA-Z0-9]+$/.test(t)) {
+        return Response.json(
+          { success: false, error: "stripe_test_price_id must look like a Stripe Price id (price_…)." },
+          { status: 400 }
+        );
+      }
+      patch.stripe_test_price_id = t || null;
+    }
+  }
+  if ("stripe_test_plan_id" in o) {
+    const raw = o.stripe_test_plan_id;
+    if (raw == null || raw === "") {
+      patch.stripe_test_plan_id = null;
+    } else if (typeof raw === "string") {
+      const t = raw.trim();
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(t)) {
+        return Response.json(
+          { success: false, error: "stripe_test_plan_id must be a UUID from subscription_plans.id, or empty." },
+          { status: 400 }
+        );
+      }
+      patch.stripe_test_plan_id = t;
+    }
+  }
   const row = await patchDashboardAdminSettings(patch);
   if (!row) {
     return Response.json(

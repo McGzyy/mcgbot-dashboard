@@ -416,10 +416,11 @@ Operational copy for [mcgbot.xyz/subscribe](https://mcgbot.xyz/subscribe) and ch
 * **`paywall_title`** / **`paywall_subtitle`** — headline and optional extra line above the plan grid.
 * **`subscribe_button_label`** — overrides the primary CTA label (default in app is **“Pay with Stripe”** if left empty).
 * **`discord_invite_url`** — invite used from subscribe when you override the default.
+* **`stripe_test_checkout_enabled`** / **`stripe_test_price_id`** / **`stripe_test_plan_id`** — optional second Stripe Checkout on `/subscribe` (“$1 Stripe test checkout”) using a dedicated recurring **`price_…`** (create a small test product in Stripe). **`stripe_test_plan_id`** is the **`subscription_plans.id`** stored in session metadata for webhooks; leave null to default to the **monthly** plan row. Toggle and IDs are also editable under **Admin → Site** in the dashboard.
 
 **Paid discounts:** create **coupons / promotion codes in Stripe**; customers enter them on **Stripe Checkout**. The dashboard no longer applies percent-off “voucher” codes to card checkout.
 
-**Complimentary (100% off) access:** staff-issued codes that live in your **vouchers** system are redeemed on the subscribe page under **“Have a 100% off (complimentary) code?”**, which calls **`POST /api/subscription/checkout`** (no card). Apply the **`peek_voucher`** SQL migration (`supabase/migrations/20260503160000_peek_voucher.sql`) so partial codes are not consumed when someone mistakenly uses this path.
+**Complimentary (100% off) access:** staff-issued codes that live in your **vouchers** system are redeemed on the subscribe page under **“Have a 100% off code?”**, which calls **`POST /api/subscription/checkout`** (no card). Apply the **`peek_voucher`** SQL migration (`supabase/migrations/20260503160000_peek_voucher.sql`) so partial codes are not consumed when someone mistakenly uses this path.
 
 **Plans & Stripe Price IDs:** table **`subscription_plans`** — each active plan row should have **`stripe_price_id`** set to the recurring **`price_…`** from Stripe (test vs live must match the API keys on the server).
 

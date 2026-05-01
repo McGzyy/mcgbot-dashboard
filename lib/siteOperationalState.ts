@@ -12,6 +12,8 @@ export type SiteOperationalState = {
   paywall_title: string | null;
   subscribe_button_label: string | null;
   discord_invite_url: string | null;
+  /** When true, /subscribe may show the optional $1 (or configured) Stripe test checkout button. */
+  stripe_test_checkout_enabled: boolean;
 };
 
 let cache: { expires: number; value: SiteOperationalState } | null = null;
@@ -30,6 +32,7 @@ function defaults(): SiteOperationalState {
     paywall_title: null,
     subscribe_button_label: null,
     discord_invite_url: null,
+    stripe_test_checkout_enabled: false,
   };
 }
 
@@ -57,6 +60,7 @@ export async function getSiteOperationalState(): Promise<SiteOperationalState> {
         paywall_title: row.paywall_title,
         subscribe_button_label: row.subscribe_button_label,
         discord_invite_url: row.discord_invite_url,
+        stripe_test_checkout_enabled: Boolean(row.stripe_test_checkout_enabled),
       }
     : defaults();
   cache = { expires: now + TTL_MS, value };

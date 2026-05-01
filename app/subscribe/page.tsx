@@ -35,6 +35,7 @@ type SiteFlags = {
   paywall_title: string | null;
   subscribe_button_label: string | null;
   discord_invite_url: string | null;
+  stripe_test_checkout_enabled: boolean;
 };
 
 function formatExpiry(iso: string): string {
@@ -108,6 +109,7 @@ export default function SubscribePage() {
   const [selectedSlug, setSelectedSlug] = useState<string>("");
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [testCheckoutBusy, setTestCheckoutBusy] = useState(false);
   const [pollNote, setPollNote] = useState<string | null>(null);
   const [complimentaryCode, setComplimentaryCode] = useState("");
   const [showComplimentary, setShowComplimentary] = useState(false);
@@ -224,6 +226,9 @@ export default function SubscribePage() {
           subscribe_button_label:
             typeof json.subscribe_button_label === "string" ? json.subscribe_button_label : null,
           discord_invite_url: typeof json.discord_invite_url === "string" ? json.discord_invite_url : null,
+          stripe_test_checkout_enabled: Boolean(
+            (json as { stripe_test_checkout_enabled?: unknown }).stripe_test_checkout_enabled
+          ),
         });
       } catch {
         if (!cancelled) setSiteFlags(null);
@@ -398,6 +403,38 @@ export default function SubscribePage() {
       setBusy(false);
     }
   }, [selectedSlug, update]);
+
+  const startTestCheckout = useCallback(async () => {
+    setCheckoutError(null);
+    setPollNote(null);
+    setTestCheckoutBusy(true);
+    try {
+      const res = await fetch("/api/subscription/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ testCheckout: true }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        url?: string;
+      };
+      if (!res.ok || !json.success) {
+        setCheckoutError(typeof json.error === "string" ? json.error : "Test checkout failed.");
+        return;
+      }
+      if (typeof json.url === "string" && json.url.startsWith("http")) {
+        window.location.href = json.url;
+        return;
+      }
+      setCheckoutError("Could not start test checkout.");
+    } catch {
+      setCheckoutError("Test checkout failed.");
+    } finally {
+      setTestCheckoutBusy(false);
+    }
+  }, []);
 
   const redeemComplimentary = useCallback(async () => {
     setRedeemError(null);
@@ -734,6 +771,7 @@ export default function SubscribePage() {
                 type="button"
                 disabled={
                   busy ||
+                  testCheckoutBusy ||
                   !selectedPlan ||
                   (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin)
                 }
@@ -742,6 +780,21 @@ export default function SubscribePage() {
               >
                 {busy ? "Redirecting…" : siteFlags?.subscribe_button_label?.trim() || "Pay with Stripe"}
               </button>
+
+              {siteFlags?.stripe_test_checkout_enabled ? (
+                <button
+                  type="button"
+                  disabled={
+                    testCheckoutBusy ||
+                    busy ||
+                    (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin)
+                  }
+                  onClick={() => void startTestCheckout()}
+                  className="h-11 w-full rounded-2xl border border-white/15 bg-white/5 px-6 text-sm font-semibold text-zinc-200 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {testCheckoutBusy ? "Redirecting…" : "$1 Stripe test checkout"}
+                </button>
+              ) : null}
 
               <p className="text-center text-xs text-zinc-500">
                 Secured by Stripe — you&apos;ll finish payment on their hosted checkout.
@@ -756,7 +809,7 @@ export default function SubscribePage() {
                   }}
                   className="text-xs font-semibold text-zinc-400 hover:text-zinc-200"
                 >
-                  {showComplimentary ? "Hide complimentary code" : "Have a 100% off (complimentary) code?"}
+                  {showComplimentary ? "Hide 100% off code" : "Have a 100% off code?"}
                 </button>
               </div>
 
