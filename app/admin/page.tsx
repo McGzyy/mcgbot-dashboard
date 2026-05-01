@@ -62,9 +62,9 @@ export default function AdminOverviewPage() {
           data-tutorial="admin.card.bot"
         />
         <OverviewCard
-          href="/admin/site"
+          href="/admin/site#stripe-test-checkout"
           title="Site & flags"
-          subtitle="Deploy fingerprint, env checks, and live Supabase settings (maintenance, banner, paywall)."
+          subtitle="Deploy fingerprint, env checks, and live Supabase settings — including the optional $1 Stripe test checkout toggle."
           hint="Writes · Supabase"
           data-tutorial="admin.card.site"
         />

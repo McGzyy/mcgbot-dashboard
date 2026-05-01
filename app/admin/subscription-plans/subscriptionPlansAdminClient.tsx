@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 
@@ -91,6 +92,14 @@ export function SubscriptionPlansAdminClient() {
         <p className="mt-1 text-sm text-zinc-400">
           Edit duration, list price, and built-in discounts. Checkout charges{" "}
           <span className="font-medium text-zinc-200">list price minus discount</span> (then vouchers, if any).
+        </p>
+        <p className="mt-3 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs leading-relaxed text-zinc-400">
+          Optional <span className="font-medium text-zinc-200">$1 Stripe test</span> checkout (second button on{" "}
+          <code className="text-zinc-300">/subscribe</code>) is not configured here — use{" "}
+          <Link href="/admin/site#stripe-test-checkout" className="font-semibold text-[#949cf7] underline-offset-2 hover:underline">
+            Site &amp; flags → Stripe test checkout
+          </Link>
+          .
         </p>
         <button
           type="button"
