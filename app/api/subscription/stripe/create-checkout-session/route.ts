@@ -158,12 +158,12 @@ export async function POST(request: Request) {
     // Stripe forbids `allow_promotion_codes` and `discounts` on the same session.
     const allowPromotionCodes = !discounts?.length;
 
+    // Subscription mode: never pass `customer_creation` (Stripe only allows it in payment/setup).
+    // With no `customer`, Checkout creates a Customer from details collected on the page.
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
       client_reference_id: discordId.slice(0, 200),
-      ...(existingCustomerId
-        ? { customer: existingCustomerId }
-        : { customer_creation: "always" as const }),
+      ...(existingCustomerId ? { customer: existingCustomerId } : {}),
       line_items: [{ price: stripePriceId, quantity: 1 }],
       ...(allowPromotionCodes ? { allow_promotion_codes: true } : {}),
       ...(discounts ? { discounts } : {}),
