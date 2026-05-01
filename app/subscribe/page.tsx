@@ -4,8 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { QRCodeSVG } from "qrcode.react";
+import { useSearchParams } from "next/navigation";
 
 import { DISCORD_SERVER_INVITE_URL } from "@/lib/discordInvite";
 
@@ -16,15 +15,6 @@ type Plan = {
   listPriceUsd?: number;
   discountPercent?: number;
   durationDays: number;
-};
-
-type CheckoutOk = {
-  success: true;
-  solanaPayUrl: string;
-  quote: { expiresAt: string; amountSol: string; solUsd: number; lamports: string };
-  plan: { slug: string; label: string; priceUsd: number; durationDays: number };
-  reference: string;
-  treasury: string;
 };
 
 type CheckoutVoucherOk = {
@@ -100,7 +90,6 @@ function SubscribeDiscordGuildRedirect() {
 
 export default function SubscribePage() {
   const { data: session, status, update } = useSession();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const referralRef = (searchParams?.get("ref") ?? "").trim();
   const referralReferrerId = /^\d{17,19}$/.test(referralRef) ? referralRef : "";
@@ -108,13 +97,11 @@ export default function SubscribePage() {
   const [plans, setPlans] = useState<Plan[] | null>(null);
   const [plansError, setPlansError] = useState<string | null>(null);
   const [selectedSlug, setSelectedSlug] = useState<string>("");
-  const [checkout, setCheckout] = useState<CheckoutOk | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pollNote, setPollNote] = useState<string | null>(null);
   const [voucherCode, setVoucherCode] = useState("");
   const [showVoucher, setShowVoucher] = useState(false);
-  const [solanaPayHelp, setSolanaPayHelp] = useState<string | null>(null);
   const [siteFlags, setSiteFlags] = useState<SiteFlags | null>(null);
   const [guildStatus, setGuildStatus] = useState<boolean | null>(null);
 
@@ -125,81 +112,82 @@ export default function SubscribePage() {
   const sessionUser = session?.user as { helpTier?: string } | undefined;
   const isDashboardAdmin = sessionUser?.helpTier === "admin";
 
-  function coarseMobileFromUserAgent(ua: string): boolean {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-  }
-
-  function phantomBrowseDeepLink(targetUrl: string, refUrl: string): string {
-    const encTarget = encodeURIComponent(targetUrl);
-    const encRef = encodeURIComponent(refUrl);
-    return `https://phantom.app/ul/browse/${encTarget}?ref=${encRef}`;
-  }
-
-  async function copyPaymentUrl(url: string): Promise<boolean> {
-    try {
-      await navigator.clipboard.writeText(url);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /** Never use window.open(solana:…) — Chrome opens a useless blank tab. Hand off inside a hidden named iframe instead. */
-  function handoffSolanaPayUrlDesktop(url: string): void {
-    const IFRAME_ID = "mcgbot-solana-pay-handoff";
-    let iframe = document.getElementById(IFRAME_ID) as HTMLIFrameElement | null;
-    if (!iframe) {
-      iframe = document.createElement("iframe");
-      iframe.id = IFRAME_ID;
-      iframe.name = "mcgbot-solana-pay-handoff";
-      iframe.title = "Solana Pay";
-      iframe.setAttribute("aria-hidden", "true");
-      iframe.style.cssText = "position:fixed;width:0;height:0;border:0;opacity:0;pointer-events:none";
-      document.body.appendChild(iframe);
-    }
-
-    try {
-      const a = document.createElement("a");
-      a.href = url;
-      a.target = iframe.name;
-      a.rel = "noopener noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch {
-      try {
-        iframe.src = url;
-      } catch {
-        // ignore
-      }
-    }
-  }
-
-  function openSolanaPayCheckout(url: string): void {
-    setSolanaPayHelp(null);
-    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
-    const mobile = coarseMobileFromUserAgent(ua);
-
-    if (mobile) {
-      window.location.href = url;
-      setSolanaPayHelp(
-        "If nothing opened, install a Solana wallet app, then try again — or scan the QR code with your phone camera.",
-      );
-      return;
-    }
-
-    handoffSolanaPayUrlDesktop(url);
-    const hasInjectedSolana = typeof window !== "undefined" && Boolean((window as unknown as { solana?: unknown }).solana);
-    setSolanaPayHelp(
-      hasInjectedSolana
-        ? "If your wallet didn’t pop up, it may not handle Solana Pay links from this browser — use “Open in Phantom (mobile)” or scan the QR with your phone."
-        : "Desktop needs a Solana wallet extension (Phantom / Solflare) that handles Solana Pay. If nothing happens, install the extension in this browser and try again — or pay from your phone using the QR code.",
-    );
-  }
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("stripe") !== "cancel") return;
+    setPollNote(null);
+    setCheckoutError("Checkout was cancelled. You can try again when you are ready.");
+    url.searchParams.delete("stripe");
+    const qs = url.searchParams.toString();
+    window.history.replaceState({}, "", `${url.pathname}${qs ? `?${qs}` : ""}`);
+  }, []);
 
   useEffect(() => {
-    setSolanaPayHelp(null);
-  }, [checkout?.solanaPayUrl]);
+    if (status !== "authenticated" || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("stripe") !== "done") return;
+    const sessionId = (url.searchParams.get("session_id") ?? "").trim();
+    if (!sessionId) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/subscription/stripe/verify-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ sessionId }),
+        });
+        const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+        if (cancelled) return;
+        if (res.ok && json.success) {
+          setPollNote("Payment confirmed. Activating your session…");
+          await update({ refreshSubscription: true });
+        } else if (!json.success) {
+          setCheckoutError(typeof json.error === "string" ? json.error : "Could not verify payment yet.");
+        }
+      } catch {
+        if (!cancelled) {
+          setCheckoutError("Could not verify payment. It may still process — refresh in a moment.");
+        }
+      }
+      try {
+        const clean = new URL(window.location.href);
+        clean.searchParams.delete("stripe");
+        clean.searchParams.delete("session_id");
+        const q = clean.searchParams.toString();
+        window.history.replaceState({}, "", `${clean.pathname}${q ? `?${q}` : ""}`);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, update]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || active || hasAccess) return;
+    let cancelled = false;
+    const id = window.setInterval(async () => {
+      try {
+        const res = await fetch("/api/subscription/status");
+        const json = (await res.json().catch(() => ({}))) as { success?: boolean; active?: boolean };
+        if (cancelled || !res.ok) return;
+        if (json.success && json.active) {
+          setPollNote("You have access. Refreshing your session…");
+          await update({ refreshSubscription: true });
+        }
+      } catch {
+        /* ignore */
+      }
+    }, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [status, active, hasAccess, update]);
 
   useEffect(() => {
     let cancelled = false;
@@ -363,69 +351,46 @@ export default function SubscribePage() {
     }
     setBusy(true);
     try {
-      const res = await fetch("/api/subscription/checkout", {
+      const res = await fetch("/api/subscription/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
           planSlug: selectedSlug,
           voucherCode: voucherCode.trim() || undefined,
         }),
       });
-      const json = (await res.json().catch(() => ({}))) as (CheckoutOk | CheckoutVoucherOk) & {
+      const json = (await res.json().catch(() => ({}))) as CheckoutVoucherOk & {
         success?: boolean;
         error?: string;
+        url?: string;
+        activated?: boolean;
+        via?: string;
       };
       if (!res.ok || !json.success) {
         setCheckoutError(typeof json.error === "string" ? json.error : "Checkout failed.");
-        setCheckout(null);
         return;
       }
 
-      if ((json as any).activated === true && (json as any).via === "voucher") {
-        setCheckout(null);
+      if (json.activated === true && json.via === "voucher") {
         setPollNote("Voucher applied. Activating your session…");
         await update({ refreshSubscription: true });
         setVoucherCode("");
         return;
       }
 
-      if (typeof (json as any).solanaPayUrl !== "string") {
-        setCheckoutError("Checkout response missing payment URL.");
-        setCheckout(null);
+      if (typeof json.url === "string" && json.url.startsWith("http")) {
+        window.location.href = json.url;
         return;
       }
 
-      setCheckout(json as CheckoutOk);
+      setCheckoutError("Could not start payment. Check that Stripe is configured on the server.");
     } catch {
       setCheckoutError("Checkout failed.");
-      setCheckout(null);
     } finally {
       setBusy(false);
     }
   }, [selectedSlug, update, voucherCode]);
-
-  useEffect(() => {
-    if (!checkout?.success) return;
-    if (active) return;
-    let cancelled = false;
-    const id = window.setInterval(async () => {
-      try {
-        const res = await fetch("/api/subscription/status");
-        const json = (await res.json().catch(() => ({}))) as { success?: boolean; active?: boolean };
-        if (cancelled || !res.ok) return;
-        if (json.success && json.active) {
-          setPollNote("Payment confirmed. Activating your session…");
-          await update({ refreshSubscription: true });
-        }
-      } catch {
-        /* ignore */
-      }
-    }, 5000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [checkout, active, update]);
 
   if (status === "loading") {
     return (
@@ -578,8 +543,8 @@ export default function SubscribePage() {
               {siteFlags?.paywall_title?.trim() || "Unlock premium access"}
             </h1>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300/90">
-              Pay in SOL at checkout (USD amount is quoted from Jupiter and refreshes each time you start checkout).
-              After you send payment, confirmation may take a minute while the server polls the chain.
+              Pay securely with a card via Stripe. After payment you will return here and your dashboard access updates
+              automatically.
             </p>
             {siteFlags?.paywall_subtitle ? (
               <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300">
@@ -701,9 +666,7 @@ export default function SubscribePage() {
                           </span>
                         ) : null}
                       </div>
-                      <span className="mt-3 text-[11px] text-zinc-500">
-                        SOL amount is quoted at checkout
-                      </span>
+                      <span className="mt-3 text-[11px] text-zinc-500">Billed in USD at checkout</span>
                     </button>
                   );
                 })}
@@ -721,7 +684,7 @@ export default function SubscribePage() {
                 onClick={() => void startCheckout()}
                 className="h-12 w-full rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_24px_80px_rgba(34,197,94,0.22)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {busy ? "Preparing…" : siteFlags?.subscribe_button_label?.trim() || "Start checkout"}
+                {busy ? "Redirecting…" : siteFlags?.subscribe_button_label?.trim() || "Pay with card"}
               </button>
 
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -733,23 +696,7 @@ export default function SubscribePage() {
                   {showVoucher ? "Hide voucher code" : "Have a code?"}
                 </button>
 
-                {checkout ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCheckout(null);
-                      setCheckoutError(null);
-                      setPollNote(null);
-                    }}
-                    className="text-xs font-semibold text-zinc-400 hover:text-zinc-200"
-                  >
-                    Cancel quote
-                  </button>
-                ) : (
-                  <span className="text-xs text-zinc-500">
-                    You won’t be charged until you confirm in your wallet.
-                  </span>
-                )}
+                <span className="text-xs text-zinc-500">You will complete payment on Stripe’s secure page.</span>
               </div>
 
               {showVoucher ? (
@@ -779,129 +726,13 @@ export default function SubscribePage() {
 
         {pollNote ? <p className="text-sm text-[color:var(--accent)]">{pollNote}</p> : null}
 
-        {checkout ? (
-          <section className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold text-white">Pay with a wallet</h2>
-                <p className="mt-1 text-xs leading-relaxed text-zinc-400">
-                  Solana Pay uses a <span className="font-mono text-zinc-300">solana:</span> link. On phones it deep-links into wallet apps; on desktop it only works if a wallet extension registers that handler (otherwise it can look like “nothing happened”).
-                </p>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-black/30 p-3">
-                <QRCodeSVG value={checkout.solanaPayUrl} size={96} bgColor="transparent" fgColor="#e4e4e7" />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => openSolanaPayCheckout(checkout.solanaPayUrl)}
-                className="rounded-xl border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-3 py-2 text-xs font-semibold text-[color:var(--accent)]/95 transition hover:bg-[color:var(--accent)]/15"
-              >
-                Try Solana Pay link
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSolanaPayHelp(null);
-                  const ref =
-                    typeof window !== "undefined" && window.location?.origin
-                      ? `${window.location.origin}/subscribe`
-                      : "https://mcgbot.com/subscribe";
-                  const deep = phantomBrowseDeepLink(checkout.solanaPayUrl, ref);
-                  const mobile = coarseMobileFromUserAgent(typeof navigator !== "undefined" ? navigator.userAgent : "");
-                  if (mobile) {
-                    window.location.href = deep;
-                    setSolanaPayHelp(
-                      "If Phantom didn’t open, install Phantom on this device — or scan the QR code with your phone camera.",
-                    );
-                    return;
-                  }
-                  const w = window.open(deep, "_blank", "noopener,noreferrer");
-                  if (!w) {
-                    setSolanaPayHelp(
-                      "Pop-up blocked. Allow pop-ups for this site, or scan the QR code with your phone camera.",
-                    );
-                  }
-                }}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:bg-white/10"
-              >
-                Open in Phantom (mobile)
-              </button>
-              <span className="self-center text-xs text-zinc-500">
-                Don’t have a wallet yet? Install Phantom or Solflare.
-              </span>
-            </div>
-
-            {solanaPayHelp ? (
-              <p className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs leading-relaxed text-zinc-300">
-                {solanaPayHelp}
-              </p>
-            ) : null}
-
-            <ol className="space-y-1 text-xs text-zinc-400">
-              <li>
-                <span className="font-semibold text-zinc-200">1.</span> Open in your wallet (or scan QR).
-              </li>
-              <li>
-                <span className="font-semibold text-zinc-200">2.</span> Confirm the payment (amount + reference are pre-filled).
-              </li>
-              <li>
-                <span className="font-semibold text-zinc-200">3.</span> Keep this tab open — we’ll activate automatically after confirmation.
-              </li>
-            </ol>
-
-            <dl className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
-              <div>
-                <dt className="text-zinc-500">Amount</dt>
-                <dd className="font-mono text-sm text-zinc-100">{checkout.quote.amountSol} SOL</dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">Quote expires</dt>
-                <dd className="text-sm text-zinc-200">{formatExpiry(checkout.quote.expiresAt)}</dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-zinc-500">Solana Pay URL</dt>
-                <dd className="mt-1 break-all rounded-md border border-zinc-800 bg-black/40 p-2 font-mono text-[11px] text-zinc-300">
-                  {checkout.solanaPayUrl}
-                </dd>
-              </div>
-            </dl>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={async () => {
-                  const ok = await copyPaymentUrl(checkout.solanaPayUrl);
-                  setSolanaPayHelp(
-                    ok ? "Copied the Solana Pay URL to your clipboard." : "Couldn’t copy automatically — select the URL above and copy it manually.",
-                  );
-                }}
-                className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
-              >
-                Copy link
-              </button>
-              <button
-                type="button"
-                onClick={() => openSolanaPayCheckout(checkout.solanaPayUrl)}
-                className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
-              >
-                Try Solana Pay link
-              </button>
-            </div>
-            <p className="text-xs text-zinc-500">
-              This page checks every few seconds for activation. You can also refresh after your wallet confirms.
-            </p>
-          </section>
-        ) : null}
-
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <section className="rounded-2xl border border-white/10 bg-white/5 p-5 text-xs leading-relaxed text-zinc-500">
             <p className="font-semibold text-zinc-200">What you get</p>
             <ul className="mt-2 space-y-1.5 text-zinc-400">
               <li>Full dashboard access (premium tools & views)</li>
               <li>Access stays active for the full plan duration</li>
-              <li>Automatic activation after on-chain confirmation</li>
+              <li>Automatic activation after Stripe confirms payment</li>
             </ul>
           </section>
           <section className="rounded-2xl border border-white/10 bg-white/5 p-5 text-xs leading-relaxed text-zinc-500">

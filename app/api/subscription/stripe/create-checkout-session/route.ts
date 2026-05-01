@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
+import { checkoutBaseUrl, getStripe } from "@/lib/subscription/stripeServer";
 import { getPlanBySlug, upsertSubscriptionAfterPayment } from "@/lib/subscription/subscriptionDb";
 import { consumeVoucherForPlan } from "@/lib/subscription/vouchers";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -10,9 +11,6 @@ import { getSiteOperationalState } from "@/lib/siteOperationalState";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Free / 100%-off voucher activation only. Paid plans use Stripe (`/api/subscription/stripe/create-checkout-session`).
- */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   const discordId = session?.user?.id?.trim() ?? "";
@@ -24,27 +22,27 @@ export async function POST(request: Request) {
     return Response.json({ success: false, error: "Database not configured" }, { status: 503 });
   }
 
+  const stripe = getStripe();
+  if (!stripe) {
+    return Response.json(
+      { success: false, error: "Stripe is not configured (missing STRIPE_SECRET_KEY)." },
+      { status: 503 }
+    );
+  }
+
   const op = await getSiteOperationalState();
   const needBypass = op.maintenance_enabled || op.public_signups_paused;
   const tier = needBypass ? await resolveHelpTierAsync(discordId).catch(() => "user" as const) : "user";
   const isAdmin = tier === "admin";
   if (op.maintenance_enabled && !isAdmin) {
     return Response.json(
-      {
-        success: false,
-        error: "Checkout is paused during maintenance.",
-        code: "maintenance",
-      },
+      { success: false, error: "Checkout is paused during maintenance.", code: "maintenance" },
       { status: 503 }
     );
   }
   if (op.public_signups_paused && !isAdmin) {
     return Response.json(
-      {
-        success: false,
-        error: "New checkouts are temporarily paused.",
-        code: "signups_paused",
-      },
+      { success: false, error: "New checkouts are temporarily paused.", code: "signups_paused" },
       { status: 403 }
     );
   }
@@ -67,14 +65,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json().catch(() => null)) as { planSlug?: string } | null;
+  const body = (await request.json().catch(() => null)) as { planSlug?: string; voucherCode?: string } | null;
   const slug = typeof body?.planSlug === "string" ? body.planSlug.trim() : "";
+  const voucherCode = typeof body?.voucherCode === "string" ? String(body.voucherCode) : "";
   if (!slug) {
     return Response.json({ success: false, error: "Missing planSlug" }, { status: 400 });
   }
-  const voucherCode = typeof (body as { voucherCode?: string })?.voucherCode === "string"
-    ? String((body as { voucherCode?: string }).voucherCode)
-    : "";
 
   const plan = await getPlanBySlug(slug);
   if (!plan) {
@@ -104,29 +100,68 @@ export async function POST(request: Request) {
   const voucherPercent = Math.max(0, Math.min(100, voucherPercentOff));
   const discountedUsd = Math.max(0, afterPlanUsd * (1 - voucherPercent / 100));
 
-  if (discountedUsd > 0) {
-    return Response.json(
-      {
-        success: false,
-        error: "Paid plans use Stripe checkout. Click “Pay with card” on the subscribe page.",
-        code: "use_stripe",
-      },
-      { status: 400 }
-    );
+  if (discountedUsd <= 0) {
+    const granted = await upsertSubscriptionAfterPayment({
+      discordId,
+      planId: plan.id,
+      durationDays: finalDurationDays,
+    });
+
+    return Response.json({
+      success: true,
+      activated: true,
+      via: "voucher",
+      plan: { slug: plan.slug, label: plan.label, priceUsd: discountedUsd, durationDays: finalDurationDays },
+      voucher: { percentOff: voucherPercent },
+      subscriptionUpdated: Boolean(granted),
+    });
   }
 
-  const granted = await upsertSubscriptionAfterPayment({
-    discordId,
-    planId: plan.id,
-    durationDays: finalDurationDays,
+  const priceCents = Math.round(discountedUsd * 100);
+  if (priceCents < 50) {
+    return Response.json({ success: false, error: "Amount below Stripe minimum ($0.50)." }, { status: 400 });
+  }
+
+  const base = checkoutBaseUrl();
+  const successUrl = `${base}/subscribe?stripe=done&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${base}/subscribe?stripe=cancel`;
+
+  const checkoutSession = await stripe.checkout.sessions.create({
+    mode: "payment",
+    client_reference_id: discordId.slice(0, 200),
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: "usd",
+          unit_amount: priceCents,
+          product_data: {
+            name: `McGBot — ${plan.label}`,
+            description: `${finalDurationDays} days dashboard access`,
+          },
+        },
+      },
+    ],
+    metadata: {
+      discord_id: discordId,
+      plan_id: plan.id,
+      duration_days: String(finalDurationDays),
+      price_cents: String(priceCents),
+      plan_slug: plan.slug,
+    },
+    success_url: successUrl,
+    cancel_url: cancelUrl,
   });
+
+  if (!checkoutSession.url) {
+    return Response.json({ success: false, error: "Stripe did not return a checkout URL." }, { status: 500 });
+  }
 
   return Response.json({
     success: true,
-    activated: true,
-    via: "voucher",
+    url: checkoutSession.url,
     plan: { slug: plan.slug, label: plan.label, priceUsd: discountedUsd, durationDays: finalDurationDays },
-    voucher: { percentOff: voucherPercent },
-    subscriptionUpdated: Boolean(granted),
+    voucher: voucherPercent > 0 ? { percentOff: voucherPercent } : null,
+    planDiscount: planPercent > 0 ? { percentOff: planPercent, listPriceUsd: listUsd } : null,
   });
 }

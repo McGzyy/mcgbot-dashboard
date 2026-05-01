@@ -38,6 +38,7 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (pathname === "/join") return true;
   if (pathname === "/api/public/site-flags" && method === "GET") return true;
   if (pathname === "/api/subscription/plans" && method === "GET") return true;
+  if (pathname === "/api/subscription/stripe/webhook" && method === "POST") return true;
   if (pathname === "/api/debug-env" && method === "GET") return true;
   return false;
 }
@@ -46,6 +47,9 @@ function isSubscriptionProtectedApi(pathname: string): boolean {
   return (
     pathname === "/api/subscription/status" ||
     pathname === "/api/subscription/checkout" ||
+    pathname === "/api/subscription/confirm-payment" ||
+    pathname === "/api/subscription/stripe/create-checkout-session" ||
+    pathname === "/api/subscription/stripe/verify-session" ||
     pathname === "/api/subscription/guild-status"
   );
 }
@@ -147,6 +151,10 @@ export async function middleware(req: NextRequest) {
     }
 
     if (pathname === "/api/subscription/plans" && req.method === "GET") {
+      return NextResponse.next();
+    }
+
+    if (pathname === "/api/subscription/stripe/webhook" && req.method === "POST") {
       return NextResponse.next();
     }
 

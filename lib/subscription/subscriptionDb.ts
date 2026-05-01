@@ -80,18 +80,35 @@ export async function createInvoiceRow(input: {
   return String(data.id);
 }
 
-export async function listPendingInvoices(): Promise<
-  {
-    id: string;
-    discord_id: string;
-    plan_id: string;
-    reference_pubkey: string;
-    treasury_pubkey: string;
-    lamports: number;
-    quote_expires_at: string;
-    status: string;
-  }[]
-> {
+export type PendingInvoiceRow = {
+  id: string;
+  discord_id: string;
+  plan_id: string;
+  reference_pubkey: string;
+  treasury_pubkey: string;
+  lamports: number;
+  quote_expires_at: string;
+  status: string;
+};
+
+export async function getPendingInvoiceForDiscord(input: {
+  discordId: string;
+  invoiceId: string;
+}): Promise<PendingInvoiceRow | null> {
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const { data, error } = await db
+    .from("payment_invoices")
+    .select("id, discord_id, plan_id, reference_pubkey, treasury_pubkey, lamports, quote_expires_at, status")
+    .eq("id", input.invoiceId.trim())
+    .eq("discord_id", input.discordId.trim())
+    .eq("status", "pending")
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as PendingInvoiceRow;
+}
+
+export async function listPendingInvoices(): Promise<PendingInvoiceRow[]> {
   const db = getSupabaseAdmin();
   if (!db) return [];
   const now = new Date().toISOString();
@@ -101,16 +118,7 @@ export async function listPendingInvoices(): Promise<
     .eq("status", "pending")
     .gt("quote_expires_at", now);
   if (error || !data) return [];
-  return data as {
-    id: string;
-    discord_id: string;
-    plan_id: string;
-    reference_pubkey: string;
-    treasury_pubkey: string;
-    lamports: number;
-    quote_expires_at: string;
-    status: string;
-  }[];
+  return data as PendingInvoiceRow[];
 }
 
 export async function markInvoicePaid(input: {
