@@ -144,17 +144,31 @@ export default function SubscribePage() {
     }
   }
 
-  function tryOpenSolanaPayUrl(url: string): void {
-    const w = window.open(url, "_blank", "noopener,noreferrer");
-    if (!w) {
+  /** Never use window.open(solana:…) — Chrome opens a useless blank tab. Hand off inside a hidden named iframe instead. */
+  function handoffSolanaPayUrlDesktop(url: string): void {
+    const IFRAME_ID = "mcgbot-solana-pay-handoff";
+    let iframe = document.getElementById(IFRAME_ID) as HTMLIFrameElement | null;
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.id = IFRAME_ID;
+      iframe.name = "mcgbot-solana-pay-handoff";
+      iframe.title = "Solana Pay";
+      iframe.setAttribute("aria-hidden", "true");
+      iframe.style.cssText = "position:fixed;width:0;height:0;border:0;opacity:0;pointer-events:none";
+      document.body.appendChild(iframe);
+    }
+
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = iframe.name;
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
       try {
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
         iframe.src = url;
-        document.body.appendChild(iframe);
-        window.setTimeout(() => {
-          iframe.remove();
-        }, 1500);
       } catch {
         // ignore
       }
@@ -174,12 +188,12 @@ export default function SubscribePage() {
       return;
     }
 
-    tryOpenSolanaPayUrl(url);
+    handoffSolanaPayUrlDesktop(url);
     const hasInjectedSolana = typeof window !== "undefined" && Boolean((window as unknown as { solana?: unknown }).solana);
     setSolanaPayHelp(
       hasInjectedSolana
-        ? "This uses the browser’s solana: handler. If nothing happens, your wallet extension may not be registered for Solana Pay links — use “Open in Phantom (mobile)” or scan the QR with your phone."
-        : "On desktop, solana: links usually need a wallet browser extension (Phantom / Solflare). If nothing happens, install the extension in this browser and try again — or pay from your phone using the QR code.",
+        ? "If your wallet didn’t pop up, it may not handle Solana Pay links from this browser — use “Open in Phantom (mobile)” or scan the QR with your phone."
+        : "Desktop needs a Solana wallet extension (Phantom / Solflare) that handles Solana Pay. If nothing happens, install the extension in this browser and try again — or pay from your phone using the QR code.",
     );
   }
 
