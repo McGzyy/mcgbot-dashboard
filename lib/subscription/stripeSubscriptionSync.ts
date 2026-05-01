@@ -11,6 +11,31 @@ export type StripeSubscriptionSyncResult = { ok: true } | { ok: false; error: st
 
 const SKIP_SYNC = new Set(["incomplete", "incomplete_expired"]);
 
+/**
+ * Stripe Basil+ (2025-03-31) moved billing period to subscription items; older accounts still have
+ * `subscription.current_period_end`. Support both so verify-session and webhooks can grant access.
+ */
+function subscriptionCurrentPeriodEndUnix(sub: Stripe.Subscription): number | null {
+  const top = (sub as unknown as { current_period_end?: unknown }).current_period_end;
+  if (typeof top === "number" && Number.isFinite(top) && top > 0) {
+    return top;
+  }
+  const items = sub.items?.data;
+  if (!Array.isArray(items) || items.length === 0) {
+    return null;
+  }
+  let best: number | null = null;
+  for (const it of items) {
+    const end = (it as unknown as { current_period_end?: unknown }).current_period_end;
+    if (typeof end === "number" && Number.isFinite(end) && end > 0) {
+      if (best == null || end > best) {
+        best = end;
+      }
+    }
+  }
+  return best;
+}
+
 function customerIdFromSubscription(sub: Stripe.Subscription): string | null {
   const c = sub.customer;
   if (typeof c === "string" && c.trim()) return c.trim();
@@ -65,8 +90,8 @@ export async function syncDiscordSubscriptionFromStripeSubscription(params: {
     return { ok: false, error: "missing_metadata" };
   }
 
-  const endSec = (sub as unknown as { current_period_end?: number }).current_period_end;
-  if (typeof endSec !== "number" || !Number.isFinite(endSec)) {
+  const endSec = subscriptionCurrentPeriodEndUnix(sub);
+  if (endSec == null) {
     return { ok: false, error: "missing_period_end" };
   }
   const currentPeriodEndIso = new Date(endSec * 1000).toISOString();

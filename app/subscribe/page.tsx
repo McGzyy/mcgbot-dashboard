@@ -158,7 +158,12 @@ export default function SubscribePage() {
           setPollNote("Payment confirmed. Activating your session…");
           await update({ refreshSubscription: true });
         } else if (!json.success) {
-          setCheckoutError(typeof json.error === "string" ? json.error : "Could not verify payment yet.");
+          const err = typeof json.error === "string" ? json.error : "";
+          setCheckoutError(
+            err === "missing_period_end"
+              ? "Payment succeeded, but we could not read the subscription period from Stripe. Try refreshing in a few seconds; if this persists, ensure the dashboard is on the latest deploy."
+              : err || "Could not verify payment yet."
+          );
         }
       } catch {
         if (!cancelled) {
