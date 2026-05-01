@@ -114,6 +114,7 @@ export default function SubscribePage() {
   const [pollNote, setPollNote] = useState<string | null>(null);
   const [voucherCode, setVoucherCode] = useState("");
   const [showVoucher, setShowVoucher] = useState(false);
+  const [solanaPayHelp, setSolanaPayHelp] = useState<string | null>(null);
   const [siteFlags, setSiteFlags] = useState<SiteFlags | null>(null);
   const [guildStatus, setGuildStatus] = useState<boolean | null>(null);
 
@@ -123,6 +124,68 @@ export default function SubscribePage() {
   const periodEnd = session?.user?.subscriptionActiveUntil ?? null;
   const sessionUser = session?.user as { helpTier?: string } | undefined;
   const isDashboardAdmin = sessionUser?.helpTier === "admin";
+
+  function coarseMobileFromUserAgent(ua: string): boolean {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  }
+
+  function phantomBrowseDeepLink(targetUrl: string, refUrl: string): string {
+    const encTarget = encodeURIComponent(targetUrl);
+    const encRef = encodeURIComponent(refUrl);
+    return `https://phantom.app/ul/browse/${encTarget}?ref=${encRef}`;
+  }
+
+  async function copyPaymentUrl(url: string): Promise<boolean> {
+    try {
+      await navigator.clipboard.writeText(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function tryOpenSolanaPayUrl(url: string): void {
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    if (!w) {
+      try {
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        window.setTimeout(() => {
+          iframe.remove();
+        }, 1500);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  function openSolanaPayCheckout(url: string): void {
+    setSolanaPayHelp(null);
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+    const mobile = coarseMobileFromUserAgent(ua);
+
+    if (mobile) {
+      window.location.href = url;
+      setSolanaPayHelp(
+        "If nothing opened, install a Solana wallet app, then try again — or scan the QR code with your phone camera.",
+      );
+      return;
+    }
+
+    tryOpenSolanaPayUrl(url);
+    const hasInjectedSolana = typeof window !== "undefined" && Boolean((window as unknown as { solana?: unknown }).solana);
+    setSolanaPayHelp(
+      hasInjectedSolana
+        ? "This uses the browser’s solana: handler. If nothing happens, your wallet extension may not be registered for Solana Pay links — use “Open in Phantom (mobile)” or scan the QR with your phone."
+        : "On desktop, solana: links usually need a wallet browser extension (Phantom / Solflare). If nothing happens, install the extension in this browser and try again — or pay from your phone using the QR code.",
+    );
+  }
+
+  useEffect(() => {
+    setSolanaPayHelp(null);
+  }, [checkout?.solanaPayUrl]);
 
   useEffect(() => {
     let cancelled = false;
@@ -708,7 +771,7 @@ export default function SubscribePage() {
               <div>
                 <h2 className="text-sm font-semibold text-white">Pay with a wallet</h2>
                 <p className="mt-1 text-xs leading-relaxed text-zinc-400">
-                  Use the buttons below (recommended), or scan the QR code on mobile.
+                  Solana Pay uses a <span className="font-mono text-zinc-300">solana:</span> link. On phones it deep-links into wallet apps; on desktop it only works if a wallet extension registers that handler (otherwise it can look like “nothing happened”).
                 </p>
               </div>
               <div className="rounded-xl border border-white/10 bg-black/30 p-3">
@@ -717,16 +780,51 @@ export default function SubscribePage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <a
-                href={checkout.solanaPayUrl}
+              <button
+                type="button"
+                onClick={() => openSolanaPayCheckout(checkout.solanaPayUrl)}
                 className="rounded-xl border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-3 py-2 text-xs font-semibold text-[color:var(--accent)]/95 transition hover:bg-[color:var(--accent)]/15"
               >
-                Open in wallet (Solana Pay)
-              </a>
+                Try Solana Pay link
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSolanaPayHelp(null);
+                  const ref =
+                    typeof window !== "undefined" && window.location?.origin
+                      ? `${window.location.origin}/subscribe`
+                      : "https://mcgbot.com/subscribe";
+                  const deep = phantomBrowseDeepLink(checkout.solanaPayUrl, ref);
+                  const mobile = coarseMobileFromUserAgent(typeof navigator !== "undefined" ? navigator.userAgent : "");
+                  if (mobile) {
+                    window.location.href = deep;
+                    setSolanaPayHelp(
+                      "If Phantom didn’t open, install Phantom on this device — or scan the QR code with your phone camera.",
+                    );
+                    return;
+                  }
+                  const w = window.open(deep, "_blank", "noopener,noreferrer");
+                  if (!w) {
+                    setSolanaPayHelp(
+                      "Pop-up blocked. Allow pop-ups for this site, or scan the QR code with your phone camera.",
+                    );
+                  }
+                }}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:bg-white/10"
+              >
+                Open in Phantom (mobile)
+              </button>
               <span className="self-center text-xs text-zinc-500">
                 Don’t have a wallet yet? Install Phantom or Solflare.
               </span>
             </div>
+
+            {solanaPayHelp ? (
+              <p className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs leading-relaxed text-zinc-300">
+                {solanaPayHelp}
+              </p>
+            ) : null}
 
             <ol className="space-y-1 text-xs text-zinc-400">
               <li>
@@ -760,22 +858,22 @@ export default function SubscribePage() {
               <button
                 type="button"
                 onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(checkout.solanaPayUrl);
-                  } catch {
-                    /* ignore */
-                  }
+                  const ok = await copyPaymentUrl(checkout.solanaPayUrl);
+                  setSolanaPayHelp(
+                    ok ? "Copied the Solana Pay URL to your clipboard." : "Couldn’t copy automatically — select the URL above and copy it manually.",
+                  );
                 }}
                 className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
               >
                 Copy link
               </button>
-              <a
-                href={checkout.solanaPayUrl}
+              <button
+                type="button"
+                onClick={() => openSolanaPayCheckout(checkout.solanaPayUrl)}
                 className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
               >
-                Open link
-              </a>
+                Try Solana Pay link
+              </button>
             </div>
             <p className="text-xs text-zinc-500">
               This page checks every few seconds for activation. You can also refresh after your wallet confirms.
