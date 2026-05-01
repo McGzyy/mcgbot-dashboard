@@ -48,6 +48,15 @@ function resolveDiscordInviteUrl(siteFlags: SiteFlags | null): string {
   return fromSite || DISCORD_SERVER_INVITE_URL;
 }
 
+function billingCadenceLabel(durationDays: number): string {
+  const d = Math.floor(Number(durationDays));
+  if (d === 30) return "Billed every month";
+  if (d === 90) return "Billed every 3 months";
+  if (d === 365) return "Billed once per year";
+  if (d > 0) return `Renews on a ${d}-day cycle`;
+  return "Recurring in Stripe";
+}
+
 /** Signed in but not in guild: send user to Discord so they can join, then return to subscribe. */
 function SubscribeDiscordGuildRedirect() {
   useEffect(() => {
@@ -100,8 +109,10 @@ export default function SubscribePage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pollNote, setPollNote] = useState<string | null>(null);
-  const [voucherCode, setVoucherCode] = useState("");
-  const [showVoucher, setShowVoucher] = useState(false);
+  const [complimentaryCode, setComplimentaryCode] = useState("");
+  const [showComplimentary, setShowComplimentary] = useState(false);
+  const [redeemBusy, setRedeemBusy] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
   const [siteFlags, setSiteFlags] = useState<SiteFlags | null>(null);
   const [guildStatus, setGuildStatus] = useState<boolean | null>(null);
 
@@ -355,10 +366,7 @@ export default function SubscribePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({
-          planSlug: selectedSlug,
-          voucherCode: voucherCode.trim() || undefined,
-        }),
+        body: JSON.stringify({ planSlug: selectedSlug }),
       });
       const json = (await res.json().catch(() => ({}))) as CheckoutVoucherOk & {
         success?: boolean;
@@ -373,9 +381,8 @@ export default function SubscribePage() {
       }
 
       if (json.activated === true && json.via === "voucher") {
-        setPollNote("Voucher applied. Activating your session…");
+        setPollNote("Access granted. Refreshing your session…");
         await update({ refreshSubscription: true });
-        setVoucherCode("");
         return;
       }
 
@@ -390,7 +397,51 @@ export default function SubscribePage() {
     } finally {
       setBusy(false);
     }
-  }, [selectedSlug, update, voucherCode]);
+  }, [selectedSlug, update]);
+
+  const redeemComplimentary = useCallback(async () => {
+    setRedeemError(null);
+    setPollNote(null);
+    if (!selectedSlug) {
+      setRedeemError("Pick a plan first.");
+      return;
+    }
+    const code = complimentaryCode.trim();
+    if (!code) {
+      setRedeemError("Enter a code.");
+      return;
+    }
+    setRedeemBusy(true);
+    try {
+      const res = await fetch("/api/subscription/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ planSlug: selectedSlug, voucherCode: code }),
+      });
+      const json = (await res.json().catch(() => ({}))) as CheckoutVoucherOk & {
+        success?: boolean;
+        error?: string;
+        code?: string;
+      };
+      if (!res.ok || !json.success) {
+        setRedeemError(typeof json.error === "string" ? json.error : "Could not apply code.");
+        return;
+      }
+      if (json.activated === true && json.via === "voucher") {
+        setPollNote("Complimentary access activated. Refreshing your session…");
+        setComplimentaryCode("");
+        setShowComplimentary(false);
+        await update({ refreshSubscription: true });
+        return;
+      }
+      setRedeemError(typeof json.error === "string" ? json.error : "That code does not grant complimentary access.");
+    } catch {
+      setRedeemError("Request failed. Try again.");
+    } finally {
+      setRedeemBusy(false);
+    }
+  }, [complimentaryCode, selectedSlug, update]);
 
   if (status === "loading") {
     return (
@@ -543,8 +594,8 @@ export default function SubscribePage() {
               {siteFlags?.paywall_title?.trim() || "Unlock premium access"}
             </h1>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300/90">
-              Pay securely with a card via Stripe. Plans renew automatically on Stripe&apos;s billing schedule until you
-              cancel; each successful renewal extends your dashboard access so it stays continuous.
+              Checkout runs on Stripe. Subscriptions renew on your plan&apos;s billing cycle until you cancel; each paid
+              renewal extends dashboard access automatically.
             </p>
             {siteFlags?.paywall_subtitle ? (
               <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300">
@@ -575,8 +626,8 @@ export default function SubscribePage() {
                   Choose a plan
                 </p>
                 <p className="mt-2 text-sm text-zinc-300">
-                  Pick your tier. Card billing is managed in Stripe (you can use a promotion code at checkout if you have
-                  one).
+                  Pick a tier, then continue to Stripe. If you have a <strong className="font-medium text-zinc-200">Stripe
+                  promotion code</strong>, enter it on Stripe&apos;s checkout page (not here).
                 </p>
               </div>
               <a
@@ -627,7 +678,7 @@ export default function SubscribePage() {
                       type="button"
                       onClick={() => setSelectedSlug(p.slug)}
                       className={[
-                        "group relative flex min-h-[172px] flex-col overflow-hidden rounded-2xl border px-6 py-6 text-left transition",
+                        "group relative flex min-h-[158px] flex-col overflow-hidden rounded-2xl border px-5 py-5 text-left transition sm:min-h-[168px]",
                         sel
                           ? "border-[color:var(--accent)]/55 bg-[linear-gradient(180deg,rgba(34,197,94,0.16),rgba(0,0,0,0.22))] shadow-[0_0_0_1px_rgba(34,197,94,0.22),0_22px_80px_rgba(0,0,0,0.6)]"
                           : "border-zinc-800/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(0,0,0,0.22))] hover:border-zinc-700 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(0,0,0,0.28))]",
@@ -638,38 +689,40 @@ export default function SubscribePage() {
                       </div>
 
                       <div className="flex items-start justify-between gap-2">
-                        <div className="pr-2">
-                          <span className="text-base font-semibold text-white">{p.label}</span>
-                          <span className="mt-1 block text-xs text-zinc-500">
-                            Renews automatically · shown length {p.durationDays} days
+                        <div className="min-w-0 pr-1">
+                          <span className="block text-base font-semibold tracking-tight text-white">{p.label}</span>
+                          <span className="mt-1.5 block text-[11px] leading-snug text-zinc-500">
+                            {billingCadenceLabel(p.durationDays)}
+                            {showDiscount ? ` · ${discountPercent}% off vs list` : ""}
                           </span>
                         </div>
-                        <div className="flex flex-wrap items-center justify-end gap-1">
+                        <div className="flex shrink-0 flex-col items-end gap-1">
                           {featured ? (
-                            <span className="rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]/90">
+                            <span className="rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--accent)]/90">
                               Best value
                             </span>
                           ) : null}
                           {showDiscount ? (
-                            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-100">
-                              {discountPercent}% off
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200">
+                              Save {discountPercent}%
                             </span>
                           ) : null}
                         </div>
                       </div>
 
-                      <div className="mt-4 flex items-baseline gap-2">
-                        <span className="text-[28px] font-semibold leading-none tabular-nums text-zinc-100">
-                          ${p.priceUsd.toFixed(2)}
-                        </span>
-                        <span className="text-xs text-zinc-500">USD</span>
-                        {showDiscount ? (
-                          <span className="ml-auto text-xs tabular-nums text-zinc-500 line-through">
-                            ${listPriceUsd!.toFixed(2)}
+                      <div className="mt-auto pt-5">
+                        <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
+                          <span className="text-[26px] font-semibold leading-none tabular-nums tracking-tight text-zinc-50 sm:text-[28px]">
+                            ${p.priceUsd.toFixed(2)}
                           </span>
-                        ) : null}
+                          <span className="pb-0.5 text-xs text-zinc-500">USD / period</span>
+                          {showDiscount ? (
+                            <span className="pb-0.5 text-xs tabular-nums text-zinc-500 line-through">
+                              ${listPriceUsd!.toFixed(2)} list
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
-                      <span className="mt-3 text-[11px] text-zinc-500">USD · recurring in Stripe</span>
                     </button>
                   );
                 })}
@@ -687,38 +740,53 @@ export default function SubscribePage() {
                 onClick={() => void startCheckout()}
                 className="h-12 w-full rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_24px_80px_rgba(34,197,94,0.22)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {busy ? "Redirecting…" : siteFlags?.subscribe_button_label?.trim() || "Pay with card"}
+                {busy ? "Redirecting…" : siteFlags?.subscribe_button_label?.trim() || "Pay with Stripe"}
               </button>
 
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-center text-xs text-zinc-500">
+                Secured by Stripe — you&apos;ll finish payment on their hosted checkout.
+              </p>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowVoucher((v) => !v)}
+                  onClick={() => {
+                    setShowComplimentary((v) => !v);
+                    setRedeemError(null);
+                  }}
                   className="text-xs font-semibold text-zinc-400 hover:text-zinc-200"
                 >
-                  {showVoucher ? "Hide voucher code" : "Have a code?"}
+                  {showComplimentary ? "Hide complimentary code" : "Have a 100% off (complimentary) code?"}
                 </button>
-
-                <span className="text-xs text-zinc-500">You will complete payment on Stripe’s secure page.</span>
               </div>
 
-              {showVoucher ? (
+              {showComplimentary ? (
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                    Voucher code
+                    Complimentary code
                   </label>
-                  <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                    For staff-issued codes that grant access without card payment. Percent-off sales use Stripe promotion
+                    codes at checkout instead.
+                  </p>
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
                     <input
                       type="text"
-                      value={voucherCode}
-                      onChange={(e) => setVoucherCode(e.target.value)}
-                      placeholder="e.g. TEST100"
-                      className="h-11 w-full flex-1 rounded-xl border border-white/10 bg-black/30 px-4 text-sm text-zinc-100 outline-none ring-[color:var(--accent)]/15 transition placeholder:text-zinc-500 focus:border-white/15 focus:ring-2"
+                      value={complimentaryCode}
+                      onChange={(e) => setComplimentaryCode(e.target.value)}
+                      placeholder="Enter code"
+                      className="h-11 w-full min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 text-sm text-zinc-100 outline-none ring-[color:var(--accent)]/15 transition placeholder:text-zinc-500 focus:border-white/15 focus:ring-2"
                     />
-                    <p className="text-xs text-zinc-500">
-                      Applied when you start checkout.
-                    </p>
+                    <button
+                      type="button"
+                      disabled={redeemBusy || !selectedPlan}
+                      onClick={() => void redeemComplimentary()}
+                      className="h-11 shrink-0 rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-semibold text-zinc-100 transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {redeemBusy ? "Applying…" : "Apply to selected plan"}
+                    </button>
                   </div>
+                  {redeemError ? <p className="mt-2 text-xs text-red-300">{redeemError}</p> : null}
                 </div>
               ) : null}
             </div>

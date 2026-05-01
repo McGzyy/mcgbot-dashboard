@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
 import { getPlanBySlug, upsertSubscriptionAfterPayment } from "@/lib/subscription/subscriptionDb";
-import { consumeVoucherForPlan } from "@/lib/subscription/vouchers";
+import { consumeVoucherForPlan, peekVoucherForPlan } from "@/lib/subscription/vouchers";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
@@ -84,12 +84,12 @@ export async function POST(request: Request) {
   let voucherPercentOff = 0;
   let voucherDurationDaysOverride: number | null = null;
   if (voucherCode && voucherCode.trim()) {
-    const consumed = await consumeVoucherForPlan({ code: voucherCode, planSlug: plan.slug });
-    if (!consumed.ok) {
-      return Response.json({ success: false, error: consumed.error, code: consumed.code }, { status: 400 });
+    const peeked = await peekVoucherForPlan({ code: voucherCode, planSlug: plan.slug });
+    if (!peeked.ok) {
+      return Response.json({ success: false, error: peeked.error, code: peeked.code }, { status: 400 });
     }
-    voucherPercentOff = consumed.voucher.percentOff;
-    voucherDurationDaysOverride = consumed.voucher.durationDaysOverride;
+    voucherPercentOff = peeked.voucher.percentOff;
+    voucherDurationDaysOverride = peeked.voucher.durationDaysOverride;
   }
 
   const finalDurationDays =
@@ -108,11 +108,19 @@ export async function POST(request: Request) {
     return Response.json(
       {
         success: false,
-        error: "Paid plans use Stripe checkout. Click “Pay with card” on the subscribe page.",
+        error:
+          "That code is not a full (100%) complimentary voucher. For discounts on card checkout, use a Stripe promotion code on the Stripe payment page.",
         code: "use_stripe",
       },
       { status: 400 }
     );
+  }
+
+  if (voucherCode && voucherCode.trim()) {
+    const consumed = await consumeVoucherForPlan({ code: voucherCode, planSlug: plan.slug });
+    if (!consumed.ok) {
+      return Response.json({ success: false, error: consumed.error, code: consumed.code }, { status: 400 });
+    }
   }
 
   const granted = await upsertSubscriptionAfterPayment({

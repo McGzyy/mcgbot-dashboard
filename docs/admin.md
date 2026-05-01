@@ -409,6 +409,22 @@ McGBot works best when guided by these principles:
 
 ---
 
+## Subscriptions, paywall copy, and discounts
+
+Operational copy for [mcgbot.xyz/subscribe](https://mcgbot.xyz/subscribe) and checkout gates lives in Supabase table **`dashboard_admin_settings`** (single row **`id = 1`**). Edit in the **Table Editor** (or SQL). Fields used on the subscribe page include:
+
+* **`paywall_title`** / **`paywall_subtitle`** — headline and optional extra line above the plan grid.
+* **`subscribe_button_label`** — overrides the primary CTA label (default in app is **“Pay with Stripe”** if left empty).
+* **`discord_invite_url`** — invite used from subscribe when you override the default.
+
+**Paid discounts:** create **coupons / promotion codes in Stripe**; customers enter them on **Stripe Checkout**. The dashboard no longer applies percent-off “voucher” codes to card checkout.
+
+**Complimentary (100% off) access:** staff-issued codes that live in your **vouchers** system are redeemed on the subscribe page under **“Have a 100% off (complimentary) code?”**, which calls **`POST /api/subscription/checkout`** (no card). Apply the **`peek_voucher`** SQL migration (`supabase/migrations/20260503160000_peek_voucher.sql`) so partial codes are not consumed when someone mistakenly uses this path.
+
+**Plans & Stripe Price IDs:** table **`subscription_plans`** — each active plan row should have **`stripe_price_id`** set to the recurring **`price_…`** from Stripe (test vs live must match the API keys on the server).
+
+---
+
 ## Bottom Line
 
 Your job as an admin is to keep McGBot:

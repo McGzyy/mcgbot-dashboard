@@ -3,12 +3,7 @@ import Stripe from "stripe";
 import { authOptions } from "@/lib/auth";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
 import { checkoutBaseUrl, getStripe } from "@/lib/subscription/stripeServer";
-import {
-  getPlanBySlug,
-  getSubscriptionStripeCustomerId,
-  upsertSubscriptionAfterPayment,
-} from "@/lib/subscription/subscriptionDb";
-import { consumeVoucherForPlan } from "@/lib/subscription/vouchers";
+import { getPlanBySlug, getSubscriptionStripeCustomerId } from "@/lib/subscription/subscriptionDb";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
@@ -72,7 +67,17 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => null)) as { planSlug?: string; voucherCode?: string } | null;
   const slug = typeof body?.planSlug === "string" ? body.planSlug.trim() : "";
-  const voucherCode = typeof body?.voucherCode === "string" ? String(body.voucherCode) : "";
+  if (typeof body?.voucherCode === "string" && body.voucherCode.trim()) {
+    return Response.json(
+      {
+        success: false,
+        error:
+          "Dashboard voucher codes are not applied to card checkout. Use a Stripe promotion code on the Stripe checkout page, or redeem a complimentary (100% off) code under “Complimentary access” on this page.",
+        code: "voucher_use_complimentary_flow",
+      },
+      { status: 400 }
+    );
+  }
   if (!slug) {
     return Response.json({ success: false, error: "Missing planSlug" }, { status: 400 });
   }
@@ -82,48 +87,12 @@ export async function POST(request: Request) {
     return Response.json({ success: false, error: "Unknown plan" }, { status: 400 });
   }
 
-  let voucherPercentOff = 0;
-  let voucherDurationDaysOverride: number | null = null;
-  if (voucherCode && voucherCode.trim()) {
-    const consumed = await consumeVoucherForPlan({ code: voucherCode, planSlug: plan.slug });
-    if (!consumed.ok) {
-      return Response.json({ success: false, error: consumed.error, code: consumed.code }, { status: 400 });
-    }
-    voucherPercentOff = consumed.voucher.percentOff;
-    voucherDurationDaysOverride = consumed.voucher.durationDaysOverride;
-  }
-
-  const finalDurationDays =
-    typeof voucherDurationDaysOverride === "number" && Number.isFinite(voucherDurationDaysOverride)
-      ? voucherDurationDaysOverride
-      : plan.duration_days;
-
   const planPercent = Math.max(
     0,
     Math.min(100, Math.round(Number((plan as { discount_percent?: number }).discount_percent ?? 0) || 0))
   );
   const listUsd = Math.max(0, Number(plan.price_usd));
-  const afterPlanUsd = Math.max(0, listUsd * (1 - planPercent / 100));
-
-  const voucherPercent = Math.max(0, Math.min(100, voucherPercentOff));
-  const discountedUsd = Math.max(0, afterPlanUsd * (1 - voucherPercent / 100));
-
-  if (discountedUsd <= 0) {
-    const granted = await upsertSubscriptionAfterPayment({
-      discordId,
-      planId: plan.id,
-      durationDays: finalDurationDays,
-    });
-
-    return Response.json({
-      success: true,
-      activated: true,
-      via: "voucher",
-      plan: { slug: plan.slug, label: plan.label, priceUsd: discountedUsd, durationDays: finalDurationDays },
-      voucher: { percentOff: voucherPercent },
-      subscriptionUpdated: Boolean(granted),
-    });
-  }
+  const displayEffectiveUsd = Math.max(0, listUsd * (1 - planPercent / 100));
 
   const stripePriceId = typeof plan.stripe_price_id === "string" ? plan.stripe_price_id.trim() : "";
   if (!stripePriceId) {
@@ -138,35 +107,19 @@ export async function POST(request: Request) {
     );
   }
 
-  let discounts: { coupon: string }[] | undefined;
   try {
-    if (voucherPercent > 0 && voucherPercent < 100) {
-      const coupon = await stripe.coupons.create({
-        percent_off: voucherPercent,
-        duration: "once",
-        name: `Voucher ${plan.slug}`.slice(0, 40),
-      });
-      discounts = [{ coupon: coupon.id }];
-    }
-
     const base = checkoutBaseUrl();
     const successUrl = `${base}/subscribe?stripe=done&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${base}/subscribe?stripe=cancel`;
 
     const existingCustomerId = await getSubscriptionStripeCustomerId(discordId);
 
-    // Stripe forbids `allow_promotion_codes` and `discounts` on the same session.
-    const allowPromotionCodes = !discounts?.length;
-
-    // Subscription mode: never pass `customer_creation` (Stripe only allows it in payment/setup).
-    // With no `customer`, Checkout creates a Customer from details collected on the page.
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
       client_reference_id: discordId.slice(0, 200),
       ...(existingCustomerId ? { customer: existingCustomerId } : {}),
       line_items: [{ price: stripePriceId, quantity: 1 }],
-      ...(allowPromotionCodes ? { allow_promotion_codes: true } : {}),
-      ...(discounts ? { discounts } : {}),
+      allow_promotion_codes: true,
       metadata: {
         discord_id: discordId,
         plan_id: plan.id,
@@ -190,8 +143,8 @@ export async function POST(request: Request) {
     return Response.json({
       success: true,
       url: checkoutSession.url,
-      plan: { slug: plan.slug, label: plan.label, priceUsd: discountedUsd, durationDays: plan.duration_days },
-      voucher: voucherPercent > 0 ? { percentOff: voucherPercent } : null,
+      plan: { slug: plan.slug, label: plan.label, priceUsd: displayEffectiveUsd, durationDays: plan.duration_days },
+      voucher: null,
       planDiscount: planPercent > 0 ? { percentOff: planPercent, listPriceUsd: listUsd } : null,
       billing: "stripe_subscription" as const,
     });
