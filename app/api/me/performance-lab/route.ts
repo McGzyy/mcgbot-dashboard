@@ -1,7 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+} from "@/lib/callPerformanceDashboardVisibility";
 import {
   aggregateCallPerformanceRows,
   fetchCallPerformanceForSource,
@@ -46,7 +49,8 @@ export async function GET() {
         .from("call_performance")
         .select("ath_multiple, spot_multiple, call_time, call_ca, excluded_from_stats")
         .eq("discord_id", discordId)
-        .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR),
+        .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+        .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR),
       getStatsCutoverUtcMs(),
     ]);
 

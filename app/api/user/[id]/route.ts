@@ -11,7 +11,10 @@ import {
 } from "@/lib/callPerformanceUserStats";
 import { resolveDiscordIdFromProfileRouteParam } from "@/lib/discordIdentity";
 import { fetchDiscordIdentity } from "@/lib/discordIdentityFetch";
-import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+} from "@/lib/callPerformanceDashboardVisibility";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 
@@ -133,7 +136,8 @@ export async function GET(
           .from("call_performance")
           .select(columns)
           .eq("discord_id", discordId)
-          .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR);
+          .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+          .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR);
         return { data: res.data, error: res.error };
       },
     });
@@ -206,8 +210,7 @@ export async function GET(
 
     const displayName = rowDn || handleUsername;
     const stats = computeCallPerformanceUserStats(statsRows);
-    // For moderation/debug: include excluded calls in the "recent calls" list, but keep stats clean.
-    const recentCalls = recentCallsFromRows(rawRows, PROFILE_RECENT_CALLS_LIMIT);
+    const recentCalls = recentCallsFromRows(statsRows, PROFILE_RECENT_CALLS_LIMIT);
     const keyStats = computeKeyStats(statsRows);
     const callDistribution = computeCallDistribution(statsRows);
 

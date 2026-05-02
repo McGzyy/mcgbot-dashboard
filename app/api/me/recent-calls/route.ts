@@ -6,7 +6,10 @@ import {
   CP_RECENT_WITH_SNAPSHOT,
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
-import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+} from "@/lib/callPerformanceDashboardVisibility";
 import { mapCallPerformanceRowToRecentCall } from "@/lib/callPerformanceUserStats";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
@@ -41,6 +44,7 @@ export async function GET() {
             .select(columns)
             .eq("discord_id", discordId)
             .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+            .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR)
             .order("call_time", { ascending: false })
             .limit(50);
           return { data: res.data, error: res.error };

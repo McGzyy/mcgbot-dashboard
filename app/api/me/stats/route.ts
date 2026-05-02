@@ -10,7 +10,10 @@ import {
   countCallsInPriorRollingWindow,
   computeActiveDaysStreakUtc,
 } from "@/lib/callPerformanceUserStats";
-import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+} from "@/lib/callPerformanceDashboardVisibility";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
 const ROLLING_DAY_MS = 86400000;
@@ -42,7 +45,8 @@ export async function GET() {
         .from("call_performance")
         .select("ath_multiple, spot_multiple, call_time, excluded_from_stats")
         .eq("discord_id", discordId)
-        .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR),
+        .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+        .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR),
       getStatsCutoverUtcMs(),
     ]);
 

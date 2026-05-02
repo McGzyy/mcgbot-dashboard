@@ -11,7 +11,10 @@ import {
   CP_ACTIVITY_WITH_SNAPSHOT,
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
-import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+} from "@/lib/callPerformanceDashboardVisibility";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 
@@ -45,7 +48,8 @@ export async function GET(request: Request) {
       let q = supabase
         .from("call_performance")
         .select(columns)
-        .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR);
+        .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+        .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR);
       const t = tier.toLowerCase().trim();
       if (t === "free") {
         q = q.eq("source", "user");

@@ -6,7 +6,10 @@ import {
   CP_TAPE_WITH_SNAPSHOT,
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
-import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+} from "@/lib/callPerformanceDashboardVisibility";
 import { rowAthMultiple, rowLiveMultiple } from "@/lib/callPerformanceMultiples";
 import { mergeStatsCutoverIntoMin, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 
@@ -55,6 +58,7 @@ export async function GET(request: Request) {
           .select(columns, { count: "exact" })
           .eq("discord_id", discordId)
           .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+          .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR)
           .gte("call_time", floor)
           .order("call_time", { ascending: false })
           .range(offset, offset + limit - 1);

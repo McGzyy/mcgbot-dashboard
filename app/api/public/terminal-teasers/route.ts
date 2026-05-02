@@ -1,4 +1,7 @@
-import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+} from "@/lib/callPerformanceDashboardVisibility";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 import { filterCallRowsForStats, getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
@@ -26,6 +29,7 @@ export async function GET() {
         "id, username, call_ca, ath_multiple, spot_multiple, call_time, source, excluded_from_stats, token_name, token_ticker"
       )
       .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+      .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR)
       .gte("call_time", weekMinMs)
       .order("call_time", { ascending: false })
       .limit(5000);

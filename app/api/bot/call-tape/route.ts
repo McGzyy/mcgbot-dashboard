@@ -8,7 +8,10 @@ import {
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
 import { hasAccess } from "@/lib/hasAccess";
-import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+} from "@/lib/callPerformanceDashboardVisibility";
 import { rowAthMultiple, rowLiveMultiple } from "@/lib/callPerformanceMultiples";
 import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
@@ -89,7 +92,7 @@ export async function GET(request: Request) {
           .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
           .gte("call_time", floor);
         if (!includeExcluded) {
-          q = q.eq("excluded_from_stats", false);
+          q = q.or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR);
         }
         if (minMultiple != null) {
           q = q.gte("ath_multiple", minMultiple);

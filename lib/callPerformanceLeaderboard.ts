@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+} from "@/lib/callPerformanceDashboardVisibility";
 import {
   rollingSevenDaysStartUtcMs,
   startOfCalendarDayUtcMs,
@@ -160,7 +163,8 @@ export async function fetchCallPerformanceForSource(
     .from("call_performance")
     .select("*")
     .eq("source", source)
-    .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR);
+    .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+    .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR);
 
   if (error) {
     return { rows: [], error: new Error(error.message) };

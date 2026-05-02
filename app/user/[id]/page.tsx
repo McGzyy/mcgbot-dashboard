@@ -696,6 +696,7 @@ function parseProfile(json: unknown): ProfilePayload | null {
     for (const row of recentRaw) {
       if (!row || typeof row !== "object") continue;
       const r = row as Record<string, unknown>;
+      if (r.excludedFromStats === true || r.excluded_from_stats === true) continue;
       const id =
         typeof r.id === "string"
           ? r.id.trim()

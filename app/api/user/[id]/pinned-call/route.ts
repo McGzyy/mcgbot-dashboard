@@ -1,5 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
-import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+} from "@/lib/callPerformanceDashboardVisibility";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 
 export async function GET(
@@ -55,6 +58,7 @@ export async function GET(
       .eq("id", pinnedCallId)
       .eq("discord_id", profileUserId)
       .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+      .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR)
       .maybeSingle();
 
     console.log("PINNED CALL RESULT:", call, callErr);

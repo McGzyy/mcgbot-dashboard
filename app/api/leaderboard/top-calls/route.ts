@@ -10,7 +10,10 @@ import {
   CP_TOP_CALLS_WITH_SNAPSHOT,
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
-import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+} from "@/lib/callPerformanceDashboardVisibility";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 import { abbreviateCa } from "@/lib/callDisplayFormat";
 import {
@@ -80,9 +83,7 @@ export async function GET(request: Request) {
           q = q.gte("call_time", minMs);
         }
 
-        q = q
-          .or("excluded_from_stats.is.null,excluded_from_stats.eq.false")
-          .order("ath_multiple", { ascending: false })
+        q = q.or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR).order("ath_multiple", { ascending: false })
           .order("call_time", { ascending: false })
           .range(offset, offset + limit - 1);
 
