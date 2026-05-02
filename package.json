@@ -2,6 +2,9 @@
   "name": "mcgbot-dashboard",
   "version": "0.1.0",
   "private": true,
+  "overrides": {
+    "utf-8-validate": "6.0.6"
+  },
   "scripts": {
     "dev": "next dev",
     "dev:webpack": "next dev --webpack",
