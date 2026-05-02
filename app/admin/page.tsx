@@ -62,6 +62,13 @@ export default function AdminOverviewPage() {
           data-tutorial="admin.card.bot"
         />
         <OverviewCard
+          href="/admin/call-visibility"
+          title="Call visibility"
+          subtitle="Hide or show a tracked mint on the public web (profiles & lists) — same as !hidecall; nothing deleted in Discord."
+          hint="Bot API · tracked calls"
+          data-tutorial="admin.card.call-visibility"
+        />
+        <OverviewCard
           href="/admin/site#stripe-test-checkout"
           title="Site & flags"
           subtitle="Deploy fingerprint, env checks, and live Supabase settings — including the optional $1 Stripe test checkout toggle."
