@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { getServerSession } from "next-auth";
+import { Analytics } from "@vercel/analytics/next";
 import { AppChrome } from "./components/AppChrome";
 import { Providers } from "./providers";
 import { authOptions } from "@/lib/auth";
@@ -67,6 +68,7 @@ export default async function RootLayout({
         <Providers session={session}>
           <AppChrome>{children}</AppChrome>
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
