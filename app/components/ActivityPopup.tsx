@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { terminalUi } from "@/lib/terminalDesignTokens";
 
 export type ActivityPopupItem = {
   text: string;
@@ -78,7 +79,7 @@ export function ActivityPopup({
 
   return (
     <div
-      className="activity-popup-backdrop fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-[3px]"
+      className={terminalUi.activityBackdrop}
       onClick={onClose}
       role="presentation"
     >
@@ -86,7 +87,7 @@ export function ActivityPopup({
         role="dialog"
         aria-modal="true"
         aria-labelledby="activity-popup-title"
-        className="activity-popup-panel relative w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-950 p-4 shadow-xl"
+        className={terminalUi.activityPanel}
         onClick={(e) => e.stopPropagation()}
       >
         <button

@@ -4,9 +4,10 @@ import type { ModQueuePayload } from "@/lib/modQueue";
 import { formatRelativeTime } from "@/lib/modUiUtils";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 const CARD_HOVER =
-  "transition-[box-shadow,border-color,ring-color] duration-200 ease-out hover:border-[#2a2a2a] hover:shadow-lg hover:shadow-black/35 hover:ring-1 hover:ring-[#2a2a2a]/30";
+  "transition-[box-shadow,border-color,ring-color] duration-200 ease-out hover:border-zinc-700/80 hover:shadow-lg hover:shadow-black/35 hover:ring-1 hover:ring-zinc-700/25";
 
 function shortAddr(ca: string) {
   const s = ca.trim();
@@ -81,7 +82,7 @@ export function ModQueueHomePanel() {
   return (
     <section>
       <div
-        className={`relative overflow-hidden rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
+        className={`relative overflow-hidden rounded-xl border px-4 py-3 backdrop-blur-sm ${terminalSurface.panelCard} ${CARD_HOVER}`}
       >
         {hasItems ? (
           <div

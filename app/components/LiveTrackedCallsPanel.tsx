@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 const MOCK_CALLS = [
   { token: "SOLXYZ", multiple: 3.4, caller: "user1" },
@@ -8,7 +9,7 @@ const MOCK_CALLS = [
 
 function PanelCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm">
+    <div className={`rounded-xl border px-4 py-3 backdrop-blur-sm ${terminalSurface.panelCard}`}>
       <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
         {title}
       </h2>
@@ -33,7 +34,7 @@ export default function LiveTrackedCallsPanel() {
         {rows.map((row, idx) => (
           <li
             key={`${row.token}-${row.caller}-${idx}`}
-            className="flex items-center justify-between gap-3 border-b border-[#1a1a1a] py-2 last:border-b-0"
+            className="flex items-center justify-between gap-3 border-b border-zinc-800/90 py-2 last:border-b-0"
           >
             <div className="min-w-0">
               <p className={`truncate font-semibold ${topRankClass(idx)}`}>

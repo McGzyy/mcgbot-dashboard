@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { terminalUi } from "@/lib/terminalDesignTokens";
 
 type FeedPost = {
   id: string;
@@ -245,7 +246,7 @@ function PostPnlModal({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+      className={terminalUi.modalBackdropZ120}
       role="dialog"
       aria-modal="true"
       aria-label="Post a verified PnL"
@@ -253,7 +254,7 @@ function PostPnlModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-3xl rounded-2xl border border-zinc-800/70 bg-zinc-950/75 p-5 shadow-2xl shadow-black/60 backdrop-blur sm:p-6">
+      <div className={terminalUi.modalPanel3xlWide}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500">

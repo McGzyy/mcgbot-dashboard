@@ -24,6 +24,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { terminalUi } from "@/lib/terminalDesignTokens";
 
 const CARD_HOVER =
   "transition-[box-shadow,border-color] duration-200 ease-out hover:border-zinc-600/50 hover:shadow-lg hover:shadow-black/35";
@@ -2499,7 +2500,7 @@ export default function UserProfilePage() {
 
       {editOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+          className={terminalUi.modalBackdropZ50}
           role="dialog"
           aria-modal="true"
           aria-label="Edit profile"
@@ -2507,7 +2508,7 @@ export default function UserProfilePage() {
             if (e.target === e.currentTarget) setEditOpen(false);
           }}
         >
-          <div className="mt-10 w-full max-w-lg rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+          <div className={terminalUi.modalPanelLgXl}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">

@@ -21,7 +21,7 @@ export default async function AuthErrorPage(props: PageProps<"/auth/error">) {
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-lg flex-col justify-center px-4 py-10">
-      <div className="rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-8 shadow-xl shadow-black/40 backdrop-blur-sm">
+      <div className="rounded-2xl border border-zinc-800/90 bg-zinc-950 p-8 shadow-xl shadow-black/40 backdrop-blur-sm">
         <h1 className="text-lg font-semibold text-zinc-100">{title}</h1>
         <p className="mt-3 text-sm leading-relaxed text-zinc-400">{hint}</p>
 

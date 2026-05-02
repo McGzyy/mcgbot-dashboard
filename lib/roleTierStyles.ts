@@ -62,7 +62,8 @@ const marketStripEdgeMask =
  */
 export const dashboardChrome = {
   /** Main column below TopBar */
-  mainStage: "relative flex min-h-0 flex-1 flex-col overflow-x-hidden bg-[#030406]",
+  mainStage:
+    "relative flex min-h-0 flex-1 flex-col overflow-x-hidden bg-[color:var(--mcg-stage)]",
   mainGlow:
     "pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_110%_70%_at_50%_-25%,rgba(56,189,248,0.11),transparent_52%),radial-gradient(ellipse_55%_45%_at_100%_0%,rgba(16,185,129,0.06),transparent_42%),radial-gradient(ellipse_50%_50%_at_0%_100%,rgba(139,92,246,0.045),transparent_48%)]",
   mainGrid:

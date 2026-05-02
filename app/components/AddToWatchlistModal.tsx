@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { terminalUi } from "@/lib/terminalDesignTokens";
 
 type Visibility = "private" | "public";
 
@@ -114,7 +115,7 @@ export function AddToWatchlistModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="my-auto w-full max-w-md rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
+      <div className={terminalUi.dialogPanelCompact}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-zinc-100">Add to watchlist</h3>
@@ -130,7 +131,7 @@ export function AddToWatchlistModal({
           <button
             type="button"
             onClick={() => onClose()}
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-[#1a1a1a] bg-[#0a0a0a] text-zinc-300 transition hover:bg-zinc-900/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
+            className={terminalUi.modalCloseIconBtn}
             aria-label="Close"
             disabled={submitting}
           >
@@ -159,13 +160,13 @@ export function AddToWatchlistModal({
               onChange={(e) => setCa(e.target.value)}
               placeholder="Paste mint address"
               disabled={submitting}
-              className="mt-1 w-full rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60"
+              className={`mt-1 ${terminalUi.formInput}`}
             />
           </label>
 
           <fieldset className="space-y-2">
             <legend className="text-xs font-medium text-zinc-400">Visibility</legend>
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#1a1a1a] bg-zinc-950/50 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900/40">
+            <label className={terminalUi.choiceRow}>
               <input
                 type="radio"
                 name="watch-visibility"
@@ -181,7 +182,7 @@ export function AddToWatchlistModal({
                 </span>
               </span>
             </label>
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#1a1a1a] bg-zinc-950/50 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900/40">
+            <label className={terminalUi.choiceRow}>
               <input
                 type="radio"
                 name="watch-visibility"
@@ -208,7 +209,7 @@ export function AddToWatchlistModal({
             <p className="text-sm text-[color:var(--accent)]">Saved.</p>
           ) : null}
 
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#1a1a1a] pt-3">
+          <div className={`flex flex-wrap items-center justify-between gap-2 pt-3 ${terminalUi.inlineFooterRule}`}>
             <Link
               href="/watchlist"
               className="text-xs text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
@@ -221,7 +222,7 @@ export function AddToWatchlistModal({
                 type="button"
                 onClick={() => onClose()}
                 disabled={submitting}
-                className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900/40 disabled:opacity-60"
+                className={terminalUi.secondaryButtonSm}
               >
                 Cancel
               </button>

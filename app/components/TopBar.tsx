@@ -3,6 +3,7 @@
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { useMobileSidebar } from "@/app/contexts/MobileSidebarContext";
 import { dashboardChrome } from "@/lib/roleTierStyles";
+import { terminalUi } from "@/lib/terminalDesignTokens";
 import { userProfileHref, userProfilePathMatches } from "@/lib/userProfileHref";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -516,7 +517,7 @@ export function TopBar() {
                 </button>
                 {openNotifications ? (
                   <div
-                    className="absolute right-0 z-50 mt-2 max-h-[min(24rem,70dvh)] w-[min(20rem,calc(100vw-1.25rem))] overflow-y-auto rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-xl sm:w-80"
+                    className={terminalUi.notificationsPanel}
                     role="region"
                     aria-label="Notification list"
                   >
@@ -525,7 +526,7 @@ export function TopBar() {
                         No notifications yet
                       </p>
                     ) : (
-                      <ul className="divide-y divide-[#1a1a1a]">
+                      <ul className={terminalUi.notificationsList}>
                         {notifications.map((n) => (
                           <li
                             key={n.id}
@@ -577,10 +578,7 @@ export function TopBar() {
                     </span>
                   </button>
                   {open ? (
-                    <div
-                      className="absolute right-0 top-full z-50 mt-2 min-w-[220px] rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] py-1 shadow-lg"
-                      role="menu"
-                    >
+                    <div className={terminalUi.accountMenu} role="menu">
                       <Link
                         href={userProfileHref({
                           discordId: session.user.id,
@@ -639,7 +637,7 @@ export function TopBar() {
                         </kbd>
                       </Link>
 
-                      <div className="my-1 border-t border-[#1a1a1a]" />
+                      <div className={terminalUi.menuSectionRule} />
                       <div className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
                         Referrals
                       </div>
@@ -680,7 +678,7 @@ export function TopBar() {
                         Rewards
                       </Link>
 
-                      <div className="my-1 border-t border-[#1a1a1a]" />
+                      <div className={terminalUi.menuSectionRule} />
                       <button
                         type="button"
                         role="menuitem"
@@ -920,7 +918,7 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+      className={terminalUi.modalBackdropZ120}
       role="dialog"
       aria-modal="true"
       aria-label="Tip McGBot"
@@ -928,7 +926,7 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-2xl rounded-2xl border border-zinc-800/70 bg-zinc-950/70 p-5 shadow-2xl shadow-black/60 backdrop-blur sm:p-6">
+      <div className={terminalUi.modalPanelWideGlass}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500">
@@ -1156,7 +1154,7 @@ function TokenSearchModal({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+      className={terminalUi.modalBackdropZ100}
       role="dialog"
       aria-modal="true"
       aria-label="Token search"
@@ -1164,7 +1162,7 @@ function TokenSearchModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="mt-10 w-full max-w-xl rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
+      <div className={terminalUi.tokenSearchModalPanel}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-zinc-100">Token Search</h3>
@@ -1175,7 +1173,7 @@ function TokenSearchModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-[#1a1a1a] bg-[#0a0a0a] text-zinc-300 transition hover:bg-zinc-900/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
+            className={terminalUi.modalCloseIconBtn}
             aria-label="Close"
           >
             <svg
@@ -1200,7 +1198,7 @@ function TokenSearchModal({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="e.g. So111... / SOL / WIF"
-            className="w-full rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2"
+            className={terminalUi.formInput}
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter") onSearch();
@@ -1208,11 +1206,7 @@ function TokenSearchModal({
           />
 
           <div className="flex items-center justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-[#0a0a0a]"
-            >
+            <button type="button" onClick={onClose} className={terminalUi.secondaryButtonSm}>
               Cancel
             </button>
             <button

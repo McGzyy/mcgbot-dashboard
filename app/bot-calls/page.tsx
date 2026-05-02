@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
+import { terminalUi } from "@/lib/terminalDesignTokens";
 
 type TapeRow = {
   id: string;
@@ -631,7 +632,7 @@ export default function BotCallsPage() {
 
       {reportOpen ? (
         <div
-          className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+          className={terminalUi.modalBackdropZ100}
           role="dialog"
           aria-modal="true"
           aria-label="Report bot call"
@@ -639,7 +640,7 @@ export default function BotCallsPage() {
             if (e.target === e.currentTarget) setReportOpen(false);
           }}
         >
-          <div className="mt-10 w-full max-w-xl rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+          <div className={terminalUi.modalPanelXl}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">Report bot call</h3>

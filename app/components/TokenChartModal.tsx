@@ -184,8 +184,8 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[100dvh] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl border border-zinc-800/90 bg-[#09090b] shadow-2xl shadow-black/60 sm:max-h-[min(92dvh,920px)] sm:rounded-2xl">
-        <div className="sticky top-0 z-10 flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-zinc-800/80 bg-[#09090b]/95 px-4 py-3 backdrop-blur sm:px-5">
+      <div className="flex max-h-[100dvh] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl border border-zinc-800/90 bg-zinc-950 shadow-2xl shadow-black/60 sm:max-h-[min(92dvh,920px)] sm:rounded-2xl">
+        <div className="sticky top-0 z-10 flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-zinc-800/80 bg-zinc-950/95 px-4 py-3 backdrop-blur sm:px-5">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             {payload.tokenImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element

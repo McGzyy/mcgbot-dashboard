@@ -264,7 +264,7 @@ function TokenCallThumb({
         tone === "bot"
           ? "border-sky-500/25 bg-sky-950/50 text-sky-200"
           : tone === "muted"
-            ? "border-[#1a1a1a] bg-[#050505] text-zinc-300"
+            ? "border-zinc-800/90 bg-[color:var(--mcg-page)] text-zinc-300"
             : "border-emerald-500/20 bg-emerald-950/40 text-emerald-200/90",
       ].join(" ")}
       aria-hidden
@@ -324,7 +324,7 @@ function TopCallsList({
 
   const shell =
     tone === "muted"
-      ? "rounded-xl border border-[#1a1a1a]/80 bg-[#080808] p-3 opacity-[0.94]"
+      ? "rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-3 opacity-[0.94]"
       : tone === "bot"
         ? "rounded-xl border border-sky-500/20 bg-sky-950/15 p-3 ring-1 ring-sky-500/10"
         : "rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-3 ring-1 ring-emerald-500/10";
@@ -1109,7 +1109,7 @@ export default function LeaderboardPage() {
         </div>
         <div className="mb-6 rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <div className="relative rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+              <div className="relative rounded-xl border border-zinc-800/90 bg-zinc-900/40 p-3">
                 <div className="pr-16">
                   <div className="flex items-start justify-between gap-2">
                     <p className="mb-1 text-xs font-semibold tracking-wide text-zinc-300">
@@ -1133,7 +1133,7 @@ export default function LeaderboardPage() {
                   />
                 </div>
               </div>
-              <div className="relative rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+              <div className="relative rounded-xl border border-zinc-800/90 bg-zinc-900/40 p-3">
                 <div className="pr-16">
                   <div className="flex items-start justify-between gap-2">
                     <p className="mb-1 text-xs font-semibold tracking-wide text-zinc-300">
@@ -1157,7 +1157,7 @@ export default function LeaderboardPage() {
                   />
                 </div>
               </div>
-              <div className="relative rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+              <div className="relative rounded-xl border border-zinc-800/90 bg-zinc-900/40 p-3">
                 <div className="pr-16">
                   <div className="flex items-start justify-between gap-2">
                     <p className="mb-1 text-xs font-semibold tracking-wide text-zinc-300">
@@ -1184,7 +1184,7 @@ export default function LeaderboardPage() {
                   />
                 </div>
               </div>
-              <div className="relative rounded-xl border border-[#1a1a1a] bg-zinc-900/40 p-3">
+              <div className="relative rounded-xl border border-zinc-800/90 bg-zinc-900/40 p-3">
                 <div className="pr-16">
                   <div className="flex items-start justify-between gap-2">
                     <p className="mb-1 text-xs font-semibold tracking-wide text-zinc-300">

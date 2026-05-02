@@ -39,6 +39,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { terminalPage } from "@/lib/terminalDesignTokens";
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
@@ -290,8 +291,8 @@ function topPerformerVisuals(
     };
   }
   return {
-    row: "rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3",
-    badge: "bg-[#0a0a0a] text-zinc-500",
+    row: "rounded-xl border border-zinc-800/90 bg-zinc-950 px-4 py-3",
+    badge: "bg-zinc-950 text-zinc-500",
     nameLink: `${PROFILE_LINK_CLASS} min-w-0 truncate font-medium`,
     avgStrong: "font-semibold text-[#39FF14]/95",
   };
@@ -1228,7 +1229,7 @@ function StatCard({
 
   return (
     <div
-      className={`relative rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
+      className={`relative rounded-xl border border-zinc-800/90 bg-[#0a0a0a] px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
     >
       <div className="absolute left-0 right-0 top-0 h-[2px] rounded-t-xl bg-gradient-to-r from-[#39FF14]/40 to-transparent" />
       <p className="text-xs uppercase tracking-wide text-zinc-600">
@@ -1454,7 +1455,7 @@ function TrendingPanel() {
                           "noopener,noreferrer"
                         )
                       }
-                      className="group flex w-full items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
+                      className={terminalPage.denseInsetRowButton}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
@@ -1694,7 +1695,7 @@ function TopPerformersPanel({
         ].map((row) => (
           <li
             key={row.label}
-            className={`rounded-xl border px-4 py-3 shadow-sm shadow-black/20 ${row.tint} border-[#1a1a1a]`}
+            className={`rounded-xl border px-4 py-3 shadow-sm shadow-black/20 ${row.tint} border-zinc-800/90`}
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
@@ -1920,7 +1921,7 @@ function ActivityFeedPanel({
             {filteredActivity.map((item, i) => (
             <li
               key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
-              className="dashboard-feed-item border-b border-[#1a1a1a] last:border-b-0"
+              className="dashboard-feed-item border-b border-zinc-800/90 last:border-b-0"
               style={{ animationDelay: `${i * 70}ms` }}
             >
               <div className="group relative">
@@ -2026,7 +2027,7 @@ function FollowingFeedPanel() {
         {FOLLOWING_FEED_MOCK.slice(0, 10).map((item, i) => (
           <li
             key={`${item.user}-${item.token}-${item.time}-${i}`}
-            className="border-b border-[#1a1a1a] last:border-b-0"
+            className="border-b border-zinc-800/90 last:border-b-0"
           >
             <div className="-mx-1 flex items-start justify-between gap-3 rounded-md py-2 pl-1 pr-1 transition-colors duration-150 hover:bg-zinc-800/30 sm:pl-2 sm:pr-2">
               <div className="min-w-0">
@@ -2185,7 +2186,7 @@ function SocialsFeedPanel() {
           {rows.map((item) => (
             <li
               key={item.id}
-              className={`rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 transition-colors hover:bg-zinc-900/35 ${
+              className={`${terminalPage.denseInsetRow} ${
                 flashId === item.id ? "ring-1 ring-[color:var(--accent)]/35 bg-zinc-900/35" : ""
               }`}
             >
@@ -2727,7 +2728,7 @@ function OpportunitiesPanel() {
                         "noopener,noreferrer"
                       )
                     }
-                    className="group w-full rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
+                    className="group w-full rounded-lg border border-zinc-800/90 bg-zinc-900/20 px-3 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -3714,7 +3715,7 @@ export default function Home() {
       <section className="mb-8 space-y-4" data-tutorial="dashboard.personalStats">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-semibold tracking-tight text-zinc-100">
+            <h2 className={terminalPage.sectionTitle}>
               Personal Stats
             </h2>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--accent)]">
@@ -3722,7 +3723,7 @@ export default function Home() {
               LIVE
             </span>
           </div>
-          <p className="mt-0.5 text-xs text-zinc-600">
+          <p className={terminalPage.sectionHint}>
             Key metrics from your recent activity.
           </p>
         </div>
@@ -3733,7 +3734,7 @@ export default function Home() {
         >
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
             <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className={terminalPage.statTile}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   AVG X
                 </div>
@@ -3745,7 +3746,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className={terminalPage.statTile}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   WIN RATE
                 </div>
@@ -3754,7 +3755,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className={terminalPage.statTile}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   STREAK
                 </div>
@@ -3763,7 +3764,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className={terminalPage.statTile}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   TOTAL CALLS
                 </div>
@@ -3773,7 +3774,7 @@ export default function Home() {
                 <div className="mt-1 text-xs text-zinc-500">All time</div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className={terminalPage.statTile}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   MEDIAN X
                 </div>
@@ -3784,7 +3785,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className={terminalPage.statTile}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   2X HIT (30D)
                 </div>
@@ -3795,7 +3796,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className={terminalPage.statTile}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   BEST X (30D)
                 </div>
@@ -3806,7 +3807,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[#1a1a1a] bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className={terminalPage.statTile}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   LAST CALL
                 </div>
@@ -3933,7 +3934,7 @@ export default function Home() {
                       displayName: session.user.name,
                     })}
                     data-tutorial="dashboard.quickActions.myProfile"
-                    className="flex items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     My Profile
                   </Link>
@@ -3941,21 +3942,21 @@ export default function Home() {
                     type="button"
                     onClick={() => setAddWatchlistOpen(true)}
                     data-tutorial="dashboard.quickActions.watchlist"
-                    className="flex items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     Watchlist
                   </button>
                   <button
                     type="button"
                     onClick={() => notifyComingSoon("Create Alert")}
-                    className="rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                    className="rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     Create Alert
                   </button>
                   <Link
                     href="/referrals"
                     data-tutorial="dashboard.quickActions.referrals"
-                    className="flex items-center justify-center rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     Referrals
                   </Link>
@@ -3965,7 +3966,7 @@ export default function Home() {
                   type="button"
                   onClick={handleCopy}
                   disabled={!referralUrl}
-                  className="w-full rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {copied ? "Referral Link Copied" : "Copy Referral Link"}
                 </button>
@@ -4014,7 +4015,7 @@ export default function Home() {
                         href={`https://dexscreener.com/solana/${encodeURIComponent(ca)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="group flex items-center justify-between gap-3 rounded-lg border border-[#1a1a1a] bg-zinc-900/20 px-3 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
+                        className="group flex items-center justify-between gap-3 rounded-lg border border-zinc-800/90 bg-zinc-900/20 px-3 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
@@ -4180,7 +4181,7 @@ export default function Home() {
             if (e.target === e.currentTarget) setSubmitCallOpen(false);
           }}
         >
-          <div className="w-full max-w-md rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
+          <div className="w-full max-w-md rounded-xl border border-zinc-800/90 bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">
@@ -4193,7 +4194,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setSubmitCallOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-[#1a1a1a] bg-[#0a0a0a] text-zinc-300 transition hover:bg-zinc-900/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800/90 bg-[#0a0a0a] text-zinc-300 transition hover:bg-zinc-900/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
                 aria-label="Close"
                 disabled={submitCallSubmitting}
               >
@@ -4221,7 +4222,7 @@ export default function Home() {
                   onChange={(e) => setSubmitCallValue(e.target.value)}
                   placeholder="Enter contract address"
                   disabled={submitCallSubmitting}
-                  className="min-w-0 flex-1 rounded-lg border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60"
+                  className="min-w-0 flex-1 rounded-lg border border-zinc-800/90 bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60"
                 />
                 <button
                   type="button"
@@ -4240,7 +4241,7 @@ export default function Home() {
                     }
                   }}
                   disabled={submitCallSubmitting}
-                  className="shrink-0 rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 text-xs font-semibold text-zinc-200 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:opacity-60"
+                  className="shrink-0 rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-3 text-xs font-semibold text-zinc-200 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:opacity-60"
                 >
                   Paste
                 </button>
@@ -4261,7 +4262,7 @@ export default function Home() {
                   type="button"
                   onClick={() => setSubmitCallOpen(false)}
                   disabled={submitCallSubmitting}
-                  className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-[#0a0a0a] disabled:opacity-60"
+                  className="rounded-md border border-zinc-800/90 bg-[#0a0a0a] px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-[#0a0a0a] disabled:opacity-60"
                 >
                   Cancel
                 </button>

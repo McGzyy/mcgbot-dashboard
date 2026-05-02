@@ -16,7 +16,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col">
       <AnnouncementBar />
       {bareLayout ? (
-        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col bg-[color:var(--mcg-page)]">{children}</div>
       ) : (
         <MobileSidebarProvider>
           <div className="flex min-h-0 flex-1">
