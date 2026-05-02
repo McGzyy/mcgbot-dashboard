@@ -697,14 +697,30 @@ function buildReplyOptions(coin, channel) {
  * =========================
  */
 
+const MILESTONE_CHART_TIMEOUT_MS = 15_000;
+
+/**
+ * @param {object} params same shape as `buildOhlcvCandlestickBuffer` options
+ * @returns {Promise<Buffer|null>}
+ */
+function buildOhlcvCandlestickBufferWithTimeout(params) {
+  return Promise.race([
+    buildOhlcvCandlestickBuffer(params),
+    new Promise(resolve => {
+      setTimeout(() => resolve(null), MILESTONE_CHART_TIMEOUT_MS);
+    })
+  ]);
+}
+
 function queueMilestone(channel, coin, scan, key, perf, realXFromCall) {
   enqueueAlert(async () => {
     const replyOptions = buildReplyOptions(coin, channel);
 
     const pair = resolveOhlcvPairAddress(coin, scan);
     const overlay = getCandlestickOverlayProps(coin, scan);
-    const chartBuf = await buildOhlcvCandlestickBuffer({
+    const chartBuf = await buildOhlcvCandlestickBufferWithTimeout({
       pairAddress: pair,
+      contractAddress: coin.contractAddress,
       title: scan?.ticker || coin?.ticker || 'OHLC',
       ...overlay
     });
@@ -733,8 +749,9 @@ function queueDump(channel, coin, scan, key, drawdown) {
   enqueueAlert(async () => {
     const replyOptions = buildReplyOptions(coin, channel);
 
+    const dumpEmbed = createDumpEmbed(coin, scan, key, drawdown);
     await channel.send({
-      embeds: [createDumpEmbed(coin, scan, key, drawdown)],
+      embeds: [dumpEmbed],
       ...replyOptions
     });
   }, {
