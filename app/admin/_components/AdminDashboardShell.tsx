@@ -42,6 +42,16 @@ const NAV: {
     ),
   },
   {
+    href: "/admin/ca-analyze",
+    label: "CA analyzer",
+    description: "Auto-call filter dry-run",
+    icon: (a) => (
+      <svg className={`h-4 w-4 ${a ? adminChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M4.5 19.125h15a1.125 1.125 0 001.125-1.125V5.125a1.125 1.125 0 00-1.125-1.125h-15a1.125 1.125 0 00-1.125 1.125v12.875a1.125 1.125 0 001.125 1.125z" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/site",
     label: "Site & flags",
     description: "Stripe test, tour, maintenance, paywall",
