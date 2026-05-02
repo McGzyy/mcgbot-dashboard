@@ -186,7 +186,8 @@ export function recentCallsFromRows(
   rows: Record<string, unknown>[],
   limit: number
 ): RecentCallDto[] {
-  const sorted = [...rows].sort(
+  const visible = rows.filter((r) => (r as any).hidden_from_dashboard !== true);
+  const sorted = [...visible].sort(
     (a, b) => rowCallTimeUtcMs(b) - rowCallTimeUtcMs(a)
   );
   return sorted.slice(0, Math.max(0, limit)).map(mapCallPerformanceRowToRecentCall);

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
 
 /** Discord snowflake id (numeric string, typical length 17–20). */
 export function looksLikeDiscordSnowflake(raw: string | null | undefined): boolean {
@@ -32,6 +33,7 @@ export async function resolveDiscordIdFromProfileRouteParam(
     .from("call_performance")
     .select("discord_id")
     .ilike("username", safePattern)
+    .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
     .order("call_time", { ascending: false })
     .limit(1)
     .maybeSingle();

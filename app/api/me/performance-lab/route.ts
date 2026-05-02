@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
 import {
   aggregateCallPerformanceRows,
   fetchCallPerformanceForSource,
@@ -44,7 +45,8 @@ export async function GET() {
       supabase
         .from("call_performance")
         .select("ath_multiple, spot_multiple, call_time, call_ca, excluded_from_stats")
-        .eq("discord_id", discordId),
+        .eq("discord_id", discordId)
+        .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR),
       getStatsCutoverUtcMs(),
     ]);
 
@@ -77,7 +79,9 @@ export async function GET() {
     let totalRanked7d = 0;
     if (!allErr && allUserRows.length) {
       const filtered = filterRowsByMinCallTimeUtc(allUserRows, minRolling).filter(
-        (r) => (r as any).excluded_from_stats !== true
+        (r) =>
+          (r as any).excluded_from_stats !== true &&
+          (r as any).hidden_from_dashboard !== true
       );
       const ranked = aggregateCallPerformanceRows(filtered);
       totalRanked7d = ranked.length;

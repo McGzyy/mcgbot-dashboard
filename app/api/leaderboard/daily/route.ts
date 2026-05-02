@@ -1,3 +1,4 @@
+import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { filterCallRowsForStats, getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
@@ -38,6 +39,7 @@ export async function GET(req: Request) {
       const r = await supabase
         .from("call_performance")
         .select("username, call_time, excluded_from_stats")
+        .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
         .gte("call_time", minMs)
         .order("call_time", { ascending: false })
         .limit(5000);
@@ -49,6 +51,7 @@ export async function GET(req: Request) {
           const fallback = await supabase
             .from("call_performance")
             .select("username, call_time")
+            .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
             .gte("call_time", minMs)
             .order("call_time", { ascending: false })
             .limit(5000);

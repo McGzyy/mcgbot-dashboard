@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
 import {
   rollingSevenDaysStartUtcMs,
   startOfCalendarDayUtcMs,
@@ -75,6 +76,7 @@ export function aggregateCallPerformanceRows(
 
   for (const row of sorted) {
     if ((row as any).excluded_from_stats === true) continue;
+    if ((row as any).hidden_from_dashboard === true) continue;
     const discordId =
       typeof row.discord_id === "string"
         ? row.discord_id.trim()
@@ -157,7 +159,8 @@ export async function fetchCallPerformanceForSource(
   const { data, error } = await supabase
     .from("call_performance")
     .select("*")
-    .eq("source", source);
+    .eq("source", source)
+    .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR);
 
   if (error) {
     return { rows: [], error: new Error(error.message) };

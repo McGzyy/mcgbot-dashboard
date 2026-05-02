@@ -75,7 +75,11 @@ export async function GET(request: Request) {
       cutoverMs
     );
     const filtered = filterRowsByMinCallTimeUtc(rows, minCallTimeMs);
-    const eligible = filtered.filter((r) => (r as any).excluded_from_stats !== true);
+    const eligible = filtered.filter(
+      (r) =>
+        (r as any).excluded_from_stats !== true &&
+        (r as any).hidden_from_dashboard !== true
+    );
 
     const aggregated = aggregateCallPerformanceRows(eligible);
     const ranked = rankTopN(aggregated, 10);

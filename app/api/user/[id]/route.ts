@@ -11,6 +11,7 @@ import {
 } from "@/lib/callPerformanceUserStats";
 import { resolveDiscordIdFromProfileRouteParam } from "@/lib/discordIdentity";
 import { fetchDiscordIdentity } from "@/lib/discordIdentityFetch";
+import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 
@@ -131,7 +132,8 @@ export async function GET(
         const res = await supabase
           .from("call_performance")
           .select(columns)
-          .eq("discord_id", discordId);
+          .eq("discord_id", discordId)
+          .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR);
         return { data: res.data, error: res.error };
       },
     });

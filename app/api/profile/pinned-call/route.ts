@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
 
 function supabaseOrError(): SupabaseClient | Response {
   const url = process.env.SUPABASE_URL;
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
       .select("id")
       .eq("id", pinnedCallId)
       .eq("discord_id", sessionId)
+      .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
       .maybeSingle();
 
     if (callErr) {

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 
 export async function GET(
@@ -53,6 +54,7 @@ export async function GET(
       .select("id, call_ca, ath_multiple, spot_multiple, call_time")
       .eq("id", pinnedCallId)
       .eq("discord_id", profileUserId)
+      .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
       .maybeSingle();
 
     console.log("PINNED CALL RESULT:", call, callErr);

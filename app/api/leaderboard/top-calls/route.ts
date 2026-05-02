@@ -10,6 +10,7 @@ import {
   CP_TOP_CALLS_WITH_SNAPSHOT,
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
+import { CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 import { abbreviateCa } from "@/lib/callDisplayFormat";
 import {
@@ -72,6 +73,7 @@ export async function GET(request: Request) {
           .from("call_performance")
           .select(columns, { count: "exact" })
           .eq("source", type)
+          .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
           .gt("ath_multiple", 0);
 
         if (minMs > 0) {
