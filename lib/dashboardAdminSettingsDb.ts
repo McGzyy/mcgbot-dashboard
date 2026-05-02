@@ -30,6 +30,8 @@ export type DashboardAdminSettingsRow = {
   stripe_test_price_id: string | null;
   /** `subscription_plans.id` for checkout metadata; if null, server uses plan slug `monthly`. */
   stripe_test_plan_id: string | null;
+  /** When false, skip auto-opening the Joyride tour for first-time caller-tier users. */
+  tutorial_auto_start_enabled: boolean;
   updated_at: string;
   updated_by_discord_id: string | null;
 };
@@ -59,6 +61,7 @@ function defaultRow(): DashboardAdminSettingsRow {
     stripe_test_checkout_enabled: false,
     stripe_test_price_id: null,
     stripe_test_plan_id: null,
+    tutorial_auto_start_enabled: true,
     updated_at: now,
     updated_by_discord_id: null,
   };
@@ -135,6 +138,8 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
       typeof (r as { stripe_test_plan_id?: unknown }).stripe_test_plan_id === "string"
         ? String((r as { stripe_test_plan_id?: string }).stripe_test_plan_id).trim() || null
         : null,
+    tutorial_auto_start_enabled:
+      (r as { tutorial_auto_start_enabled?: unknown }).tutorial_auto_start_enabled !== false,
     updated_at: typeof r.updated_at === "string" ? r.updated_at : new Date().toISOString(),
     updated_by_discord_id: typeof r.updated_by_discord_id === "string" ? r.updated_by_discord_id : null,
   };
@@ -161,6 +166,7 @@ export async function patchDashboardAdminSettings(input: {
   stripe_test_checkout_enabled?: boolean;
   stripe_test_price_id?: string | null;
   stripe_test_plan_id?: string | null;
+  tutorial_auto_start_enabled?: boolean;
   updatedByDiscordId: string;
 }): Promise<DashboardAdminSettingsRow | null> {
   const db = getSupabaseAdmin();
@@ -249,6 +255,9 @@ export async function patchDashboardAdminSettings(input: {
     const s = raw == null ? "" : String(raw).trim();
     next.stripe_test_plan_id = s ? s.slice(0, 64) : null;
   }
+  if (typeof input.tutorial_auto_start_enabled === "boolean") {
+    next.tutorial_auto_start_enabled = input.tutorial_auto_start_enabled;
+  }
   const { data, error } = await db
     .from("dashboard_admin_settings")
     .upsert(
@@ -275,6 +284,7 @@ export async function patchDashboardAdminSettings(input: {
         stripe_test_checkout_enabled: next.stripe_test_checkout_enabled,
         stripe_test_price_id: next.stripe_test_price_id,
         stripe_test_plan_id: next.stripe_test_plan_id,
+        tutorial_auto_start_enabled: next.tutorial_auto_start_enabled,
         updated_at: next.updated_at,
         updated_by_discord_id: next.updated_by_discord_id,
       },

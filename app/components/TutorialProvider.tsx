@@ -52,6 +52,8 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
   const [stateLoading, setStateLoading] = useState(false);
   const [helpRoleLoaded, setHelpRoleLoaded] = useState(false);
   const [navWait, setNavWait] = useState(false);
+  /** From site flags; default true until fetch completes (legacy behavior). */
+  const [tutorialAutoStartEnabled, setTutorialAutoStartEnabled] = useState(true);
 
   const sessionTier = useMemo(() => tierFromSessionUser(session?.user ?? null), [session?.user]);
   const viewerTier: HelpTier = sessionTier ?? helpTier;
@@ -228,6 +230,23 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
   }, [loadHelpTier, loadTutorialState, session?.user?.id, status]);
 
   useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/public/site-flags");
+        const json = (await res.json().catch(() => null)) as { tutorial_auto_start_enabled?: unknown } | null;
+        if (cancelled || !json || typeof json !== "object") return;
+        setTutorialAutoStartEnabled(json.tutorial_auto_start_enabled !== false);
+      } catch {
+        /* keep default true */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (status !== "authenticated") {
       setHelpRoleLoaded(false);
     }
@@ -238,6 +257,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     if (stateLoading) return;
     if (!helpRoleLoaded && !sessionTier) return;
     if (tourOpen) return;
+    if (!tutorialAutoStartEnabled) return;
     if (viewerTier !== "user") return;
     const seen = trackStates.user?.seenAt;
     if (seen) return;
@@ -262,6 +282,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     stateLoading,
     status,
     tourOpen,
+    tutorialAutoStartEnabled,
     trackStates.user?.seenAt,
     viewerTier,
     stepCtx,

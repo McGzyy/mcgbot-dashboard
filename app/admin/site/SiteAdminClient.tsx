@@ -30,6 +30,8 @@ type AppSettings = {
   stripe_test_checkout_enabled: boolean;
   stripe_test_price_id: string | null;
   stripe_test_plan_id: string | null;
+  /** When false, new caller-tier users do not get the automatic dashboard tour. */
+  tutorial_auto_start_enabled: boolean;
   /** ISO-8601 UTC; stats APIs ignore call_performance before this instant. */
   stats_cutover_at: string | null;
   trusted_pro_apply_min_total_calls: number;
@@ -48,6 +50,7 @@ function mergeAppSettingsFromApi(row: AppSettings): AppSettings {
     stripe_test_checkout_enabled: Boolean(row.stripe_test_checkout_enabled),
     stripe_test_price_id: typeof row.stripe_test_price_id === "string" ? row.stripe_test_price_id : null,
     stripe_test_plan_id: typeof row.stripe_test_plan_id === "string" ? row.stripe_test_plan_id : null,
+    tutorial_auto_start_enabled: row.tutorial_auto_start_enabled !== false,
   };
 }
 
@@ -180,6 +183,7 @@ export function SiteAdminClient() {
           stripe_test_checkout_enabled: settings.stripe_test_checkout_enabled,
           stripe_test_price_id: settings.stripe_test_price_id,
           stripe_test_plan_id: settings.stripe_test_plan_id,
+          tutorial_auto_start_enabled: settings.tutorial_auto_start_enabled,
           stats_cutover_at: settings.stats_cutover_at,
           trusted_pro_apply_min_total_calls: settings.trusted_pro_apply_min_total_calls,
           trusted_pro_apply_min_avg_x: settings.trusted_pro_apply_min_avg_x,
@@ -662,6 +666,27 @@ export function SiteAdminClient() {
                     <span className="block text-sm font-medium text-white">Pause new checkouts</span>
                     <span className="mt-0.5 block text-xs text-zinc-500">
                       Blocks POST /api/subscription/checkout for non-admins; subscribe page disables the button.
+                    </span>
+                  </span>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-emerald-600 focus:ring-emerald-500/50"
+                    checked={Boolean(settings.tutorial_auto_start_enabled)}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, tutorial_auto_start_enabled: e.target.checked } : s))
+                    }
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-white">
+                      Auto-start guided tour for new caller-tier users
+                    </span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      When off, first-time members are not shown the step-by-step dashboard walkthrough automatically.
+                      Turn it back on anytime; users who have not completed the tour can still see it after you re-enable
+                      (unless they already finished or skipped it).
                     </span>
                   </span>
                 </label>

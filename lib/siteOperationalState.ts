@@ -14,6 +14,8 @@ export type SiteOperationalState = {
   discord_invite_url: string | null;
   /** When true, /subscribe may show the optional $1 (or configured) Stripe test checkout button. */
   stripe_test_checkout_enabled: boolean;
+  /** When false, the dashboard does not auto-open the Joyride tour for new caller-tier users. */
+  tutorial_auto_start_enabled: boolean;
 };
 
 let cache: { expires: number; value: SiteOperationalState } | null = null;
@@ -33,6 +35,7 @@ function defaults(): SiteOperationalState {
     subscribe_button_label: null,
     discord_invite_url: null,
     stripe_test_checkout_enabled: false,
+    tutorial_auto_start_enabled: true,
   };
 }
 
@@ -61,6 +64,7 @@ export async function getSiteOperationalState(): Promise<SiteOperationalState> {
         subscribe_button_label: row.subscribe_button_label,
         discord_invite_url: row.discord_invite_url,
         stripe_test_checkout_enabled: Boolean(row.stripe_test_checkout_enabled),
+        tutorial_auto_start_enabled: row.tutorial_auto_start_enabled !== false,
       }
     : defaults();
   cache = { expires: now + TTL_MS, value };

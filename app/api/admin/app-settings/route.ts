@@ -194,6 +194,9 @@ export async function PATCH(req: Request) {
       patch.stripe_test_plan_id = t;
     }
   }
+  if (typeof o.tutorial_auto_start_enabled === "boolean") {
+    patch.tutorial_auto_start_enabled = o.tutorial_auto_start_enabled;
+  }
   const row = await patchDashboardAdminSettings(patch);
   if (!row) {
     return Response.json(
