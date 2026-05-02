@@ -48,6 +48,7 @@ type CallReportRow = {
     ath_multiple: number | null;
     source: string | null;
     excluded_from_stats: boolean | null;
+    hidden_from_dashboard?: boolean | null;
   } | null;
 };
 
@@ -680,6 +681,8 @@ export default function ModerationPage() {
   const [reportsErr, setReportsErr] = useState<string | null>(null);
   const [reportBusyId, setReportBusyId] = useState<string | null>(null);
   const [reportNotes, setReportNotes] = useState<Record<string, string>>({});
+  const [dashVisMint, setDashVisMint] = useState("");
+  const [dashVisBusy, setDashVisBusy] = useState(false);
 
   const [trustedProLoading, setTrustedProLoading] = useState(false);
   const [trustedProErr, setTrustedProErr] = useState<string | null>(null);
@@ -1159,6 +1162,126 @@ export default function ModerationPage() {
       }
     },
     [addNotification, loadReports, reportBusyId]
+  );
+
+  const setCallDashboardVisibility = useCallback(
+    async (callId: string, hidden: boolean, reason: string) => {
+      if (reportBusyId) return;
+      setReportBusyId(callId);
+      try {
+        const res = await fetch(
+          `/api/mod/calls/${encodeURIComponent(callId)}/dashboard-visibility`,
+          {
+            method: "PATCH",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              hidden,
+              ...(reason ? { reason } : {}),
+            }),
+          }
+        );
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json || json.success !== true) {
+          const err =
+            typeof (json as any).error === "string"
+              ? (json as any).error
+              : "Dashboard visibility update failed.";
+          addNotification({
+            id: crypto.randomUUID(),
+            text: err,
+            type: "call",
+            createdAt: Date.now(),
+            priority: "low",
+          });
+          return;
+        }
+        addNotification({
+          id: crypto.randomUUID(),
+          text: hidden ? "Call hidden from the public web dashboard." : "Call restored on the web dashboard.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "medium",
+        });
+        await loadReports();
+      } catch {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Network error.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      } finally {
+        setReportBusyId(null);
+      }
+    },
+    [addNotification, loadReports, reportBusyId]
+  );
+
+  const applyCallDashboardVisibilityByMint = useCallback(
+    async (hidden: boolean) => {
+      const contractAddress = dashVisMint.trim();
+      if (!contractAddress || contractAddress.length > 120) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Enter a Solana contract address (mint).",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+        return;
+      }
+      if (dashVisBusy) return;
+      setDashVisBusy(true);
+      try {
+        const res = await fetch("/api/mod/call-dashboard-visibility", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contractAddress,
+            hidden,
+            reason: "moderation_dashboard_mint_tool",
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json || json.success !== true) {
+          const err =
+            typeof (json as any).error === "string"
+              ? (json as any).error
+              : "Dashboard visibility update failed.";
+          addNotification({
+            id: crypto.randomUUID(),
+            text: err,
+            type: "call",
+            createdAt: Date.now(),
+            priority: "low",
+          });
+          return;
+        }
+        addNotification({
+          id: crypto.randomUUID(),
+          text: hidden ? "Call hidden from the public web dashboard." : "Call restored on the web dashboard.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "medium",
+        });
+        if (!hidden) setDashVisMint("");
+        await loadReports();
+      } catch {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Network error.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      } finally {
+        setDashVisBusy(false);
+      }
+    },
+    [addNotification, dashVisBusy, dashVisMint, loadReports]
   );
 
   useEffect(() => {
@@ -1803,6 +1926,48 @@ export default function ModerationPage() {
             ) : null}
 
             <div className="space-y-4">
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
+                <h3 className="text-sm font-semibold text-zinc-100">Web dashboard — hide by contract</h3>
+                <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                  Same as Discord <code className="rounded bg-black/40 px-1 font-mono text-[10px]">!hidecall</code> /{" "}
+                  <code className="rounded bg-black/40 px-1 font-mono text-[10px]">!unhidecall</code>. The mint must
+                  still be in the bot&apos;s tracked-calls list. Configure{" "}
+                  <code className="rounded bg-black/40 px-1 font-mono text-[10px]">BOT_API_URL</code> and{" "}
+                  <code className="rounded bg-black/40 px-1 font-mono text-[10px]">CALL_INTERNAL_SECRET</code> on the
+                  dashboard host.
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                  <input
+                    type="text"
+                    value={dashVisMint}
+                    onChange={(e) => setDashVisMint(e.target.value)}
+                    placeholder="Solana mint (contract address)"
+                    disabled={dashVisBusy}
+                    className="min-w-0 flex-1 rounded-lg border border-zinc-700/80 bg-black/30 px-3 py-2 font-mono text-xs text-zinc-100 outline-none ring-amber-500/20 focus:ring-2"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className={btnGhost}
+                      disabled={dashVisBusy}
+                      onClick={() => void applyCallDashboardVisibilityByMint(true)}
+                    >
+                      {dashVisBusy ? "…" : "Hide from web"}
+                    </button>
+                    <button
+                      type="button"
+                      className={btnGhost}
+                      disabled={dashVisBusy}
+                      onClick={() => void applyCallDashboardVisibilityByMint(false)}
+                    >
+                      {dashVisBusy ? "…" : "Show on web"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-sm font-semibold text-zinc-100">Profile reports</h3>
@@ -1911,8 +2076,11 @@ export default function ModerationPage() {
                       const draft = reportNotes[r.id] ?? "";
                       const cp = r.call_performance ?? null;
                       const callId = cp?.id ?? r.call_performance_id;
+                      const callPerformanceId =
+                        typeof callId === "string" ? callId.trim() : String(callId ?? "").trim();
                       const ca = cp?.call_ca ?? "";
                       const excluded = cp?.excluded_from_stats === true;
+                      const hiddenFromDash = cp?.hidden_from_dashboard === true;
                       return (
                         <div key={r.id} className="rounded-xl border border-zinc-800/80 bg-black/20 p-3">
                           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -1929,6 +2097,11 @@ export default function ModerationPage() {
                                 {excluded ? (
                                   <span className="ml-2 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
                                     Excluded
+                                  </span>
+                                ) : null}
+                                {hiddenFromDash ? (
+                                  <span className="ml-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-100">
+                                    Hidden from web
                                   </span>
                                 ) : null}
                               </p>
@@ -1950,7 +2123,9 @@ export default function ModerationPage() {
                               rows={2}
                               className="w-full resize-none rounded-lg border border-zinc-800 bg-black/25 px-3 py-2 text-xs text-zinc-100 outline-none ring-amber-500/20 focus:ring-2"
                               placeholder="Staff notes…"
-                              disabled={reportBusyId === r.id || reportBusyId === callId}
+                              disabled={
+                                reportBusyId === r.id || reportBusyId === callPerformanceId
+                              }
                             />
                             <div className="flex flex-wrap items-center justify-end gap-2">
                               <button
@@ -1963,16 +2138,59 @@ export default function ModerationPage() {
                               </button>
                               <button
                                 type="button"
-                                className={btnExclude}
-                                disabled={excluded || reportBusyId === callId}
+                                className={btnGhost}
+                                disabled={
+                                  !callPerformanceId ||
+                                  hiddenFromDash ||
+                                  reportBusyId === callPerformanceId
+                                }
+                                title={
+                                  !callPerformanceId
+                                    ? "Missing call id"
+                                    : hiddenFromDash
+                                      ? "Already hidden from web"
+                                      : undefined
+                                }
                                 onClick={() =>
-                                  void excludeCallForReport(
-                                    callId,
+                                  void setCallDashboardVisibility(
+                                    callPerformanceId,
+                                    true,
                                     `report:${r.reason}${draft ? ` · ${draft}` : ""}`
                                   )
                                 }
                               >
-                                {excluded ? "Excluded" : reportBusyId === callId ? "…" : "Exclude call"}
+                                {reportBusyId === callPerformanceId ? "…" : "Hide from web"}
+                              </button>
+                              <button
+                                type="button"
+                                className={btnGhost}
+                                disabled={
+                                  !callPerformanceId ||
+                                  !hiddenFromDash ||
+                                  reportBusyId === callPerformanceId
+                                }
+                                onClick={() =>
+                                  void setCallDashboardVisibility(
+                                    callPerformanceId,
+                                    false,
+                                    `report:${r.reason}${draft ? ` · ${draft}` : ""}`
+                                  )
+                                }
+                              >
+                                {reportBusyId === callPerformanceId ? "…" : "Show on web"}
+                              </button>
+                              <button
+                                type="button"
+                                className={btnExclude}
+                                disabled={excluded || reportBusyId === callPerformanceId}
+                                onClick={() =>
+                                  void excludeCallForReport(
+                                    callPerformanceId,
+                                    `report:${r.reason}${draft ? ` · ${draft}` : ""}`
+                                  )
+                                }
+                              >
+                                {excluded ? "Excluded" : reportBusyId === callPerformanceId ? "…" : "Exclude call"}
                               </button>
                               <button
                                 type="button"

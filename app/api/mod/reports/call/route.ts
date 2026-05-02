@@ -30,7 +30,9 @@ export async function GET(request: Request) {
   // Include call details needed by moderators
   let q = db
     .from("call_reports")
-    .select("*, call_performance:call_performance_id(id, call_ca, username, call_time, ath_multiple, source, excluded_from_stats)")
+    .select(
+      "*, call_performance:call_performance_id(id, call_ca, username, call_time, ath_multiple, source, excluded_from_stats, hidden_from_dashboard)"
+    )
     .order("created_at", { ascending: false })
     .limit(limit);
   if (status) q = q.eq("status", status);
