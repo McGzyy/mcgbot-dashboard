@@ -1,14 +1,82 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import { abbreviateCa, callTimeMs } from "@/lib/callDisplayFormat";
 import { adminChrome } from "@/lib/roleTierStyles";
+
+type HiddenLogRow = {
+  id: string;
+  call_ca: string;
+  username: string | null;
+  discord_id: string | null;
+  call_time: unknown;
+  token_name: string | null;
+  token_ticker: string | null;
+  source: string | null;
+};
+
+function formatCallTime(t: unknown): string {
+  const ms = callTimeMs(t);
+  if (!Number.isFinite(ms) || ms <= 0) return "—";
+  try {
+    return new Date(ms).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function tokenLabel(r: HiddenLogRow): string {
+  const tt = r.token_ticker?.trim();
+  const tn = r.token_name?.trim();
+  if (tt && tn) return `${tn} (${tt})`;
+  if (tt) return tt;
+  if (tn) return tn;
+  return "—";
+}
 
 export function CallVisibilityClient() {
   const [mint, setMint] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [logRows, setLogRows] = useState<HiddenLogRow[]>([]);
+  const [logLoading, setLogLoading] = useState(true);
+  const [logErr, setLogErr] = useState<string | null>(null);
+
+  const loadHiddenLog = useCallback(async () => {
+    setLogLoading(true);
+    setLogErr(null);
+    try {
+      const res = await fetch("/api/admin/hidden-dashboard-calls", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        rows?: HiddenLogRow[];
+        error?: string;
+      };
+      if (!res.ok || json.success !== true || !Array.isArray(json.rows)) {
+        setLogErr(typeof json.error === "string" ? json.error : "Could not load hidden-call log.");
+        setLogRows([]);
+        return;
+      }
+      setLogRows(json.rows);
+    } catch {
+      setLogErr("Network error loading log.");
+      setLogRows([]);
+    } finally {
+      setLogLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadHiddenLog();
+  }, [loadHiddenLog]);
 
   const run = useCallback(
     async (hidden: boolean) => {
@@ -46,13 +114,14 @@ export function CallVisibilityClient() {
             : "Restored on the public web.",
         });
         if (!hidden) setMint("");
+        await loadHiddenLog();
       } catch {
         setMessage({ kind: "err", text: "Network error." });
       } finally {
         setBusy(false);
       }
     },
-    [mint]
+    [mint, loadHiddenLog]
   );
 
   return (
@@ -127,6 +196,76 @@ export function CallVisibilityClient() {
           <code className="font-mono text-zinc-400">CALL_INTERNAL_SECRET</code>. Bot must expose{" "}
           <code className="font-mono text-zinc-400">POST /internal/admin/call-dashboard-visibility</code>.
         </p>
+      </AdminPanel>
+
+      <AdminPanel className="p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-white/[0.06] pb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Hidden on web (log)</h3>
+            <p className="mt-1 max-w-2xl text-xs text-zinc-500">
+              Rows where <code className="font-mono text-zinc-400">hidden_from_dashboard</code> is true in Supabase
+              (mirrored from the bot). After you unhide a mint, it disappears from this list on refresh.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={logLoading}
+            onClick={() => void loadHiddenLog()}
+            className="rounded-lg border border-zinc-600/80 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 disabled:opacity-50"
+          >
+            {logLoading ? "Loading…" : "Refresh log"}
+          </button>
+        </div>
+
+        {logErr ? (
+          <p className="mt-4 text-sm text-red-300/90" role="alert">
+            {logErr}
+          </p>
+        ) : null}
+
+        {!logErr && !logLoading && logRows.length === 0 ? (
+          <p className="mt-6 text-sm text-zinc-500">No calls are currently hidden from the public web.</p>
+        ) : null}
+
+        {!logErr && logRows.length > 0 ? (
+          <div className="mt-4 overflow-x-auto rounded-lg border border-zinc-800/80">
+            <table className="w-full min-w-[640px] border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-zinc-800 bg-zinc-950/80 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                  <th className="px-3 py-2.5">Token</th>
+                  <th className="px-3 py-2.5">Contract</th>
+                  <th className="px-3 py-2.5">Caller</th>
+                  <th className="px-3 py-2.5">Source</th>
+                  <th className="px-3 py-2.5">Call time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logRows.map((r) => (
+                  <tr
+                    key={r.id || r.call_ca}
+                    className="border-b border-zinc-800/60 last:border-0 hover:bg-zinc-900/40"
+                  >
+                    <td className="max-w-[200px] truncate px-3 py-2 text-zinc-200" title={tokenLabel(r)}>
+                      {tokenLabel(r)}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-zinc-300" title={r.call_ca}>
+                      {r.call_ca ? abbreviateCa(r.call_ca, 5, 5) : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-zinc-400">{r.username?.trim() || "—"}</td>
+                    <td className="px-3 py-2 text-zinc-500">{r.source?.trim() || "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-2 tabular-nums text-zinc-500">
+                      {formatCallTime(r.call_time)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
+        {logLoading && logRows.length === 0 && !logErr ? (
+          <div className="mt-6 h-24 animate-pulse rounded-lg bg-zinc-900/50" aria-busy aria-label="Loading hidden calls" />
+        ) : null}
       </AdminPanel>
     </div>
   );
