@@ -28,7 +28,8 @@ export function SolanaWalletProviders({ children }: { children: ReactNode }) {
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect={false}>
+      {/* WalletModal only calls `select()`; the adapter connects via WalletProvider auto-connect when this is true. */}
+      <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
