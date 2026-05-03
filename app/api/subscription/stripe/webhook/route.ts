@@ -3,6 +3,7 @@ import Stripe from "stripe";
 
 import { applyPaidStripeCheckoutSession } from "@/lib/subscription/stripeApplySession";
 import { getStripe } from "@/lib/subscription/stripeServer";
+import { tryInsertStripeSubscriptionRenewalMembershipEvent } from "@/lib/subscription/stripeMembershipRenewal";
 import {
   syncDiscordSubscriptionFromStripeId,
   syncDiscordSubscriptionFromStripeSubscription,
@@ -47,6 +48,13 @@ export async function POST(request: Request) {
       const result = await syncDiscordSubscriptionFromStripeId({ stripe, subscriptionId: sid });
       if (!result.ok && result.error !== "subscription_not_ready") {
         console.error("[stripe webhook] invoice.paid sync failed", result.error, sid);
+      }
+      if (result.ok) {
+        try {
+          await tryInsertStripeSubscriptionRenewalMembershipEvent({ stripe, invoice });
+        } catch (e) {
+          console.error("[stripe webhook] invoice.paid membership_events insert", e);
+        }
       }
     }
   }

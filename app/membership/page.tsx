@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { DISCORD_SERVER_INVITE_URL } from "@/lib/discordInvite";
+import { membershipPaywallUserMessage } from "@/lib/membershipPaywallUserMessage";
 import {
   MembershipSolCheckout,
   MembershipSolPayNote,
@@ -117,18 +118,17 @@ export default function MembershipPage() {
           credentials: "same-origin",
           body: JSON.stringify({ sessionId }),
         });
-        const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          error?: string;
+          code?: string;
+        };
         if (cancelled) return;
         if (res.ok && json.success) {
           setPollNote("Payment confirmed. Activating your session…");
           await update({ refreshSubscription: true });
         } else if (!json.success) {
-          const err = typeof json.error === "string" ? json.error : "";
-          setCheckoutError(
-            err === "missing_period_end"
-              ? "Payment succeeded, but we could not read the subscription period from Stripe. Try refreshing in a few seconds; if this persists, ensure the dashboard is on the latest deploy."
-              : err || "Could not verify payment yet."
-          );
+          setCheckoutError(membershipPaywallUserMessage(res.status, json, "stripe_verify_session"));
         }
       } catch {
         if (!cancelled) {
@@ -346,12 +346,13 @@ export default function MembershipPage() {
       const json = (await res.json().catch(() => ({}))) as CheckoutVoucherOk & {
         success?: boolean;
         error?: string;
+        code?: string;
         url?: string;
         activated?: boolean;
         via?: string;
       };
       if (!res.ok || !json.success) {
-        setCheckoutError(typeof json.error === "string" ? json.error : "Checkout failed.");
+        setCheckoutError(membershipPaywallUserMessage(res.status, json, "stripe_checkout"));
         return;
       }
 
@@ -388,10 +389,11 @@ export default function MembershipPage() {
       const json = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         error?: string;
+        code?: string;
         url?: string;
       };
       if (!res.ok || !json.success) {
-        setCheckoutError(typeof json.error === "string" ? json.error : "Test checkout failed.");
+        setCheckoutError(membershipPaywallUserMessage(res.status, json, "stripe_test_checkout"));
         return;
       }
       if (typeof json.url === "string" && json.url.startsWith("http")) {
@@ -432,7 +434,7 @@ export default function MembershipPage() {
         code?: string;
       };
       if (!res.ok || !json.success) {
-        setRedeemError(typeof json.error === "string" ? json.error : "Could not apply code.");
+        setRedeemError(membershipPaywallUserMessage(res.status, json, "complimentary_redeem"));
         return;
       }
       if (json.activated === true && json.via === "voucher") {
@@ -442,7 +444,7 @@ export default function MembershipPage() {
         await update({ refreshSubscription: true });
         return;
       }
-      setRedeemError(typeof json.error === "string" ? json.error : "That code does not grant complimentary access.");
+      setRedeemError(membershipPaywallUserMessage(res.status, json, "complimentary_redeem"));
     } catch {
       setRedeemError("Request failed. Try again.");
     } finally {
@@ -801,6 +803,7 @@ export default function MembershipPage() {
                 <button
                   type="button"
                   disabled={busy || testCheckoutBusy || !selectedPlan || !checkoutAllowed}
+                  aria-busy={busy || testCheckoutBusy}
                   onClick={() => void startCheckout()}
                   className="h-12 w-full rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_24px_80px_rgba(34,197,94,0.22)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -816,6 +819,12 @@ export default function MembershipPage() {
                   }}
                 />
               </div>
+
+              {isLoggedIn && guildLoading ? (
+                <p className="text-center text-xs text-amber-200/85" role="status">
+                  Checking Discord server membership… pay buttons unlock when we confirm you are in the server.
+                </p>
+              ) : null}
 
               <MembershipSolPayNote />
 
@@ -856,6 +865,7 @@ export default function MembershipPage() {
                     <button
                       type="button"
                       disabled={redeemBusy || !selectedPlan || !checkoutAllowed}
+                      aria-busy={redeemBusy}
                       onClick={() => void redeemComplimentary()}
                       className="h-11 shrink-0 rounded-xl border border-zinc-700/55 bg-zinc-800/50 px-4 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-700/55 disabled:cursor-not-allowed disabled:opacity-50"
                     >

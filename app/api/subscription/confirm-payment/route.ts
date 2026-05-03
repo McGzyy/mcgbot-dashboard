@@ -22,17 +22,23 @@ export async function POST(request: Request) {
   const invoiceId = typeof body?.invoiceId === "string" ? body.invoiceId.trim() : "";
   const signature = typeof body?.signature === "string" ? body.signature.trim() : "";
   if (!invoiceId || !signature) {
-    return Response.json({ success: false, error: "Missing invoiceId or signature" }, { status: 400 });
+    return Response.json(
+      { success: false, error: "Missing invoiceId or signature", code: "missing_invoice_or_signature" },
+      { status: 400 }
+    );
   }
 
   const invoice = await getPendingInvoiceForDiscord({ discordId, invoiceId });
   if (!invoice) {
-    return Response.json({ success: false, error: "No matching pending invoice." }, { status: 404 });
+    return Response.json(
+      { success: false, error: "No matching pending invoice.", code: "no_matching_invoice" },
+      { status: 404 }
+    );
   }
 
   const result = await finalizeInvoiceFromTxSignature({ invoice, signature });
   if (!result.ok) {
-    return Response.json({ success: false, error: result.error }, { status: 400 });
+    return Response.json({ success: false, error: result.error, code: result.code }, { status: 400 });
   }
 
   return Response.json({ success: true });

@@ -35,6 +35,7 @@ export function MembershipTestToolsFloat({
         <button
           type="button"
           disabled={stripeTestDisabled}
+          aria-busy={stripeTestBusy}
           onClick={() => void onStripeTest()}
           className="h-10 w-full rounded-xl border border-zinc-600/70 bg-zinc-900/70 px-3 text-xs font-semibold text-zinc-100 transition hover:bg-zinc-800/80 focus:outline-none focus:ring-2 focus:ring-zinc-500/30 disabled:cursor-not-allowed disabled:opacity-45"
         >

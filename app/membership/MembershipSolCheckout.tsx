@@ -7,6 +7,8 @@ import BigNumber from "bignumber.js";
 import { PublicKey } from "@solana/web3.js";
 import { useCallback, useState } from "react";
 
+import { membershipPaywallUserMessage } from "@/lib/membershipPaywallUserMessage";
+
 type SolStartOk = {
   success: true;
   invoiceId: string;
@@ -59,7 +61,7 @@ function useMembershipSolPay(
           code?: string;
         };
         if (!res.ok || json.success !== true || typeof json.invoiceId !== "string") {
-          setErr(typeof json.error === "string" ? json.error : "Could not start SOL checkout.");
+          setErr(membershipPaywallUserMessage(res.status, json, "sol_start"));
           return;
         }
 
@@ -145,12 +147,13 @@ export function MembershipSolTestCheckoutButton({
 
   return (
     <div className={className}>
-      <button
-        type="button"
-        disabled={disabled || busy}
-        onClick={() => void execute("test")}
-        className="h-10 w-full rounded-xl border border-zinc-600/70 bg-zinc-900/70 px-3 text-xs font-semibold text-zinc-100 transition hover:bg-zinc-800/80 focus:outline-none focus:ring-2 focus:ring-zinc-500/30 disabled:cursor-not-allowed disabled:opacity-45"
-      >
+        <button
+          type="button"
+          disabled={disabled || busy}
+          aria-busy={busy}
+          onClick={() => void execute("test")}
+          className="h-10 w-full rounded-xl border border-zinc-600/70 bg-zinc-900/70 px-3 text-xs font-semibold text-zinc-100 transition hover:bg-zinc-800/80 focus:outline-none focus:ring-2 focus:ring-zinc-500/30 disabled:cursor-not-allowed disabled:opacity-45"
+        >
         {busy ? "Working…" : "$1 SOL test"}
       </button>
       {!publicKey ? (
@@ -182,6 +185,7 @@ export function MembershipSolCheckout({
         <button
           type="button"
           disabled={disabled || busy || !selectedPlanSlug}
+          aria-busy={busy}
           onClick={() => void execute("plan")}
           className="h-12 w-full rounded-2xl border border-violet-400/40 bg-violet-500/20 px-4 text-sm font-semibold text-violet-50 shadow-[0_16px_50px_rgba(139,92,246,0.18)] transition hover:bg-violet-500/30 focus:outline-none focus:ring-2 focus:ring-violet-400/35 disabled:cursor-not-allowed disabled:opacity-45"
         >
@@ -218,6 +222,7 @@ export function MembershipSolCheckout({
         <button
           type="button"
           disabled={disabled || busy || !selectedPlanSlug}
+          aria-busy={busy}
           onClick={() => void execute("plan")}
           className="h-11 w-full rounded-2xl border border-violet-400/40 bg-violet-500/20 px-4 text-sm font-semibold text-violet-50 shadow-[0_16px_50px_rgba(139,92,246,0.18)] transition hover:bg-violet-500/30 focus:outline-none focus:ring-2 focus:ring-violet-400/35 disabled:cursor-not-allowed disabled:opacity-45"
         >

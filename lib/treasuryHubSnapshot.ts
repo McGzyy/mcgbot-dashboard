@@ -22,6 +22,7 @@ export type MembershipActivityRow = {
   amountUsd: string | null;
   signature: string | null;
   stripeCheckoutSessionId: string | null;
+  stripeInvoiceId: string | null;
 };
 
 export type TipActivityRow = {
@@ -294,7 +295,7 @@ export async function loadTreasuryHubSnapshot(): Promise<TreasuryHubSnapshot> {
     const { data: ev, error: ie } = await db
       .from("membership_events")
       .select(
-        "created_at, discord_id, event_type, plan_id, amount_sol, amount_cents, tx_signature, stripe_checkout_session_id"
+        "created_at, discord_id, event_type, plan_id, amount_sol, amount_cents, tx_signature, stripe_checkout_session_id, stripe_invoice_id"
       )
       .order("created_at", { ascending: false })
       .limit(60);
@@ -318,13 +319,14 @@ export async function loadTreasuryHubSnapshot(): Promise<TreasuryHubSnapshot> {
         amount_cents: number | null;
         tx_signature: string | null;
         stripe_checkout_session_id: string | null;
+        stripe_invoice_id: string | null;
       };
       const solN = r.amount_sol != null ? Number(r.amount_sol) : NaN;
       const amountSol =
         Number.isFinite(solN) && solN > 0 ? solN.toFixed(6) : null;
       const cents = r.amount_cents != null ? Number(r.amount_cents) : NaN;
       const amountUsd =
-        Number.isFinite(cents) && cents !== 0
+        Number.isFinite(cents) && r.amount_cents != null
           ? (cents / 100).toLocaleString(undefined, { style: "currency", currency: "USD" })
           : null;
       return {
@@ -336,6 +338,7 @@ export async function loadTreasuryHubSnapshot(): Promise<TreasuryHubSnapshot> {
         amountUsd,
         signature: r.tx_signature,
         stripeCheckoutSessionId: r.stripe_checkout_session_id,
+        stripeInvoiceId: r.stripe_invoice_id?.trim() || null,
       };
     });
   } catch (e) {

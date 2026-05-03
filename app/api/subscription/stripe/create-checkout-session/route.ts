@@ -51,7 +51,11 @@ export async function POST(request: Request) {
   const inGuild = await isDiscordGuildMember(discordId);
   if (inGuild === false) {
     return Response.json(
-      { success: false, error: "Join the McGBot Discord server before purchasing a subscription." },
+      {
+        success: false,
+        error: "Join the McGBot Discord server before purchasing a subscription.",
+        code: "discord_guild_required",
+      },
       { status: 403 }
     );
   }
@@ -61,6 +65,7 @@ export async function POST(request: Request) {
         success: false,
         error:
           "Could not verify Discord membership (check DISCORD_GUILD_ID and DISCORD_BOT_TOKEN or DISCORD_TOKEN).",
+        code: "discord_guild_check_failed",
       },
       { status: 503 }
     );

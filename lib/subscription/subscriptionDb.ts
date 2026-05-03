@@ -372,6 +372,7 @@ export type MembershipEventType =
   | "sol_invoice_paid"
   | "stripe_checkout_one_time"
   | "stripe_checkout_subscription"
+  | "stripe_subscription_renewal"
   | "voucher_complimentary";
 
 export type InsertMembershipEventInput = {
@@ -381,6 +382,8 @@ export type InsertMembershipEventInput = {
   paymentInvoiceId?: string | null;
   stripeCheckoutSessionId?: string | null;
   stripeSubscriptionId?: string | null;
+  /** Stripe Invoice id (`in_…`); used for deduped renewal rows. */
+  stripeInvoiceId?: string | null;
   amountCents?: number | null;
   amountSol?: number | null;
   solQuoteUsd?: number | null;
@@ -388,7 +391,7 @@ export type InsertMembershipEventInput = {
   metadata?: Record<string, unknown> | null;
 };
 
-/** Append-only audit row. Duplicate payment_invoice_id or stripe_checkout_session_id is ignored (idempotent). */
+/** Append-only audit row. Duplicate payment_invoice_id, stripe_checkout_session_id, or stripe_invoice_id is ignored (idempotent). */
 export async function insertMembershipEvent(input: InsertMembershipEventInput): Promise<boolean> {
   const db = getSupabaseAdmin();
   if (!db) return false;
@@ -399,6 +402,7 @@ export async function insertMembershipEvent(input: InsertMembershipEventInput): 
     payment_invoice_id: input.paymentInvoiceId?.trim() || null,
     stripe_checkout_session_id: input.stripeCheckoutSessionId?.trim() || null,
     stripe_subscription_id: input.stripeSubscriptionId?.trim() || null,
+    stripe_invoice_id: input.stripeInvoiceId?.trim() || null,
     amount_cents: input.amountCents ?? null,
     amount_sol: input.amountSol ?? null,
     sol_quote_usd: input.solQuoteUsd ?? null,

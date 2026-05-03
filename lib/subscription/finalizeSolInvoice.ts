@@ -37,16 +37,18 @@ async function payerFromSignature(connection: Connection, signature: string): Pr
 /**
  * Confirms a pending invoice using an on-chain tx signature (client-relayed pay).
  */
+export type FinalizeInvoiceFromTxResult = { ok: true } | { ok: false; error: string; code: string };
+
 export async function finalizeInvoiceFromTxSignature(input: {
   invoice: PendingInvoiceRow;
   signature: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<FinalizeInvoiceFromTxResult> {
   const { invoice, signature } = input;
   if (invoice.status !== "pending") {
-    return { ok: false, error: "Invoice is not pending." };
+    return { ok: false, error: "Invoice is not pending.", code: "invoice_not_pending" };
   }
   if (new Date(invoice.quote_expires_at).getTime() <= Date.now()) {
-    return { ok: false, error: "Quote expired. Start checkout again." };
+    return { ok: false, error: "Quote expired. Start checkout again.", code: "quote_expired" };
   }
 
   const connection = new Connection(getSolanaRpcUrl(), "confirmed");
@@ -67,13 +69,13 @@ export async function finalizeInvoiceFromTxSignature(input: {
       minLamports: invoice.lamports,
     });
     if (!okRelaxed) {
-      return { ok: false, error: "Could not verify this payment on-chain." };
+      return { ok: false, error: "Could not verify this payment on-chain.", code: "onchain_verify_failed" };
     }
   }
 
   const payerPubkey = (await payerFromSignature(connection, signature)) ?? "";
   if (!payerPubkey) {
-    return { ok: false, error: "Could not read payer from transaction." };
+    return { ok: false, error: "Could not read payer from transaction.", code: "payer_read_failed" };
   }
 
   const marked = await markInvoicePaid({
@@ -82,12 +84,16 @@ export async function finalizeInvoiceFromTxSignature(input: {
     payerPubkey,
   });
   if (!marked) {
-    return { ok: false, error: "Could not mark invoice paid (already processed?)." };
+    return {
+      ok: false,
+      error: "Could not mark invoice paid (already processed?).",
+      code: "invoice_mark_failed",
+    };
   }
 
   const durationDays = await getPlanDurationDays(invoice.plan_id);
   if (!durationDays || durationDays <= 0) {
-    return { ok: false, error: "Plan misconfigured." };
+    return { ok: false, error: "Plan misconfigured.", code: "plan_misconfigured" };
   }
 
   const subOk = await upsertSubscriptionAfterPayment({
@@ -97,7 +103,11 @@ export async function finalizeInvoiceFromTxSignature(input: {
     paymentChannel: "sol",
   });
   if (!subOk) {
-    return { ok: false, error: "Payment recorded but subscription update failed." };
+    return {
+      ok: false,
+      error: "Payment recorded but subscription update failed.",
+      code: "subscription_update_failed",
+    };
   }
 
   const solPaid = invoice.lamports / LAMPORTS_PER_SOL;

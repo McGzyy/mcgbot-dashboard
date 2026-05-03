@@ -27,6 +27,7 @@ const MEMBERSHIP_EVENT_LABELS: Record<string, string> = {
   sol_invoice_paid: "SOL invoice",
   stripe_checkout_one_time: "Stripe (one-time)",
   stripe_checkout_subscription: "Stripe subscription",
+  stripe_subscription_renewal: "Stripe renewal (invoice)",
   voucher_complimentary: "Complimentary (voucher)",
 };
 
@@ -282,7 +283,8 @@ export function TreasuryHubClient() {
           <h3 className="text-sm font-semibold text-white">Membership activity</h3>
           <p className="text-xs text-zinc-500">
             Unified log from <span className="font-mono text-zinc-400">membership_events</span> (SOL invoices, Stripe
-            checkout, complimentary vouchers). Run the SQL migration if this table is missing.
+            checkout, subscription renewals via <span className="font-mono text-zinc-400">invoice.paid</span>,
+            complimentary vouchers). Run SQL migrations if columns are missing.
           </p>
           <AdminPanel className="overflow-hidden p-0">
             <div className="max-h-96 overflow-auto">
@@ -328,6 +330,15 @@ export function TreasuryHubClient() {
                               className="text-sky-400 hover:underline"
                             >
                               Stripe
+                            </a>
+                          ) : r.stripeInvoiceId && stripe?.dashboardBaseUrl ? (
+                            <a
+                              href={`${stripe.dashboardBaseUrl}/invoices/${encodeURIComponent(r.stripeInvoiceId)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sky-400 hover:underline"
+                            >
+                              Invoice
                             </a>
                           ) : (
                             "—"
