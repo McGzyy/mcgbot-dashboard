@@ -461,52 +461,88 @@ export default function MembershipPage() {
   }
 
   if (hasAccess) {
+    const accessPill = active ? "Paid membership active" : exempt ? "Staff / exempt access" : "Dashboard access";
+    const discordInvite = resolveDiscordInviteUrl(siteFlags);
+
     return (
       <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
-        <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
-          <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-            <span className="relative block h-9 w-9">
-              <Image src="/brand/mcgbot-logo-v2.png" alt="McGBot" fill className="object-contain" sizes="36px" />
-            </span>
-            McGBot
-          </Link>
-          <button
-            type="button"
-            onClick={() => void signOut({ callbackUrl: "/" })}
-            className="text-xs font-medium text-zinc-500 hover:text-zinc-300"
-          >
-            Log out
-          </button>
+        <div className="pointer-events-none fixed inset-0 -z-10">
+          <div className="absolute -top-52 left-1/2 h-[620px] w-[980px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.2),transparent_62%)] blur-3xl" />
+          <div className="absolute -bottom-72 right-[-14rem] h-[620px] w-[620px] rounded-full bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.14),transparent_62%)] blur-3xl" />
+        </div>
+
+        <header className="sticky top-0 z-10 border-b border-zinc-800/80 bg-black/40 px-4 py-4 backdrop-blur sm:px-6">
+          <div className="mx-auto flex max-w-5xl items-center justify-between">
+            <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
+              <span className="relative block h-9 w-9">
+                <Image src="/brand/mcgbot-logo-v2.png" alt="McGBot" fill className="object-contain" sizes="36px" />
+              </span>
+              McGBot
+            </Link>
+            <button
+              type="button"
+              onClick={() => void signOut({ callbackUrl: "/" })}
+              className="rounded-md px-2 py-1 text-xs font-medium text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
+            >
+              Log out
+            </button>
+          </div>
         </header>
-        <main className="mx-auto max-w-lg px-6 py-16">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {active ? "You're a member" : "You have full access"}
-          </h1>
-          <p className="mt-3 text-sm text-zinc-400">
-            {active ? (
-              periodEnd ? (
+
+        <main className="mx-auto max-w-xl px-4 py-12 sm:px-6 sm:py-16">
+          <div className="rounded-3xl border border-zinc-800/80 bg-[linear-gradient(180deg,rgba(24,24,27,0.72),rgba(0,0,0,0.42))] p-8 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:p-10">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">Membership</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-[2rem]">
+              {active ? "You're a member" : "You're all set"}
+            </h1>
+            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+              {active ? (
+                periodEnd ? (
+                  <>
+                    Your paid access is active. Current period runs through{" "}
+                    <span className="font-medium text-zinc-200">{new Date(periodEnd).toLocaleString()}</span>.
+                  </>
+                ) : (
+                  "Your membership is active and linked to this Discord account."
+                )
+              ) : exempt ? (
                 <>
-                  Current access runs through{" "}
-                  <span className="font-medium text-zinc-200">{new Date(periodEnd).toLocaleString()}</span>.
+                  Your account bypasses the public paywall (staff tier, allowlisted Discord role, or explicit
+                  allowlist). The full dashboard is already unlocked for this Discord login.
                 </>
               ) : (
-                "Your membership is active."
-              )
-            ) : exempt ? (
-              <>
-                Your account is exempt from the paid membership gate (staff tier, allowlisted Discord role, or
-                explicit user id). You can still purchase a plan later if you want to test checkout.
-              </>
-            ) : (
-              "Your account currently has dashboard access."
-            )}
-          </p>
-          <Link
-            href="/"
-            className="mt-8 inline-flex rounded-lg bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-black hover:bg-green-500"
-          >
-            Go to dashboard
-          </Link>
+                "Your account already has full dashboard access with this Discord login."
+              )}
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-2">
+              <span className="rounded-full border border-[color:var(--accent)]/35 bg-[color:var(--accent)]/10 px-3 py-1.5 text-xs font-medium text-[color:var(--accent)]/95">
+                {accessPill}
+              </span>
+              {!active && exempt ? (
+                <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs text-sky-100/90">
+                  No payment required for access
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <Link
+                href="/"
+                className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_20px_60px_rgba(34,197,94,0.2)] transition hover:brightness-110 sm:min-w-[200px] sm:flex-none"
+              >
+                Go to dashboard
+              </Link>
+              <a
+                href={discordInvite}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl border border-zinc-700/70 bg-zinc-900/50 px-6 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800/60 sm:min-w-[200px] sm:flex-none"
+              >
+                Open Discord
+              </a>
+            </div>
+          </div>
         </main>
       </div>
     );
