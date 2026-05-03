@@ -129,14 +129,22 @@ function SidebarBody({
             className={getBotCallsNavItemClass(isActive(pathname, "/bot-calls"))}
           >
             <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+              className={`pointer-events-none absolute left-0 top-1/2 w-[3px] -translate-y-1/2 rounded-full transition-all duration-200 ${
                 isActive(pathname, "/bot-calls")
-                  ? `${tierNavBarClass("user")} opacity-100`
-                  : "bg-sky-400/35 opacity-100"
+                  ? "h-7 bg-gradient-to-b from-sky-200 via-sky-400 to-cyan-600 shadow-[0_0_16px_rgba(56,189,248,0.55),0_0_6px_rgba(34,211,238,0.35)]"
+                  : "h-5 w-[2px] opacity-0"
               }`}
               aria-hidden
             />
-            <span>Bot Calls</span>
+            <span
+              className={
+                isActive(pathname, "/bot-calls")
+                  ? "font-semibold tracking-[-0.02em] text-white"
+                  : "font-medium tracking-tight text-zinc-400"
+              }
+            >
+              Bot Calls
+            </span>
           </Link>
           <Link href="/trusted-pro" onClick={pick} data-tutorial="sidebar.nav.trustedPro" className={getNavItemClass(isActive(pathname, "/trusted-pro"))}>
             <div
@@ -561,14 +569,20 @@ export function Sidebar() {
         : "text-zinc-400 hover:text-white hover:bg-zinc-900"
     }`;
 
-  /** Featured link: idle reads like nav + whisper of sky; active matches other rows (no “always selected” pill). */
+  /** Featured “Bot Calls” row — calmer idle, premium active panel aligned with terminal sky accent. */
   const getBotCallsNavItemClass = (active: boolean) =>
     active
-      ? "relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150 bg-zinc-800 text-white border border-zinc-700 shadow-[0_0_10px_rgba(56,189,248,0.12)]"
+      ? [
+          "relative flex items-center gap-3 overflow-hidden rounded-md px-4 py-2 text-sm",
+          "border border-sky-500/22",
+          "bg-[linear-gradient(105deg,rgba(8,47,73,0.42)_0%,rgba(9,9,11,0.92)_42%,rgba(3,7,18,0.88)_100%)]",
+          "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(56,189,248,0.06),0_10px_36px_-12px_rgba(56,189,248,0.22)]",
+          "text-white transition-all duration-200",
+        ].join(" ")
       : [
-          "relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150",
-          "border border-transparent bg-sky-500/[0.06] text-zinc-300",
-          "hover:border-zinc-800/80 hover:bg-zinc-900/55 hover:text-white",
+          "relative flex items-center gap-3 rounded-md px-4 py-2 text-sm transition-all duration-150",
+          "border border-transparent text-zinc-400",
+          "hover:border-zinc-800/70 hover:bg-zinc-900/50 hover:text-white",
         ].join(" ");
 
   const bodyProps: SidebarBodyProps = {
