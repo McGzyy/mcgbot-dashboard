@@ -27,6 +27,18 @@ export const terminalSurface = {
   /** Feed / list block under a hero — set your own `bg-*` / gradient; pair with `p-5 sm:p-6` (or similar). */
   routeSectionFrame:
     "rounded-2xl border border-zinc-800/90 shadow-[0_20px_50px_-40px_rgba(0,0,0,0.9)] ring-1 ring-zinc-800/40",
+  /** Dense inset card (profile panels, small stats decks). Pair with horizontal/vertical padding. */
+  insetPanel:
+    "rounded-xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/75 to-zinc-950/95 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.85)] backdrop-blur-md ring-1 ring-zinc-800/35",
+  /**
+   * Top inner edge on dark panels — zinc specular (replaces `inset … rgba(255,255,255,0.03–0.06)`).
+   */
+  insetEdge: "shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)]",
+  insetEdgeSoft: "shadow-[inset_0_1px_0_0_rgba(63,63,70,0.16)]",
+  /** Same idea, shorthand form used in some layouts (`inset_0_1px_0` without second axis). */
+  insetEdgeAlt: "shadow-[inset_0_1px_0_rgba(63,63,70,0.22)]",
+  /** Bot stats row on leaderboard — sky-tinted top edge. */
+  botKpiInset: "shadow-[inset_0_1px_0_0_rgba(56,189,248,0.12)]",
 } as const;
 
 /** Page-level typography + stat primitives inside `contentWell` (incremental adoption). */
@@ -34,7 +46,7 @@ export const terminalPage = {
   sectionTitle: "text-base font-semibold tracking-tight text-zinc-100",
   sectionHint: "mt-0.5 text-xs text-zinc-600",
   statTile:
-    "rounded-xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+    "rounded-xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/55 to-zinc-900/25 p-3 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.22)]",
   denseInsetRow:
     "rounded-lg border border-zinc-800/90 bg-zinc-900/20 px-3 py-2 transition-colors hover:bg-zinc-900/35",
   denseInsetRowButton:

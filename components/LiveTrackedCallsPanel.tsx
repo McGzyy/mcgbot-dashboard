@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import PanelCard from "@/components/PanelCard";
+import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 const MOCK_CALLS = [
   { token: "SOLXYZ", multiple: 3.4, caller: "user1" },
@@ -29,7 +30,9 @@ export default function LiveTrackedCallsPanel() {
 
   return (
     <PanelCard title="📊 Live Calls" titleClassName="normal-case">
-      <div className="mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <div
+        className={`mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
+      >
         <ul className="space-y-1">
         {sorted.map((call, i) => {
           let badgeStyle =

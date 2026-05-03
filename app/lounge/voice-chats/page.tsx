@@ -37,7 +37,7 @@ export default function LoungeVoiceChatsPage() {
     return (
       <div className="relative mx-auto flex min-h-[calc(100dvh-6rem)] max-w-md flex-col items-center justify-center px-4 text-center">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_20%,rgba(57,255,20,0.08),transparent_65%)]" aria-hidden />
-        <div className="relative rounded-2xl border border-zinc-700/40 bg-gradient-to-b from-zinc-900/80 to-black/90 px-8 py-10 shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_24px_80px_-24px_rgba(0,0,0,0.85)]">
+        <div className="relative rounded-2xl border border-zinc-700/40 bg-gradient-to-b from-zinc-900/80 to-black/90 px-8 py-10 shadow-[0_0_0_1px_rgba(63,63,70,0.35),0_24px_80px_-24px_rgba(0,0,0,0.85)]">
           <h1 className="text-xl font-semibold tracking-tight text-white">Voice chats</h1>
           <p className="mt-2 text-sm leading-relaxed text-zinc-400">
             Sign in with Discord to join premium voice tables.
@@ -76,7 +76,7 @@ export default function LoungeVoiceChatsPage() {
         {voiceEnabled ? (
           <VoiceLobbiesShell data-tutorial="lounge.voiceChats.panel" />
         ) : (
-          <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-950/20 to-zinc-950/80 px-5 py-6 text-sm text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+          <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-950/20 to-zinc-950/80 px-5 py-6 text-sm text-zinc-300 shadow-[inset_0_1px_0_0_rgba(245,158,11,0.12)]">
             <p>
               Voice lobbies are off on this host. Enable{" "}
               <code className="rounded-md border border-zinc-600 bg-black/50 px-2 py-0.5 font-mono text-xs text-[color:var(--accent)]">

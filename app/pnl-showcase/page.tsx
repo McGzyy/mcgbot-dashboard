@@ -584,7 +584,7 @@ export default function PnlShowcasePage() {
             {feed.map((p) => (
               <article
                 key={p.id}
-                className="relative overflow-hidden rounded-2xl border border-zinc-800/70 bg-black/25 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                className={`relative overflow-hidden rounded-2xl border border-zinc-800/70 bg-black/25 p-4 ${terminalSurface.insetEdgeSoft}`}
               >
                 <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" />
                 <div className="relative">

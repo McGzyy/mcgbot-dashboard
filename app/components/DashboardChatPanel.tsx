@@ -7,7 +7,7 @@ import {
 } from "@/lib/discordChatMessageSerialize";
 import { advanceDashDiscordLastRead, maxSnowflake } from "@/lib/discordDashboardChatRead";
 import type { DashboardChatKind } from "@/lib/dashboardChat";
-import { terminalChrome } from "@/lib/terminalDesignTokens";
+import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -244,7 +244,9 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
   if (status !== "authenticated") return null;
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-zinc-800/60 bg-gradient-to-b from-zinc-950/55 to-black/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <section
+      className={`relative overflow-hidden rounded-2xl border border-zinc-800/60 bg-gradient-to-b from-zinc-950/55 to-black/70 ${terminalSurface.insetEdge}`}
+    >
       <div
         className={`flex flex-col gap-3 ${terminalChrome.headerRule} px-4 py-3 sm:flex-row sm:items-start sm:justify-between`}
       >
@@ -323,7 +325,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
             return (
               <li
                 key={m.id}
-                className="rounded-xl border border-zinc-800/70 bg-black/25 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                className={`rounded-xl border border-zinc-800/70 bg-black/25 px-3 py-2 ${terminalSurface.insetEdgeSoft}`}
               >
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="font-mono text-[11px] text-zinc-600">{formatTime(m.createdAt)}</span>

@@ -145,7 +145,7 @@ export function AdminDashboardShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-0 flex-1 flex-col gap-10 lg:flex-row lg:gap-12">
       <aside className="shrink-0 lg:w-60" aria-label="Admin sections">
         <div
-          className={`rounded-2xl p-2 ${terminalSurface.panelCardElevated} shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]`}
+          className={`rounded-2xl p-2 ${terminalSurface.panelCardElevated} ${terminalSurface.insetEdge}`}
         >
           <p className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
             Control plane

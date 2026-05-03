@@ -1,5 +1,6 @@
 "use client";
 
+import { terminalSurface } from "@/lib/terminalDesignTokens";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import type { DailyCallBucket } from "@/lib/performanceSeries";
@@ -256,7 +257,7 @@ export default function PerformanceChart({
   const chartMargin = { top: 10, right: 10, left: 0, bottom: 2 };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-950/40 py-7 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04] sm:py-8">
+    <div className="relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-950/40 py-7 shadow-2xl shadow-black/40 ring-1 ring-zinc-800/45 sm:py-8">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,197,94,0.10),transparent_55%),radial-gradient(circle_at_85%_10%,rgba(45,212,191,0.08),transparent_60%)]"
         aria-hidden
@@ -303,7 +304,9 @@ export default function PerformanceChart({
 
         <div className="mt-6 grid min-w-0 grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Performance */}
-        <div className="flex min-h-0 min-w-0 flex-col gap-2 rounded-2xl border border-zinc-800/55 bg-black/20 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-5">
+        <div
+          className={`flex min-h-0 min-w-0 flex-col gap-2 rounded-2xl border border-zinc-800/55 bg-black/20 p-4 sm:p-5 ${terminalSurface.insetEdgeSoft}`}
+        >
           <div className="flex min-h-[2rem] items-center justify-between gap-3">
             <h3 className="shrink-0 text-xs font-semibold tracking-tight text-zinc-400">
               Performance
@@ -472,7 +475,9 @@ export default function PerformanceChart({
         </div>
 
         {/* Win rate */}
-        <div className="flex min-h-0 min-w-0 flex-col gap-2 rounded-2xl border border-zinc-800/55 bg-black/20 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-5">
+        <div
+          className={`flex min-h-0 min-w-0 flex-col gap-2 rounded-2xl border border-zinc-800/55 bg-black/20 p-4 sm:p-5 ${terminalSurface.insetEdgeSoft}`}
+        >
           <div className="flex min-h-[2rem] items-center justify-between gap-3">
             <h3 className="shrink-0 text-xs font-semibold tracking-tight text-zinc-400">
               Win Rate

@@ -64,9 +64,9 @@ export function PersistentVoiceDock() {
       aria-label="Active voice session"
     >
       <div
-        className={`relative overflow-hidden rounded-2xl border bg-gradient-to-b from-zinc-900/95 via-zinc-950/98 to-black/95 shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_24px_64px_-16px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl transition-[box-shadow,border-color,transform] duration-300 ${
+        className={`relative overflow-hidden rounded-2xl border bg-gradient-to-b from-zinc-900/95 via-zinc-950/98 to-black/95 shadow-[0_0_0_1px_rgba(63,63,70,0.4),0_24px_64px_-16px_rgba(0,0,0,0.85),inset_0_1px_0_0_rgba(63,63,70,0.28)] backdrop-blur-xl transition-[box-shadow,border-color,transform] duration-300 ${
           isLocalSpeaking
-            ? "border-[color:var(--accent)]/50 shadow-[0_0_0_1px_rgba(57,255,20,0.2),0_0_48px_-12px_rgba(57,255,20,0.35),0_24px_64px_-16px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.08)]"
+            ? "border-[color:var(--accent)]/50 shadow-[0_0_0_1px_rgba(57,255,20,0.2),0_0_48px_-12px_rgba(57,255,20,0.35),0_24px_64px_-16px_rgba(0,0,0,0.85),inset_0_1px_0_0_rgba(63,63,70,0.32)]"
             : "border-zinc-700/45"
         }`}
       >
@@ -74,7 +74,7 @@ export function PersistentVoiceDock() {
           className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent transition-opacity duration-300 ${
             isLocalSpeaking
               ? "via-[color:var(--accent)]/70 opacity-100"
-              : "via-white/25 opacity-80"
+              : "via-zinc-500/35 opacity-80"
           } to-transparent`}
           aria-hidden
         />

@@ -3,7 +3,7 @@
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { useMobileSidebar } from "@/app/contexts/MobileSidebarContext";
 import { dashboardChrome } from "@/lib/roleTierStyles";
-import { terminalUi } from "@/lib/terminalDesignTokens";
+import { terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import { userProfileHref, userProfilePathMatches } from "@/lib/userProfileHref";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -33,7 +33,9 @@ function CountPill({
   accentDot?: boolean;
 }) {
   return (
-    <span className="group inline-flex items-center gap-2 rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur transition hover:border-zinc-700/80 hover:bg-zinc-950/45">
+    <span
+      className={`group inline-flex items-center gap-2 rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1 backdrop-blur transition hover:border-zinc-700/80 hover:bg-zinc-950/45 ${terminalSurface.insetEdge}`}
+    >
       {accentDot ? (
         <span
           className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)] shadow-[0_0_0_3px_rgba(34,197,94,0.10)]"

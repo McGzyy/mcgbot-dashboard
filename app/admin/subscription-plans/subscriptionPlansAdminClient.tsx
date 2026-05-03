@@ -93,7 +93,7 @@ export function SubscriptionPlansAdminClient() {
           Edit duration, list price, and built-in discounts. Checkout charges{" "}
           <span className="font-medium text-zinc-200">list price minus discount</span> (then vouchers, if any).
         </p>
-        <p className="mt-3 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs leading-relaxed text-zinc-400">
+        <p className="mt-3 rounded-lg border border-zinc-800/85 bg-zinc-800/35 px-3 py-2 text-xs leading-relaxed text-zinc-400">
           Optional <span className="font-medium text-zinc-200">$1 Stripe test</span> checkout (second button on{" "}
           <code className="text-zinc-300">/subscribe</code>) is not configured here — use{" "}
           <Link href="/admin/site#stripe-test-checkout" className="font-semibold text-[#949cf7] underline-offset-2 hover:underline">

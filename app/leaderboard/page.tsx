@@ -12,6 +12,7 @@ import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { tokenChartLabel } from "@/lib/tradingViewEmbed";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
+import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 type TimeframeId = "daily" | "weekly" | "monthly" | "all";
 
@@ -1102,7 +1103,7 @@ export default function LeaderboardPage() {
                       <div className="w-7 shrink-0 text-right text-[11px] font-semibold tabular-nums text-zinc-500 sm:w-8">
                         #{r.rank}
                       </div>
-                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full ring-1 ring-white/10 transition group-hover/row:ring-emerald-500/25">
+                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full ring-1 ring-zinc-600/45 transition group-hover/row:ring-emerald-500/25">
                         <Avatar src={r.avatarSrc} name={r.username} size="sm" />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -1477,7 +1478,7 @@ export default function LeaderboardPage() {
           className="pointer-events-none absolute -top-5 left-1/2 h-px w-[min(100%,48rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-emerald-500/35 to-transparent"
           aria-hidden
         />
-        <div className="relative overflow-hidden rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/25 via-[#070a08] to-zinc-950 shadow-[0_0_0_1px_rgba(16,185,129,0.12),0_28px_70px_-42px_rgba(0,0,0,0.92)] ring-1 ring-emerald-400/15">
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/25 via-zinc-950 to-zinc-950 shadow-[0_0_0_1px_rgba(16,185,129,0.12),0_28px_70px_-42px_rgba(0,0,0,0.92)] ring-1 ring-emerald-400/15">
           <div
             className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-400/90 via-emerald-500/60 to-teal-600/50"
             aria-hidden
@@ -1668,7 +1669,7 @@ export default function LeaderboardPage() {
           className="pointer-events-none absolute -top-5 left-1/2 h-px w-[min(100%,48rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-sky-500/35 to-transparent"
           aria-hidden
         />
-        <div className="relative overflow-hidden rounded-2xl border border-sky-500/25 bg-gradient-to-br from-sky-950/35 via-[#070c10] to-zinc-950 shadow-[0_0_0_1px_rgba(56,189,248,0.12),0_28px_70px_-42px_rgba(0,0,0,0.92)] ring-1 ring-sky-400/15">
+        <div className="relative overflow-hidden rounded-2xl border border-sky-500/25 bg-gradient-to-br from-sky-950/35 via-zinc-950 to-zinc-950 shadow-[0_0_0_1px_rgba(56,189,248,0.12),0_28px_70px_-42px_rgba(0,0,0,0.92)] ring-1 ring-sky-400/15">
           <div
             className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-sky-400/90 via-sky-500/60 to-cyan-600/50"
             aria-hidden
@@ -1711,7 +1712,9 @@ export default function LeaderboardPage() {
             </div>
         {/* Bot summary stats */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3" data-tutorial="leaderboard.botStats">
-          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+          <div
+            className={`rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 ${terminalSurface.botKpiInset}`}
+          >
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Best Bot Call (All-Time)
@@ -1728,7 +1731,9 @@ export default function LeaderboardPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+          <div
+            className={`rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 ${terminalSurface.botKpiInset}`}
+          >
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Avg Multiplier
@@ -1741,7 +1746,9 @@ export default function LeaderboardPage() {
             <p className="mt-1.5 text-xs text-zinc-500">Across tracked bot calls</p>
           </div>
 
-          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+          <div
+            className={`rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 ${terminalSurface.botKpiInset}`}
+          >
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Total Calls
@@ -1754,7 +1761,9 @@ export default function LeaderboardPage() {
             <p className="mt-1.5 text-xs text-zinc-500">All-time bot-issued calls</p>
           </div>
 
-          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+          <div
+            className={`rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 ${terminalSurface.botKpiInset}`}
+          >
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Win Rate
@@ -1767,7 +1776,9 @@ export default function LeaderboardPage() {
             <p className="mt-1.5 text-xs text-zinc-500">Aggregate (sample)</p>
           </div>
 
-          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+          <div
+            className={`rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 ${terminalSurface.botKpiInset}`}
+          >
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Avg → ATH
@@ -1780,7 +1791,9 @@ export default function LeaderboardPage() {
             <p className="mt-1.5 text-xs text-zinc-500">Mean call → ATH (sample)</p>
           </div>
 
-          <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+          <div
+            className={`rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 ${terminalSurface.botKpiInset}`}
+          >
             <div className="flex items-start justify-between gap-2">
               <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
                 Avg → 2x

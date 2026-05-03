@@ -1435,7 +1435,9 @@ function TrendingPanel() {
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <div
+        className={`mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
+      >
         <div className="px-2 pb-2 text-[11px] uppercase tracking-wider text-zinc-600">
           <div className="grid grid-cols-[minmax(0,1.2fr)_auto_auto] items-center gap-3">
             <span>Token</span>
@@ -1681,7 +1683,9 @@ function TopPerformersPanel({
 }) {
   const emptyState = (
     <div className="mt-3 flex min-h-[240px] flex-col justify-between gap-4">
-      <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <div
+        className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-3 ${terminalSurface.insetEdgeSoft}`}
+      >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span
@@ -2294,7 +2298,9 @@ function SocialsFeedPanel() {
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <div
+        className={`mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
+      >
         <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">{feedList}</div>
       </div>
     </PanelCard>
@@ -2479,7 +2485,9 @@ function SocialsFeedPanel() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                    <div
+                      className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
+                    >
                       <div className="h-[520px] overflow-y-auto pr-1 no-scrollbar">{feedList}</div>
                     </div>
                   </div>
@@ -2711,7 +2719,9 @@ function OpportunitiesPanel() {
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <div
+        className={`mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
+      >
         <div className="px-2 pb-2 text-[11px] uppercase tracking-wider text-zinc-600">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <span>Setup</span>
@@ -4009,7 +4019,9 @@ export default function Home() {
                 </span>
               </span>
             </div>
-            <div className="mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+            <div
+              className={`mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
+            >
               {watchlistLoading ? (
                 <div className="space-y-2 p-1">
                   <div className="h-9 animate-pulse rounded-lg bg-zinc-900/35" />

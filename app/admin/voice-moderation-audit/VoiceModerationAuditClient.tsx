@@ -74,7 +74,7 @@ export function VoiceModerationAuditClient() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead>
-              <tr className="border-b border-white/[0.08] bg-zinc-950/80 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+              <tr className="border-b border-zinc-800/85 bg-zinc-950/80 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
                 <th className="px-4 py-3">Time</th>
                 <th className="px-4 py-3">Actor</th>
                 <th className="px-4 py-3">Target</th>
@@ -100,7 +100,7 @@ export function VoiceModerationAuditClient() {
                 rows.map((r) => (
                   <tr
                     key={r.id}
-                    className="border-b border-white/[0.05] text-zinc-200 last:border-0 hover:bg-zinc-900/40"
+                    className="border-b border-zinc-800/55 text-zinc-200 last:border-0 hover:bg-zinc-900/40"
                   >
                     <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-zinc-400">
                       {new Date(r.created_at).toLocaleString(undefined, {

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PanelCard from "@/components/PanelCard";
+import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 type WindowId = "rolling24h" | "today";
 
@@ -68,14 +69,14 @@ export default function DailyLeaderboardPanel() {
   return (
     <PanelCard title="Daily leaderboard" titleClassName="normal-case">
       <div className="mt-2 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
+        <div className="flex items-center gap-1 rounded-lg border border-zinc-700/50 bg-zinc-900/40 p-1">
           <button
             type="button"
             onClick={() => setWindowId("rolling24h")}
             className={`rounded-md px-2 py-1 text-xs transition-all ${
               windowId === "rolling24h"
                 ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
-                : "text-zinc-500 hover:bg-white/5 hover:text-white"
+                : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
             }`}
           >
             24h
@@ -86,7 +87,7 @@ export default function DailyLeaderboardPanel() {
             className={`rounded-md px-2 py-1 text-xs transition-all ${
               windowId === "today"
                 ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
-                : "text-zinc-500 hover:bg-white/5 hover:text-white"
+                : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
             }`}
           >
             Today
@@ -97,7 +98,9 @@ export default function DailyLeaderboardPanel() {
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <div
+        className={`mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
+      >
         {error ? (
           <div className="flex min-h-[90px] items-center justify-center px-3 py-6 text-center">
             <p className="text-sm text-red-200/90">{error}</p>

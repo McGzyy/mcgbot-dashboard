@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
-import { terminalChrome, terminalUi } from "@/lib/terminalDesignTokens";
+import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
 
@@ -402,7 +402,7 @@ export default function BotCallsPage() {
       ) : null}
 
       <div
-        className="mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
+        className={`mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ${terminalSurface.insetEdge}`}
         data-tutorial="botCalls.table"
       >
         {/* Mobile: stacked rows (avoid horizontal scroll) */}

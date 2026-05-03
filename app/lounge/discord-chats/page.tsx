@@ -40,7 +40,7 @@ export default function LoungeDiscordChatsPage() {
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_20%,rgba(57,255,20,0.08),transparent_65%)]"
           aria-hidden
         />
-        <div className="relative rounded-2xl border border-zinc-700/40 bg-gradient-to-b from-zinc-900/80 to-black/90 px-8 py-10 shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_24px_80px_-24px_rgba(0,0,0,0.85)]">
+        <div className="relative rounded-2xl border border-zinc-700/40 bg-gradient-to-b from-zinc-900/80 to-black/90 px-8 py-10 shadow-[0_0_0_1px_rgba(63,63,70,0.35),0_24px_80px_-24px_rgba(0,0,0,0.85)]">
           <h1 className="text-xl font-semibold tracking-tight text-white">Discord chats</h1>
           <p className="mt-2 text-sm leading-relaxed text-zinc-400">
             Sign in with Discord to mirror selected server channels inside the dashboard.

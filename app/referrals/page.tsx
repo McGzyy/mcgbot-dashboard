@@ -47,7 +47,7 @@ function fmtX(n: number): string {
 }
 
 const statCard =
-  "rounded-xl border border-emerald-500/15 bg-emerald-950/[0.12] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] transition hover:border-emerald-500/25 hover:bg-emerald-950/20";
+  "rounded-xl border border-emerald-500/15 bg-emerald-950/[0.12] p-4 shadow-[inset_0_1px_0_0_rgba(16,185,129,0.1)] transition hover:border-emerald-500/25 hover:bg-emerald-950/20";
 
 const panelShell = `${terminalSurface.routeSectionFrame} bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 sm:p-6`;
 
@@ -251,7 +251,7 @@ export default function ReferralsPage() {
 
       {/* Link hub */}
       <section
-        className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-950/[0.18] via-[#070a08] to-zinc-950 shadow-[0_0_0_1px_rgba(16,185,129,0.08),0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-emerald-500/10"
+        className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-950/[0.18] via-zinc-950 to-zinc-950 shadow-[0_0_0_1px_rgba(16,185,129,0.08),0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-emerald-500/10"
         data-tutorial="referrals.linkHub"
       >
         <div
@@ -532,7 +532,7 @@ export default function ReferralsPage() {
       </div>
 
       {/* Rewards */}
-      <section className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/[0.2] via-[#08060f] to-zinc-950 p-5 ring-1 ring-violet-500/10 sm:p-8">
+      <section className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/[0.2] via-zinc-950 to-zinc-950 p-5 ring-1 ring-violet-500/10 sm:p-8">
         <div className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-violet-500/10 blur-3xl" />
         <div className="relative">
           <div className="flex flex-wrap items-center gap-2">

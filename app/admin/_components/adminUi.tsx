@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 /** Bordered panel used across admin sections. */
 export function AdminPanel({
@@ -12,7 +13,7 @@ export function AdminPanel({
   return (
     <div
       {...rest}
-      className={`rounded-2xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/80 to-zinc-950/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] shadow-sm shadow-black/20 backdrop-blur-sm ${className}`}
+      className={`rounded-2xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/80 to-zinc-950/90 ${terminalSurface.insetEdge} shadow-sm shadow-black/20 backdrop-blur-sm ${className}`}
     >
       {children}
     </div>

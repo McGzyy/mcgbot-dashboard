@@ -23,15 +23,15 @@ function ActionLedgerBreakdown({
   return (
     <>
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <div className="rounded-lg border border-white/[0.06] bg-black/25 px-2 py-2.5 text-center">
+        <div className="rounded-lg border border-zinc-800/70 bg-black/25 px-2 py-2.5 text-center">
           <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Approvals</div>
           <div className="mt-1 text-lg font-bold tabular-nums text-emerald-400/95">{fmt(buckets.approvals)}</div>
         </div>
-        <div className="rounded-lg border border-white/[0.06] bg-black/25 px-2 py-2.5 text-center">
+        <div className="rounded-lg border border-zinc-800/70 bg-black/25 px-2 py-2.5 text-center">
           <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Denials</div>
           <div className="mt-1 text-lg font-bold tabular-nums text-red-400/95">{fmt(buckets.denies)}</div>
         </div>
-        <div className="rounded-lg border border-white/[0.06] bg-black/25 px-2 py-2.5 text-center">
+        <div className="rounded-lg border border-zinc-800/70 bg-black/25 px-2 py-2.5 text-center">
           <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Excludes</div>
           <div className="mt-1 text-lg font-bold tabular-nums text-zinc-200">{fmt(buckets.excludes)}</div>
         </div>
@@ -63,7 +63,7 @@ function LedgerStatCard({
   loadingReady: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
+    <div className="rounded-2xl border border-zinc-800/70 bg-black/20 p-4">
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold text-zinc-100">{title}</h3>
         <span className="shrink-0 text-xs tabular-nums text-zinc-500">{rangeLabel}</span>
@@ -127,7 +127,7 @@ export function StaffStatsRail() {
   return (
     <aside className="lg:sticky lg:top-20 lg:self-start">
       <AdminPanel className="p-5 sm:p-6">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-white/[0.06] pb-4">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-zinc-800/70 pb-4">
           <div className="min-w-0">
             <h2 className="text-base font-semibold tracking-tight text-white">Action ledger</h2>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
@@ -173,7 +173,7 @@ export function StaffStatsRail() {
 
           {yours ? (
             <>
-              <div className="border-t border-white/[0.06] pt-1">
+              <div className="border-t border-zinc-800/70 pt-1">
                 <p className="px-0.5 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
                   Your account
                 </p>
@@ -197,7 +197,7 @@ export function StaffStatsRail() {
         </div>
 
         {data?.actionCount != null ? (
-          <p className="mt-4 border-t border-white/[0.06] pt-3 text-[10px] leading-relaxed text-zinc-600">
+          <p className="mt-4 border-t border-zinc-800/70 pt-3 text-[10px] leading-relaxed text-zinc-600">
             <span className="tabular-nums text-zinc-500">{fmt(data.actionCount)}</span> rows in ledger
             {data.generatedAt ? (
               <>

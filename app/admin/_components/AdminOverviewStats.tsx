@@ -126,7 +126,7 @@ export function AdminOverviewStats(props?: { "data-tutorial"?: string }) {
               <AdminMetric label="New (7d)" value={fmtNum(data?.users?.newLast7Days)} tone="neutral" />
               <AdminMetric label="New (30d)" value={fmtNum(data?.users?.newLast30Days)} tone="neutral" />
               {data?.users?.byTier?.length ? (
-                <div className="rounded-lg border border-white/[0.06] bg-black/25 p-2">
+                <div className="rounded-lg border border-zinc-800/70 bg-black/25 p-2">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">By tier</p>
                   <ul className="mt-1.5 space-y-1 text-xs text-zinc-400">
                     {data.users.byTier.map((r) => (
@@ -160,7 +160,7 @@ export function AdminOverviewStats(props?: { "data-tutorial"?: string }) {
               <AdminMetric label="Paid invoices (30d)" value={fmtNum(data?.invoices?.paidLast30Days)} tone="neutral" />
               <AdminMetric label="Expired invoices (total)" value={fmtNum(data?.invoices?.expiredTotal)} tone="neutral" />
               {data?.subscriptions?.byPlanSlug?.length ? (
-                <div className="rounded-lg border border-white/[0.06] bg-black/25 p-2">
+                <div className="rounded-lg border border-zinc-800/70 bg-black/25 p-2">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Active by plan</p>
                   <ul className="mt-1.5 space-y-1 text-xs text-zinc-400">
                     {data.subscriptions.byPlanSlug.map((p) => (

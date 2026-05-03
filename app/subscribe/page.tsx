@@ -723,7 +723,7 @@ export default function SubscribePage() {
                         "group relative flex min-h-[158px] flex-col overflow-hidden rounded-2xl border px-5 py-5 text-left transition sm:min-h-[168px]",
                         sel
                           ? "border-[color:var(--accent)]/55 bg-[linear-gradient(180deg,rgba(34,197,94,0.16),rgba(0,0,0,0.22))] shadow-[0_0_0_1px_rgba(34,197,94,0.22),0_22px_80px_rgba(0,0,0,0.6)]"
-                          : "border-zinc-800/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(0,0,0,0.22))] hover:border-zinc-700 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(0,0,0,0.28))]",
+                          : "border-zinc-800/80 bg-[linear-gradient(180deg,rgba(161,161,170,0.08),rgba(0,0,0,0.22))] hover:border-zinc-700 hover:bg-[linear-gradient(180deg,rgba(161,161,170,0.12),rgba(0,0,0,0.28))]",
                       ].join(" ")}
                     >
                       <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">

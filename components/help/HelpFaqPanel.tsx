@@ -74,7 +74,7 @@ export function HelpFaqPanel() {
   }, [visible]);
 
   return (
-    <div className="rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm">
+    <div className="rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 p-5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.26),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm">
       <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Reference</p>
       <h2 className="mt-1.5 text-base font-semibold tracking-tight text-white">FAQ</h2>
       <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
@@ -99,7 +99,7 @@ export function HelpFaqPanel() {
               }}
               className={`rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
                 active
-                  ? "border-[color:var(--accent)]/40 bg-[color:var(--accent)]/12 text-[color:var(--accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                  ? "border-[color:var(--accent)]/40 bg-[color:var(--accent)]/12 text-[color:var(--accent)] shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)]"
                   : "border-zinc-700/60 bg-black/25 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
               }`}
             >

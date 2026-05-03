@@ -128,7 +128,7 @@ export function SocialFeedAdminClient() {
         ) : (
           <ul className="mt-4 space-y-2">
             {pending.map((r) => (
-              <li key={r.id} className="rounded-xl border border-white/[0.06] bg-black/25 p-4">
+              <li key={r.id} className="rounded-xl border border-zinc-800/70 bg-black/25 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">

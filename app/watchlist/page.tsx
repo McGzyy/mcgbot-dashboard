@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 type WatchlistPayload = {
   private: string[];
@@ -171,7 +172,7 @@ export default function WatchlistPage() {
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:py-10">
       <header
         data-tutorial="watchlist.header"
-        className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/85 via-zinc-950 to-black/60 p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8"
+        className="relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950 to-black/60 p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-zinc-700/15 sm:p-8"
       >
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_35%,rgba(217,70,239,0.06)_48%,transparent_62%)] opacity-90" />
         <div className="relative">
@@ -189,7 +190,7 @@ export default function WatchlistPage() {
 
       <section
         data-tutorial="watchlist.manage"
-        className="rounded-2xl border border-zinc-800/70 bg-black/25 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:p-5"
+        className={`rounded-2xl border border-zinc-800/70 bg-black/25 p-4 sm:p-5 ${terminalSurface.insetEdge}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex rounded-xl border border-zinc-800/70 bg-zinc-950/60 p-1">

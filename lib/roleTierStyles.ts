@@ -67,7 +67,7 @@ export const dashboardChrome = {
   mainGlow:
     "pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_110%_70%_at_50%_-25%,rgba(56,189,248,0.11),transparent_52%),radial-gradient(ellipse_55%_45%_at_100%_0%,rgba(16,185,129,0.06),transparent_42%),radial-gradient(ellipse_50%_50%_at_0%_100%,rgba(139,92,246,0.045),transparent_48%)]",
   mainGrid:
-    "pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.028)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.028)_1px,transparent_1px)] bg-[length:44px_44px] opacity-[0.35] [mask-image:linear-gradient(to_bottom,black_0%,black_55%,transparent_100%)]",
+    "pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(82,82,91,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(82,82,91,0.12)_1px,transparent_1px)] bg-[length:44px_44px] opacity-[0.35] [mask-image:linear-gradient(to_bottom,black_0%,black_55%,transparent_100%)]",
   contentWell:
     "relative z-[1] mx-auto w-full max-w-[1680px] px-3 pb-10 pt-1 sm:px-8 sm:pb-14 sm:pt-2 min-[480px]:px-5",
   /** Bottom edge uses `topBarBottomRule` so the line fades left like the market strip (no full-width `border-b`). */
@@ -92,12 +92,12 @@ export const modChrome = {
   borderMedium: "border-emerald-500/32",
   /** Sticky queue summary — depth aligned with admin control-plane panels */
   headerBg:
-    "border border-emerald-500/22 bg-gradient-to-br from-emerald-950/50 via-[#060806]/96 to-[#030403]/98 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_0_48px_-20px_rgba(16,185,129,0.28)]",
+    "border border-emerald-500/22 bg-gradient-to-br from-emerald-950/50 via-[#060806]/96 to-[#030403]/98 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.3),0_0_48px_-20px_rgba(16,185,129,0.28)]",
   h2: "text-[13px] font-semibold tracking-tight text-emerald-100/90",
   statTile:
-    "rounded-xl border border-emerald-900/35 bg-gradient-to-b from-emerald-950/25 to-black/40 px-3 py-2.5 text-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]",
+    "rounded-xl border border-emerald-900/35 bg-gradient-to-b from-emerald-950/25 to-black/40 px-3 py-2.5 text-center shadow-[inset_0_1px_0_0_rgba(63,63,70,0.26)]",
   card:
-    "rounded-xl border border-emerald-500/16 bg-gradient-to-br from-emerald-950/28 via-zinc-950/70 to-black/55 p-3.5 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.75),inset_0_1px_0_0_rgba(255,255,255,0.04)] transition hover:border-emerald-400/30 hover:from-emerald-950/36 hover:via-zinc-900/75 hover:to-black/60",
+    "rounded-xl border border-emerald-500/16 bg-gradient-to-br from-emerald-950/28 via-zinc-950/70 to-black/55 p-3.5 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.75),inset_0_1px_0_0_rgba(63,63,70,0.24)] transition hover:border-emerald-400/30 hover:from-emerald-950/36 hover:via-zinc-900/75 hover:to-black/60",
   emptyState:
     "border border-dashed border-emerald-600/28 bg-gradient-to-b from-emerald-950/15 to-zinc-950/40",
   refreshBtn:
@@ -107,7 +107,7 @@ export const modChrome = {
   pageInner: "relative z-[1]",
   /** Full-bleed layer: same grid math as `app/admin/layout.tsx` (32px, 0.04 / 0.35 opacity). */
   layoutGrid:
-    "pointer-events-none -z-10 opacity-[0.35] [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:32px_32px]",
+    "pointer-events-none -z-10 opacity-[0.35] [background-image:linear-gradient(rgba(82,82,91,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(82,82,91,0.14)_1px,transparent_1px)] [background-size:32px_32px]",
   /** Admin layout uses `bg-red-600/15`; staff queue uses emerald. */
   layoutGlow: "pointer-events-none absolute -left-6 -top-6 h-48 w-48 rounded-full bg-emerald-500/14 blur-3xl",
   /** Admin-style headline, emerald accent on the end */
@@ -116,10 +116,10 @@ export const modChrome = {
   heroUnderline: "h-px w-20 rounded-full bg-gradient-to-r from-emerald-400/90 via-teal-500/50 to-transparent shadow-[0_0_14px_rgba(52,211,153,0.35)]",
   sectionAccent: "mt-0.5 h-4 w-0.5 shrink-0 rounded-full bg-gradient-to-b from-emerald-400 to-teal-600 shadow-[0_0_10px_rgba(52,211,153,0.4)]",
   railPanel:
-    "rounded-2xl border border-emerald-500/22 bg-gradient-to-b from-emerald-950/40 via-zinc-950/85 to-black/90 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_24px_48px_-24px_rgba(0,0,0,0.88)] backdrop-blur-sm",
+    "rounded-2xl border border-emerald-500/22 bg-gradient-to-b from-emerald-950/40 via-zinc-950/85 to-black/90 p-4 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.3),0_24px_48px_-24px_rgba(0,0,0,0.88)] backdrop-blur-sm",
   railKicker: "text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400/75",
   railMetric:
-    "rounded-xl border border-emerald-900/32 bg-black/40 px-3 py-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]",
+    "rounded-xl border border-emerald-900/32 bg-black/40 px-3 py-2.5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.26)]",
   /** In-page section nav (mirrors `adminChrome` — emerald accent) */
   navActive:
     "border-emerald-500/35 bg-gradient-to-br from-emerald-950/50 to-zinc-950/80 text-white shadow-[0_0_24px_-4px_rgba(16,185,129,0.28)]",

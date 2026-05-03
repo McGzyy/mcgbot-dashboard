@@ -66,8 +66,8 @@ function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-zinc-900/40 to-black/20 p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
-      <header className="mb-5 border-b border-white/[0.06] pb-4">
+    <section className="rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/40 to-black/20 p-5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)]">
+      <header className="mb-5 border-b border-zinc-800/70 pb-4">
         <p className={`text-[10px] font-bold uppercase tracking-[0.22em] ${adminChrome.kicker}`}>{kicker}</p>
         <h3 className="mt-1.5 text-base font-semibold tracking-tight text-white">{title}</h3>
         {description ? <p className="mt-2 text-xs leading-relaxed text-zinc-500">{description}</p> : null}
@@ -330,7 +330,7 @@ export function SiteAdminClient() {
                 {rows.map(({ key, label }) => (
                   <li
                     key={key}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.04] bg-black/25 px-3 py-2"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800/55 bg-black/25 px-3 py-2"
                   >
                     <span className="text-xs text-zinc-400">{label}</span>
                     <span
@@ -428,7 +428,7 @@ export function SiteAdminClient() {
       ) : null}
 
       <AdminPanel className="overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.06] bg-black/30 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800/70 bg-black/30 px-6 py-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Live settings</p>
             <p className="text-sm font-medium text-white">Public experience</p>
@@ -454,7 +454,7 @@ export function SiteAdminClient() {
                   title="Test checkout ($1 button on /subscribe)"
                   description="Separate recurring Price in Stripe (e.g. a $1/mo test product). When enabled, members see a second checkout button on the subscribe page. Run the SQL migration for stripe_test_* columns if saves fail."
                 >
-                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
                     <input
                       type="checkbox"
                       className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-emerald-600 focus:ring-emerald-500/50"
@@ -563,7 +563,7 @@ export function SiteAdminClient() {
                 title="Global announcement"
                 description="Thin strip at the top of every page (including subscribe). Use for deploy notices, mint windows, or Discord events."
               >
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
                   <input
                     type="checkbox"
                     className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-red-600 focus:ring-red-500/50"
@@ -623,7 +623,7 @@ export function SiteAdminClient() {
                 title="Maintenance &amp; checkout"
                 description="Maintenance redirects non-admins to /maintenance (503 on most APIs). Paused checkouts still allow admins to test."
               >
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
                   <input
                     type="checkbox"
                     className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-red-600 focus:ring-red-500/50"
@@ -653,7 +653,7 @@ export function SiteAdminClient() {
                   />
                 </label>
 
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
                   <input
                     type="checkbox"
                     className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-red-600 focus:ring-red-500/50"
@@ -670,7 +670,7 @@ export function SiteAdminClient() {
                   </span>
                 </label>
 
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-black/30 p-4">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
                   <input
                     type="checkbox"
                     className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-emerald-600 focus:ring-emerald-500/50"

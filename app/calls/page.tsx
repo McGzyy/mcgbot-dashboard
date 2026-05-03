@@ -1,7 +1,7 @@
 "use client";
 
 import { formatCalledSnapshotLine } from "@/lib/callDisplayFormat";
-import { terminalChrome } from "@/lib/terminalDesignTokens";
+import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import Link from "next/link";
@@ -152,7 +152,7 @@ export default function CallTapePage() {
       ) : null}
 
       <div
-        className="mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
+        className={`mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ${terminalSurface.insetEdge}`}
         data-tutorial="calls.table"
       >
         <div className="overflow-x-auto">

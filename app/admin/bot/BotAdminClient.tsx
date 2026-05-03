@@ -118,8 +118,8 @@ function AdminSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-zinc-900/40 to-black/20 p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
-      <header className="mb-4 border-b border-white/[0.06] pb-3">
+    <section className="rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/40 to-black/20 p-5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)]">
+      <header className="mb-4 border-b border-zinc-800/70 pb-3">
         <p className={`text-[10px] font-bold uppercase tracking-[0.2em] ${adminChrome.kicker}`}>{kicker}</p>
         <h3 className="mt-1 text-base font-semibold tracking-tight text-white">{title}</h3>
         {description ? <p className="mt-2 text-xs leading-relaxed text-zinc-500">{description}</p> : null}
@@ -582,7 +582,7 @@ export function BotAdminClient() {
           <p className="text-sm text-zinc-500">Loading scanner settings…</p>
         ) : (
           <>
-            <div className="mb-4 rounded-lg border border-white/[0.06] bg-black/25 px-3 py-2 text-[11px] text-zinc-400">
+            <div className="mb-4 rounded-lg border border-zinc-800/70 bg-black/25 px-3 py-2 text-[11px] text-zinc-400">
               <span className="text-zinc-500">Effective approval ladder (read-only):</span>{" "}
               <span className="font-mono text-zinc-200">
                 {thrEffective.ladder.length ? thrEffective.ladder.join(", ") : "preset / defaults"}

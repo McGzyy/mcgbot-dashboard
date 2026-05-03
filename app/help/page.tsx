@@ -108,7 +108,7 @@ function HelpPageContent() {
   }, [status, tier, tutorialTrackPick]);
 
   const helpCard =
-    "rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm";
+    "rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 p-5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.26),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm";
 
   return (
     <div className="relative mx-auto w-full max-w-6xl px-0 py-8 sm:py-10">
@@ -135,13 +135,13 @@ function HelpPageContent() {
             <p className="mt-3 text-xs leading-relaxed text-zinc-500">
               <span className="font-semibold text-zinc-400">Shortcuts</span>
               {" · "}
-              <kbd className="rounded-md border border-zinc-600/60 bg-zinc-950/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <kbd className="rounded-md border border-zinc-600/60 bg-zinc-950/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-300 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)]">
                 ?
               </kbd>{" "}
               <span className="text-zinc-500">
                 (Shift + /) opens Help when focus isn’t in a field. Use
               </span>{" "}
-              <kbd className="rounded-md border border-zinc-600/60 bg-zinc-950/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <kbd className="rounded-md border border-zinc-600/60 bg-zinc-950/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-300 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)]">
                 /
               </kbd>{" "}
               <span className="text-zinc-500">for token search.</span>
@@ -150,7 +150,7 @@ function HelpPageContent() {
         </div>
         <Link
           href="/"
-          className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full border border-zinc-800/70 bg-zinc-900/30 px-4 py-2.5 text-xs font-semibold text-zinc-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-[color:var(--accent)]/35 hover:bg-zinc-800/45 hover:text-white sm:self-auto"
+          className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full border border-zinc-800/70 bg-zinc-900/30 px-4 py-2.5 text-xs font-semibold text-zinc-200 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)] transition hover:border-[color:var(--accent)]/35 hover:bg-zinc-800/45 hover:text-white sm:self-auto"
         >
           <span className="text-[color:var(--accent)]" aria-hidden>
             ←
@@ -225,7 +225,7 @@ function HelpPageContent() {
                             });
                           }
                         }}
-                        className="rounded-full border border-[color:var(--accent)]/35 bg-[color:var(--accent)]/10 px-3 py-1.5 text-[11px] font-semibold text-[color:var(--accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-[color:var(--accent)]/55 hover:bg-[color:var(--accent)]/16"
+                        className="rounded-full border border-[color:var(--accent)]/35 bg-[color:var(--accent)]/10 px-3 py-1.5 text-[11px] font-semibold text-[color:var(--accent)] shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)] transition hover:border-[color:var(--accent)]/55 hover:bg-[color:var(--accent)]/16"
                       >
                         {labels[t]}
                       </button>
@@ -366,7 +366,7 @@ function HelpPageContent() {
                 <button
                   type="button"
                   onClick={() => setBugOpen(true)}
-                  className="rounded-full border border-zinc-700/55 bg-zinc-900/40 px-3.5 py-2 text-xs font-semibold text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-zinc-500/50 hover:bg-zinc-800/50"
+                  className="rounded-full border border-zinc-700/55 bg-zinc-900/40 px-3.5 py-2 text-xs font-semibold text-zinc-100 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)] transition hover:border-zinc-500/50 hover:bg-zinc-800/50"
                 >
                   Submit bug
                 </button>
@@ -388,7 +388,7 @@ function HelpPageContent() {
                 <button
                   type="button"
                   onClick={() => setFeatureOpen(true)}
-                  className="rounded-full border border-violet-400/35 bg-gradient-to-r from-violet-600/25 to-fuchsia-600/20 px-3.5 py-2 text-xs font-semibold text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-violet-300/45 hover:from-violet-500/30 hover:to-fuchsia-500/25"
+                  className="rounded-full border border-violet-400/35 bg-gradient-to-r from-violet-600/25 to-fuchsia-600/20 px-3.5 py-2 text-xs font-semibold text-violet-100 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.32)] transition hover:border-violet-300/45 hover:from-violet-500/30 hover:to-fuchsia-500/25"
                 >
                   Submit idea
                 </button>
@@ -404,7 +404,7 @@ function HelpPageContent() {
                 </span>
                 <span className="hidden h-4 w-px bg-zinc-700/60 sm:block" aria-hidden />
                 <span
-                  className={`rounded-full border px-3 py-1 text-[11px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                  className={`rounded-full border px-3 py-1 text-[11px] font-semibold shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)] ${
                     tier === "admin"
                       ? "border-amber-400/35 bg-amber-500/15 text-amber-100"
                       : tier === "mod"
@@ -434,7 +434,7 @@ function HelpPageContent() {
                   className={[
                     "group relative flex flex-col overflow-hidden rounded-xl border border-zinc-800/90",
                     "bg-gradient-to-b from-zinc-900/55 to-zinc-900/[0.18] p-3 text-left shadow-sm shadow-black/25",
-                    "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+                    "shadow-[inset_0_1px_0_0_rgba(63,63,70,0.2)]",
                     "transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out",
                     "before:pointer-events-none before:absolute before:inset-0 before:rounded-xl",
                     "before:bg-gradient-to-br before:from-[#39FF14]/12 before:via-transparent before:to-sky-500/5",

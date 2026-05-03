@@ -62,7 +62,7 @@ export function AnnouncementBar() {
   return (
     <div
       role="status"
-      className="shrink-0 border-b border-sky-500/25 bg-gradient-to-r from-sky-950/90 via-sky-900/35 to-zinc-950 px-4 py-2.5 text-center text-[13px] leading-snug text-sky-100/95 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]"
+      className="shrink-0 border-b border-sky-500/25 bg-gradient-to-r from-sky-950/90 via-sky-900/35 to-zinc-950 px-4 py-2.5 text-center text-[13px] leading-snug text-sky-100/95 shadow-[inset_0_1px_0_0_rgba(56,189,248,0.12)]"
     >
       <span className="inline-flex max-w-4xl items-start justify-center gap-3">
         <span

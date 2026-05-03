@@ -51,7 +51,7 @@ export function AskMcGBotPanel() {
   }, [draft, appendExchange]);
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm">
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.26),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm">
       <div className="border-b border-zinc-800/60 px-4 py-3">
         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Assistant</p>
         <h2 className="mt-1 text-base font-semibold tracking-tight text-white">Ask McGBot</h2>
@@ -81,7 +81,7 @@ export function AskMcGBotPanel() {
               className={`max-w-[95%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
                 m.from === "user"
                   ? "border border-zinc-700/50 bg-zinc-800/80 text-zinc-100 shadow-sm"
-                  : "border border-[color:var(--accent)]/22 bg-[color:var(--accent)]/[0.07] text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                  : "border border-[color:var(--accent)]/22 bg-[color:var(--accent)]/[0.07] text-zinc-100 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.22)]"
               }`}
             >
               <div>{m.text}</div>

@@ -60,7 +60,7 @@ function StatCard({
 }) {
   return (
     <div
-      className={`rounded-2xl p-4 ${terminalSurface.panelCardElevated} shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]`}
+      className={`rounded-2xl p-4 ${terminalSurface.panelCardElevated} ${terminalSurface.insetEdge}`}
     >
       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">{label}</p>
       <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-white">{value}</p>

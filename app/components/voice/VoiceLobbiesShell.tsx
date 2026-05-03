@@ -12,7 +12,7 @@ import {
 } from "@/lib/voice/voiceLobbyRoomUtils";
 
 const shellClass =
-  "relative overflow-hidden rounded-2xl border border-zinc-700/35 bg-gradient-to-b from-zinc-900/70 via-zinc-950 to-black px-5 py-5 shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_28px_80px_-28px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-md transition-shadow duration-500 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.07),0_32px_100px_-24px_rgba(57,255,20,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]";
+  "relative overflow-hidden rounded-2xl border border-zinc-700/35 bg-gradient-to-b from-zinc-900/70 via-zinc-950 to-black px-5 py-5 shadow-[0_0_0_1px_rgba(63,63,70,0.35),0_28px_80px_-28px_rgba(0,0,0,0.9),inset_0_1px_0_0_rgba(63,63,70,0.3)] backdrop-blur-md transition-shadow duration-500 hover:shadow-[0_0_0_1px_rgba(82,82,91,0.45),0_32px_100px_-24px_rgba(57,255,20,0.08),inset_0_1px_0_0_rgba(63,63,70,0.35)]";
 
 export function VoiceLobbiesShell({
   "data-tutorial": dataTutorial = "dashboard.voiceLobbies",
@@ -100,7 +100,7 @@ export function VoiceLobbiesShell({
       ) : null}
 
       {lobbyListError ? (
-        <div className="relative mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-950/25 px-3 py-2.5 text-[12px] leading-snug text-amber-100/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="relative mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-950/25 px-3 py-2.5 text-[12px] leading-snug text-amber-100/95 shadow-[inset_0_1px_0_0_rgba(245,158,11,0.12)]">
           <span className="min-w-0 flex-1">{lobbyListError} Counts may be stale until refresh succeeds.</span>
           <button
             type="button"
@@ -129,7 +129,7 @@ export function VoiceLobbiesShell({
       ) : null}
 
       {connectedLobby && connectedLobbyMeta ? (
-        <div className="relative mt-5 overflow-hidden rounded-xl border border-[color:var(--accent)]/30 bg-gradient-to-br from-[color:var(--accent)]/[0.12] via-zinc-950/60 to-black/80 px-4 py-4 shadow-[0_0_40px_-12px_rgba(57,255,20,0.15),inset_0_1px_0_rgba(255,255,255,0.06)]">
+        <div className="relative mt-5 overflow-hidden rounded-xl border border-[color:var(--accent)]/30 bg-gradient-to-br from-[color:var(--accent)]/[0.12] via-zinc-950/60 to-black/80 px-4 py-4 shadow-[0_0_40px_-12px_rgba(57,255,20,0.15),inset_0_1px_0_0_rgba(63,63,70,0.28)]">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" aria-hidden />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
@@ -253,8 +253,8 @@ export function VoiceLobbiesShell({
               key={lobby.id}
               className={`group relative flex min-h-[5.75rem] flex-col justify-between gap-2 overflow-hidden rounded-xl border px-3.5 py-3 transition-all duration-200 sm:min-h-0 ${
                 active
-                  ? "border-[color:var(--accent)]/50 bg-gradient-to-b from-[color:var(--accent)]/[0.14] to-zinc-950/70 shadow-[0_0_28px_-8px_rgba(57,255,20,0.25),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-[color:var(--accent)]/25"
-                  : "border-zinc-800/70 bg-gradient-to-b from-zinc-900/50 to-zinc-950/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:-translate-y-0.5 hover:border-zinc-500/40 hover:shadow-lg hover:shadow-black/50"
+                  ? "border-[color:var(--accent)]/50 bg-gradient-to-b from-[color:var(--accent)]/[0.14] to-zinc-950/70 shadow-[0_0_28px_-8px_rgba(57,255,20,0.25),inset_0_1px_0_0_rgba(63,63,70,0.32)] ring-1 ring-[color:var(--accent)]/25"
+                  : "border-zinc-800/70 bg-gradient-to-b from-zinc-900/50 to-zinc-950/40 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.26)] hover:-translate-y-0.5 hover:border-zinc-500/40 hover:shadow-lg hover:shadow-black/50"
               }`}
             >
               {!active ? (
@@ -319,7 +319,7 @@ export function VoiceLobbiesShell({
       </ul>
 
       {connectedLobby && isStaff && remotePeers.length > 0 ? (
-        <div className="relative mt-4 overflow-hidden rounded-xl border border-sky-500/25 bg-gradient-to-br from-sky-950/30 via-zinc-950/50 to-black/60 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <div className="relative mt-4 overflow-hidden rounded-xl border border-sky-500/25 bg-gradient-to-br from-sky-950/30 via-zinc-950/50 to-black/60 px-4 py-3 shadow-[inset_0_1px_0_0_rgba(56,189,248,0.1)]">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/30 to-transparent" aria-hidden />
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200/90">Staff · moderation</p>
           <ul className="mt-2 space-y-2">

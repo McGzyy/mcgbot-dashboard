@@ -24,7 +24,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { terminalUi } from "@/lib/terminalDesignTokens";
+import { terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 
 const CARD_HOVER =
   "transition-[box-shadow,border-color] duration-200 ease-out hover:border-zinc-600/50 hover:shadow-lg hover:shadow-black/35";
@@ -240,7 +240,7 @@ function PinnedCallSpotlight({
   const multDisplay = Number.isFinite(multiple) ? multiple.toFixed(1) : null;
   return (
     <section
-      className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-zinc-900 via-zinc-950 to-emerald-950/45 p-6 shadow-2xl shadow-black/50 ring-1 ring-white/[0.05] sm:p-8"
+      className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-zinc-900 via-zinc-950 to-emerald-950/45 p-6 shadow-2xl shadow-black/50 ring-1 ring-emerald-500/20 sm:p-8"
       aria-label="Pinned call showcase"
     >
       <div className="pointer-events-none absolute -right-28 -top-28 h-80 w-80 rounded-full bg-emerald-400/18 blur-3xl" />
@@ -562,7 +562,7 @@ function StatCard({
     <div
       className={`flex min-h-[5.25rem] flex-col justify-between rounded-xl border px-3.5 py-3 shadow-md backdrop-blur-sm ${CARD_HOVER} ${
         accent
-          ? "border-cyan-500/20 bg-gradient-to-br from-cyan-950/35 via-zinc-900/85 to-zinc-950 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
+          ? "border-cyan-500/20 bg-gradient-to-br from-cyan-950/35 via-zinc-900/85 to-zinc-950 shadow-[inset_0_1px_0_0_rgba(34,211,238,0.1)]"
           : "border-zinc-800/55 bg-gradient-to-br from-zinc-900/80 to-zinc-950/95 shadow-black/25"
       }`}
     >
@@ -604,7 +604,7 @@ function PanelCard({
   return (
     <div
       data-tutorial={dataTutorial}
-      className={`w-full rounded-xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/75 to-zinc-950/95 px-4 py-3.5 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.85)] backdrop-blur-md ring-1 ring-white/[0.03] ${CARD_HOVER} ${className}`.trim()}
+      className={`${terminalSurface.insetPanel} w-full px-4 py-3.5 ${CARD_HOVER} ${className}`.trim()}
     >
       <h2 className="flex items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
         <span
@@ -1869,7 +1869,7 @@ export default function UserProfilePage() {
       <div className="mt-10 grid grid-cols-12 gap-5 lg:items-start lg:gap-6">
         {visibility.show_stats ? (
         <section className="col-span-12" data-tutorial="profile.performance">
-          <div className="rounded-2xl border border-zinc-800/55 bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)] ring-1 ring-white/[0.03] sm:p-5">
+          <div className="rounded-2xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)] ring-1 ring-zinc-800/40 sm:p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
                 <span className="h-px w-10 rounded-full bg-gradient-to-r from-cyan-400/90 to-transparent" />
