@@ -51,8 +51,8 @@ export function AskMcGBotPanel() {
   }, [draft, appendExchange]);
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-black/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] backdrop-blur-sm">
-      <div className="border-b border-white/[0.06] px-4 py-3">
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm">
+      <div className="border-b border-zinc-800/60 px-4 py-3">
         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Assistant</p>
         <h2 className="mt-1 text-base font-semibold tracking-tight text-white">Ask McGBot</h2>
         <p className="mt-1 text-[11px] leading-relaxed text-zinc-400">
@@ -86,7 +86,7 @@ export function AskMcGBotPanel() {
             >
               <div>{m.text}</div>
               {m.from === "bot" && m.source ? (
-                <p className="mt-2 border-t border-white/[0.06] pt-2 text-[10px] font-medium leading-snug text-zinc-500">
+                <p className="mt-2 border-t border-zinc-800/60 pt-2 text-[10px] font-medium leading-snug text-zinc-500">
                   {m.source}
                 </p>
               ) : null}
@@ -94,7 +94,7 @@ export function AskMcGBotPanel() {
           </div>
         ))}
       </div>
-      <div className="border-t border-white/[0.06] bg-black/20 p-3">
+      <div className="border-t border-zinc-800/60 bg-black/20 p-3">
         <div className="flex gap-2">
           <input
             type="text"

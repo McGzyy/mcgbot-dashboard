@@ -1,6 +1,6 @@
 "use client";
 
-import type { ModQueuePayload } from "@/lib/modQueue";
+import type { ModQueueCallApproval, ModQueuePayload } from "@/lib/modQueue";
 import { formatRelativeTime } from "@/lib/modUiUtils";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -60,7 +60,10 @@ export function ModQueueHomePanel({ mode = "preview" }: ModQueueHomePanelProps) 
         return;
       }
       if (json.success && Array.isArray(json.callApprovals) && Array.isArray(json.devSubmissions)) {
-        setData(json);
+        setData({
+          ...json,
+          callApprovalsUser: Array.isArray(json.callApprovalsUser) ? json.callApprovalsUser : [],
+        });
       } else {
         setData(null);
         setErr(
@@ -82,9 +85,26 @@ export function ModQueueHomePanel({ mode = "preview" }: ModQueueHomePanelProps) 
   }, [load]);
 
   const total = data?.counts?.total ?? 0;
-  const calls = data?.callApprovals ?? [];
+  const callsBot = data?.callApprovals ?? [];
+  const callsUser = data?.callApprovalsUser ?? [];
   const devs = data?.devSubmissions ?? [];
   const hasItems = !loading && total > 0;
+
+  function callRow(c: ModQueueCallApproval, keyPrefix: string) {
+    const label =
+      [c.ticker, c.tokenName].filter(Boolean).join(" · ") || shortAddr(c.contractAddress);
+    return (
+      <li
+        key={`${keyPrefix}-${c.contractAddress}-${c.approvalMessageId ?? ""}`}
+        className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800/70 bg-zinc-950/50 px-3 py-2 text-xs transition hover:border-zinc-700/80"
+      >
+        <span className="min-w-0 truncate font-medium text-zinc-200">{label}</span>
+        <span className="shrink-0 tabular-nums text-zinc-500" title={c.approvalRequestedAt ?? ""}>
+          {formatRelativeTime(c.approvalRequestedAt)}
+        </span>
+      </li>
+    );
+  }
 
   return (
     <section>
@@ -101,9 +121,9 @@ export function ModQueueHomePanel({ mode = "preview" }: ModQueueHomePanelProps) 
           <div>
             <h2 className="text-sm font-semibold tracking-wide text-zinc-400">Mod approvals</h2>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              Same queue as{" "}
-              <span className="font-medium text-zinc-400">#mod-approvals</span> — tracked calls and
-              dev submissions.
+              Mirrors <span className="font-medium text-zinc-400">#mod-approvals</span>: pending{" "}
+              <span className="font-medium text-zinc-400">tracked calls</span> (bot + community sources) and{" "}
+              <span className="font-medium text-zinc-400">dev roster</span> items the bot routes there.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -149,31 +169,24 @@ export function ModQueueHomePanel({ mode = "preview" }: ModQueueHomePanelProps) 
           <p className="mt-3 text-sm text-zinc-500">Queue is clear — nothing needs review right now.</p>
         ) : (
           <div className="mt-4 space-y-4">
-            {calls.length > 0 ? (
+            {callsBot.length > 0 ? (
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                  Calls · {data?.counts.callApprovals ?? calls.length}
+                  Tracked calls (bot) · {data?.counts.callApprovals ?? callsBot.length}
                 </div>
                 <ul className="mt-2 space-y-1.5">
-                  {calls.slice(0, listCap).map((c) => {
-                    const label =
-                      [c.ticker, c.tokenName].filter(Boolean).join(" · ") ||
-                      shortAddr(c.contractAddress);
-                    return (
-                      <li
-                        key={`${c.contractAddress}-${c.approvalMessageId}`}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800/70 bg-zinc-950/50 px-3 py-2 text-xs transition hover:border-zinc-700/80"
-                      >
-                        <span className="min-w-0 truncate font-medium text-zinc-200">{label}</span>
-                        <span
-                          className="shrink-0 tabular-nums text-zinc-500"
-                          title={c.approvalRequestedAt ?? ""}
-                        >
-                          {formatRelativeTime(c.approvalRequestedAt)}
-                        </span>
-                      </li>
-                    );
-                  })}
+                  {callsBot.slice(0, listCap).map((c) => callRow(c, "bot"))}
+                </ul>
+              </div>
+            ) : null}
+
+            {callsUser.length > 0 ? (
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                  Tracked calls (community) · {data?.counts.callApprovalsUser ?? callsUser.length}
+                </div>
+                <ul className="mt-2 space-y-1.5">
+                  {callsUser.slice(0, listCap).map((c) => callRow(c, "user"))}
                 </ul>
               </div>
             ) : null}

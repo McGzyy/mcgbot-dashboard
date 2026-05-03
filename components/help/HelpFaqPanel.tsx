@@ -74,7 +74,7 @@ export function HelpFaqPanel() {
   }, [visible]);
 
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-black/55 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] backdrop-blur-sm">
+    <div className="rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm">
       <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Reference</p>
       <h2 className="mt-1.5 text-base font-semibold tracking-tight text-white">FAQ</h2>
       <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
@@ -82,7 +82,7 @@ export function HelpFaqPanel() {
       </p>
 
       <div
-        className="mt-4 flex flex-wrap gap-2 border-b border-white/[0.06] pb-4"
+        className="mt-4 flex flex-wrap gap-2 border-b border-zinc-800/60 pb-4"
         role="tablist"
         aria-label="FAQ categories"
       >
@@ -121,13 +121,13 @@ export function HelpFaqPanel() {
                 className={`overflow-hidden rounded-xl border transition-colors ${
                   isOpen
                     ? "border-[color:var(--accent)]/25 bg-black/30 shadow-[inset_0_1px_0_rgba(57,255,20,0.06)]"
-                    : "border-white/[0.06] bg-black/20 hover:border-zinc-600/40"
+                    : "border-zinc-800/60 bg-black/20 hover:border-zinc-600/40"
                 }`}
               >
                 <button
                   type="button"
                   onClick={() => setOpenId(isOpen ? null : item.id)}
-                  className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left text-sm font-medium text-zinc-100 transition hover:bg-white/[0.03]"
+                  className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left text-sm font-medium text-zinc-100 transition hover:bg-zinc-900/35"
                   aria-expanded={isOpen}
                 >
                   <span className="min-w-0 leading-snug">{item.q}</span>
@@ -143,7 +143,7 @@ export function HelpFaqPanel() {
                   </span>
                 </button>
                 {isOpen ? (
-                  <p className="border-t border-white/[0.06] bg-black/20 px-3.5 py-3 text-xs leading-relaxed text-zinc-400">
+                  <p className="border-t border-zinc-800/60 bg-black/20 px-3.5 py-3 text-xs leading-relaxed text-zinc-400">
                     {item.a}
                   </p>
                 ) : null}

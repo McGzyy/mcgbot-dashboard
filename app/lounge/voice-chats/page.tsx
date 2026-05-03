@@ -2,6 +2,7 @@
 
 import { signIn, useSession } from "next-auth/react";
 import { VoiceLobbiesShell } from "@/app/components/voice/VoiceLobbiesShell";
+import { terminalChrome } from "@/lib/terminalDesignTokens";
 import { useVoiceSession } from "@/app/contexts/VoiceSessionContext";
 
 function discordSignInSafe(callbackUrl: string) {
@@ -62,7 +63,7 @@ export default function LoungeVoiceChatsPage() {
         className="pointer-events-none absolute left-1/2 top-0 h-[min(40vh,320px)] w-[min(100%,900px)] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.09),transparent_70%)]"
         aria-hidden
       />
-      <header className="relative mb-6 shrink-0 border-b border-white/[0.06] pb-5">
+      <header className={`relative mb-6 shrink-0 ${terminalChrome.headerRule} pb-5`}>
         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--accent)]/80">
           The Lounge
         </p>

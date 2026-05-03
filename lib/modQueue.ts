@@ -40,10 +40,11 @@ export type ModQueueDevSubmission = {
 
 export type ModQueuePayload = {
   success: boolean;
-  /** McGBot `bot_call` rows pending mod review (X posting gate). */
+  /** Tracked calls pending staff review where `callSourceType === "bot_call"` (scanner / McGBot path). */
   callApprovals: ModQueueCallApproval[];
-  /** User/watch (non–bot_call) pendings still visible for staff parity with Discord. */
+  /** Tracked calls pending review from non-bot sources (e.g. member/watch paths) — same #mod-approvals ladder, different origin. */
   callApprovalsUser?: ModQueueCallApproval[];
+  /** Dev roster rows the bot has posted into #mod-approvals. */
   devSubmissions: ModQueueDevSubmission[];
   counts: {
     callApprovals: number;
