@@ -4,13 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
 import { liveDashboardAccessForDiscordId } from "@/lib/dashboardGate";
+import { solanaRpcUrlServer } from "@/lib/solanaEnv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function rpcUrl(): string {
-  return (process.env.SOLANA_RPC_URL ?? "").trim() || "https://api.mainnet-beta.solana.com";
-}
 
 function parseBigint(v: unknown): bigint {
   if (typeof v === "bigint") return v;
@@ -94,7 +91,7 @@ export async function GET(req: Request) {
   }
 
   const needLamports = parseBigint((tip as any).amount_lamports);
-  const conn = new Connection(rpcUrl(), "confirmed");
+  const conn = new Connection(solanaRpcUrlServer(), "confirmed");
 
   // Look for a transaction that mentions the reference (as an extra account) and pays the treasury.
   const sigs = await conn.getSignaturesForAddress(refPk, { limit: 20 }).catch(() => []);

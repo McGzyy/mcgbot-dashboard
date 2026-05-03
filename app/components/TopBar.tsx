@@ -2,6 +2,7 @@
 
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { useMobileSidebar } from "@/app/contexts/MobileSidebarContext";
+import { LinkedWalletCluster } from "@/app/components/LinkedWalletCluster";
 import { dashboardChrome } from "@/lib/roleTierStyles";
 import { terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import { userProfileHref, userProfilePathMatches } from "@/lib/userProfileHref";
@@ -10,6 +11,11 @@ import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { createTransfer } from "@solana/pay";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import BigNumber from "bignumber.js";
+import { PublicKey } from "@solana/web3.js";
 
 type MarketSnapshot = {
   solPrice: number;
@@ -518,6 +524,7 @@ export function TopBar() {
                   </button>
                 </>
               ) : null}
+              <LinkedWalletCluster />
               <div className="relative" ref={notifRef} data-tutorial="nav.notifications">
                 <button
                   type="button"
@@ -872,6 +879,9 @@ export function TopBar() {
 }
 
 function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
+  const { setVisible: openWalletModal } = useWalletModal();
   const [selected, setSelected] = useState<number>(0.1);
   const [customMode, setCustomMode] = useState(false);
   const [custom, setCustom] = useState<string>("");
@@ -880,6 +890,7 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
   const [err, setErr] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<{ signature: string; fromWallet: string | null } | null>(null);
   const [checking, setChecking] = useState(false);
+  const [submittedSig, setSubmittedSig] = useState<string | null>(null);
 
   const presets = [0.05, 0.1, 0.25, 0.5, 1] as const;
 
@@ -893,6 +904,7 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
     setCustom("");
     setSelected(0.1);
     setCustomMode(false);
+    setSubmittedSig(null);
   }, [open]);
 
   const amountSol = (() => {
@@ -936,10 +948,16 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
 
   const startTip = useCallback(async () => {
     if (amountSol == null) return;
+    if (!publicKey) {
+      openWalletModal(true);
+      setErr("Connect your wallet to send a tip.");
+      return;
+    }
     setBusy(true);
     setErr(null);
     setTip(null);
     setConfirmed(null);
+    setSubmittedSig(null);
     try {
       const res = await fetch("/api/tips/start", {
         method: "POST",
@@ -954,18 +972,41 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
         setErr(typeof (json as any).error === "string" ? (json as any).error : "Could not start tip.");
         return;
       }
+
+      const treasury = new PublicKey(String(json.treasury ?? ""));
+      const reference = new PublicKey(String(json.reference ?? ""));
+      const memo = typeof json.memo === "string" ? json.memo : "Tip for McGBot";
+
+      const tx = await createTransfer(connection, publicKey, {
+        recipient: treasury,
+        amount: new BigNumber(String(json.amountSol ?? amountSol)),
+        reference,
+        memo,
+      });
+
+      const sig = await sendTransaction(tx, connection, { skipPreflight: false });
+      setSubmittedSig(sig);
       setTip(json as TipStartOk);
-      try {
-        window.open(json.solanaPayUrl, "_blank", "noopener,noreferrer");
-      } catch {
-        /* ignore */
+    } catch (e) {
+      const msg = e && typeof e === "object" && "message" in e ? String((e as Error).message) : "";
+      if (msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("denied")) {
+        setErr("Transaction was cancelled.");
+      } else {
+        setErr(msg || "Could not send tip.");
       }
-    } catch {
-      setErr("Could not start tip.");
     } finally {
       setBusy(false);
     }
-  }, [amountSol]);
+  }, [amountSol, connection, openWalletModal, publicKey, sendTransaction]);
+
+  const onTipPrimaryClick = useCallback(() => {
+    if (!publicKey) {
+      openWalletModal(true);
+      setErr("Connect your wallet to send a tip.");
+      return;
+    }
+    void startTip();
+  }, [openWalletModal, publicKey, startTip]);
 
   if (!open) return null;
   return (
@@ -1085,11 +1126,11 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
 
             <button
               type="button"
-              onClick={() => void startTip()}
+              onClick={() => onTipPrimaryClick()}
               disabled={busy || amountSol == null}
               className="mt-4 w-full rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {busy ? "Preparing…" : "Open in wallet"}
+              {busy ? "Sending…" : publicKey ? "Send tip" : "Connect wallet to tip"}
             </button>
 
             {err ? (
@@ -1114,11 +1155,23 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
 
             {tip ? (
               <div className="mt-3 space-y-3">
+                {submittedSig && !confirmed ? (
+                  <div className="rounded-lg border border-zinc-800 bg-black/30 p-3">
+                    <p className="text-xs text-zinc-400">Submitted</p>
+                    <a
+                      href={`https://solscan.io/tx/${encodeURIComponent(submittedSig)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 block break-all font-mono text-[11px] text-sky-300 underline-offset-2 hover:underline"
+                    >
+                      {submittedSig.slice(0, 10)}…{submittedSig.slice(-10)}
+                    </a>
+                  </div>
+                ) : null}
+
                 <div className="rounded-lg border border-zinc-800 bg-black/30 p-3">
-                  <p className="text-xs text-zinc-400">Tip link</p>
-                  <p className="mt-1 break-all font-mono text-[11px] text-zinc-200">
-                    {tip.solanaPayUrl}
-                  </p>
+                  <p className="text-xs text-zinc-400">Solana Pay link (backup)</p>
+                  <p className="mt-1 break-all font-mono text-[11px] text-zinc-200">{tip.solanaPayUrl}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -1139,7 +1192,7 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
                       rel="noopener noreferrer"
                       className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
                     >
-                      Open again
+                      Open in wallet app
                     </a>
                   </div>
                 </div>

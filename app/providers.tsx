@@ -1,7 +1,9 @@
 "use client";
 
 import { HelpHotkey } from "@/app/components/HelpHotkey";
+import { SolanaWalletProviders } from "@/app/components/SolanaWalletProviders";
 import { NotificationToasts } from "@/app/components/NotificationToasts";
+import { DashboardWalletProvider } from "@/app/contexts/DashboardWalletContext";
 import { NotificationsProvider } from "@/app/contexts/NotificationsContext";
 import { TokenChartModalProvider } from "@/app/contexts/TokenChartModalContext";
 import { VoiceSessionProvider } from "@/app/contexts/VoiceSessionContext";
@@ -18,15 +20,19 @@ export function Providers({
 }) {
   return (
     <SessionProvider refetchInterval={45} session={session ?? undefined}>
-      <VoiceSessionProvider>
-        <NotificationsProvider>
-          <TokenChartModalProvider>
-            <HelpHotkey />
-            {children}
-            <NotificationToasts />
-          </TokenChartModalProvider>
-        </NotificationsProvider>
-      </VoiceSessionProvider>
+      <SolanaWalletProviders>
+        <DashboardWalletProvider>
+          <VoiceSessionProvider>
+            <NotificationsProvider>
+              <TokenChartModalProvider>
+                <HelpHotkey />
+                {children}
+                <NotificationToasts />
+              </TokenChartModalProvider>
+            </NotificationsProvider>
+          </VoiceSessionProvider>
+        </DashboardWalletProvider>
+      </SolanaWalletProviders>
     </SessionProvider>
   );
 }
