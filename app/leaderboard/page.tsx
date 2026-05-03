@@ -916,13 +916,13 @@ export default function LeaderboardPage() {
 
   const sectionTitle = "text-base font-semibold tracking-tight text-zinc-100";
   const navPill =
-    "rounded-full border border-zinc-800/90 bg-zinc-950/70 px-3 py-1.5 text-[11px] font-medium text-zinc-400 outline-none transition-all duration-200 hover:-translate-y-px hover:border-cyan-500/40 hover:bg-zinc-900/80 hover:text-cyan-100 hover:shadow-[0_12px_40px_-24px_rgba(0,0,0,0.85)] focus-visible:ring-2 focus-visible:ring-cyan-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070708] active:translate-y-0";
+    "rounded-full border border-zinc-800/90 bg-zinc-950/70 px-3 py-1.5 text-[11px] font-medium text-zinc-400 outline-none transition-all duration-200 hover:-translate-y-px hover:border-cyan-500/40 hover:bg-zinc-900/80 hover:text-cyan-100 hover:shadow-[0_12px_40px_-24px_rgba(0,0,0,0.85)] focus-visible:ring-2 focus-visible:ring-cyan-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--mcg-stage)] active:translate-y-0";
 
   return (
-    <div className="min-h-screen bg-[#070708] bg-[radial-gradient(ellipse_120%_80%_at_50%_-18%,rgba(34,211,238,0.12),transparent_55%)] text-zinc-100">
-      <div className="mx-auto w-full max-w-[1100px] space-y-8 px-4 py-8 sm:px-6 lg:py-10">
+    <div className="text-zinc-100">
+      <div className="mx-auto w-full max-w-[1100px] space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:py-9">
         <header
-          className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[#070708] p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8"
+          className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[color:var(--mcg-stage)] p-5 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-7"
           data-tutorial="leaderboard.header"
         >
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_35%,rgba(34,211,238,0.06)_48%,transparent_62%)] opacity-90" />
@@ -987,16 +987,16 @@ export default function LeaderboardPage() {
 
       <section
         id="your-terminal"
-        className="mb-2 scroll-mt-28 rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-zinc-900/70 via-zinc-950 to-[#070708] p-5 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-cyan-500/15 sm:p-6"
+        className="mb-2 scroll-mt-28 rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-zinc-900/70 via-zinc-950 to-[color:var(--mcg-stage)] p-4 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-cyan-500/15 sm:p-5"
       >
         <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-400/85">Your terminal</p>
-        <h2 className="mt-2 text-lg font-semibold tracking-tight text-white sm:text-xl">Where your personal data lives</h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+        <h2 className="mt-1.5 text-base font-semibold tracking-tight text-white sm:text-lg">Where your personal data lives</h2>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-400">
           The <span className="font-medium text-zinc-200">Leaderboards</span> below are the public arena. Two other pages are
           only about <span className="font-medium text-zinc-200">you</span> — so nothing here pretends to be your
           analytics anymore.
         </p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Link
             href="/calls"
             className="group rounded-xl border border-zinc-800/80 bg-black/35 p-4 transition hover:border-cyan-500/35 hover:bg-zinc-900/50"
