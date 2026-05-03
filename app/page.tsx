@@ -468,10 +468,10 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                 Login with Discord
               </button>
               <Link
-                href="/subscribe"
+                href="/membership"
                 className="inline-flex items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/40 px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-950/60"
               >
-                View plans →
+                Membership →
               </Link>
             </div>
 

@@ -10,7 +10,10 @@ import type { ReactNode } from "react";
 
 export function AppChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
-  const bareLayout = pathname.startsWith("/subscribe") || pathname.startsWith("/auth");
+  const bareLayout =
+    pathname.startsWith("/subscribe") ||
+    pathname.startsWith("/membership") ||
+    pathname.startsWith("/auth");
 
   return (
     <div className="flex min-h-screen flex-col">

@@ -409,19 +409,19 @@ McGBot works best when guided by these principles:
 
 ---
 
-## Subscriptions, paywall copy, and discounts
+## Membership, paywall copy, and discounts
 
-Operational copy for [mcgbot.xyz/subscribe](https://mcgbot.xyz/subscribe) and checkout gates lives in Supabase table **`dashboard_admin_settings`** (single row **`id = 1`**). Edit in the **Table Editor** (or SQL). Fields used on the subscribe page include:
+Operational copy for [mcgbot.xyz/membership](https://mcgbot.xyz/membership) and checkout gates lives in Supabase table **`dashboard_admin_settings`** (single row **`id = 1`**). Edit in the **Table Editor** (or SQL). Fields used on the membership page include:
 
 * **`paywall_title`** / **`paywall_subtitle`** — headline and optional extra line above the plan grid.
 * **`subscribe_button_label`** — overrides the primary CTA label (default in app is **“Pay with Stripe”** if left empty).
-* **`discord_invite_url`** — invite used from subscribe when you override the default.
-* **`stripe_test_checkout_enabled`** / **`stripe_test_price_id`** / **`stripe_test_plan_id`** — optional second Stripe Checkout on `/subscribe` (“$1 Stripe test checkout”) using a dedicated recurring **`price_…`** (create a small test product in Stripe). **`stripe_test_plan_id`** is the **`subscription_plans.id`** stored in session metadata for webhooks; leave null to default to the **monthly** plan row. Toggle and IDs are also editable under **Admin → Site** in the dashboard.
+* **`discord_invite_url`** — invite used from the membership page when you override the default.
+* **`stripe_test_checkout_enabled`** / **`stripe_test_price_id`** / **`stripe_test_plan_id`** — optional second Stripe Checkout on `/membership` (“$1 Stripe test checkout”) using a dedicated recurring **`price_…`** (create a small test product in Stripe). **`stripe_test_plan_id`** is the **`subscription_plans.id`** stored in session metadata for webhooks; leave null to default to the **monthly** plan row. Toggle and IDs are also editable under **Admin → Site** in the dashboard.
 * **`tutorial_auto_start_enabled`** — when **`false`**, new caller-tier users no longer get the automatic Joyride walkthrough on first login. Controlled in **Admin → Site & flags → Live settings → Maintenance & checkout** (“Auto-start guided tour…”). Defaults to **`true`**; requires the SQL migration that adds the column.
 
 **Paid discounts:** create **coupons / promotion codes in Stripe**; customers enter them on **Stripe Checkout**. The dashboard no longer applies percent-off “voucher” codes to card checkout.
 
-**Complimentary (100% off) access:** staff-issued codes that live in your **vouchers** system are redeemed on the subscribe page under **“Have a 100% off code?”**, which calls **`POST /api/subscription/checkout`** (no card). Apply the **`peek_voucher`** SQL migration (`supabase/migrations/20260503160000_peek_voucher.sql`) so partial codes are not consumed when someone mistakenly uses this path.
+**Complimentary (100% off) access:** staff-issued codes that live in your **vouchers** system are redeemed on the membership page under **“Have a 100% off code?”**, which calls **`POST /api/subscription/checkout`** (no card). Apply the **`peek_voucher`** SQL migration (`supabase/migrations/20260503160000_peek_voucher.sql`) so partial codes are not consumed when someone mistakenly uses this path.
 
 **Plans & Stripe Price IDs:** table **`subscription_plans`** — each active plan row should have **`stripe_price_id`** set to the recurring **`price_…`** from Stripe (test vs live must match the API keys on the server).
 

@@ -115,6 +115,7 @@ export async function upsertSubscriptionFromStripe(input: {
       stripe_customer_id: input.stripeCustomerId?.trim() || null,
       stripe_subscription_id: input.stripeSubscriptionId.trim(),
       stripe_status: input.stripeStatus.slice(0, 64),
+      payment_channel: "stripe",
       updated_at: new Date().toISOString(),
     },
     { onConflict: "discord_id" }
@@ -124,6 +125,20 @@ export async function upsertSubscriptionFromStripe(input: {
     return false;
   }
   return true;
+}
+
+export async function hasPendingSolInvoiceForDiscord(discordId: string): Promise<boolean> {
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const now = new Date().toISOString();
+  const { count, error } = await db
+    .from("payment_invoices")
+    .select("id", { count: "exact", head: true })
+    .eq("discord_id", discordId.trim())
+    .eq("status", "pending")
+    .gt("quote_expires_at", now);
+  if (error) return false;
+  return (count ?? 0) > 0;
 }
 
 export async function createInvoiceRow(input: {
@@ -242,6 +257,7 @@ export async function upsertSubscriptionAfterPayment(input: {
   discordId: string;
   planId: string;
   durationDays: number;
+  paymentChannel?: "stripe" | "sol";
 }): Promise<boolean> {
   const db = getSupabaseAdmin();
   if (!db) return false;
@@ -259,12 +275,14 @@ export async function upsertSubscriptionAfterPayment(input: {
       : new Date();
   const end = new Date(base.getTime() + input.durationDays * DAY_MS);
 
+  const channel = input.paymentChannel ?? "stripe";
   const { error } = await db.from("subscriptions").upsert(
     {
       discord_id: input.discordId,
       plan_id: input.planId,
       current_period_end: end.toISOString(),
       status: "active",
+      payment_channel: channel,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "discord_id" }

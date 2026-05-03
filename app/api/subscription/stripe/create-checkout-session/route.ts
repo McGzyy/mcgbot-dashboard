@@ -163,8 +163,8 @@ export async function POST(request: Request) {
 
   try {
     const base = checkoutBaseUrl();
-    const successUrl = `${base}/subscribe?stripe=done&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${base}/subscribe?stripe=cancel`;
+    const successUrl = `${base}/membership?stripe=done&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${base}/membership?stripe=cancel`;
 
     const existingCustomerId = await getSubscriptionStripeCustomerId(discordId);
 

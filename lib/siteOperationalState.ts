@@ -12,7 +12,7 @@ export type SiteOperationalState = {
   paywall_title: string | null;
   subscribe_button_label: string | null;
   discord_invite_url: string | null;
-  /** When true, /subscribe may show the optional $1 (or configured) Stripe test checkout button. */
+  /** When true, /membership may show the optional $1 (or configured) Stripe test checkout button. */
   stripe_test_checkout_enabled: boolean;
   /** When false, the dashboard does not auto-open the Joyride tour for new caller-tier users. */
   tutorial_auto_start_enabled: boolean;
@@ -43,7 +43,7 @@ export function invalidateSiteOperationalStateCache(): void {
   cache = null;
 }
 
-/** Short-TTL read for middleware, subscribe copy, and checkout gates. */
+/** Short-TTL read for middleware, membership page copy, and checkout gates. */
 export async function getSiteOperationalState(): Promise<SiteOperationalState> {
   const now = Date.now();
   if (cache && cache.expires > now) {

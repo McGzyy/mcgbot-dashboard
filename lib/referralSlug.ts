@@ -38,6 +38,7 @@ const RESERVED_RAW = [
   "oauth",
   "callback",
   "subscribe",
+  "membership",
   "billing",
   "pay",
   "payment",

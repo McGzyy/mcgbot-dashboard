@@ -24,7 +24,7 @@ export type DashboardAdminSettingsRow = {
   session_invalidation_epoch: number;
   /** Legacy column from an earlier referral experiment; not used by the dashboard until a policy ships. */
   referral_credit_divisor: number;
-  /** Show optional Stripe test checkout on /subscribe (requires stripe_test_price_id). */
+  /** Show optional Stripe test checkout on /membership (requires stripe_test_price_id). */
   stripe_test_checkout_enabled: boolean;
   /** Stripe `price_…` for test checkout; must match API key mode. */
   stripe_test_price_id: string | null;

@@ -17,6 +17,7 @@ function isPublicForAnonymous(pathname: string): boolean {
   if (pathname === "/join") return true;
   if (pathname.startsWith("/auth")) return true;
   if (pathname.startsWith("/subscribe")) return true;
+  if (pathname.startsWith("/membership")) return true;
   return false;
 }
 
@@ -188,14 +189,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/subscribe")) {
+  if (pathname.startsWith("/subscribe") || pathname.startsWith("/membership")) {
     return NextResponse.next();
   }
 
   if (pathname === "/") {
     if (!(await hasDashboardAccessResolved(token))) {
       const url = req.nextUrl.clone();
-      url.pathname = "/subscribe";
+      url.pathname = "/membership";
       url.search = "";
       return NextResponse.redirect(url);
     }
@@ -204,7 +205,7 @@ export async function middleware(req: NextRequest) {
 
   if (!(await hasDashboardAccessResolved(token))) {
     const url = req.nextUrl.clone();
-    url.pathname = "/subscribe";
+    url.pathname = "/membership";
     url.search = "";
     return NextResponse.redirect(url);
   }

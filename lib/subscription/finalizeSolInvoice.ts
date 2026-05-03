@@ -1,6 +1,6 @@
 import { findReference, validateTransfer } from "@solana/pay";
 import BigNumber from "bignumber.js";
-import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 
 import { getSolanaRpcUrl } from "@/lib/subscription/solanaRpc";
 import {
@@ -9,9 +9,13 @@ import {
   type PendingInvoiceRow,
   upsertSubscriptionAfterPayment,
 } from "@/lib/subscription/subscriptionDb";
+import {
+  lamportsToSolAmount,
+  verifyNativeSolTransferRelaxed,
+} from "@/lib/subscription/solTransferVerifyRelaxed";
 
 function lamportsToSolBigNumber(lamports: number): BigNumber {
-  return new BigNumber(String(lamports)).dividedBy(LAMPORTS_PER_SOL);
+  return lamportsToSolAmount(lamports);
 }
 
 async function payerFromSignature(connection: Connection, signature: string): Promise<string | null> {
@@ -55,9 +59,15 @@ export async function finalizeInvoiceFromTxSignature(input: {
       amount,
       reference,
     });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Validation failed";
-    return { ok: false, error: msg };
+  } catch {
+    const okRelaxed = await verifyNativeSolTransferRelaxed(connection, signature, {
+      treasury: recipient,
+      reference,
+      minLamports: invoice.lamports,
+    });
+    if (!okRelaxed) {
+      return { ok: false, error: "Could not verify this payment on-chain." };
+    }
   }
 
   const payerPubkey = (await payerFromSignature(connection, signature)) ?? "";
@@ -83,6 +93,7 @@ export async function finalizeInvoiceFromTxSignature(input: {
     discordId: invoice.discord_id,
     planId: invoice.plan_id,
     durationDays,
+    paymentChannel: "sol",
   });
   if (!subOk) {
     return { ok: false, error: "Payment recorded but subscription update failed." };
@@ -124,9 +135,15 @@ export async function finalizeInvoiceFromReferenceIfPaid(input: {
       amount,
       reference,
     });
-  } catch (e) {
-    const detail = e instanceof Error ? e.message : String(e);
-    return { ok: false, reason: "invalid", detail };
+  } catch {
+    const okRelaxed = await verifyNativeSolTransferRelaxed(connection, signature, {
+      treasury: recipient,
+      reference,
+      minLamports: invoice.lamports,
+    });
+    if (!okRelaxed) {
+      return { ok: false, reason: "invalid", detail: "verify_failed" };
+    }
   }
 
   const payerPubkey = (await payerFromSignature(connection, signature)) ?? "";
@@ -152,6 +169,7 @@ export async function finalizeInvoiceFromReferenceIfPaid(input: {
     discordId: invoice.discord_id,
     planId: invoice.plan_id,
     durationDays,
+    paymentChannel: "sol",
   });
   if (!subOk) {
     return { ok: false, reason: "db", detail: "subscription" };
