@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { formatJoinedAt } from "@/lib/callDisplayFormat";
+import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 type Referral = {
   userId: string;
@@ -48,8 +49,7 @@ function fmtX(n: number): string {
 const statCard =
   "rounded-xl border border-emerald-500/15 bg-emerald-950/[0.12] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] transition hover:border-emerald-500/25 hover:bg-emerald-950/20";
 
-const panelShell =
-  "rounded-2xl border border-zinc-800/60 bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 ring-1 ring-white/[0.04] sm:p-6";
+const panelShell = `${terminalSurface.routeSectionFrame} bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 sm:p-6`;
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
@@ -229,7 +229,7 @@ export default function ReferralsPage() {
     <div className="mx-auto w-full max-w-[1100px] space-y-6 px-0 py-6 sm:space-y-8 sm:py-10">
       {/* Hero */}
       <header
-        className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[#070708] p-5 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8"
+        className={`${terminalSurface.routeHeroFrame} p-5 sm:p-8`}
         data-tutorial="referrals.hero"
       >
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_38%,rgba(16,185,129,0.05)_50%,transparent_62%)]" />

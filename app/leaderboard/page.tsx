@@ -404,6 +404,12 @@ export default function LeaderboardPage() {
   const [mcgbotTopRows, setMcgbotTopRows] = useState<TopCallRow[]>([]);
   const [mcgbotTopTotal, setMcgbotTopTotal] = useState(0);
   const [mcgbotTopLoading, setMcgbotTopLoading] = useState(true);
+  /** #1 bot call by ATH multiple (all-time), for the “Best Bot Call” KPI — from top-calls, not aggregate board. */
+  const [botBestAllTimeKpi, setBotBestAllTimeKpi] = useState<{ symbol: string; multiplier: number } | null>(
+    null
+  );
+  const [botBestAllTimeKpiReady, setBotBestAllTimeKpiReady] = useState(false);
+  const [botBestAllTimeKpiForbidden, setBotBestAllTimeKpiForbidden] = useState(false);
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersBoards, setUsersBoards] = useState<Record<TimeframeId, LeaderRow[]>>({
     daily: [],
@@ -790,6 +796,60 @@ export default function LeaderboardPage() {
     };
   }, [mcgbotPage, mcgbotTimeframe, viewerDiscordId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!viewerDiscordId) {
+      setBotBestAllTimeKpi(null);
+      setBotBestAllTimeKpiForbidden(false);
+      setBotBestAllTimeKpiReady(true);
+      return;
+    }
+    setBotBestAllTimeKpiReady(false);
+    setBotBestAllTimeKpiForbidden(false);
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/leaderboard/top-calls?type=bot&period=${encodeURIComponent("all")}&limit=1&offset=0`,
+          { credentials: "same-origin" }
+        );
+        const json = (await res.json().catch(() => null)) as unknown;
+        if (cancelled) return;
+        if (res.status === 403) {
+          setBotBestAllTimeKpiForbidden(true);
+          setBotBestAllTimeKpi(null);
+          return;
+        }
+        if (!res.ok || !json || typeof json !== "object") {
+          setBotBestAllTimeKpi(null);
+          return;
+        }
+        const rawRows = Array.isArray((json as { rows?: unknown[] }).rows)
+          ? (json as { rows: unknown[] }).rows
+          : [];
+        const first = rawRows[0];
+        if (!first || typeof first !== "object") {
+          setBotBestAllTimeKpi(null);
+          return;
+        }
+        const r = first as Record<string, unknown>;
+        const symbol = typeof r.symbol === "string" ? r.symbol : "—";
+        const multRaw = r.multiplier;
+        const multiplier =
+          typeof multRaw === "number" && Number.isFinite(multRaw)
+            ? multRaw
+            : Number(multRaw) || 0;
+        setBotBestAllTimeKpi({ symbol, multiplier });
+      } catch {
+        if (!cancelled) setBotBestAllTimeKpi(null);
+      } finally {
+        if (!cancelled) setBotBestAllTimeKpiReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerDiscordId]);
+
   const userRows = useMemo(
     () => (usersBoards[usersTimeframe] ?? []).slice((userPage - 1) * 10, userPage * 10),
     [usersBoards, usersTimeframe, userPage]
@@ -829,6 +889,49 @@ export default function LeaderboardPage() {
       avgTo2x: "—",
     };
   }, [botBoards.all]);
+
+  const bestBotCallKpiDisplay = useMemo(() => {
+    if (!viewerDiscordId) {
+      return {
+        mult: botSummary.bestMultiplier,
+        label: botSummary.bestSymbol,
+        labelMuted: false,
+      };
+    }
+    if (!botBestAllTimeKpiReady) {
+      return {
+        mult: botSummary.bestMultiplier,
+        label: "Loading…",
+        labelMuted: true,
+      };
+    }
+    if (botBestAllTimeKpiForbidden) {
+      return {
+        mult: botSummary.bestMultiplier,
+        label: "Bot call detail requires the right plan",
+        labelMuted: true,
+      };
+    }
+    if (botBestAllTimeKpi && botBestAllTimeKpi.multiplier > 0) {
+      return {
+        mult: botBestAllTimeKpi.multiplier,
+        label: botBestAllTimeKpi.symbol,
+        labelMuted: false,
+      };
+    }
+    return {
+      mult: botSummary.bestMultiplier,
+      label: "No qualifying bot calls yet",
+      labelMuted: true,
+    };
+  }, [
+    viewerDiscordId,
+    botBestAllTimeKpiReady,
+    botBestAllTimeKpiForbidden,
+    botBestAllTimeKpi,
+    botSummary.bestMultiplier,
+    botSummary.bestSymbol,
+  ]);
 
   const allTimeRecords = useMemo(() => {
     const empty: LeaderRow = {
@@ -1063,7 +1166,7 @@ export default function LeaderboardPage() {
     <div className="text-zinc-100">
       <div className="mx-auto w-full max-w-[1100px] space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:py-9">
         <header
-          className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[color:var(--mcg-stage)] p-5 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-7"
+          className="relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[color:var(--mcg-stage)] p-5 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-zinc-700/15 sm:p-7"
           data-tutorial="leaderboard.header"
         >
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_35%,rgba(34,211,238,0.06)_48%,transparent_62%)] opacity-90" />
@@ -1616,9 +1719,13 @@ export default function LeaderboardPage() {
               <span className="text-base" aria-hidden />
             </div>
             <p className="mt-2.5 text-2xl font-bold tabular-nums tracking-tight text-sky-300">
-              {fmtX(botSummary.bestMultiplier)}
+              {fmtX(bestBotCallKpiDisplay.mult)}
             </p>
-            <p className="mt-1.5 text-xs text-zinc-500">{botSummary.bestSymbol}</p>
+            <p
+              className={`mt-1.5 text-xs ${bestBotCallKpiDisplay.labelMuted ? "text-zinc-600" : "text-zinc-500"}`}
+            >
+              {bestBotCallKpiDisplay.label}
+            </p>
           </div>
 
           <div className="rounded-xl border border-sky-500/15 bg-sky-950/20 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">

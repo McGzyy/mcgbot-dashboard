@@ -19,6 +19,14 @@ export const terminalSurface = {
   panelCard: `${raisedSurface} shadow-sm shadow-black/20`,
   panelCardElevated: `${raisedSurface} shadow-md shadow-black/25`,
   rowDivide: "border-zinc-800/90",
+  /**
+   * Large route hero shell (PnL showcase, referrals, etc.) — zinc-only tail; pair with your own `p-*`.
+   */
+  routeHeroFrame:
+    "relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-zinc-950 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-zinc-700/15",
+  /** Feed / list block under a hero — set your own `bg-*` / gradient; pair with `p-5 sm:p-6` (or similar). */
+  routeSectionFrame:
+    "rounded-2xl border border-zinc-800/90 shadow-[0_20px_50px_-40px_rgba(0,0,0,0.9)] ring-1 ring-zinc-800/40",
 } as const;
 
 /** Page-level typography + stat primitives inside `contentWell` (incremental adoption). */

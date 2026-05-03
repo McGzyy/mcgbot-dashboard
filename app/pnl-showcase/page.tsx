@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { terminalUi } from "@/lib/terminalDesignTokens";
+import { terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 
 type FeedPost = {
   id: string;
@@ -505,7 +505,7 @@ export default function PnlShowcasePage() {
   return (
     <div className="mx-auto w-full max-w-[1100px] space-y-8 px-4 py-8 sm:px-6 lg:py-10">
       <header
-        className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-[#070708] p-6 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.05] sm:p-8"
+        className={`${terminalSurface.routeHeroFrame} p-6 sm:p-8`}
         data-tutorial="pnlShowcase.header"
       >
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_35%,rgba(34,197,94,0.06)_48%,transparent_62%)] opacity-90" />
@@ -541,7 +541,7 @@ export default function PnlShowcasePage() {
       </header>
 
       <section
-        className="rounded-2xl border border-zinc-800/60 bg-zinc-950/35 p-5 shadow-[0_20px_50px_-40px_rgba(0,0,0,0.9)] ring-1 ring-white/[0.03] sm:p-6"
+        className={`${terminalSurface.routeSectionFrame} bg-zinc-950/35 p-5 sm:p-6`}
         data-tutorial="pnlShowcase.feed"
       >
         <div className="flex items-center justify-between gap-3">
