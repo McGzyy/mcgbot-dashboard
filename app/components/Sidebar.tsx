@@ -129,10 +129,8 @@ function SidebarBody({
             className={getBotCallsNavItemClass(isActive(pathname, "/bot-calls"))}
           >
             <div
-              className={`pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 rounded-full transition-all duration-200 ${
-                isActive(pathname, "/bot-calls")
-                  ? "h-7 w-[3px] bg-gradient-to-b from-sky-100 via-sky-400 to-cyan-600 shadow-[0_0_18px_rgba(56,189,248,0.55),0_0_8px_rgba(34,211,238,0.35)]"
-                  : "h-[18px] w-[2px] bg-gradient-to-b from-sky-400/75 to-cyan-600/55 shadow-[0_0_10px_rgba(56,189,248,0.22)]"
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/bot-calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
               aria-hidden
             />
@@ -562,26 +560,16 @@ export function Sidebar() {
     }`;
 
   /**
-   * “Bot Calls” is the flagship Markets surface: always reads as featured (idle), stronger when active.
-   * Avoids a flat white outline; uses sky-tinted glass + inset hairline so it stays terminal-premium on every route.
+   * Bot Calls: when idle, only a whisper of sky (soft outer glow + slightly brighter label) — no border/box.
+   * When active, matches other nav rows so the real selection always reads clearly.
    */
   const getBotCallsNavItemClass = (active: boolean) => {
-    const base =
-      "relative flex min-h-[2.25rem] items-center gap-3 overflow-hidden rounded-md px-4 py-2 text-sm tracking-[-0.01em] transition-all duration-200";
-    if (active) {
-      return [
-        base,
-        "border border-sky-400/28 text-white font-semibold",
-        "bg-[linear-gradient(118deg,rgba(14,116,144,0.38)_0%,rgba(15,23,42,0.92)_40%,rgba(2,6,23,0.94)_100%)]",
-        "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07),0_0_40px_-18px_rgba(56,189,248,0.35)]",
-      ].join(" ");
-    }
+    if (active) return getNavItemClass(true);
     return [
-      base,
-      "border border-sky-500/18 text-zinc-200 font-medium",
-      "bg-[linear-gradient(92deg,rgba(12,74,110,0.22)_0%,rgba(9,9,11,0.72)_45%,rgba(0,0,0,0.15)_100%)]",
-      "shadow-[inset_0_0_0_1px_rgba(56,189,248,0.07)]",
-      "hover:border-sky-400/28 hover:text-white hover:shadow-[inset_0_0_0_1px_rgba(56,189,248,0.12),0_0_28px_-16px_rgba(56,189,248,0.2)]",
+      "relative flex items-center gap-3 rounded-md px-4 py-2 text-sm transition-all duration-150",
+      "text-zinc-300",
+      "shadow-[0_0_42px_-24px_rgba(56,189,248,0.14)]",
+      "hover:bg-zinc-900/55 hover:text-white hover:shadow-[0_0_48px_-22px_rgba(56,189,248,0.2)]",
     ].join(" ");
   };
 
