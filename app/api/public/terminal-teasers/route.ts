@@ -26,7 +26,7 @@ export async function GET() {
     const { data, error } = await db
       .from("call_performance")
       .select(
-        "id, username, call_ca, ath_multiple, spot_multiple, call_time, source, excluded_from_stats, token_name, token_ticker"
+        "id, username, call_ca, ath_multiple, spot_multiple, call_time, source, excluded_from_stats, token_name, token_ticker, token_image_url"
       )
       .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
       .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR)
@@ -50,6 +50,7 @@ export async function GET() {
         token: string;
         tokenName?: string | null;
         tokenTicker?: string | null;
+        tokenImageUrl?: string | null;
         multiple: number;
         username: string;
         source: string;
@@ -68,6 +69,9 @@ export async function GET() {
         typeof (r as any).token_name === "string" ? (r as any).token_name.trim() : null;
       const tokenTicker =
         typeof (r as any).token_ticker === "string" ? (r as any).token_ticker.trim() : null;
+      const imgRaw = (r as any).token_image_url;
+      const tokenImageUrl =
+        typeof imgRaw === "string" && imgRaw.trim() ? imgRaw.trim().slice(0, 800) : null;
       const source = typeof r.source === "string" ? r.source : "user";
       const time = r.call_time;
       const prev = top.get(id);
@@ -76,6 +80,7 @@ export async function GET() {
           token: token || "Unknown",
           tokenName,
           tokenTicker,
+          tokenImageUrl,
           multiple,
           username: username || "Unknown",
           source,

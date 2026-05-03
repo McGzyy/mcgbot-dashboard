@@ -40,11 +40,17 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    let type = searchParams.get("type") || "user";
-    if (type === "bot") {
+    const requested = searchParams.get("type") === "bot" ? "bot" : "user";
+    if (requested === "bot") {
       const allowed = await hasAccess(session.user.id, "view_bot_calls");
-      if (!allowed) type = "user";
+      if (!allowed) {
+        return Response.json(
+          { error: "Bot call data requires the appropriate subscription.", rows: [], total: 0 },
+          { status: 403 }
+        );
+      }
     }
+    const type = requested;
 
     const period = searchParams.get("period");
     const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit")) || 10));

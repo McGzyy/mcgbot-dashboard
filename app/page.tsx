@@ -11,6 +11,7 @@ import { AddToWatchlistModal } from "./components/AddToWatchlistModal";
 import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
 import { DashboardChatPanel } from "./components/DashboardChatPanel";
 import { PanelCard, CARD_HOVER } from "./components/PanelCard";
+import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
 import DailyLeaderboardPanel from "@/components/DailyLeaderboardPanel";
@@ -392,6 +393,7 @@ type PublicTeaserCall = {
   token: string;
   tokenName?: string | null;
   tokenTicker?: string | null;
+  tokenImageUrl?: string | null;
   multiple: number;
   username: string;
   source: string;
@@ -520,24 +522,40 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                 </div>
               ) : (
                 <ul className="divide-y divide-zinc-800/40 text-sm">
-                  {topCalls.map((c, i) => (
-                    <li
-                      key={`${c.token}-${String(c.time)}-${i}`}
-                      className="flex items-center justify-between gap-3 py-2.5 first:pt-2 text-zinc-300"
-                    >
-                      <span className="min-w-0 truncate text-[13px] font-semibold text-zinc-100">
-                        {formatNameAndTickerLine({
-                          tokenName: c.tokenName,
-                          tokenTicker: c.tokenTicker,
-                          callMarketCapUsd: null,
-                          callCa: c.token,
-                        })}
-                      </span>
-                      <span className="shrink-0 font-semibold tabular-nums text-emerald-300">
-                        {c.multiple.toFixed(1)}×
-                      </span>
-                    </li>
-                  ))}
+                  {topCalls.map((c, i) => {
+                    const thumbSym =
+                      c.tokenTicker?.trim().toUpperCase().slice(0, 14) ||
+                      c.tokenName?.trim().slice(0, 14) ||
+                      abbreviateCa(c.token, 4, 4);
+                    return (
+                      <li
+                        key={`${c.token}-${String(c.time)}-${i}`}
+                        className="flex items-center justify-between gap-3 py-2.5 first:pt-2 text-zinc-300"
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                          <div className="shrink-0 scale-[0.85]">
+                            <TokenCallThumb
+                              symbol={thumbSym}
+                              tokenImageUrl={c.tokenImageUrl ?? null}
+                              mint={c.token}
+                              tone="muted"
+                            />
+                          </div>
+                          <span className="min-w-0 truncate text-[13px] font-semibold text-zinc-100">
+                            {formatNameAndTickerLine({
+                              tokenName: c.tokenName,
+                              tokenTicker: c.tokenTicker,
+                              callMarketCapUsd: null,
+                              callCa: c.token,
+                            })}
+                          </span>
+                        </div>
+                        <span className="shrink-0 font-semibold tabular-nums text-emerald-300">
+                          {c.multiple.toFixed(1)}×
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

@@ -10,6 +10,8 @@ import { looksLikeDiscordSnowflake } from "@/lib/discordIdentity";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { tokenChartLabel } from "@/lib/tradingViewEmbed";
+import { TokenCallThumb } from "@/components/TokenCallThumb";
+import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
 
 type TimeframeId = "daily" | "weekly" | "monthly" | "all";
 
@@ -217,68 +219,6 @@ function avatarUrlFor(name: string): string | undefined {
   return `https://api.dicebear.com/7.x/thumbs/png?seed=${encodeURIComponent(cleaned)}`;
 }
 
-function symbolBadge(symbol: string) {
-  const s = symbol.trim().toUpperCase();
-  const letters = s.replace(/[^A-Z0-9]/g, "").slice(0, 2) || "—";
-  return letters.length >= 2 ? letters.slice(0, 2) : `${letters}•`.slice(0, 2);
-}
-
-function TokenCallThumb({
-  symbol,
-  tokenImageUrl,
-  tone,
-}: {
-  symbol: string;
-  tokenImageUrl?: string | null;
-  tone: "default" | "muted" | "bot";
-}) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const onImgError = useCallback(() => setImgFailed(true), []);
-
-  useEffect(() => {
-    setImgFailed(false);
-  }, [tokenImageUrl]);
-
-  const imgBorder =
-    tone === "bot"
-      ? "border-sky-500/35"
-      : tone === "muted"
-        ? "border-zinc-700/50"
-        : "border-emerald-500/30";
-
-  const letterFallback = (
-    <div
-      className={[
-        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-[10px] font-bold tabular-nums",
-        tone === "bot"
-          ? "border-sky-500/25 bg-sky-950/50 text-sky-200"
-          : tone === "muted"
-            ? "border-zinc-800/90 bg-[color:var(--mcg-page)] text-zinc-300"
-            : "border-emerald-500/20 bg-emerald-950/40 text-emerald-200/90",
-      ].join(" ")}
-      aria-hidden
-    >
-      {symbolBadge(symbol)}
-    </div>
-  );
-
-  if (tokenImageUrl && !imgFailed) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={tokenImageUrl}
-        alt=""
-        className={`h-9 w-9 shrink-0 rounded-lg border object-cover ${imgBorder}`}
-        loading="lazy"
-        referrerPolicy="no-referrer"
-        onError={onImgError}
-      />
-    );
-  }
-
-  return letterFallback;
-}
-
 function RankDelta({ delta }: { delta?: number }) {
   if (delta === undefined || delta === 0) {
     return <span className="text-[10px] tabular-nums text-zinc-600">—</span>;
@@ -347,6 +287,7 @@ function TopCallsList({
                 <TokenCallThumb
                   symbol={row.symbol}
                   tokenImageUrl={row.tokenImageUrl}
+                  mint={row.callCa}
                   tone={tone}
                 />
                 <div className="min-w-0 flex-1">
@@ -407,7 +348,8 @@ export default function LeaderboardPage() {
         chain: "solana",
         contractAddress: row.callCa,
         tokenTicker: row.symbol,
-        tokenImageUrl: row.tokenImageUrl ?? null,
+        tokenImageUrl:
+          resolveTokenAvatarUrl({ tokenImageUrl: row.tokenImageUrl, mint: row.callCa }) ?? null,
       });
     },
     [openTokenChart]
@@ -459,6 +401,9 @@ export default function LeaderboardPage() {
   const [indivLoading, setIndivLoading] = useState(true);
   const [mcgbotTimeframe, setMcgbotTimeframe] = useState<TimeframeId>("daily");
   const [mcgbotPage, setMcgbotPage] = useState(1);
+  const [mcgbotTopRows, setMcgbotTopRows] = useState<TopCallRow[]>([]);
+  const [mcgbotTopTotal, setMcgbotTopTotal] = useState(0);
+  const [mcgbotTopLoading, setMcgbotTopLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersBoards, setUsersBoards] = useState<Record<TimeframeId, LeaderRow[]>>({
     daily: [],
@@ -466,7 +411,6 @@ export default function LeaderboardPage() {
     monthly: [],
     all: [],
   });
-  const [botLoading, setBotLoading] = useState(true);
   const [botBoards, setBotBoards] = useState<Record<TimeframeId, LeaderRow[]>>({
     daily: [],
     weekly: [],
@@ -573,7 +517,6 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setBotLoading(true);
     void (async () => {
       try {
         const results = await Promise.all(
@@ -596,8 +539,6 @@ export default function LeaderboardPage() {
         if (!cancelled) {
           setBotBoards({ daily: [], weekly: [], monthly: [], all: [] });
         }
-      } finally {
-        if (!cancelled) setBotLoading(false);
       }
     })();
     return () => {
@@ -767,6 +708,88 @@ export default function LeaderboardPage() {
     };
   }, [indivPage, indivTimeframe]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!viewerDiscordId) {
+      setMcgbotTopRows([]);
+      setMcgbotTopTotal(0);
+      setMcgbotTopLoading(false);
+      return;
+    }
+    setMcgbotTopLoading(true);
+    const limit = 10;
+    const offset = (mcgbotPage - 1) * limit;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/leaderboard/top-calls?type=bot&period=${encodeURIComponent(periodFor(mcgbotTimeframe))}&limit=${limit}&offset=${offset}`,
+          { credentials: "same-origin" }
+        );
+        const json = (await res.json().catch(() => null)) as unknown;
+        if (cancelled) return;
+        if (res.status === 403 || !res.ok || !json || typeof json !== "object") {
+          setMcgbotTopRows([]);
+          setMcgbotTopTotal(0);
+          return;
+        }
+        const payload = json as {
+          rows?: unknown[];
+          total?: unknown;
+        };
+        const total =
+          typeof payload.total === "number" && Number.isFinite(payload.total)
+            ? payload.total
+            : Number(payload.total) || 0;
+        setMcgbotTopTotal(total);
+        const rawRows = Array.isArray(payload.rows) ? payload.rows : [];
+        const mapped: TopCallRow[] = [];
+        for (const item of rawRows) {
+          if (!item || typeof item !== "object") continue;
+          const r = item as Record<string, unknown>;
+          const id = r.id != null ? String(r.id) : undefined;
+          const symbol = typeof r.symbol === "string" ? r.symbol : "—";
+          const multRaw = r.multiplier;
+          const multiplier =
+            typeof multRaw === "number" && Number.isFinite(multRaw)
+              ? multRaw
+              : Number(multRaw) || 0;
+          const username = typeof r.username === "string" ? r.username : "—";
+          const iso = typeof r.callTimeIso === "string" ? r.callTimeIso : null;
+          const callToATH = typeof r.callToAth === "string" ? r.callToAth : "—";
+          const imgRaw = r.tokenImageUrl ?? r.token_image_url;
+          const tokenImageUrl =
+            typeof imgRaw === "string" && imgRaw.trim()
+              ? imgRaw.trim().slice(0, 800)
+              : null;
+          const callCaRaw = r.callCa ?? r.call_ca;
+          const callCa =
+            typeof callCaRaw === "string" ? callCaRaw.trim() : String(callCaRaw ?? "").trim();
+          mapped.push({
+            id,
+            symbol,
+            callCa,
+            tokenImageUrl,
+            multiplier,
+            username,
+            timestamp: formatRelativeTime(iso),
+            callToATH,
+          });
+        }
+        setMcgbotTopRows(mapped);
+      } catch {
+        if (!cancelled) {
+          setMcgbotTopRows([]);
+          setMcgbotTopTotal(0);
+        }
+      } finally {
+        if (!cancelled) setMcgbotTopLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mcgbotPage, mcgbotTimeframe, viewerDiscordId]);
+
   const userRows = useMemo(
     () => (usersBoards[usersTimeframe] ?? []).slice((userPage - 1) * 10, userPage * 10),
     [usersBoards, usersTimeframe, userPage]
@@ -787,10 +810,11 @@ export default function LeaderboardPage() {
     setUserPage((p) => Math.min(p, userPageCount));
   }, [userPageCount]);
 
-  const mcgbotRows = useMemo(
-    () => (botBoards[mcgbotTimeframe] ?? []).slice((mcgbotPage - 1) * 10, mcgbotPage * 10),
-    [botBoards, mcgbotPage, mcgbotTimeframe]
-  );
+  const mcgbotPageCount = Math.min(5, Math.max(1, Math.ceil(mcgbotTopTotal / 10) || 1));
+
+  useEffect(() => {
+    setMcgbotPage((p) => Math.min(p, mcgbotPageCount));
+  }, [mcgbotPageCount]);
 
   const botSummary = useMemo(() => {
     const all = botBoards.all ?? [];
@@ -1712,6 +1736,7 @@ export default function LeaderboardPage() {
                         <TokenCallThumb
                           symbol={row.token}
                           tokenImageUrl={row.tokenImageUrl ?? null}
+                          mint={row.callCa}
                           tone="bot"
                         />
                       </button>
@@ -1807,6 +1832,7 @@ export default function LeaderboardPage() {
                         <TokenCallThumb
                           symbol={row.token}
                           tokenImageUrl={row.tokenImageUrl ?? null}
+                          mint={row.callCa}
                           tone="bot"
                         />
                       </button>
@@ -1849,16 +1875,16 @@ export default function LeaderboardPage() {
           </div>
         </div>
 
-        {/* McGBot board */}
+        {/* Top bot calls (ranked by ATH multiple in window) */}
         <div
           className="mt-2 rounded-xl border border-sky-500/20 bg-sky-950/10 p-4 ring-1 ring-sky-500/10"
           data-tutorial="leaderboard.botMcgbotBoard"
         >
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className={sectionTitle}>McGBot board</h2>
+              <h2 className={sectionTitle}>Top bot calls</h2>
               <span className="rounded-md border border-sky-400/35 bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-100">
-                Bot only
+                McGBot
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1885,15 +1911,53 @@ export default function LeaderboardPage() {
             </div>
           </div>
           <p className="mt-2 text-xs text-zinc-500">
-            Bot performance summary. With a clean start, this stays empty until bot calls land.
+            Highest ATH multiples from McGBot calls in the selected period (same ranking as the individual call
+            leaderboard, bot source only).
           </p>
           <div className="mt-6">
-            <Table
-              rows={mcgbotRows}
-              loading={botLoading}
-              highlightDiscordId={viewerDiscordId || null}
-            />
+            {!viewerDiscordId ? (
+              <div className="flex items-center justify-center rounded-xl border border-sky-500/20 bg-sky-950/10 px-3 py-12 ring-1 ring-sky-500/10">
+                <p className="text-sm text-zinc-500">Sign in to view bot call rankings.</p>
+              </div>
+            ) : mcgbotTopLoading ? (
+              <div className="flex items-center justify-center rounded-xl border border-sky-500/20 bg-sky-950/10 px-3 py-12 ring-1 ring-sky-500/10">
+                <p className="text-sm text-zinc-500">Loading…</p>
+              </div>
+            ) : mcgbotTopRows.length === 0 ? (
+              <div className="flex items-center justify-center rounded-xl border border-sky-500/20 bg-sky-950/10 px-3 py-12 ring-1 ring-sky-500/10">
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-zinc-200">No qualifying bot calls in this window</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Try another timeframe, or upgrade if bot stats are restricted for your account.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <TopCallsList rows={mcgbotTopRows} tone="bot" onOpenChart={openIndivChart} />
+            )}
           </div>
+          {viewerDiscordId && mcgbotTopRows.length > 0 ? (
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+              {Array.from({ length: mcgbotPageCount }, (_, i) => i + 1).map((p) => {
+                const active = mcgbotPage === p;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setMcgbotPage(p)}
+                    className={`min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+                      active
+                        ? "border-sky-400/50 bg-sky-500/15 text-sky-100"
+                        : "border-sky-500/10 bg-black/25 text-zinc-500 hover:border-sky-500/25 hover:text-zinc-200"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
           </div>
         </div>

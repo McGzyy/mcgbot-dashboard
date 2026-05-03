@@ -8,6 +8,8 @@ import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { terminalChrome, terminalUi } from "@/lib/terminalDesignTokens";
+import { TokenCallThumb } from "@/components/TokenCallThumb";
+import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
 
 type TapeRow = {
   id: string;
@@ -31,6 +33,14 @@ const WINDOWS = [
   { id: "7d", label: "7 days" },
   { id: "all", label: "All time" },
 ] as const;
+
+function tapeThumbSymbol(r: TapeRow): string {
+  const t = r.tokenTicker?.trim();
+  if (t) return t.toUpperCase().slice(0, 14);
+  const n = r.tokenName?.trim();
+  if (n) return n.slice(0, 14);
+  return r.callCa ? `${r.callCa.slice(0, 4)}…` : "—";
+}
 
 function callTimeIso(callTime: unknown): string | null {
   if (typeof callTime === "string" && callTime.trim()) return callTime;
@@ -420,18 +430,28 @@ export default function BotCallsPage() {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-zinc-100">
-                          {formatCalledSnapshotLine({
-                            tokenName: r.tokenName,
-                            tokenTicker: r.tokenTicker,
-                            callMarketCapUsd: r.callMarketCapUsd ?? null,
-                            callCa: r.callCa,
-                          })}
-                        </p>
-                        <p className="mt-1 text-[11px] text-zinc-500">
-                          {iso ? formatRelativeTime(iso) : "—"}
-                        </p>
+                      <div className="flex min-w-0 flex-1 items-start gap-2">
+                        <div className="mt-0.5 shrink-0 scale-[0.89]">
+                          <TokenCallThumb
+                            symbol={tapeThumbSymbol(r)}
+                            tokenImageUrl={r.tokenImageUrl ?? null}
+                            mint={r.callCa}
+                            tone="muted"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-zinc-100">
+                            {formatCalledSnapshotLine({
+                              tokenName: r.tokenName,
+                              tokenTicker: r.tokenTicker,
+                              callMarketCapUsd: r.callMarketCapUsd ?? null,
+                              callCa: r.callCa,
+                            })}
+                          </p>
+                          <p className="mt-1 text-[11px] text-zinc-500">
+                            {iso ? formatRelativeTime(iso) : "—"}
+                          </p>
+                        </div>
                       </div>
                       <div className="shrink-0 text-right">
                         <div className="text-sm font-semibold tabular-nums text-emerald-300">
@@ -485,7 +505,11 @@ export default function BotCallsPage() {
                               contractAddress: r.callCa,
                               tokenTicker: r.tokenTicker,
                               tokenName: r.tokenName,
-                              tokenImageUrl: r.tokenImageUrl ?? null,
+                              tokenImageUrl:
+                                resolveTokenAvatarUrl({
+                                  tokenImageUrl: r.tokenImageUrl,
+                                  mint: r.callCa,
+                                }) ?? null,
                             })
                           }
                           className="text-emerald-300/95 hover:text-emerald-200"
@@ -578,16 +602,14 @@ export default function BotCallsPage() {
                       </td>
                       <td className="max-w-[min(420px,55vw)] px-4 py-3 text-xs text-zinc-200">
                         <div className="flex min-w-0 gap-2">
-                          {r.tokenImageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={r.tokenImageUrl}
-                              alt=""
-                              className="mt-0.5 h-8 w-8 shrink-0 rounded-md border border-zinc-700/50 object-cover"
-                              loading="lazy"
-                              referrerPolicy="no-referrer"
+                          <div className="mt-0.5 shrink-0 scale-[0.89]">
+                            <TokenCallThumb
+                              symbol={tapeThumbSymbol(r)}
+                              tokenImageUrl={r.tokenImageUrl ?? null}
+                              mint={r.callCa}
+                              tone="muted"
                             />
-                          ) : null}
+                          </div>
                           <div className="min-w-0 flex-1 space-y-0.5">
                             <div className="font-medium leading-snug text-zinc-100">
                               {formatCalledSnapshotLine({
@@ -654,7 +676,11 @@ export default function BotCallsPage() {
                                   contractAddress: r.callCa,
                                   tokenTicker: r.tokenTicker,
                                   tokenName: r.tokenName,
-                                  tokenImageUrl: r.tokenImageUrl ?? null,
+                                  tokenImageUrl:
+                                    resolveTokenAvatarUrl({
+                                      tokenImageUrl: r.tokenImageUrl,
+                                      mint: r.callCa,
+                                    }) ?? null,
                                 })
                               }
                               className="text-xs font-semibold text-emerald-300/95 hover:text-emerald-200"
