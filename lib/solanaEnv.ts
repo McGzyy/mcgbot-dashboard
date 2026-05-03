@@ -10,13 +10,19 @@ export function solanaClusterFromEnv(): SolanaClusterId {
   return c === "devnet" ? "devnet" : "mainnet-beta";
 }
 
+/**
+ * Mainnet default when no env URL is set. Solana's public `api.mainnet-beta.solana.com` often
+ * returns 403 for app traffic (e.g. Solana Pay `createTransfer` reads); Ankr is a common fallback.
+ */
+const SOLANA_MAINNET_PUBLIC_RPC_FALLBACK = "https://rpc.ankr.com/solana";
+
 /** Public RPC URL for browser + default server reads (override with NEXT_PUBLIC_SOLANA_RPC_URL / SOLANA_RPC_URL). */
 export function solanaRpcUrlPublic(): string {
   const pub = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim();
   if (pub) return pub;
   return solanaClusterFromEnv() === "devnet"
     ? "https://api.devnet.solana.com"
-    : "https://api.mainnet-beta.solana.com";
+    : SOLANA_MAINNET_PUBLIC_RPC_FALLBACK;
 }
 
 /** Server-side balance / confirmation reads (prefer SOLANA_RPC_URL for secrets). */

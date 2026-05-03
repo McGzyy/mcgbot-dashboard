@@ -989,8 +989,13 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
       setTip(json as TipStartOk);
     } catch (e) {
       const msg = e && typeof e === "object" && "message" in e ? String((e as Error).message) : "";
-      if (msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("denied")) {
+      const lower = msg.toLowerCase();
+      if (lower.includes("reject") || lower.includes("denied")) {
         setErr("Transaction was cancelled.");
+      } else if (/\b403\b|forbidden|access forbidden/i.test(msg)) {
+        setErr(
+          "Solana RPC blocked this request (403). Set NEXT_PUBLIC_SOLANA_RPC_URL to a provider URL that allows browser reads (e.g. Helius or QuickNode with your API key)."
+        );
       } else {
         setErr(msg || "Could not send tip.");
       }
