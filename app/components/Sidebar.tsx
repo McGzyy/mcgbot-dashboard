@@ -49,7 +49,7 @@ type SidebarBodyProps = {
   discordModUnread: number;
   onDiscordChatsNavClick?: () => void;
   getNavItemClass: (active: boolean) => string;
-  /** Pro/Elite selling point — full row always reads as featured, not only when active. */
+  /** Pro/Elite anchor — idle is subtly tinted vs other nav; active matches standard selected row. */
   getBotCallsNavItemClass: (active: boolean) => string;
   onNavigate?: () => void;
 };
@@ -129,8 +129,10 @@ function SidebarBody({
             className={getBotCallsNavItemClass(isActive(pathname, "/bot-calls"))}
           >
             <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.55)] ${
-                isActive(pathname, "/bot-calls") ? "opacity-100" : "opacity-90"
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/bot-calls")
+                  ? `${tierNavBarClass("user")} opacity-100`
+                  : "bg-sky-400/35 opacity-100"
               }`}
               aria-hidden
             />
@@ -544,16 +546,15 @@ export function Sidebar() {
         : "text-zinc-400 hover:text-white hover:bg-zinc-900"
     }`;
 
+  /** Featured link: idle reads like nav + whisper of sky; active matches other rows (no “always selected” pill). */
   const getBotCallsNavItemClass = (active: boolean) =>
-    [
-      "relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150",
-      "border border-sky-500/40 bg-sky-950/40 text-sky-100",
-      "shadow-[inset_0_1px_0_0_rgba(56,189,248,0.14)]",
-      "hover:border-sky-400/55 hover:bg-sky-950/55 hover:text-white hover:shadow-[inset_0_1px_0_0_rgba(56,189,248,0.2),0_0_14px_rgba(56,189,248,0.12)]",
-      active
-        ? "border-sky-400/70 bg-sky-950/65 text-white shadow-[inset_0_1px_0_0_rgba(56,189,248,0.22),0_0_20px_rgba(56,189,248,0.2)]"
-        : "",
-    ].join(" ");
+    active
+      ? "relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150 bg-zinc-800 text-white border border-zinc-700 shadow-[0_0_10px_rgba(56,189,248,0.12)]"
+      : [
+          "relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150",
+          "border border-transparent bg-sky-500/[0.06] text-zinc-300",
+          "hover:border-zinc-800/80 hover:bg-zinc-900/55 hover:text-white",
+        ].join(" ");
 
   const bodyProps: SidebarBodyProps = {
     pathname,
