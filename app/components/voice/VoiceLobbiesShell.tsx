@@ -142,7 +142,7 @@ export function VoiceLobbiesShell({
               {roomMembers.length} {roomMembers.length === 1 ? "member" : "members"}
             </span>
           </div>
-          <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-white/[0.08] pt-3">
+          <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-zinc-800/70 pt-3">
             <div className="min-w-0 flex-1 basis-[min(100%,16rem)]">
               <label
                 htmlFor="voice-mic-device"
@@ -254,7 +254,7 @@ export function VoiceLobbiesShell({
               className={`group relative flex min-h-[5.75rem] flex-col justify-between gap-2 overflow-hidden rounded-xl border px-3.5 py-3 transition-all duration-200 sm:min-h-0 ${
                 active
                   ? "border-[color:var(--accent)]/50 bg-gradient-to-b from-[color:var(--accent)]/[0.14] to-zinc-950/70 shadow-[0_0_28px_-8px_rgba(57,255,20,0.25),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-[color:var(--accent)]/25"
-                  : "border-white/[0.08] bg-gradient-to-b from-zinc-900/50 to-zinc-950/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:-translate-y-0.5 hover:border-zinc-500/40 hover:shadow-lg hover:shadow-black/50"
+                  : "border-zinc-800/70 bg-gradient-to-b from-zinc-900/50 to-zinc-950/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:-translate-y-0.5 hover:border-zinc-500/40 hover:shadow-lg hover:shadow-black/50"
               }`}
             >
               {!active ? (
@@ -331,7 +331,7 @@ export function VoiceLobbiesShell({
                   className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-[11px] transition-[box-shadow,background-color,border-color] duration-150 ${
                     speaking
                       ? "border-[color:var(--accent)]/45 bg-[color:var(--accent)]/10 text-zinc-100 shadow-[0_0_18px_-6px_rgba(57,255,20,0.45)] ring-1 ring-[color:var(--accent)]/30"
-                      : "border-white/[0.06] bg-black/25 text-zinc-200"
+                      : "border-zinc-800/60 bg-black/25 text-zinc-200"
                   }`}
                 >
                   <span className="flex min-w-0 items-center gap-1.5">

@@ -67,4 +67,15 @@ export const terminalUi = {
   activityBackdrop:
     "activity-popup-backdrop fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-[3px]",
   activityPanel: `activity-popup-panel relative w-full max-w-md rounded-xl ${raisedSurface} p-4 shadow-xl`,
+  /** Dim layer + frame for portaled overlays below notifications (`z-[60]`). */
+  portalBackdropDim: "absolute inset-0 bg-black/70 backdrop-blur-sm",
+  portalFrameScroll: "absolute inset-0 flex items-start justify-center overflow-y-auto p-4 sm:p-8",
+  /** Wide in-page modal (e.g. Social Feed expand). */
+  modalPanel5xl: `w-full max-w-5xl overflow-hidden rounded-2xl ${raisedSurface} shadow-2xl`,
+  modalSubHeaderBar: "flex items-center justify-between border-b border-zinc-800/70 px-4 py-3",
+} as const;
+
+/** Shared page chrome inside `contentWell` (route headers, etc.). */
+export const terminalChrome = {
+  headerRule: "border-b border-zinc-800/60",
 } as const;

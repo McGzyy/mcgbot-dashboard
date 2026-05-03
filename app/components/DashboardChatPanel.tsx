@@ -7,6 +7,7 @@ import {
 } from "@/lib/discordChatMessageSerialize";
 import { advanceDashDiscordLastRead, maxSnowflake } from "@/lib/discordDashboardChatRead";
 import type { DashboardChatKind } from "@/lib/dashboardChat";
+import { terminalChrome } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -244,7 +245,9 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
 
   return (
     <section className="relative overflow-hidden rounded-2xl border border-zinc-800/60 bg-gradient-to-b from-zinc-950/55 to-black/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      <div className="flex flex-col gap-3 border-b border-white/[0.06] px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+      <div
+        className={`flex flex-col gap-3 ${terminalChrome.headerRule} px-4 py-3 sm:flex-row sm:items-start sm:justify-between`}
+      >
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
             {feed === "dashboard" ? "Discord" : "Live feed"}
@@ -320,7 +323,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
             return (
               <li
                 key={m.id}
-                className="rounded-xl border border-white/[0.04] bg-black/25 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                className="rounded-xl border border-zinc-800/70 bg-black/25 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
               >
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="font-mono text-[11px] text-zinc-600">{formatTime(m.createdAt)}</span>
@@ -398,7 +401,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
         </ul>
       </div>
 
-      <div className="border-t border-white/[0.06] px-3 py-3 sm:px-4">
+      <div className="border-t border-zinc-800/60 px-3 py-3 sm:px-4">
         {sendError ? (
           <p className="mb-2 text-xs font-medium text-rose-300/90">{sendError}</p>
         ) : null}

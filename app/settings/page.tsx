@@ -166,7 +166,7 @@ function SettingsSection({
 }) {
   return (
     <section id={id} className="scroll-mt-24">
-      <div className="rounded-2xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/55 to-zinc-950/95 p-5 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.04] sm:p-6">
+      <div className="rounded-2xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/55 to-zinc-950/95 p-5 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.85)] ring-1 ring-zinc-700/15 sm:p-6">
         <header className="border-b border-zinc-800/60 pb-4">
           <div className="flex items-start gap-3">
             <span
@@ -935,7 +935,7 @@ function SettingsPageInner() {
               onToggle={() => setXMilestoneTagEnabled((v) => !v)}
               disabled={settingsLoading || !xVerified}
             />
-            <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/40 px-3 py-3 sm:px-4">
+            <div className="rounded-lg border border-zinc-800/85 bg-zinc-950/40 px-3 py-3 sm:px-4">
               <label htmlFor="x-milestone-min" className="text-sm font-medium text-zinc-100">
                 Minimum multiple to @mention
               </label>
@@ -1142,7 +1142,7 @@ function SettingsPageInner() {
             disabled={settingsLoading}
           />
 
-          <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/35 px-3 py-3 sm:col-span-2 sm:px-4">
+          <div className="rounded-lg border border-zinc-800/85 bg-zinc-950/35 px-3 py-3 sm:col-span-2 sm:px-4">
             <label
               htmlFor="notification-sound-type"
               className="text-sm font-medium text-zinc-100"
@@ -1182,7 +1182,7 @@ function SettingsPageInner() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/35 px-3 py-3 sm:col-span-2 sm:px-4">
+          <div className="rounded-lg border border-zinc-800/85 bg-zinc-950/35 px-3 py-3 sm:col-span-2 sm:px-4">
             <label
               htmlFor="min-multiple"
               className="text-sm font-medium text-zinc-100"
@@ -1324,7 +1324,7 @@ function SettingsPageInner() {
               ▼
             </span>
           </summary>
-          <div className="border-t border-zinc-800/50 px-3 pb-4 pt-1 sm:px-4">
+          <div className="border-t border-zinc-800/85 px-3 pb-4 pt-1 sm:px-4">
             <p className="mt-2 text-xs text-zinc-600">
               Expand to tweak every panel. Core layout stays fast when this stays closed.
             </p>

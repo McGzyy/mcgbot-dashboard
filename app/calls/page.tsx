@@ -1,6 +1,7 @@
 "use client";
 
 import { formatCalledSnapshotLine } from "@/lib/callDisplayFormat";
+import { terminalChrome } from "@/lib/terminalDesignTokens";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import Link from "next/link";
@@ -104,7 +105,7 @@ export default function CallTapePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
-      <header className="border-b border-white/[0.06] pb-8 pt-2" data-tutorial="calls.header">
+      <header className={`${terminalChrome.headerRule} pb-8 pt-2`} data-tutorial="calls.header">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Your terminal</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Call log</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">

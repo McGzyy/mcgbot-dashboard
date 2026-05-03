@@ -67,7 +67,7 @@ export function PersistentVoiceDock() {
         className={`relative overflow-hidden rounded-2xl border bg-gradient-to-b from-zinc-900/95 via-zinc-950/98 to-black/95 shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_24px_64px_-16px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl transition-[box-shadow,border-color,transform] duration-300 ${
           isLocalSpeaking
             ? "border-[color:var(--accent)]/50 shadow-[0_0_0_1px_rgba(57,255,20,0.2),0_0_48px_-12px_rgba(57,255,20,0.35),0_24px_64px_-16px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.08)]"
-            : "border-white/[0.1]"
+            : "border-zinc-700/45"
         }`}
       >
         <div
@@ -96,7 +96,7 @@ export function PersistentVoiceDock() {
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
-              <span className="rounded-md border border-white/[0.08] bg-black/50 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums tracking-tight text-zinc-200">
+              <span className="rounded-md border border-zinc-800/70 bg-black/50 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums tracking-tight text-zinc-200">
                 {durationLabel}
               </span>
               {isLocalSpeaking ? (

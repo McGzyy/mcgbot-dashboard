@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { adminChrome } from "@/lib/roleTierStyles";
+import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 const NAV: {
   href: string;
@@ -143,7 +144,9 @@ export function AdminDashboardShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-10 lg:flex-row lg:gap-12">
       <aside className="shrink-0 lg:w-60" aria-label="Admin sections">
-        <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-black/60 p-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
+        <div
+          className={`rounded-2xl p-2 ${terminalSurface.panelCardElevated} shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]`}
+        >
           <p className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
             Control plane
           </p>

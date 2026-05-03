@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -58,7 +59,9 @@ function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-br from-zinc-900/80 via-zinc-950/90 to-black/80 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
+    <div
+      className={`rounded-2xl p-4 ${terminalSurface.panelCardElevated} shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]`}
+    >
       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">{label}</p>
       <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-white">{value}</p>
       {hint ? <p className="mt-1 text-[11px] text-zinc-500">{hint}</p> : null}
@@ -136,7 +139,7 @@ export default function PerformanceLabPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
-      <header className="border-b border-white/[0.06] pb-8 pt-2" data-tutorial="performance.header">
+      <header className={`${terminalChrome.headerRule} pb-8 pt-2`} data-tutorial="performance.header">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Your terminal</p>
         <h1 className="mt-2 bg-gradient-to-r from-white via-emerald-50/95 to-emerald-300/85 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
           Performance lab
@@ -245,8 +248,8 @@ export default function PerformanceLabPage() {
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#09090b",
-                      border: "1px solid rgba(16,185,129,0.25)",
+                      backgroundColor: "#18181b",
+                      border: "1px solid rgba(39,39,42,0.9)",
                       borderRadius: 12,
                     }}
                     labelStyle={{ color: "#a1a1aa" }}
@@ -274,7 +277,7 @@ export default function PerformanceLabPage() {
           <p className="mt-1 text-xs text-zinc-500">
             Buckets use ATH multiple since each call (peak ÷ entry MC).
           </p>
-          <div className="mt-4 h-72 rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-3 ring-1 ring-white/[0.04]">
+          <div className="mt-4 h-72 rounded-2xl border border-zinc-800/90 bg-zinc-950/50 p-3 ring-1 ring-zinc-700/20">
             {distChart.length === 0 || dist?.total === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-zinc-500">No distribution yet.</div>
             ) : (
@@ -285,8 +288,8 @@ export default function PerformanceLabPage() {
                   <YAxis type="category" dataKey="name" stroke="#71717a" tick={{ fontSize: 11 }} width={48} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#09090b",
-                      border: "1px solid #27272a",
+                      backgroundColor: "#18181b",
+                      border: "1px solid rgba(39,39,42,0.9)",
                       borderRadius: 12,
                     }}
                   />

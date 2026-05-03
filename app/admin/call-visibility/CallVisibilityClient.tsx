@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import { abbreviateCa, callTimeMs } from "@/lib/callDisplayFormat";
 import { adminChrome } from "@/lib/roleTierStyles";
+import { terminalChrome } from "@/lib/terminalDesignTokens";
 
 type HiddenLogRow = {
   id: string;
@@ -242,7 +243,7 @@ export function CallVisibilityClient() {
       </AdminPanel>
 
       <AdminPanel className="p-6">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-white/[0.06] pb-4">
+        <div className={`flex flex-wrap items-end justify-between gap-3 ${terminalChrome.headerRule} pb-4`}>
           <div>
             <h3 className="text-sm font-semibold text-white">Hidden on web (log)</h3>
             <p className="mt-1 max-w-2xl text-xs text-zinc-500">
