@@ -1157,6 +1157,29 @@ function notificationPriorityFromMultiple(
   return "low";
 }
 
+function filterActivityForFeed(
+  items: ActivityItem[],
+  feedMode: "all" | "me" | "milestones" | "calls" | "following",
+  viewerId: string,
+  followingIds: Set<string>
+): ActivityItem[] {
+  const uid = viewerId.trim();
+  switch (feedMode) {
+    case "all":
+      return items;
+    case "following":
+      return items.filter((i) => followingIds.has(i.discordId.trim()));
+    case "me":
+      return uid ? items.filter((i) => i.discordId.trim() === uid) : [];
+    case "milestones":
+      return items.filter((i) => i.type === "win");
+    case "calls":
+      return items.filter((i) => i.type === "call");
+    default:
+      return items;
+  }
+}
+
 function processActivityNotifications(
   prev: ActivityItem[],
   next: ActivityItem[],
@@ -2874,7 +2897,8 @@ export default function Home() {
   const { openTokenChart } = useTokenChartModal();
   const oauthErrorHandledRef = useRef(false);
   const lastSeenActivityKeysRef = useRef(new Set<string>());
-  const activitySourceModeRef = useRef<"all" | "following" | null>(null);
+  /** Latest full `mode=all` activity — used for feed filters + notification diffing. */
+  const activityAllSnapshotRef = useRef<ActivityItem[]>([]);
   const [copied, setCopied] = useState(false);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsRefreshing, setStatsRefreshing] = useState(false);
@@ -3015,20 +3039,17 @@ export default function Home() {
     };
   }, [status]);
 
-  const apiActivityMode = feedMode === "following" ? "following" : "all";
-
   const loadActivity = useCallback(() => {
     void (async () => {
       try {
-        const res = await fetch(
-          `/api/activity?mode=${encodeURIComponent(apiActivityMode)}`
-        );
+        const res = await fetch("/api/activity?mode=all");
         const data: unknown = await res.json();
         if (!Array.isArray(data)) {
+          activityAllSnapshotRef.current = [];
           setActivity([]);
           return;
         }
-        const parsed: ActivityItem[] = [];
+        const parsedAll: ActivityItem[] = [];
         for (const row of data) {
           if (row == null || typeof row !== "object") continue;
           const o = row as Record<string, unknown>;
@@ -3074,7 +3095,7 @@ export default function Home() {
             typeof imgRaw === "string" && imgRaw.trim() !== ""
               ? imgRaw.trim()
               : null;
-          parsed.push({
+          parsedAll.push({
             type: o.type,
             text,
             username,
@@ -3090,39 +3111,35 @@ export default function Home() {
         }
 
         const uid = session?.user?.id?.trim() ?? "";
-        const notificationFilter =
-          uid && apiActivityMode === "all"
-            ? await fetchNotificationFilter(uid)
-            : null;
+        const notificationFilter = uid ? await fetchNotificationFilter(uid) : null;
 
-        setActivity((prev) => {
-          if (apiActivityMode === "all") {
-            if (activitySourceModeRef.current === "all") {
-              processActivityNotifications(
-                prev,
-                parsed,
-                addNotification,
-                lastSeenActivityKeysRef,
-                notificationFilter
-              );
-            } else {
-              for (const item of parsed) {
-                lastSeenActivityKeysRef.current.add(activityItemDedupeKey(item));
-              }
-            }
-            activitySourceModeRef.current = "all";
-          } else {
-            activitySourceModeRef.current = "following";
-          }
-          return parsed;
-        });
+        const prevFull = activityAllSnapshotRef.current;
+        processActivityNotifications(
+          prevFull,
+          parsedAll,
+          addNotification,
+          lastSeenActivityKeysRef,
+          notificationFilter
+        );
+        activityAllSnapshotRef.current = parsedAll;
+
+        const displayed = filterActivityForFeed(parsedAll, feedMode, uid, followingIds);
+        setActivity(displayed);
       } catch {
+        activityAllSnapshotRef.current = [];
         setActivity([]);
       } finally {
         setLoadingActivity(false);
       }
     })();
-  }, [addNotification, apiActivityMode, session?.user?.id]);
+  }, [addNotification, feedMode, followingIds, session?.user?.id]);
+
+  useEffect(() => {
+    const full = activityAllSnapshotRef.current;
+    if (full.length === 0) return;
+    const uid = session?.user?.id?.trim() ?? "";
+    setActivity(filterActivityForFeed(full, feedMode, uid, followingIds));
+  }, [feedMode, followingIds, session?.user?.id]);
 
   const nowMs = Date.now();
 

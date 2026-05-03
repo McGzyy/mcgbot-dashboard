@@ -14,8 +14,15 @@ import { createPortal } from "react-dom";
 type MarketSnapshot = {
   solPrice: number;
   change24h: number;
-  pumpVolume: number;
-  activeTraders: number;
+};
+
+type InboxNotificationRow = {
+  id: string;
+  title: string;
+  body: string;
+  kind: string;
+  created_at: string;
+  read_at: string | null;
 };
 
 type UserCounts = {
@@ -82,22 +89,6 @@ function formatPctChange(n: number): string {
   return `${sign}${n.toFixed(1)}%`;
 }
 
-/** USD with $ and K / M suffix (e.g. $2.4M). */
-function formatUsdCompact(n: number): string {
-  if (!Number.isFinite(n) || n < 0) return "—";
-  if (n >= 1_000_000) {
-    const v = n / 1_000_000;
-    const s = v >= 10 ? v.toFixed(0) : v.toFixed(1);
-    return `$${s.replace(/\.0$/, "")}M`;
-  }
-  if (n >= 1_000) {
-    const v = n / 1_000;
-    const s = v >= 10 ? v.toFixed(0) : v.toFixed(1);
-    return `$${s.replace(/\.0$/, "")}K`;
-  }
-  return `$${Math.round(n)}`;
-}
-
 function formatCount(n: number): string {
   if (!Number.isFinite(n)) return "—";
   return Math.round(n).toLocaleString("en-US");
@@ -140,6 +131,8 @@ export function TopBar() {
   const { setOpen: setMobileSidebarOpen } = useMobileSidebar();
   const { notifications } = useNotifications();
   const activeNotificationCount = notifications.filter((n) => !n.exiting).length;
+  const [inboxItems, setInboxItems] = useState<InboxNotificationRow[]>([]);
+  const [inboxUnread, setInboxUnread] = useState(0);
   const [market, setMarket] = useState<MarketSnapshot | null>(null);
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketUpdatedAtMs, setMarketUpdatedAtMs] = useState<number | null>(null);
@@ -161,6 +154,53 @@ export function TopBar() {
   const [inGuild, setInGuild] = useState<boolean | null>(null);
 
   const hasAccess = Boolean(session?.user?.hasDashboardAccess || session?.user?.subscriptionExempt);
+
+  const refreshInbox = useCallback(async () => {
+    if (status !== "authenticated") {
+      setInboxItems([]);
+      setInboxUnread(0);
+      return;
+    }
+    try {
+      const res = await fetch("/api/me/inbox-notifications", { credentials: "same-origin" });
+      const j = (await res.json().catch(() => null)) as {
+        items?: InboxNotificationRow[];
+        unreadCount?: number;
+      } | null;
+      if (!res.ok || !j || typeof j !== "object") return;
+      setInboxItems(Array.isArray(j.items) ? j.items : []);
+      setInboxUnread(typeof j.unreadCount === "number" ? j.unreadCount : 0);
+    } catch {
+      /* ignore */
+    }
+  }, [status]);
+
+  useEffect(() => {
+    void refreshInbox();
+    if (status !== "authenticated") return;
+    const id = window.setInterval(() => void refreshInbox(), 60_000);
+    return () => window.clearInterval(id);
+  }, [refreshInbox, status]);
+
+  useEffect(() => {
+    if (openNotifications) void refreshInbox();
+  }, [openNotifications, refreshInbox]);
+
+  const markInboxAllRead = useCallback(async () => {
+    try {
+      const res = await fetch("/api/me/inbox-notifications", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ readAll: true }),
+      });
+      if (res.ok) void refreshInbox();
+    } catch {
+      /* ignore */
+    }
+  }, [refreshInbox]);
+
+  const bellBadgeCount = activeNotificationCount + inboxUnread;
 
   const accountMenuItem = (active: boolean) =>
     `block w-full px-4 py-2.5 text-left text-sm transition hover:bg-zinc-800 ${
@@ -238,9 +278,6 @@ export function TopBar() {
           const o = data as Record<string, unknown>;
           const solPrice = Number(o.solPrice);
           const change24h = Number(o.change24h);
-          const pumpVolume = Number(o.pumpVolume);
-          const activeTraders = Number(o.activeTraders);
-
           if (!Number.isFinite(solPrice) || solPrice <= 0) return;
 
           const prev = prevSolPriceRef.current;
@@ -259,8 +296,6 @@ export function TopBar() {
           setMarket({
             solPrice,
             change24h: Number.isFinite(change24h) ? change24h : 0,
-            pumpVolume: Number.isFinite(pumpVolume) ? pumpVolume : 0,
-            activeTraders: Number.isFinite(activeTraders) ? activeTraders : 0,
           });
           setMarketUpdatedAtMs(Date.now());
         })
@@ -509,11 +544,9 @@ export function TopBar() {
                     <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
                     <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
                   </svg>
-                  {activeNotificationCount > 0 ? (
+                  {bellBadgeCount > 0 ? (
                     <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[color:var(--accent)] px-1 text-[10px] font-semibold leading-none text-black">
-                      {activeNotificationCount > 99
-                        ? "99+"
-                        : activeNotificationCount}
+                      {bellBadgeCount > 99 ? "99+" : bellBadgeCount}
                     </span>
                   ) : null}
                 </button>
@@ -523,11 +556,43 @@ export function TopBar() {
                     role="region"
                     aria-label="Notification list"
                   >
-                    {notifications.length === 0 ? (
+                    {inboxUnread > 0 ? (
+                      <div className="flex items-center justify-end border-b border-zinc-800/90 px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => void markInboxAllRead()}
+                          className="text-[11px] font-semibold uppercase tracking-wide text-sky-300/90 transition hover:text-sky-200"
+                        >
+                          Mark messages read
+                        </button>
+                      </div>
+                    ) : null}
+                    {inboxItems.length > 0 ? (
+                      <ul className={terminalUi.notificationsList}>
+                        {inboxItems.map((row) => (
+                          <li
+                            key={row.id}
+                            className={`px-4 py-3 ${row.read_at == null ? "bg-sky-950/15" : ""}`}
+                          >
+                            <p className="text-sm font-medium text-zinc-100">{row.title || "Notice"}</p>
+                            <p className="mt-1 text-sm text-zinc-300">{row.body}</p>
+                            <p className="mt-1 text-xs text-zinc-500">
+                              {formatTimeAgo(new Date(row.created_at).getTime(), Date.now())}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {inboxItems.length > 0 && notifications.length > 0 ? (
+                      <div className="border-t border-zinc-800/90 px-4 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Live alerts</p>
+                      </div>
+                    ) : null}
+                    {notifications.length === 0 && inboxItems.length === 0 ? (
                       <p className="px-4 py-8 text-center text-sm text-zinc-500">
                         No notifications yet
                       </p>
-                    ) : (
+                    ) : notifications.length > 0 ? (
                       <ul className={terminalUi.notificationsList}>
                         {notifications.map((n) => (
                           <li
@@ -545,7 +610,7 @@ export function TopBar() {
                           </li>
                         ))}
                       </ul>
-                    )}
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -764,21 +829,6 @@ export function TopBar() {
 
                 <span className="hidden text-zinc-600 sm:inline" aria-hidden>
                   |
-                </span>
-
-                <span
-                  className="rounded-md border border-zinc-800/55 bg-zinc-900/55 px-1.5 py-0.5 text-zinc-400 sm:px-2 sm:py-1"
-                  title="PumpFun volume"
-                >
-                  <span className="sm:hidden">PF vol </span>
-                  <span className="hidden sm:inline">PumpFun Vol </span>
-                  <span className="font-medium text-zinc-200">{formatUsdCompact(market.pumpVolume)}</span>
-                </span>
-
-                <span className="rounded-md border border-zinc-800/55 bg-zinc-900/55 px-1.5 py-0.5 text-zinc-400 sm:px-2 sm:py-1">
-                  <span className="sm:hidden">Tr. </span>
-                  <span className="hidden sm:inline">Traders </span>
-                  <span className="font-medium text-zinc-200">{formatCount(market.activeTraders)}</span>
                 </span>
 
                 <span className="hidden min-[380px]:inline shrink-0 text-zinc-500 sm:inline">

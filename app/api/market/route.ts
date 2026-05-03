@@ -1,12 +1,8 @@
 /**
- * Market snapshot for the dashboard banner.
- * SOL data from CoinGecko; PumpFun metrics are placeholders until wired to real feeds.
+ * Market snapshot for the dashboard banner (SOL from CoinGecko).
  */
 
 export const dynamic = "force-dynamic";
-
-const PLACEHOLDER_PUMP_VOLUME = 2_400_000;
-const PLACEHOLDER_ACTIVE_TRADERS = 1284;
 
 const COINGECKO =
   "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd&include_24hr_change=true";
@@ -21,8 +17,6 @@ export async function GET() {
   const fallback = {
     solPrice: 142.3,
     change24h: 0,
-    pumpVolume: PLACEHOLDER_PUMP_VOLUME,
-    activeTraders: PLACEHOLDER_ACTIVE_TRADERS,
   };
 
   try {
@@ -52,8 +46,6 @@ export async function GET() {
     return Response.json({
       solPrice,
       change24h: Number.isFinite(change24h) ? change24h : 0,
-      pumpVolume: PLACEHOLDER_PUMP_VOLUME,
-      activeTraders: PLACEHOLDER_ACTIVE_TRADERS,
     });
   } catch (e) {
     console.error("[market API] GET:", e);
