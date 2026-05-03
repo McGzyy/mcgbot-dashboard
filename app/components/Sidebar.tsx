@@ -129,22 +129,14 @@ function SidebarBody({
             className={getBotCallsNavItemClass(isActive(pathname, "/bot-calls"))}
           >
             <div
-              className={`pointer-events-none absolute left-0 top-1/2 w-[3px] -translate-y-1/2 rounded-full transition-all duration-200 ${
+              className={`pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 rounded-full transition-all duration-200 ${
                 isActive(pathname, "/bot-calls")
-                  ? "h-7 bg-gradient-to-b from-sky-200 via-sky-400 to-cyan-600 shadow-[0_0_16px_rgba(56,189,248,0.55),0_0_6px_rgba(34,211,238,0.35)]"
-                  : "h-5 w-[2px] opacity-0"
+                  ? "h-7 w-[3px] bg-gradient-to-b from-sky-100 via-sky-400 to-cyan-600 shadow-[0_0_18px_rgba(56,189,248,0.55),0_0_8px_rgba(34,211,238,0.35)]"
+                  : "h-[18px] w-[2px] bg-gradient-to-b from-sky-400/75 to-cyan-600/55 shadow-[0_0_10px_rgba(56,189,248,0.22)]"
               }`}
               aria-hidden
             />
-            <span
-              className={
-                isActive(pathname, "/bot-calls")
-                  ? "font-semibold tracking-[-0.02em] text-white"
-                  : "font-medium tracking-tight text-zinc-400"
-              }
-            >
-              Bot Calls
-            </span>
+            <span className="min-w-0">Bot Calls</span>
           </Link>
           <Link href="/trusted-pro" onClick={pick} data-tutorial="sidebar.nav.trustedPro" className={getNavItemClass(isActive(pathname, "/trusted-pro"))}>
             <div
@@ -569,21 +561,29 @@ export function Sidebar() {
         : "text-zinc-400 hover:text-white hover:bg-zinc-900"
     }`;
 
-  /** Featured “Bot Calls” row — calmer idle, premium active panel aligned with terminal sky accent. */
-  const getBotCallsNavItemClass = (active: boolean) =>
-    active
-      ? [
-          "relative flex items-center gap-3 overflow-hidden rounded-md px-4 py-2 text-sm",
-          "border border-sky-500/22",
-          "bg-[linear-gradient(105deg,rgba(8,47,73,0.42)_0%,rgba(9,9,11,0.92)_42%,rgba(3,7,18,0.88)_100%)]",
-          "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(56,189,248,0.06),0_10px_36px_-12px_rgba(56,189,248,0.22)]",
-          "text-white transition-all duration-200",
-        ].join(" ")
-      : [
-          "relative flex items-center gap-3 rounded-md px-4 py-2 text-sm transition-all duration-150",
-          "border border-transparent text-zinc-400",
-          "hover:border-zinc-800/70 hover:bg-zinc-900/50 hover:text-white",
-        ].join(" ");
+  /**
+   * “Bot Calls” is the flagship Markets surface: always reads as featured (idle), stronger when active.
+   * Avoids a flat white outline; uses sky-tinted glass + inset hairline so it stays terminal-premium on every route.
+   */
+  const getBotCallsNavItemClass = (active: boolean) => {
+    const base =
+      "relative flex min-h-[2.25rem] items-center gap-3 overflow-hidden rounded-md px-4 py-2 text-sm tracking-[-0.01em] transition-all duration-200";
+    if (active) {
+      return [
+        base,
+        "border border-sky-400/28 text-white font-semibold",
+        "bg-[linear-gradient(118deg,rgba(14,116,144,0.38)_0%,rgba(15,23,42,0.92)_40%,rgba(2,6,23,0.94)_100%)]",
+        "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07),0_0_40px_-18px_rgba(56,189,248,0.35)]",
+      ].join(" ");
+    }
+    return [
+      base,
+      "border border-sky-500/18 text-zinc-200 font-medium",
+      "bg-[linear-gradient(92deg,rgba(12,74,110,0.22)_0%,rgba(9,9,11,0.72)_45%,rgba(0,0,0,0.15)_100%)]",
+      "shadow-[inset_0_0_0_1px_rgba(56,189,248,0.07)]",
+      "hover:border-sky-400/28 hover:text-white hover:shadow-[inset_0_0_0_1px_rgba(56,189,248,0.12),0_0_28px_-16px_rgba(56,189,248,0.2)]",
+    ].join(" ");
+  };
 
   const bodyProps: SidebarBodyProps = {
     pathname,
