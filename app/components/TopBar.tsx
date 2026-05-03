@@ -987,6 +987,10 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
       const sig = await sendTransaction(tx, connection, { skipPreflight: false });
       setSubmittedSig(sig);
       setTip(json as TipStartOk);
+      setConfirmed({
+        signature: sig,
+        fromWallet: publicKey.toBase58(),
+      });
       try {
         const subRes = await fetch("/api/tips/submit", {
           method: "POST",
@@ -999,7 +1003,7 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
           console.warn("[tip] submit:", subJson.error ?? subRes.status);
         }
       } catch {
-        /* status polling may still confirm via chain probe */
+        /* DB row may still be confirmed by /api/tips/status chain probe */
       }
     } catch (e) {
       const msg = e && typeof e === "object" && "message" in e ? String((e as Error).message) : "";

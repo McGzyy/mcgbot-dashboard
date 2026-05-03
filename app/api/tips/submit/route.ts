@@ -19,6 +19,7 @@ function rowToBotTip(row: Record<string, unknown>): BotTipRow | null {
     discord_id,
     treasury_pubkey,
     amount_sol: row.amount_sol,
+    amount_lamports: row.amount_lamports,
     reference_pubkey,
     memo: typeof row.memo === "string" ? row.memo : null,
   };
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
     const { data, error } = await db
       .from("bot_tips")
       .select(
-        "id, discord_id, status, treasury_pubkey, amount_sol, reference_pubkey, memo"
+        "id, discord_id, status, treasury_pubkey, amount_sol, amount_lamports, reference_pubkey, memo"
       )
       .eq("reference_pubkey", reference)
       .maybeSingle();
