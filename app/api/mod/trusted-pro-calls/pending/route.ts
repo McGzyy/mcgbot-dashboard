@@ -28,7 +28,43 @@ export async function GET() {
       return Response.json({ success: false, error: "Failed to load pending calls" }, { status: 500 });
     }
 
-    return Response.json({ success: true, calls: Array.isArray(data) ? data : [] });
+    const calls = Array.isArray(data) ? data : [];
+    const authorIds = [
+      ...new Set(
+        calls
+          .map((c) => String((c as { author_discord_id?: string }).author_discord_id ?? "").trim())
+          .filter(Boolean)
+      ),
+    ];
+
+    const priorApprovedByAuthor = new Map<string, number>();
+    if (authorIds.length > 0) {
+      const { data: approvedRows, error: countErr } = await db
+        .from("trusted_pro_calls")
+        .select("author_discord_id")
+        .eq("status", "approved")
+        .in("author_discord_id", authorIds);
+
+      if (countErr) {
+        console.error("[mod/trusted-pro-calls/pending] approved counts:", countErr);
+      } else {
+        for (const r of approvedRows ?? []) {
+          const row = r as { author_discord_id?: string };
+          const a = String(row.author_discord_id ?? "").trim();
+          if (!a) continue;
+          priorApprovedByAuthor.set(a, (priorApprovedByAuthor.get(a) ?? 0) + 1);
+        }
+      }
+    }
+
+    const enriched = calls.map((c) => {
+      const row = c as { author_discord_id?: string };
+      const author = String(row.author_discord_id ?? "").trim();
+      const priorApprovedTrustedProCallCount = priorApprovedByAuthor.get(author) ?? 0;
+      return { ...(c as Record<string, unknown>), priorApprovedTrustedProCallCount };
+    });
+
+    return Response.json({ success: true, calls: enriched });
   } catch (e) {
     console.error("[mod/trusted-pro-calls/pending] GET:", e);
     return Response.json({ success: false, error: "Internal Server Error" }, { status: 500 });

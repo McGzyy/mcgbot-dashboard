@@ -3,6 +3,8 @@ export type ModQueueCallApproval = {
   tokenName: string | null;
   ticker: string | null;
   approvalRequestedAt: string | null;
+  /** When set, X-approval window closes — surface as urgency in the mod queue. */
+  approvalExpiresAt?: string | null;
   approvalMessageId: string | null;
   approvalGuildId?: string | null;
   approvalChannelId?: string | null;

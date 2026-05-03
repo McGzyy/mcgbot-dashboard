@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { ModQueueHomePanel } from "@/app/components/ModQueueHomePanel";
+import { ModerationStaffQueues } from "@/app/components/ModerationStaffQueues";
 import { modChrome } from "@/lib/roleTierStyles";
 import { terminalChrome } from "@/lib/terminalDesignTokens";
 
@@ -47,14 +48,14 @@ export default function ModerationPage() {
           <p className={`text-[10px] font-semibold uppercase tracking-[0.28em] ${modChrome.kicker}`}>Staff</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Moderation queue</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-            Live view of what the bot aggregates for <span className="font-medium text-zinc-200">#mod-approvals</span>:
-            pending <span className="font-medium text-zinc-200">tracked calls</span> (McGBot and community-sourced
-            paths) plus <span className="font-medium text-zinc-200">dev roster</span> submissions posted there.
+            One place for staff: <span className="font-medium text-zinc-200">Supabase-backed desks</span> (reports,
+            Trusted Pro applications, Trusted Pro longform) and the bot&apos;s{" "}
+            <span className="font-medium text-zinc-200">#mod-approvals</span> mirror (tracked-call milestones + dev
+            roster).
           </p>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-zinc-600">
-            Trusted Pro applications/calls, user/call reports, and voice moderation use{" "}
-            <span className="font-medium text-zinc-500">separate staff tools</span> (Discord and admin flows), not
-            this queue.
+            Voice moderation audit and bug triage stay under{" "}
+            <span className="font-medium text-zinc-500">Admin</span> where noted.
           </p>
           <p className="mt-2 text-xs text-zinc-600">
             <Link href="/" className="font-medium text-emerald-300/90 underline-offset-2 hover:underline">
@@ -63,7 +64,16 @@ export default function ModerationPage() {
           </p>
         </header>
 
-        <ModQueueHomePanel mode="full" />
+        <ModerationStaffQueues />
+
+        <div className="mt-12">
+          <h2 className={`text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500 ${terminalChrome.headerRule} pb-3`}>
+            Bot · #mod-approvals mirror
+          </h2>
+          <div className="mt-4">
+            <ModQueueHomePanel mode="full" />
+          </div>
+        </div>
       </div>
     </div>
   );
