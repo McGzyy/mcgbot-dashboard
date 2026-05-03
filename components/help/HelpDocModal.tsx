@@ -311,7 +311,7 @@ export function HelpDocModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`my-auto flex h-[min(94vh,900px)] w-full max-w-[min(96vw,72rem)] flex-col overflow-hidden rounded-2xl border border-zinc-700 bg-[#070707] shadow-2xl shadow-black/60 ${panelClass}`}
+        className={`my-auto flex h-[min(94vh,900px)] w-full max-w-[min(96vw,72rem)] flex-col overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-black/60 ${panelClass}`}
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3 sm:px-5">
           <div className="min-w-0">
@@ -373,7 +373,7 @@ export function HelpDocModal({
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-zinc-800 bg-[#0a0a0a]">
+            <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-zinc-800 bg-zinc-950">
               <div className="border-b border-zinc-800 px-3 py-2">
                 <h3 className="text-xs font-semibold text-zinc-200">Ask McGBot</h3>
                 <p className="mt-0.5 text-[10px] leading-snug text-zinc-500">

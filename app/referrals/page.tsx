@@ -293,7 +293,7 @@ export default function ReferralsPage() {
               type="button"
               onClick={() => void copyLink()}
               disabled={!refReady}
-              className="w-full shrink-0 rounded-xl border border-emerald-400/35 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505] enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-6"
+              className="w-full shrink-0 rounded-xl border border-emerald-400/35 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--mcg-page)] enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-6"
             >
               {copied ? "Copied" : "Copy"}
             </button>

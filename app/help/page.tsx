@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
+import { terminalUi } from "@/lib/terminalDesignTokens";
 import type { TutorialSection } from "@/lib/tutorial/tutorialRegistry";
 import type { TutorialTrackId } from "@/lib/tutorial/tutorialVersions";
 
@@ -498,7 +499,7 @@ function HelpPageContent() {
 
           {bugOpen ? (
             <div
-              className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+              className={terminalUi.modalBackdropZ100}
               role="dialog"
               aria-modal="true"
               aria-label="Submit bug report"
@@ -506,7 +507,7 @@ function HelpPageContent() {
                 if (e.target === e.currentTarget) setBugOpen(false);
               }}
             >
-              <div className="mt-10 w-full max-w-xl rounded-2xl border border-white/[0.08] bg-gradient-to-b from-zinc-900/95 to-black/90 p-5 shadow-2xl shadow-black/60 backdrop-blur-xl">
+              <div className={terminalUi.modalPanelXl}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold tracking-tight text-white">Submit bug</h3>
@@ -515,7 +516,7 @@ function HelpPageContent() {
                   <button
                     type="button"
                     onClick={() => setBugOpen(false)}
-                    className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/25"
+                    className={terminalUi.modalCloseIconBtn}
                     aria-label="Close"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
@@ -530,7 +531,7 @@ function HelpPageContent() {
                     <input
                       value={bugTitle}
                       onChange={(e) => setBugTitle(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
+                      className={`mt-1 ${terminalUi.formInput} text-zinc-100 ring-emerald-500/20`}
                       placeholder="e.g. Bot calls page shows blank"
                       disabled={bugSubmitting}
                     />
@@ -541,7 +542,7 @@ function HelpPageContent() {
                       value={bugDescription}
                       onChange={(e) => setBugDescription(e.target.value)}
                       rows={4}
-                      className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
+                      className={`mt-1 w-full resize-none ${terminalUi.formInput} text-zinc-100 ring-emerald-500/20`}
                       placeholder="Describe the bug and what you expected instead."
                       disabled={bugSubmitting}
                     />
@@ -552,7 +553,7 @@ function HelpPageContent() {
                       value={bugSteps}
                       onChange={(e) => setBugSteps(e.target.value)}
                       rows={3}
-                      className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-emerald-500/20 focus:ring-2"
+                      className={`mt-1 w-full resize-none ${terminalUi.formInput} text-zinc-100 ring-emerald-500/20`}
                       placeholder="1) … 2) … 3) …"
                       disabled={bugSubmitting}
                     />
@@ -571,7 +572,7 @@ function HelpPageContent() {
                         const list = Array.from(e.target.files ?? []);
                         setBugImages(list.slice(0, 5));
                       }}
-                      className="mt-1 block w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-200 hover:file:bg-zinc-800 disabled:opacity-60"
+                      className="mt-1 block w-full rounded-lg border border-zinc-800/90 bg-[color:var(--mcg-page)] px-3 py-2 text-xs text-zinc-300 outline-none ring-emerald-500/20 focus:ring-2 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-200 hover:file:bg-zinc-800 disabled:opacity-60"
                     />
                     {bugImages.length ? (
                       <p className="mt-1 text-[11px] text-zinc-500">
@@ -585,7 +586,7 @@ function HelpPageContent() {
                       type="button"
                       onClick={() => setBugOpen(false)}
                       disabled={bugSubmitting}
-                      className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                      className={terminalUi.secondaryButtonSm}
                     >
                       Cancel
                     </button>
@@ -698,7 +699,7 @@ function HelpPageContent() {
 
           {featureOpen ? (
             <div
-              className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+              className={terminalUi.modalBackdropZ100}
               role="dialog"
               aria-modal="true"
               aria-label="Submit feature request"
@@ -706,7 +707,7 @@ function HelpPageContent() {
                 if (e.target === e.currentTarget) setFeatureOpen(false);
               }}
             >
-              <div className="mt-10 w-full max-w-xl rounded-2xl border border-white/[0.08] bg-gradient-to-b from-zinc-900/95 to-black/90 p-5 shadow-2xl shadow-black/60 backdrop-blur-xl">
+              <div className={terminalUi.modalPanelXl}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold tracking-tight text-white">Feature request</h3>
@@ -715,7 +716,7 @@ function HelpPageContent() {
                   <button
                     type="button"
                     onClick={() => setFeatureOpen(false)}
-                    className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/25"
+                    className={terminalUi.modalCloseIconBtn}
                     aria-label="Close"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
@@ -730,7 +731,7 @@ function HelpPageContent() {
                     <input
                       value={featureTitle}
                       onChange={(e) => setFeatureTitle(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-violet-500/20 focus:ring-2"
+                      className={`mt-1 ${terminalUi.formInput} text-zinc-100 ring-violet-500/20`}
                       placeholder="e.g. Filter bot calls by caller"
                       disabled={featureSubmitting}
                     />
@@ -741,7 +742,7 @@ function HelpPageContent() {
                       value={featureDescription}
                       onChange={(e) => setFeatureDescription(e.target.value)}
                       rows={4}
-                      className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-violet-500/20 focus:ring-2"
+                      className={`mt-1 w-full resize-none ${terminalUi.formInput} text-zinc-100 ring-violet-500/20`}
                       placeholder="What should it do? Where in the app would it live?"
                       disabled={featureSubmitting}
                     />
@@ -752,7 +753,7 @@ function HelpPageContent() {
                       value={featureUseCase}
                       onChange={(e) => setFeatureUseCase(e.target.value)}
                       rows={3}
-                      className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-violet-500/20 focus:ring-2"
+                      className={`mt-1 w-full resize-none ${terminalUi.formInput} text-zinc-100 ring-violet-500/20`}
                       placeholder="How would this help your workflow?"
                       disabled={featureSubmitting}
                     />
@@ -771,7 +772,7 @@ function HelpPageContent() {
                         const list = Array.from(e.target.files ?? []);
                         setFeatureImages(list.slice(0, 5));
                       }}
-                      className="mt-1 block w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-200 hover:file:bg-zinc-800 disabled:opacity-60"
+                      className="mt-1 block w-full rounded-lg border border-zinc-800/90 bg-[color:var(--mcg-page)] px-3 py-2 text-xs text-zinc-300 outline-none ring-violet-500/20 focus:ring-2 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-200 hover:file:bg-zinc-800 disabled:opacity-60"
                     />
                     {featureImages.length ? (
                       <p className="mt-1 text-[11px] text-zinc-500">
@@ -785,7 +786,7 @@ function HelpPageContent() {
                       type="button"
                       onClick={() => setFeatureOpen(false)}
                       disabled={featureSubmitting}
-                      className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                      className={terminalUi.secondaryButtonSm}
                     >
                       Cancel
                     </button>

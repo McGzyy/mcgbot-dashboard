@@ -38,7 +38,7 @@ export function DocBlock({
   return (
     <section
       id={id}
-      className="scroll-mt-28 rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4"
+      className="scroll-mt-28 rounded-xl border border-zinc-800/90 bg-zinc-950 p-4"
     >
       <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
         {title}

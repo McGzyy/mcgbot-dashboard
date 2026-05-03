@@ -52,6 +52,8 @@ export const terminalUi = {
   modalBackdropZ50: `fixed inset-0 z-50 ${modalBackdropScroll}`,
   modalBackdropZ100: `fixed inset-0 z-[100] ${modalBackdropScroll}`,
   modalBackdropZ120: `fixed inset-0 z-[120] ${modalBackdropScroll}`,
+  /** Centered modal (e.g. quick submit) — shorter vertical padding than scroll modals. */
+  modalBackdropCenterZ50: "fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6",
   modalCloseIconBtn:
     "flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800/90 bg-zinc-950 text-zinc-300 transition hover:bg-zinc-900/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25",
   formInput:

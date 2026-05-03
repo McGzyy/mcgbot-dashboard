@@ -39,7 +39,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { terminalPage } from "@/lib/terminalDesignTokens";
+import { terminalPage, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
@@ -1229,7 +1229,7 @@ function StatCard({
 
   return (
     <div
-      className={`relative rounded-xl border border-zinc-800/90 bg-[#0a0a0a] px-4 py-3 shadow-sm shadow-black/20 backdrop-blur-sm ${CARD_HOVER}`}
+      className={`relative rounded-xl border px-4 py-3 backdrop-blur-sm ${terminalSurface.panelCard} ${CARD_HOVER}`}
     >
       <div className="absolute left-0 right-0 top-0 h-[2px] rounded-t-xl bg-gradient-to-r from-[#39FF14]/40 to-transparent" />
       <p className="text-xs uppercase tracking-wide text-zinc-600">
@@ -3934,7 +3934,7 @@ export default function Home() {
                       displayName: session.user.name,
                     })}
                     data-tutorial="dashboard.quickActions.myProfile"
-                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     My Profile
                   </Link>
@@ -3942,21 +3942,21 @@ export default function Home() {
                     type="button"
                     onClick={() => setAddWatchlistOpen(true)}
                     data-tutorial="dashboard.quickActions.watchlist"
-                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     Watchlist
                   </button>
                   <button
                     type="button"
                     onClick={() => notifyComingSoon("Create Alert")}
-                    className="rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                    className="rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     Create Alert
                   </button>
                   <Link
                     href="/referrals"
                     data-tutorial="dashboard.quickActions.referrals"
-                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     Referrals
                   </Link>
@@ -3966,7 +3966,7 @@ export default function Home() {
                   type="button"
                   onClick={handleCopy}
                   disabled={!referralUrl}
-                  className="w-full rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-zinc-100 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-lg border border-zinc-800/90 bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {copied ? "Referral Link Copied" : "Copy Referral Link"}
                 </button>
@@ -4173,7 +4173,7 @@ export default function Home() {
 
       {submitCallOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          className={terminalUi.modalBackdropCenterZ50}
           role="dialog"
           aria-modal="true"
           aria-label="Submit call"
@@ -4181,7 +4181,7 @@ export default function Home() {
             if (e.target === e.currentTarget) setSubmitCallOpen(false);
           }}
         >
-          <div className="w-full max-w-md rounded-xl border border-zinc-800/90 bg-[#0a0a0a] p-4 shadow-xl shadow-black/50 backdrop-blur">
+          <div className={terminalUi.dialogPanelCompact}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">
@@ -4194,7 +4194,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setSubmitCallOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800/90 bg-[#0a0a0a] text-zinc-300 transition hover:bg-zinc-900/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25"
+                className={terminalUi.modalCloseIconBtn}
                 aria-label="Close"
                 disabled={submitCallSubmitting}
               >
@@ -4222,7 +4222,7 @@ export default function Home() {
                   onChange={(e) => setSubmitCallValue(e.target.value)}
                   placeholder="Enter contract address"
                   disabled={submitCallSubmitting}
-                  className="min-w-0 flex-1 rounded-lg border border-zinc-800/90 bg-[#050505] px-3 py-2 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60"
+                  className={`min-w-0 flex-1 ${terminalUi.formInput}`}
                 />
                 <button
                   type="button"
@@ -4241,7 +4241,7 @@ export default function Home() {
                     }
                   }}
                   disabled={submitCallSubmitting}
-                  className="shrink-0 rounded-lg border border-zinc-800/90 bg-[#0a0a0a] px-3 text-xs font-semibold text-zinc-200 transition hover:border-[#2a2a2a] hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:opacity-60"
+                  className="shrink-0 rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 text-xs font-semibold text-zinc-200 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:opacity-60"
                 >
                   Paste
                 </button>
@@ -4262,7 +4262,7 @@ export default function Home() {
                   type="button"
                   onClick={() => setSubmitCallOpen(false)}
                   disabled={submitCallSubmitting}
-                  className="rounded-md border border-zinc-800/90 bg-[#0a0a0a] px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-[#0a0a0a] disabled:opacity-60"
+                  className={terminalUi.secondaryButtonSm}
                 >
                   Cancel
                 </button>

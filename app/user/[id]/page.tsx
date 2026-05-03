@@ -1694,7 +1694,7 @@ export default function UserProfilePage() {
         ) : (
           <div className="h-full w-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950" />
         )}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/35 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[color:var(--mcg-page)] via-[color:var(--mcg-page)]/35 to-transparent" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-10%,rgba(34,211,238,0.14),transparent_50%)]" />
       </div>
 
@@ -1705,7 +1705,7 @@ export default function UserProfilePage() {
             alt=""
             width={128}
             height={128}
-            className="-mt-11 h-28 w-28 shrink-0 rounded-2xl border border-zinc-700/50 bg-zinc-900 object-cover shadow-2xl shadow-black/60 ring-4 ring-[#050505] sm:-mt-12 sm:h-32 sm:w-32"
+            className="-mt-11 h-28 w-28 shrink-0 rounded-2xl border border-zinc-700/50 bg-zinc-900 object-cover shadow-2xl shadow-black/60 ring-4 ring-[color:var(--mcg-page)] sm:-mt-12 sm:h-32 sm:w-32"
           />
           <div className="min-w-0 flex-1 sm:pb-1">
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
@@ -2694,7 +2694,7 @@ export default function UserProfilePage() {
 
       {reportOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10"
+          className={terminalUi.modalBackdropZ50}
           role="dialog"
           aria-modal="true"
           aria-label="Report user"
@@ -2702,7 +2702,7 @@ export default function UserProfilePage() {
             if (e.target === e.currentTarget) setReportOpen(false);
           }}
         >
-          <div className="mt-10 w-full max-w-lg rounded-xl border border-zinc-800/80 bg-zinc-950/90 p-4 shadow-xl shadow-black/50 backdrop-blur">
+          <div className={terminalUi.modalPanelLgXl}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">Report user</h3>
@@ -2713,7 +2713,7 @@ export default function UserProfilePage() {
               <button
                 type="button"
                 onClick={() => setReportOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/25"
+                className={terminalUi.modalCloseIconBtn}
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
@@ -2729,7 +2729,7 @@ export default function UserProfilePage() {
                   value={reportReason}
                   onChange={(e) => setReportReason(e.target.value)}
                   disabled={reportSubmitting}
-                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-red-500/20 focus:ring-2 disabled:opacity-60"
+                  className={`mt-1 w-full ${terminalUi.formInput} text-zinc-100 ring-red-500/20`}
                 >
                   <option value="rugs">Sharing rugs / scam promos (proof optional)</option>
                   <option value="harassment">Harassment / FUD in chat (screenshots optional)</option>
@@ -2746,7 +2746,7 @@ export default function UserProfilePage() {
                   onChange={(e) => setReportDetails(e.target.value)}
                   rows={4}
                   disabled={reportSubmitting}
-                  className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none ring-red-500/20 focus:ring-2 disabled:opacity-60"
+                  className={`mt-1 w-full resize-none ${terminalUi.formInput} text-zinc-100 ring-red-500/20`}
                   placeholder="What happened? Where? Any context that helps moderators review."
                 />
               </div>
@@ -2760,7 +2760,7 @@ export default function UserProfilePage() {
                   onChange={(e) => setReportEvidence(e.target.value)}
                   rows={3}
                   disabled={reportSubmitting}
-                  className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 font-mono text-[12px] text-zinc-100 outline-none ring-red-500/20 focus:ring-2 disabled:opacity-60"
+                  className={`mt-1 w-full resize-none font-mono text-[12px] ${terminalUi.formInput} text-zinc-100 ring-red-500/20`}
                   placeholder={"https://discord.com/channels/...\nhttps://imgur.com/..."}
                 />
               </div>
@@ -2770,7 +2770,7 @@ export default function UserProfilePage() {
                   type="button"
                   onClick={() => setReportOpen(false)}
                   disabled={reportSubmitting}
-                  className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                  className={terminalUi.secondaryButtonSm}
                 >
                   Cancel
                 </button>

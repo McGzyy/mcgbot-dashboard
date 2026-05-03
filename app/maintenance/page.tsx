@@ -15,7 +15,7 @@ export default async function MaintenancePage() {
     "We are performing maintenance. Please try again shortly.";
 
   return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100">
+    <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
       <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
         <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
           <span className="relative block h-9 w-9">

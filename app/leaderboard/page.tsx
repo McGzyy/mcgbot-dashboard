@@ -850,7 +850,7 @@ export default function LeaderboardPage() {
                       "hover:bg-emerald-950/30 hover:shadow-[0_0_18px_-6px_rgba(16,185,129,0.12)]",
                       podiumRowClass(r.rank),
                       isYou
-                        ? "ring-1 ring-emerald-400/35 ring-offset-2 ring-offset-[#050505]"
+                        ? "ring-1 ring-emerald-400/35 ring-offset-2 ring-offset-[color:var(--mcg-page)]"
                         : "",
                     ].join(" ")}
                   >
@@ -1060,7 +1060,7 @@ export default function LeaderboardPage() {
                     router.push(`/user/${encodeURIComponent(profileSeg)}`);
                 }}
               >
-                <div className="relative rounded-xl border border-[#2a2415] bg-gradient-to-br from-[#161308] via-[#0c0c0c] to-[#0a0a0a] p-6 shadow-[0_0_28px_rgba(255,215,0,0.12)] transition-all hover:bg-zinc-900/60 hover:shadow-[0_0_36px_rgba(255,215,0,0.18)]">
+                <div className="relative rounded-xl border border-[#2a2415] bg-gradient-to-br from-[#161308] via-[#0c0c0c] to-zinc-950 p-6 shadow-[0_0_28px_rgba(255,215,0,0.12)] transition-all hover:bg-zinc-900/60 hover:shadow-[0_0_36px_rgba(255,215,0,0.18)]">
                   <div className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/50 text-xs font-black tabular-nums text-zinc-200 shadow-inner backdrop-blur-sm">
                     {idx + 1}
                   </div>

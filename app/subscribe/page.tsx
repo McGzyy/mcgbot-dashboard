@@ -65,7 +65,7 @@ function SubscribeDiscordGuildRedirect() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100">
+    <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
       <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
           <span className="relative block h-9 w-9">
@@ -487,7 +487,7 @@ export default function SubscribePage() {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#050505] px-6 text-sm text-zinc-400">
+      <div className="flex min-h-screen items-center justify-center bg-[color:var(--mcg-page)] px-6 text-sm text-zinc-400">
         Loading…
       </div>
     );
@@ -495,7 +495,7 @@ export default function SubscribePage() {
 
   if (status !== "authenticated" || !session?.user?.id) {
     return (
-      <div className="min-h-screen bg-[#050505] text-zinc-100">
+      <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
         <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
           <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
             <span className="relative block h-9 w-9">
@@ -541,7 +541,7 @@ export default function SubscribePage() {
 
   if (hasAccess) {
     return (
-      <div className="min-h-screen bg-[#050505] text-zinc-100">
+      <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
         <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
           <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
             <span className="relative block h-9 w-9">
@@ -596,7 +596,7 @@ export default function SubscribePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100">
+    <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-52 left-1/2 h-[620px] w-[980px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.18),transparent_62%)] blur-3xl" />
         <div className="absolute -bottom-72 right-[-14rem] h-[620px] w-[620px] rounded-full bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.12),transparent_62%)] blur-3xl" />
