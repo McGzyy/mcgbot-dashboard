@@ -23,6 +23,17 @@ function explorerTxUrl(signature: string): string {
   return url.toString();
 }
 
+const MEMBERSHIP_EVENT_LABELS: Record<string, string> = {
+  sol_invoice_paid: "SOL invoice",
+  stripe_checkout_one_time: "Stripe (one-time)",
+  stripe_checkout_subscription: "Stripe subscription",
+  voucher_complimentary: "Complimentary (voucher)",
+};
+
+function membershipEventLabel(eventType: string): string {
+  return MEMBERSHIP_EVENT_LABELS[eventType] ?? eventType;
+}
+
 function ProfileDiscordLink({ discordId }: { discordId: string }) {
   const id = discordId.trim();
   if (!id) return <span className="text-zinc-500">—</span>;
@@ -267,18 +278,24 @@ export function TreasuryHubClient() {
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-white">Membership activity (SOL)</h3>
+        <div className="space-y-3 lg:col-span-2">
+          <h3 className="text-sm font-semibold text-white">Membership activity</h3>
+          <p className="text-xs text-zinc-500">
+            Unified log from <span className="font-mono text-zinc-400">membership_events</span> (SOL invoices, Stripe
+            checkout, complimentary vouchers). Run the SQL migration if this table is missing.
+          </p>
           <AdminPanel className="overflow-hidden p-0">
-            <div className="max-h-80 overflow-auto">
-              <table className="w-full text-left text-xs">
+            <div className="max-h-96 overflow-auto">
+              <table className="w-full min-w-[720px] text-left text-xs">
                 <thead className="sticky top-0 bg-zinc-950/95 text-zinc-500">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Paid</th>
+                    <th className="px-3 py-2 font-medium">When</th>
+                    <th className="px-3 py-2 font-medium">Source</th>
                     <th className="px-3 py-2 font-medium">Plan</th>
                     <th className="px-3 py-2 font-medium">Discord</th>
                     <th className="px-3 py-2 font-medium text-right">SOL</th>
-                    <th className="px-3 py-2 font-medium">Tx</th>
+                    <th className="px-3 py-2 font-medium text-right">USD</th>
+                    <th className="px-3 py-2 font-medium">Link</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/80 text-zinc-300">
@@ -286,12 +303,14 @@ export function TreasuryHubClient() {
                     data!.membershipActivity.map((r, i) => (
                       <tr key={`${r.at}-${r.discordId}-${i}`} className="hover:bg-zinc-900/40">
                         <td className="px-3 py-2 whitespace-nowrap text-zinc-500">{fmtTime(r.at)}</td>
+                        <td className="px-3 py-2 text-zinc-200">{membershipEventLabel(r.eventType)}</td>
                         <td className="px-3 py-2">{r.planLabel ?? "—"}</td>
                         <td className="px-3 py-2">
                           <ProfileDiscordLink discordId={r.discordId} />
                         </td>
                         <td className="px-3 py-2 text-right font-mono">{r.amountSol ?? "—"}</td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 text-right font-mono">{r.amountUsd ?? "—"}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">
                           {r.signature ? (
                             <a
                               href={explorerTxUrl(r.signature)}
@@ -301,6 +320,15 @@ export function TreasuryHubClient() {
                             >
                               Solscan
                             </a>
+                          ) : r.stripeCheckoutSessionId && stripe?.dashboardBaseUrl ? (
+                            <a
+                              href={`${stripe.dashboardBaseUrl}/checkout/sessions/${encodeURIComponent(r.stripeCheckoutSessionId)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sky-400 hover:underline"
+                            >
+                              Stripe
+                            </a>
                           ) : (
                             "—"
                           )}
@@ -309,8 +337,8 @@ export function TreasuryHubClient() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="px-3 py-6 text-center text-zinc-500">
-                        {data?.membershipActivityError ?? "No paid SOL invoices yet."}
+                      <td colSpan={7} className="px-3 py-6 text-center text-zinc-500">
+                        {data?.membershipActivityError ?? "No membership events yet."}
                       </td>
                     </tr>
                   )}

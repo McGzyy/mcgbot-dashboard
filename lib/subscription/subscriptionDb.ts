@@ -180,6 +180,7 @@ export type PendingInvoiceRow = {
   reference_pubkey: string;
   treasury_pubkey: string;
   lamports: number;
+  sol_usd?: number | null;
   quote_expires_at: string;
   status: string;
 };
@@ -192,7 +193,7 @@ export async function getPendingInvoiceForDiscord(input: {
   if (!db) return null;
   const { data, error } = await db
     .from("payment_invoices")
-    .select("id, discord_id, plan_id, reference_pubkey, treasury_pubkey, lamports, quote_expires_at, status")
+    .select("id, discord_id, plan_id, reference_pubkey, treasury_pubkey, lamports, sol_usd, quote_expires_at, status")
     .eq("id", input.invoiceId.trim())
     .eq("discord_id", input.discordId.trim())
     .eq("status", "pending")
@@ -207,7 +208,7 @@ export async function listPendingInvoices(): Promise<PendingInvoiceRow[]> {
   const now = new Date().toISOString();
   const { data, error } = await db
     .from("payment_invoices")
-    .select("id, discord_id, plan_id, reference_pubkey, treasury_pubkey, lamports, quote_expires_at, status")
+    .select("id, discord_id, plan_id, reference_pubkey, treasury_pubkey, lamports, sol_usd, quote_expires_at, status")
     .eq("status", "pending")
     .gt("quote_expires_at", now);
   if (error || !data) return [];
@@ -365,4 +366,50 @@ export async function expireStaleInvoices(): Promise<void> {
     .update({ status: "expired" })
     .eq("status", "pending")
     .lt("quote_expires_at", now);
+}
+
+export type MembershipEventType =
+  | "sol_invoice_paid"
+  | "stripe_checkout_one_time"
+  | "stripe_checkout_subscription"
+  | "voucher_complimentary";
+
+export type InsertMembershipEventInput = {
+  discordId: string;
+  eventType: MembershipEventType;
+  planId?: string | null;
+  paymentInvoiceId?: string | null;
+  stripeCheckoutSessionId?: string | null;
+  stripeSubscriptionId?: string | null;
+  amountCents?: number | null;
+  amountSol?: number | null;
+  solQuoteUsd?: number | null;
+  txSignature?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+/** Append-only audit row. Duplicate payment_invoice_id or stripe_checkout_session_id is ignored (idempotent). */
+export async function insertMembershipEvent(input: InsertMembershipEventInput): Promise<boolean> {
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const row = {
+    discord_id: input.discordId.trim(),
+    event_type: input.eventType,
+    plan_id: input.planId?.trim() || null,
+    payment_invoice_id: input.paymentInvoiceId?.trim() || null,
+    stripe_checkout_session_id: input.stripeCheckoutSessionId?.trim() || null,
+    stripe_subscription_id: input.stripeSubscriptionId?.trim() || null,
+    amount_cents: input.amountCents ?? null,
+    amount_sol: input.amountSol ?? null,
+    sol_quote_usd: input.solQuoteUsd ?? null,
+    tx_signature: input.txSignature?.trim() || null,
+    metadata: input.metadata ?? null,
+  };
+  const { error } = await db.from("membership_events").insert(row);
+  if (error) {
+    if (error.code === "23505") return true;
+    console.error("[subscription] insertMembershipEvent", error);
+    return false;
+  }
+  return true;
 }

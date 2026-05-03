@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
-import { getPlanBySlug, upsertSubscriptionAfterPayment } from "@/lib/subscription/subscriptionDb";
+import { getPlanBySlug, insertMembershipEvent, upsertSubscriptionAfterPayment } from "@/lib/subscription/subscriptionDb";
 import { consumeVoucherForPlan, peekVoucherForPlan } from "@/lib/subscription/vouchers";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
@@ -128,6 +128,19 @@ export async function POST(request: Request) {
     planId: plan.id,
     durationDays: finalDurationDays,
   });
+
+  if (granted) {
+    await insertMembershipEvent({
+      discordId,
+      eventType: "voucher_complimentary",
+      planId: plan.id,
+      metadata: {
+        planSlug: plan.slug,
+        voucherPercent: voucherPercent,
+        via: "voucher",
+      },
+    });
+  }
 
   return Response.json({
     success: true,

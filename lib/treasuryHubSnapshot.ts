@@ -15,11 +15,13 @@ export type TreasurySolWalletSnapshot = {
 
 export type MembershipActivityRow = {
   at: string;
-  kind: "sol_invoice_paid";
+  eventType: string;
   discordId: string;
   planLabel: string | null;
   amountSol: string | null;
+  amountUsd: string | null;
   signature: string | null;
+  stripeCheckoutSessionId: string | null;
 };
 
 export type TipActivityRow = {
@@ -289,15 +291,15 @@ export async function loadTreasuryHubSnapshot(): Promise<TreasuryHubSnapshot> {
   let membershipActivity: MembershipActivityRow[] = [];
   let membershipActivityError: string | undefined;
   try {
-    const { data: inv, error: ie } = await db
-      .from("payment_invoices")
-      .select("paid_at, discord_id, plan_id, lamports, tx_signature")
-      .eq("status", "paid")
-      .not("paid_at", "is", null)
-      .order("paid_at", { ascending: false })
-      .limit(40);
+    const { data: ev, error: ie } = await db
+      .from("membership_events")
+      .select(
+        "created_at, discord_id, event_type, plan_id, amount_sol, amount_cents, tx_signature, stripe_checkout_session_id"
+      )
+      .order("created_at", { ascending: false })
+      .limit(60);
     if (ie) throw ie;
-    const planIds = [...new Set((inv || []).map((r) => String((r as { plan_id?: string }).plan_id || "")).filter(Boolean))];
+    const planIds = [...new Set((ev || []).map((r) => String((r as { plan_id?: string }).plan_id || "")).filter(Boolean))];
     const labelByPlanId = new Map<string, string>();
     if (planIds.length) {
       const { data: pls } = await db.from("subscription_plans").select("id, label").in("id", planIds);
@@ -306,29 +308,39 @@ export async function loadTreasuryHubSnapshot(): Promise<TreasuryHubSnapshot> {
         labelByPlanId.set(row.id, row.label);
       }
     }
-    membershipActivity = (inv || []).map((raw) => {
+    membershipActivity = (ev || []).map((raw) => {
       const r = raw as {
-        paid_at: string;
+        created_at: string;
         discord_id: string;
-        plan_id: string;
-        lamports: number | string | null;
+        event_type: string;
+        plan_id: string | null;
+        amount_sol: number | string | null;
+        amount_cents: number | null;
         tx_signature: string | null;
+        stripe_checkout_session_id: string | null;
       };
-      const lam = typeof r.lamports === "bigint" ? Number(r.lamports) : Number(r.lamports);
-      const sol =
-        Number.isFinite(lam) && lam > 0 ? (lam / LAMPORTS_PER_SOL).toFixed(6) : null;
+      const solN = r.amount_sol != null ? Number(r.amount_sol) : NaN;
+      const amountSol =
+        Number.isFinite(solN) && solN > 0 ? solN.toFixed(6) : null;
+      const cents = r.amount_cents != null ? Number(r.amount_cents) : NaN;
+      const amountUsd =
+        Number.isFinite(cents) && cents !== 0
+          ? (cents / 100).toLocaleString(undefined, { style: "currency", currency: "USD" })
+          : null;
       return {
-        at: r.paid_at,
-        kind: "sol_invoice_paid" as const,
+        at: r.created_at,
+        eventType: String(r.event_type || "unknown"),
         discordId: r.discord_id,
-        planLabel: labelByPlanId.get(r.plan_id) ?? null,
-        amountSol: sol,
+        planLabel: r.plan_id ? labelByPlanId.get(r.plan_id) ?? null : null,
+        amountSol,
+        amountUsd,
         signature: r.tx_signature,
+        stripeCheckoutSessionId: r.stripe_checkout_session_id,
       };
     });
   } catch (e) {
     membershipActivity = [];
-    membershipActivityError = e instanceof Error ? e.message : "payment_invoices query failed";
+    membershipActivityError = e instanceof Error ? e.message : "membership_events query failed";
   }
 
   let tipsActivity: TipActivityRow[] = [];

@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
 
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { upsertSubscriptionAfterPayment } from "@/lib/subscription/subscriptionDb";
+import { insertMembershipEvent, upsertSubscriptionAfterPayment } from "@/lib/subscription/subscriptionDb";
 import { getStripe } from "@/lib/subscription/stripeServer";
 import {
   deleteStripeCheckoutApplied,
@@ -79,6 +79,14 @@ export async function applyPaidStripeCheckoutSession(session: Stripe.Checkout.Se
     return { ok: false, error: "subscription_update_failed" };
   }
 
+  await insertMembershipEvent({
+    discordId,
+    eventType: "stripe_checkout_one_time",
+    planId,
+    stripeCheckoutSessionId: session.id,
+    amountCents: session.amount_total ?? null,
+  });
+
   return { ok: true };
 }
 
@@ -144,6 +152,16 @@ async function applySubscriptionCheckoutSession(session: Stripe.Checkout.Session
     await deleteStripeCheckoutApplied(session.id);
     return { ok: false, error: synced.error };
   }
+
+  const planIdMeta =
+    typeof subscription.metadata?.plan_id === "string" ? subscription.metadata.plan_id.trim() : "";
+  await insertMembershipEvent({
+    discordId,
+    eventType: "stripe_checkout_subscription",
+    planId: planIdMeta || null,
+    stripeCheckoutSessionId: session.id,
+    stripeSubscriptionId: subscriptionId,
+  });
 
   return { ok: true };
 }

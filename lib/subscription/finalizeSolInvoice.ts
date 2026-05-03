@@ -1,10 +1,11 @@
 import { findReference, validateTransfer } from "@solana/pay";
 import BigNumber from "bignumber.js";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
 import { getSolanaRpcUrl } from "@/lib/subscription/solanaRpc";
 import {
   getPlanDurationDays,
+  insertMembershipEvent,
   markInvoicePaid,
   type PendingInvoiceRow,
   upsertSubscriptionAfterPayment,
@@ -99,6 +100,17 @@ export async function finalizeInvoiceFromTxSignature(input: {
     return { ok: false, error: "Payment recorded but subscription update failed." };
   }
 
+  const solPaid = invoice.lamports / LAMPORTS_PER_SOL;
+  await insertMembershipEvent({
+    discordId: invoice.discord_id,
+    eventType: "sol_invoice_paid",
+    planId: invoice.plan_id,
+    paymentInvoiceId: invoice.id,
+    amountSol: solPaid,
+    solQuoteUsd: typeof invoice.sol_usd === "number" && Number.isFinite(invoice.sol_usd) ? invoice.sol_usd : null,
+    txSignature: signature,
+  });
+
   return { ok: true };
 }
 
@@ -174,6 +186,17 @@ export async function finalizeInvoiceFromReferenceIfPaid(input: {
   if (!subOk) {
     return { ok: false, reason: "db", detail: "subscription" };
   }
+
+  const solPaid = invoice.lamports / LAMPORTS_PER_SOL;
+  await insertMembershipEvent({
+    discordId: invoice.discord_id,
+    eventType: "sol_invoice_paid",
+    planId: invoice.plan_id,
+    paymentInvoiceId: invoice.id,
+    amountSol: solPaid,
+    solQuoteUsd: typeof invoice.sol_usd === "number" && Number.isFinite(invoice.sol_usd) ? invoice.sol_usd : null,
+    txSignature: signature,
+  });
 
   return { ok: true, signature };
 }
