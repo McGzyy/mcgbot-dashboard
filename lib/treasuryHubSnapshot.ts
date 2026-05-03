@@ -31,6 +31,8 @@ export type TipActivityRow = {
 
 export type StripeBalanceSnapshot = {
   configured: boolean;
+  /** From secret key mode — opens correct Stripe Dashboard (test vs live). */
+  dashboardBaseUrl: string | null;
   error?: string;
   availableUsd: string | null;
   pendingUsd: string | null;
@@ -115,6 +117,7 @@ export async function loadTreasuryHubSnapshot(): Promise<TreasuryHubSnapshot> {
 
   const emptyStripe: StripeBalanceSnapshot = {
     configured: false,
+    dashboardBaseUrl: null,
     availableUsd: null,
     pendingUsd: null,
     last30dNetCents: null,
@@ -123,9 +126,16 @@ export async function loadTreasuryHubSnapshot(): Promise<TreasuryHubSnapshot> {
   };
 
   const stripe = getStripe();
+  const stripeSecret = (process.env.STRIPE_SECRET_KEY ?? "").trim();
+  const stripeDashboardBase = stripeSecret
+    ? stripeSecret.startsWith("sk_test")
+      ? "https://dashboard.stripe.com/test"
+      : "https://dashboard.stripe.com"
+    : null;
+
   let stripeSnap: StripeBalanceSnapshot = { ...emptyStripe };
   if (stripe) {
-    stripeSnap = { ...emptyStripe, configured: true };
+    stripeSnap = { ...emptyStripe, configured: true, dashboardBaseUrl: stripeDashboardBase };
     try {
       const bal = await stripe.balance.retrieve();
       const usdAvail = bal.available.find((x) => x.currency === "usd");

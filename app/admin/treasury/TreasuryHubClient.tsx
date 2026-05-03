@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import { adminChrome } from "@/lib/roleTierStyles";
 import { solanaClusterFromEnv } from "@/lib/solanaEnv";
 import type { TreasuryHubSnapshot } from "@/lib/treasuryHubSnapshot";
+import { userProfileHref } from "@/lib/userProfileHref";
 
 function fmtTime(iso: string) {
   try {
@@ -19,6 +21,20 @@ function explorerTxUrl(signature: string): string {
   const url = new URL(`https://solscan.io/tx/${signature}`);
   if (cluster === "devnet") url.searchParams.set("cluster", "devnet");
   return url.toString();
+}
+
+function ProfileDiscordLink({ discordId }: { discordId: string }) {
+  const id = discordId.trim();
+  if (!id) return <span className="text-zinc-500">—</span>;
+  return (
+    <Link
+      href={userProfileHref({ discordId: id })}
+      title="Open dashboard profile"
+      className="font-mono text-[10px] text-sky-400/90 transition hover:text-sky-300 hover:underline"
+    >
+      {id}
+    </Link>
+  );
 }
 
 export function TreasuryHubClient() {
@@ -110,7 +126,19 @@ export function TreasuryHubClient() {
       </section>
 
       <section className="space-y-4">
-        <h3 className="text-sm font-semibold text-white">Stripe (card)</h3>
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h3 className="text-sm font-semibold text-white">Stripe (card)</h3>
+          {stripe?.configured && stripe.dashboardBaseUrl ? (
+            <a
+              href={`${stripe.dashboardBaseUrl}/balance/overview`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-medium text-sky-400/90 hover:text-sky-300 hover:underline"
+            >
+              Stripe Dashboard →
+            </a>
+          ) : null}
+        </div>
         <AdminPanel className="p-5">
           {!stripe?.configured ? (
             <p className="text-sm text-zinc-400">Stripe is not configured (set STRIPE_SECRET_KEY) for balance reads.</p>
@@ -250,6 +278,7 @@ export function TreasuryHubClient() {
                     <th className="px-3 py-2 font-medium">Plan</th>
                     <th className="px-3 py-2 font-medium">Discord</th>
                     <th className="px-3 py-2 font-medium text-right">SOL</th>
+                    <th className="px-3 py-2 font-medium">Tx</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/80 text-zinc-300">
@@ -258,13 +287,29 @@ export function TreasuryHubClient() {
                       <tr key={`${r.at}-${r.discordId}-${i}`} className="hover:bg-zinc-900/40">
                         <td className="px-3 py-2 whitespace-nowrap text-zinc-500">{fmtTime(r.at)}</td>
                         <td className="px-3 py-2">{r.planLabel ?? "—"}</td>
-                        <td className="px-3 py-2 font-mono text-[10px] text-zinc-400">{r.discordId}</td>
+                        <td className="px-3 py-2">
+                          <ProfileDiscordLink discordId={r.discordId} />
+                        </td>
                         <td className="px-3 py-2 text-right font-mono">{r.amountSol ?? "—"}</td>
+                        <td className="px-3 py-2">
+                          {r.signature ? (
+                            <a
+                              href={explorerTxUrl(r.signature)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sky-400 hover:underline"
+                            >
+                              Solscan
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="px-3 py-6 text-center text-zinc-500">
+                      <td colSpan={5} className="px-3 py-6 text-center text-zinc-500">
                         {data?.membershipActivityError ?? "No paid SOL invoices yet."}
                       </td>
                     </tr>
@@ -293,7 +338,9 @@ export function TreasuryHubClient() {
                     data!.tipsActivity.map((r, i) => (
                       <tr key={`${r.at}-${r.discordId}-${i}`} className="hover:bg-zinc-900/40">
                         <td className="px-3 py-2 whitespace-nowrap text-zinc-500">{fmtTime(r.at)}</td>
-                        <td className="px-3 py-2 font-mono text-[10px] text-zinc-400">{r.discordId}</td>
+                        <td className="px-3 py-2">
+                          <ProfileDiscordLink discordId={r.discordId} />
+                        </td>
                         <td className="px-3 py-2 text-right font-mono">{r.amountSol}</td>
                         <td className="px-3 py-2">
                           {r.signature ? (
