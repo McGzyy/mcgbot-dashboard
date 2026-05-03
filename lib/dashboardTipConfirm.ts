@@ -17,6 +17,12 @@ const TX_READ_OPTS = {
   maxSupportedTransactionVersion: 0 as const,
 };
 
+function toPublicKeyLoose(x: unknown): PublicKey {
+  if (x instanceof PublicKey) return x;
+  if (typeof x === "string") return new PublicKey(x);
+  return new PublicKey(String(x));
+}
+
 export type BotTipRow = {
   id: string;
   discord_id: string;
@@ -67,8 +73,8 @@ function transactionTouchesPubkey(
     const lookups =
       loaded && Array.isArray(loaded.writable) && Array.isArray(loaded.readonly)
         ? {
-            writable: loaded.writable.map((x) => new PublicKey(x as string)),
-            readonly: loaded.readonly.map((x) => new PublicKey(x as string)),
+            writable: loaded.writable.map(toPublicKeyLoose),
+            readonly: loaded.readonly.map(toPublicKeyLoose),
           }
         : undefined;
     const keys = vm.getAccountKeys(
