@@ -99,8 +99,18 @@ export function LinkedWalletCluster() {
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
+      const t = e.target;
+      if (t instanceof Element) {
+        // Wallet modal is portaled to document.body; don't treat its UI as "outside" the popover.
+        if (
+          t.closest(".wallet-adapter-modal-wrapper") ||
+          t.closest(".wallet-adapter-modal")
+        ) {
+          return;
+        }
+      }
       const el = wrapRef.current;
-      if (el && !el.contains(e.target as Node)) setOpen(false);
+      if (el && !el.contains(t as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -284,7 +294,10 @@ export function LinkedWalletCluster() {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => openWalletModal(true)}
+                onClick={() => {
+                  setOpen(false);
+                  openWalletModal(true);
+                }}
                 className="rounded-lg bg-violet-500/90 px-3 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-violet-400 disabled:opacity-50"
               >
                 Connect wallet
