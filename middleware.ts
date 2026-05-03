@@ -49,6 +49,7 @@ function isSubscriptionProtectedApi(pathname: string): boolean {
     pathname === "/api/subscription/status" ||
     pathname === "/api/subscription/checkout" ||
     pathname === "/api/subscription/confirm-payment" ||
+    pathname === "/api/subscription/sol/start" ||
     pathname === "/api/subscription/stripe/create-checkout-session" ||
     pathname === "/api/subscription/stripe/verify-session" ||
     pathname === "/api/subscription/guild-status"
