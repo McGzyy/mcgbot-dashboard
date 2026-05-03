@@ -1,120 +1,126 @@
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { encodeURL } from "@solana/pay";
 import { getServerSession } from "next-auth";
+import BigNumber from "bignumber.js";
+import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { authOptions } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { isDiscordGuildMember } from "@/lib/discordGuildMember";
-import { liveDashboardAccessForDiscordId } from "@/lib/dashboardGate";
+import { solanaClusterFromEnv, solanaRpcUrlServer } from "@/lib/solanaEnv";
+import { TIP_MEMO, tipsTreasuryPubkeyFromEnv } from "@/lib/tipsConfig";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function clampAmountSol(v: unknown): number | null {
-  const n = typeof v === "number" ? v : Number(v);
-  if (!Number.isFinite(n)) return null;
-  if (n <= 0) return null;
-  // Safety cap to prevent fat-finger tips.
-  if (n > 10) return null;
-  // Round to 9 decimals max (lamports precision).
-  return Math.round(n * 1e9) / 1e9;
-}
-
-function solToLamports(sol: number): bigint {
-  return BigInt(Math.round(sol * 1e9));
+function parseAmountSol(body: unknown): number | null {
+  if (!body || typeof body !== "object") return null;
+  const raw = (body as Record<string, unknown>).amountSol;
+  const n =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string"
+        ? Number.parseFloat(raw)
+        : Number.NaN;
+  if (!Number.isFinite(n) || n <= 0 || n > 1_000) return null;
+  return n;
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const discordId = session?.user?.id?.trim() ?? "";
-  if (!discordId) {
-    return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
-  }
-
-  const hasAccess =
-    session?.user?.hasDashboardAccess === true ||
-    session?.user?.subscriptionExempt === true ||
-    (await liveDashboardAccessForDiscordId(discordId).catch(() => false));
-  if (!hasAccess) {
-    return Response.json({ success: false, error: "Subscription required" }, { status: 402 });
-  }
-
-  const inGuild = await isDiscordGuildMember(discordId);
-  if (inGuild !== true) {
-    return Response.json(
-      { success: false, error: "Discord membership required" },
-      { status: 403 }
-    );
-  }
-
-  const db = getSupabaseAdmin();
-  if (!db) {
-    return Response.json({ success: false, error: "Database not configured" }, { status: 503 });
-  }
-
-  const tipsTreasuryRaw = (process.env.SOLANA_TIPS_TREASURY_PUBKEY ?? "").trim();
-  if (!tipsTreasuryRaw) {
-    return Response.json(
-      { success: false, error: "Tips wallet not configured" },
-      { status: 503 }
-    );
-  }
-
-  let treasury: PublicKey;
   try {
-    treasury = new PublicKey(tipsTreasuryRaw);
-  } catch {
-    return Response.json({ success: false, error: "Invalid tips wallet" }, { status: 500 });
+    const session = await getServerSession(authOptions);
+    const discordId = session?.user?.id?.trim() ?? "";
+    if (!discordId) {
+      return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => null);
+    const amountSol = parseAmountSol(body);
+    if (amountSol == null) {
+      return Response.json({ success: false, error: "Invalid amount." }, { status: 400 });
+    }
+
+    const treasuryStr = tipsTreasuryPubkeyFromEnv();
+    if (!treasuryStr) {
+      return Response.json(
+        {
+          success: false,
+          error:
+            "Tips are not configured. Set SOLANA_TIPS_TREASURY_PUBKEY (or SOLANA_TREASURY_PUBKEY) to your funded Solana address.",
+        },
+        { status: 503 }
+      );
+    }
+
+    let treasury: PublicKey;
+    try {
+      treasury = new PublicKey(treasuryStr);
+    } catch {
+      return Response.json(
+        { success: false, error: "Invalid treasury public key in environment." },
+        { status: 503 }
+      );
+    }
+
+    const connection = new Connection(solanaRpcUrlServer(), { commitment: "confirmed" });
+    const treasuryInfo = await connection.getAccountInfo(treasury);
+    if (!treasuryInfo) {
+      const cluster = solanaClusterFromEnv();
+      return Response.json(
+        {
+          success: false,
+          error: `Treasury has no on-chain account on ${cluster}. Send any amount of SOL to that treasury address once so it exists, then retry. Also ensure NEXT_PUBLIC_SOLANA_CLUSTER matches that network.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const db = getSupabaseAdmin();
+    if (!db) {
+      return Response.json({ success: false, error: "Database not configured" }, { status: 503 });
+    }
+
+    const reference = Keypair.generate();
+    const refStr = reference.publicKey.toBase58();
+    const lamports = new BigNumber(amountSol)
+      .times(LAMPORTS_PER_SOL)
+      .integerValue(BigNumber.ROUND_FLOOR)
+      .toNumber();
+
+    const { error: insErr } = await db.from("bot_tips").insert({
+      discord_id: discordId,
+      amount_sol: amountSol,
+      amount_lamports: lamports,
+      reference_pubkey: refStr,
+      treasury_pubkey: treasuryStr,
+      memo: TIP_MEMO,
+      status: "pending",
+    });
+
+    if (insErr) {
+      console.error("[tips/start] insert:", insErr);
+      return Response.json({ success: false, error: "Could not create tip session." }, { status: 500 });
+    }
+
+    const amountBn = new BigNumber(amountSol);
+    const solanaPayUrl = encodeURL({
+      recipient: treasury,
+      amount: amountBn,
+      reference: reference.publicKey,
+      memo: TIP_MEMO,
+      label: "McGBot",
+      message: "Tip for McGBot",
+    }).toString();
+
+    const amountSolOut = amountBn.toFixed(9).replace(/\.?0+$/, "") || "0";
+
+    return Response.json({
+      success: true,
+      solanaPayUrl,
+      reference: refStr,
+      treasury: treasuryStr,
+      amountSol: amountSolOut,
+      memo: TIP_MEMO,
+    });
+  } catch (e) {
+    console.error("[tips/start]", e);
+    return Response.json({ success: false, error: "Internal error" }, { status: 500 });
   }
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return Response.json({ success: false, error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-  const amountSol = clampAmountSol(o.amountSol);
-  if (amountSol == null) {
-    return Response.json({ success: false, error: "Invalid amount" }, { status: 400 });
-  }
-
-  const lamports = solToLamports(amountSol);
-  if (lamports <= BigInt(0)) {
-    return Response.json({ success: false, error: "Invalid amount" }, { status: 400 });
-  }
-
-  const ref = Keypair.generate();
-  const referencePubkey = ref.publicKey.toBase58();
-  const memo = "Tip for McGBot";
-
-  const { error } = await db.from("bot_tips").insert({
-    discord_id: discordId,
-    amount_sol: amountSol,
-    amount_lamports: lamports.toString(),
-    reference_pubkey: referencePubkey,
-    treasury_pubkey: treasury.toBase58(),
-    memo,
-    status: "pending",
-  });
-
-  if (error) {
-    console.error("[tips/start] insert:", error);
-    return Response.json({ success: false, error: "Could not start tip" }, { status: 500 });
-  }
-
-  const solanaPayUrl = `solana:${treasury.toBase58()}?amount=${encodeURIComponent(
-    amountSol.toString()
-  )}&reference=${encodeURIComponent(referencePubkey)}&label=${encodeURIComponent(
-    "McGBot"
-  )}&message=${encodeURIComponent(memo)}`;
-
-  return Response.json({
-    success: true,
-    solanaPayUrl,
-    reference: referencePubkey,
-    treasury: treasury.toBase58(),
-    amountSol: amountSol.toString(),
-    memo,
-  });
 }
-

@@ -987,6 +987,20 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
       const sig = await sendTransaction(tx, connection, { skipPreflight: false });
       setSubmittedSig(sig);
       setTip(json as TipStartOk);
+      try {
+        const subRes = await fetch("/api/tips/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ reference: String(json.reference), signature: sig }),
+        });
+        if (!subRes.ok) {
+          const subJson = (await subRes.json().catch(() => ({}))) as { error?: string };
+          console.warn("[tip] submit:", subJson.error ?? subRes.status);
+        }
+      } catch {
+        /* status polling may still confirm via chain probe */
+      }
     } catch (e) {
       const msg = e && typeof e === "object" && "message" in e ? String((e as Error).message) : "";
       const lower = msg.toLowerCase();
@@ -995,6 +1009,10 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
       } else if (/\b403\b|forbidden|access forbidden/i.test(msg)) {
         setErr(
           "Solana RPC blocked this request (403). Set NEXT_PUBLIC_SOLANA_RPC_URL to a provider URL that allows browser reads (e.g. Helius or QuickNode with your API key)."
+        );
+      } else if (lower.includes("recipient not found")) {
+        setErr(
+          "Tip treasury is not on this network yet (no account). Fund SOLANA_TIPS_TREASURY_PUBKEY with a little SOL once, and ensure NEXT_PUBLIC_SOLANA_CLUSTER matches that chain."
         );
       } else {
         setErr(msg || "Could not send tip.");

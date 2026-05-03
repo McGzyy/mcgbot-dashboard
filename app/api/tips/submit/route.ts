@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection } from "@solana/web3.js";
 import { authOptions } from "@/lib/auth";
 import { validateAndMarkTipConfirmed, type BotTipRow } from "@/lib/dashboardTipConfirm";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -24,7 +24,7 @@ function rowToBotTip(row: Record<string, unknown>): BotTipRow | null {
   };
 }
 
-export async function GET(req: Request) {
+export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     const discordId = session?.user?.id?.trim() ?? "";
@@ -32,9 +32,11 @@ export async function GET(req: Request) {
       return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const ref = new URL(req.url).searchParams.get("reference")?.trim() ?? "";
-    if (!ref || ref.length > 88) {
-      return Response.json({ success: false, error: "Bad reference" }, { status: 400 });
+    const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+    const reference = typeof body?.reference === "string" ? body.reference.trim() : "";
+    const signature = typeof body?.signature === "string" ? body.signature.trim() : "";
+    if (!reference || !signature) {
+      return Response.json({ success: false, error: "Missing reference or signature." }, { status: 400 });
     }
 
     const db = getSupabaseAdmin();
@@ -45,9 +47,9 @@ export async function GET(req: Request) {
     const { data, error } = await db
       .from("bot_tips")
       .select(
-        "id, discord_id, status, signature, from_wallet, treasury_pubkey, amount_sol, reference_pubkey, memo"
+        "id, discord_id, status, treasury_pubkey, amount_sol, reference_pubkey, memo"
       )
-      .eq("reference_pubkey", ref)
+      .eq("reference_pubkey", reference)
       .maybeSingle();
 
     if (error || !data || typeof data !== "object") {
@@ -60,44 +62,29 @@ export async function GET(req: Request) {
     }
 
     if (row.status === "confirmed") {
-      return Response.json({
-        success: true,
-        status: "confirmed",
-        signature: typeof row.signature === "string" ? row.signature : "",
-        fromWallet: typeof row.from_wallet === "string" ? row.from_wallet : null,
-      });
+      return Response.json({ success: true, alreadyConfirmed: true });
     }
 
     const botRow = rowToBotTip(row);
-    if (botRow) {
-      try {
-        const connection = new Connection(solanaRpcUrlServer(), { commitment: "confirmed" });
-        const sigs = await connection.getSignaturesForAddress(new PublicKey(ref), { limit: 10 });
-        for (const s of sigs) {
-          if (!s.signature || s.err) continue;
-          const r = await validateAndMarkTipConfirmed({
-            connection,
-            db,
-            row: botRow,
-            signature: s.signature,
-          });
-          if (r.ok) {
-            return Response.json({
-              success: true,
-              status: "confirmed",
-              signature: s.signature,
-              fromWallet: r.fromWallet,
-            });
-          }
-        }
-      } catch (e) {
-        console.warn("[tips/status] chain probe:", e);
-      }
+    if (!botRow) {
+      return Response.json({ success: false, error: "Invalid tip row" }, { status: 500 });
     }
 
-    return Response.json({ success: true, status: "pending" });
+    const connection = new Connection(solanaRpcUrlServer(), { commitment: "confirmed" });
+    const result = await validateAndMarkTipConfirmed({
+      connection,
+      db,
+      row: botRow,
+      signature,
+    });
+
+    if (!result.ok) {
+      return Response.json({ success: false, error: result.error }, { status: 400 });
+    }
+
+    return Response.json({ success: true });
   } catch (e) {
-    console.error("[tips/status]", e);
+    console.error("[tips/submit]", e);
     return Response.json({ success: false, error: "Internal error" }, { status: 500 });
   }
 }
