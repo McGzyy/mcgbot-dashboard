@@ -172,7 +172,7 @@ export default function BotCallsPage() {
           typeof json.error === "string"
             ? json.error
             : res.status === 403
-              ? "Bot calls are a Pro/Elite feature."
+              ? "Bot Calls are a Pro/Elite feature."
               : `Request failed (${res.status}).`
         );
         return;
@@ -316,7 +316,7 @@ export default function BotCallsPage() {
   if (status !== "authenticated") {
     return (
       <div className="mx-auto max-w-lg px-4 py-12">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Bot calls</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Bot Calls</h1>
         <p className="mt-3 text-sm leading-relaxed text-zinc-500">
           Sign in with Discord to view the live bot call feed.
         </p>
@@ -337,7 +337,7 @@ export default function BotCallsPage() {
           Scanner feed
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-          Bot calls
+          Bot Calls
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
           Live feed of calls made by <span className="font-medium text-zinc-200">McGBot</span>. By default, excluded

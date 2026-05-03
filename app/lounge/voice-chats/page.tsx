@@ -65,9 +65,9 @@ export default function LoungeVoiceChatsPage() {
       />
       <header className={`relative mb-6 shrink-0 ${terminalChrome.headerRule} pb-5`}>
         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--accent)]/80">
-          The Lounge
+          Community
         </p>
-        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Voice chats</h1>
+        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Voice Chats</h1>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">
           LiveKit-powered rooms — pick a table, see who is live, and drop in with one tap.
         </p>

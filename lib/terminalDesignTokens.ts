@@ -98,4 +98,6 @@ export const terminalUi = {
 /** Shared page chrome inside `contentWell` (route headers, etc.). */
 export const terminalChrome = {
   headerRule: "border-b border-zinc-800/60",
+  /** Vertical scroll without visible bar (see `.no-scrollbar` in globals.css). */
+  scrollYHidden: "overflow-y-auto no-scrollbar",
 } as const;

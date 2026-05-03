@@ -12,7 +12,7 @@ import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { tokenChartLabel } from "@/lib/tradingViewEmbed";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
-import { terminalSurface } from "@/lib/terminalDesignTokens";
+import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
 
 type TimeframeId = "daily" | "weekly" | "monthly" | "all";
 
@@ -1829,7 +1829,7 @@ export default function LeaderboardPage() {
                 Bot
               </span>
             </div>
-            <div className="flex-1 overflow-y-auto rounded-xl border border-sky-500/10 bg-black/30 p-3 scrollbar-thin scrollbar-thumb-sky-900/60 scrollbar-track-transparent">
+            <div className={`${terminalChrome.scrollYHidden} flex-1 rounded-xl border border-sky-500/10 bg-black/30 p-3`}>
               <ul className="space-y-0.5">
                 {!botFeedLoading && botMilestones.length === 0 ? (
                   <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">
@@ -1925,7 +1925,7 @@ export default function LeaderboardPage() {
                 Bot
               </span>
             </div>
-            <div className="flex-1 overflow-y-auto rounded-xl border border-sky-500/10 bg-black/30 p-3 scrollbar-thin scrollbar-thumb-sky-900/60 scrollbar-track-transparent">
+            <div className={`${terminalChrome.scrollYHidden} flex-1 rounded-xl border border-sky-500/10 bg-black/30 p-3`}>
               <ul className="space-y-0.5">
                 {!botFeedLoading && botLiveActivity.length === 0 ? (
                   <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">

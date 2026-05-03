@@ -94,7 +94,7 @@ export default function CallTapePage() {
   if (status !== "authenticated") {
     return (
       <div className="mx-auto max-w-lg px-4 py-12">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Call log</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Call Log</h1>
         <p className="mt-3 text-sm leading-relaxed text-zinc-500">Sign in with Discord to see your verified calls.</p>
         <Link href="/" className="mt-6 inline-flex text-sm font-semibold text-[color:var(--accent)] hover:underline">
           ← Back to dashboard
@@ -107,7 +107,7 @@ export default function CallTapePage() {
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
       <header className={`${terminalChrome.headerRule} pb-8 pt-2`} data-tutorial="calls.header">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Your terminal</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Call log</h1>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Call Log</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
           <span className="font-medium text-zinc-200">Your calls only</span> — not the whole server, not other
           people’s history. Each row is one call credited to <span className="font-medium text-zinc-200">your</span>{" "}

@@ -49,6 +49,8 @@ type SidebarBodyProps = {
   discordModUnread: number;
   onDiscordChatsNavClick?: () => void;
   getNavItemClass: (active: boolean) => string;
+  /** Pro/Elite selling point — full row always reads as featured, not only when active. */
+  getBotCallsNavItemClass: (active: boolean) => string;
   onNavigate?: () => void;
 };
 
@@ -65,6 +67,7 @@ function SidebarBody({
   discordModUnread,
   onDiscordChatsNavClick,
   getNavItemClass,
+  getBotCallsNavItemClass,
   onNavigate,
 }: SidebarBodyProps) {
   const pick = onNavigate
@@ -118,14 +121,59 @@ function SidebarBody({
             <span>Dashboard</span>
           </Link>
 
-          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">You</p>
+          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Markets</p>
+          <Link
+            href="/bot-calls"
+            onClick={pick}
+            data-tutorial="sidebar.nav.botCalls"
+            className={getBotCallsNavItemClass(isActive(pathname, "/bot-calls"))}
+          >
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.55)] ${
+                isActive(pathname, "/bot-calls") ? "opacity-100" : "opacity-90"
+              }`}
+              aria-hidden
+            />
+            <span>Bot Calls</span>
+          </Link>
+          <Link href="/trusted-pro" onClick={pick} data-tutorial="sidebar.nav.trustedPro" className={getNavItemClass(isActive(pathname, "/trusted-pro"))}>
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/trusted-pro") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span>Trusted Pro</span>
+          </Link>
+          <Link href="/leaderboard" onClick={pick} data-tutorial="sidebar.nav.leaderboard" className={getNavItemClass(isActive(pathname, "/leaderboard"))}>
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/leaderboard") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span>Leaderboards</span>
+          </Link>
+          <Link
+            href="/pnl-showcase"
+            onClick={pick}
+            data-tutorial="sidebar.nav.pnlShowcase"
+            className={getNavItemClass(isActive(pathname, "/pnl-showcase"))}
+          >
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/pnl-showcase") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span>PnL Showcase</span>
+          </Link>
+
+          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Workspace</p>
           <Link href="/calls" onClick={pick} data-tutorial="sidebar.nav.calls" className={getNavItemClass(isActive(pathname, "/calls"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
                 isActive(pathname, "/calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
-            <span>Call log</span>
+            <span>Call Log</span>
           </Link>
           <Link href="/performance" onClick={pick} data-tutorial="sidebar.nav.performance" className={getNavItemClass(isActive(pathname, "/performance"))}>
             <div
@@ -133,7 +181,7 @@ function SidebarBody({
                 isActive(pathname, "/performance") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
-            <span>Performance lab</span>
+            <span>Performance Lab</span>
           </Link>
           <Link href="/watchlist" onClick={pick} data-tutorial="sidebar.nav.watchlist" className={getNavItemClass(isActive(pathname, "/watchlist"))}>
             <div
@@ -152,9 +200,7 @@ function SidebarBody({
             <span>Referrals</span>
           </Link>
 
-          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
-            The Lounge
-          </p>
+          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Community</p>
           <Link
             href="/lounge/discord-chats"
             onClick={() => {
@@ -172,7 +218,7 @@ function SidebarBody({
               }`}
             />
             <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-              <span className="truncate">Discord chats</span>
+              <span className="truncate">Discord Chats</span>
               <span className="flex shrink-0 items-center gap-1">
                 {discordGeneralUnread > 0 ? (
                   <span
@@ -206,46 +252,7 @@ function SidebarBody({
                   : "opacity-0"
               }`}
             />
-            <span>Voice chats</span>
-          </Link>
-
-          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Arena</p>
-          <Link href="/bot-calls" onClick={pick} data-tutorial="sidebar.nav.botCalls" className={getNavItemClass(isActive(pathname, "/bot-calls"))}>
-            <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/bot-calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-              }`}
-            />
-            <span>Bot calls</span>
-          </Link>
-          <Link href="/trusted-pro" onClick={pick} data-tutorial="sidebar.nav.trustedPro" className={getNavItemClass(isActive(pathname, "/trusted-pro"))}>
-            <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/trusted-pro") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-              }`}
-            />
-            <span>Trusted Pro</span>
-          </Link>
-          <Link href="/leaderboard" onClick={pick} data-tutorial="sidebar.nav.leaderboard" className={getNavItemClass(isActive(pathname, "/leaderboard"))}>
-            <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/leaderboard") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-              }`}
-            />
-            <span>Leaderboards</span>
-          </Link>
-          <Link
-            href="/pnl-showcase"
-            onClick={pick}
-            data-tutorial="sidebar.nav.pnlShowcase"
-            className={getNavItemClass(isActive(pathname, "/pnl-showcase"))}
-          >
-            <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/pnl-showcase") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-              }`}
-            />
-            <span>PnL Showcase</span>
+            <span>Voice Chats</span>
           </Link>
 
           {staffNav || adminNav ? (
@@ -537,6 +544,17 @@ export function Sidebar() {
         : "text-zinc-400 hover:text-white hover:bg-zinc-900"
     }`;
 
+  const getBotCallsNavItemClass = (active: boolean) =>
+    [
+      "relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150",
+      "border border-sky-500/40 bg-sky-950/40 text-sky-100",
+      "shadow-[inset_0_1px_0_0_rgba(56,189,248,0.14)]",
+      "hover:border-sky-400/55 hover:bg-sky-950/55 hover:text-white hover:shadow-[inset_0_1px_0_0_rgba(56,189,248,0.2),0_0_14px_rgba(56,189,248,0.12)]",
+      active
+        ? "border-sky-400/70 bg-sky-950/65 text-white shadow-[inset_0_1px_0_0_rgba(56,189,248,0.22),0_0_20px_rgba(56,189,248,0.2)]"
+        : "",
+    ].join(" ");
+
   const bodyProps: SidebarBodyProps = {
     pathname,
     profileId,
@@ -550,6 +568,7 @@ export function Sidebar() {
     discordModUnread,
     onDiscordChatsNavClick: markDiscordChatsNav,
     getNavItemClass,
+    getBotCallsNavItemClass,
   };
 
   return (

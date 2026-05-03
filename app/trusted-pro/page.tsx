@@ -253,7 +253,7 @@ export default function TrustedProPage() {
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
       <header className={`${terminalChrome.headerRule} pb-8 pt-2`} data-tutorial="trustedPro.header">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-fuchsia-300/80">
-          Arena
+          Markets
         </p>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">

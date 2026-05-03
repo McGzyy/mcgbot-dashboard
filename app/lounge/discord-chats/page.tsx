@@ -67,8 +67,8 @@ export default function LoungeDiscordChatsPage() {
         aria-hidden
       />
       <header className={`relative mb-6 shrink-0 ${terminalChrome.headerRule} pb-5`}>
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--accent)]/80">The Lounge</p>
-        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Discord chats</h1>
+        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--accent)]/80">Community</p>
+        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Discord Chats</h1>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">
           Read-only view of configured channels — click a display name to open the member&apos;s dashboard profile.
         </p>
