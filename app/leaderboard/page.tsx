@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { Avatar } from "@/components/ui/avatar";
 import { formatRelativeTime } from "@/lib/modUiUtils";
 import { looksLikeDiscordSnowflake } from "@/lib/discordIdentity";
+import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { tokenChartLabel } from "@/lib/tradingViewEmbed";
 
@@ -182,6 +183,8 @@ const MOCK_LEADERS: LeaderCard[] = [
 
 type BotMilestoneRow = {
   token: string;
+  callCa: string;
+  tokenImageUrl?: string | null;
   milestone: string;
   peakMultiple: number;
   ago: string;
@@ -189,6 +192,8 @@ type BotMilestoneRow = {
 
 type LiveBotActivityRow = {
   token: string;
+  callCa: string;
+  tokenImageUrl?: string | null;
   mc: number;
   ago: string;
 };
@@ -393,6 +398,7 @@ export default function LeaderboardPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const viewerDiscordId = session?.user?.id?.trim() ?? "";
+  const { addNotification } = useNotifications();
   const { openTokenChart } = useTokenChartModal();
   const openIndivChart = useCallback(
     (row: TopCallRow) => {
@@ -405,6 +411,44 @@ export default function LeaderboardPage() {
       });
     },
     [openTokenChart]
+  );
+
+  const copyMintToClipboard = useCallback(
+    async (ca: string) => {
+      const mint = ca.trim();
+      if (!mint) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "No contract address on this row.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+          silent: true,
+        });
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(mint);
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Contract address copied to clipboard.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+          silent: true,
+        });
+      } catch {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Could not copy — allow clipboard access for this site.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+          silent: true,
+        });
+      }
+    },
+    [addNotification]
   );
   const [usersTimeframe, setUsersTimeframe] = useState<TimeframeId>("daily");
   const [userPage, setUserPage] = useState(1);
@@ -594,6 +638,12 @@ export default function LeaderboardPage() {
           if (!item || typeof item !== "object") continue;
           const o = item as Record<string, unknown>;
           const token = typeof o.token === "string" ? o.token : "—";
+          const callCaRaw = o.callCa ?? o.call_ca;
+          const callCa =
+            typeof callCaRaw === "string" ? callCaRaw.trim() : String(callCaRaw ?? "").trim();
+          const imgRaw = o.tokenImageUrl ?? o.token_image_url;
+          const tokenImageUrl =
+            typeof imgRaw === "string" && imgRaw.trim() ? imgRaw.trim().slice(0, 800) : null;
           const milestone = typeof o.milestone === "string" ? o.milestone : "2x";
           const peak =
             typeof o.peakMultiple === "number" && Number.isFinite(o.peakMultiple)
@@ -602,6 +652,8 @@ export default function LeaderboardPage() {
           const iso = typeof o.callTimeIso === "string" ? o.callTimeIso : "";
           nextM.push({
             token,
+            callCa,
+            tokenImageUrl,
             milestone,
             peakMultiple: peak,
             ago: formatRelativeTime(iso),
@@ -612,10 +664,16 @@ export default function LeaderboardPage() {
           if (!item || typeof item !== "object") continue;
           const o = item as Record<string, unknown>;
           const token = typeof o.token === "string" ? o.token : "—";
+          const callCaRaw = o.callCa ?? o.call_ca;
+          const callCa =
+            typeof callCaRaw === "string" ? callCaRaw.trim() : String(callCaRaw ?? "").trim();
+          const imgRaw = o.tokenImageUrl ?? o.token_image_url;
+          const tokenImageUrl =
+            typeof imgRaw === "string" && imgRaw.trim() ? imgRaw.trim().slice(0, 800) : null;
           const mc =
             typeof o.mc === "number" && Number.isFinite(o.mc) ? o.mc : Number(o.mc) || 0;
           const iso = typeof o.callTimeIso === "string" ? o.callTimeIso : "";
-          nextL.push({ token, mc, ago: formatRelativeTime(iso) });
+          nextL.push({ token, callCa, tokenImageUrl, mc, ago: formatRelativeTime(iso) });
         }
         setBotMilestones(nextM);
         setBotLiveActivity(nextL);
@@ -1641,24 +1699,57 @@ export default function LeaderboardPage() {
                 ) : null}
                 {botMilestones.map((row, idx) => (
                   <li
-                    key={`${row.token}-${row.milestone}-${idx}`}
+                    key={`${row.callCa || row.token}-${row.milestone}-${idx}`}
                     className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/10 bg-sky-950/10 px-3 py-1.5 transition-all duration-150 hover:bg-sky-950/35"
                   >
-                    <div className="min-w-0 flex-1 truncate text-[11px] text-zinc-200">
-                      <span className="font-semibold text-zinc-100">{row.token}</span>{" "}
-                      <span className="text-zinc-600">≥</span>{" "}
-                      <span
-                        className={[
-                          "font-semibold tabular-nums",
-                          row.milestone === "10x" ? "text-amber-300" : "text-sky-300",
-                        ].join(" ")}
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <button
+                        type="button"
+                        title="Copy contract address"
+                        onClick={() => void copyMintToClipboard(row.callCa)}
+                        className="shrink-0 rounded-lg border border-transparent p-0 transition hover:border-sky-500/25 hover:bg-sky-950/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
                       >
-                        {row.milestone.replace("x", "×")}
-                      </span>{" "}
-                      <span className="text-zinc-600">peak</span>{" "}
-                      <span className="font-semibold tabular-nums text-sky-200/90">
-                        {fmtX(row.peakMultiple)}
-                      </span>
+                        <TokenCallThumb
+                          symbol={row.token}
+                          tokenImageUrl={row.tokenImageUrl ?? null}
+                          tone="bot"
+                        />
+                      </button>
+                      <div className="min-w-0 flex-1 text-[11px] leading-snug text-zinc-200">
+                        <button
+                          type="button"
+                          title="Copy contract address"
+                          onClick={() => void copyMintToClipboard(row.callCa)}
+                          className="font-semibold text-zinc-100 hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                        >
+                          {row.token}
+                        </button>{" "}
+                        <button
+                          type="button"
+                          title="Copy contract address"
+                          onClick={() => void copyMintToClipboard(row.callCa)}
+                          className="inline text-zinc-600 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                        >
+                          <span className="text-zinc-600">≥</span>{" "}
+                          <span
+                            className={[
+                              "font-semibold tabular-nums",
+                              row.milestone === "10x" ? "text-amber-300" : "text-sky-300",
+                            ].join(" ")}
+                          >
+                            {row.milestone.replace("x", "×")}
+                          </span>{" "}
+                          <span className="text-zinc-600">peak</span>{" "}
+                        </button>
+                        <button
+                          type="button"
+                          title="Copy contract address"
+                          onClick={() => void copyMintToClipboard(row.callCa)}
+                          className="inline font-semibold tabular-nums text-sky-200/90 hover:text-sky-100 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                        >
+                          {fmtX(row.peakMultiple)}
+                        </button>
+                      </div>
                     </div>
                     <div className="shrink-0 text-right text-[10px] tabular-nums text-zinc-600">
                       {row.ago}
@@ -1703,18 +1794,49 @@ export default function LeaderboardPage() {
                 ) : null}
                 {botLiveActivity.map((row, idx) => (
                   <li
-                    key={`${row.token}-${row.ago}-${idx}`}
+                    key={`${row.callCa || row.token}-${row.ago}-${idx}`}
                     className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/10 bg-sky-950/10 px-3 py-1.5 transition-all duration-150 hover:bg-sky-950/35"
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[11px] font-semibold text-zinc-100">
-                        {row.token}
-                      </div>
-                      <div className="truncate text-[10px] text-zinc-500">
-                        McGBot called {row.token} @{" "}
-                        <span className="font-semibold tabular-nums text-sky-300">
-                          {fmtMC(row.mc)} MC
-                        </span>
+                    <div className="flex min-w-0 flex-1 items-start gap-2">
+                      <button
+                        type="button"
+                        title="Copy contract address"
+                        onClick={() => void copyMintToClipboard(row.callCa)}
+                        className="mt-0.5 shrink-0 rounded-lg border border-transparent p-0 transition hover:border-sky-500/25 hover:bg-sky-950/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                      >
+                        <TokenCallThumb
+                          symbol={row.token}
+                          tokenImageUrl={row.tokenImageUrl ?? null}
+                          tone="bot"
+                        />
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <button
+                          type="button"
+                          title="Copy contract address"
+                          onClick={() => void copyMintToClipboard(row.callCa)}
+                          className="block max-w-full truncate text-left text-[11px] font-semibold text-zinc-100 hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                        >
+                          {row.token}
+                        </button>
+                        <div className="max-w-full truncate text-[10px] text-zinc-500">
+                          <button
+                            type="button"
+                            title="Copy contract address"
+                            onClick={() => void copyMintToClipboard(row.callCa)}
+                            className="hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                          >
+                            McGBot called {row.token} @
+                          </button>{" "}
+                          <button
+                            type="button"
+                            title="Copy contract address"
+                            onClick={() => void copyMintToClipboard(row.callCa)}
+                            className="font-semibold tabular-nums text-sky-300 hover:text-sky-200 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                          >
+                            {fmtMC(row.mc)} MC
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <div className="shrink-0 text-right text-[10px] tabular-nums text-zinc-600">

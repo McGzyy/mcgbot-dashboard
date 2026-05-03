@@ -132,8 +132,15 @@ export async function GET() {
       const mc = typeof mcRaw === "number" ? mcRaw : Number(mcRaw);
       const tMs = rowCallTimeUtcMs(r);
       const callTimeIso = tMs > 0 ? new Date(tMs).toISOString() : "";
+      const caRaw = r.call_ca;
+      const callCa = typeof caRaw === "string" ? caRaw.trim() : String(caRaw ?? "").trim();
+      const imgRaw = r.token_image_url;
+      const tokenImageUrl =
+        typeof imgRaw === "string" && imgRaw.trim() ? imgRaw.trim().slice(0, 800) : null;
       return {
         token,
+        callCa,
+        tokenImageUrl,
         mc: Number.isFinite(mc) && mc > 0 ? mc : 0,
         callTimeIso,
       };
@@ -145,8 +152,15 @@ export async function GET() {
       const tMs = rowCallTimeUtcMs(r);
       const callTimeIso = tMs > 0 ? new Date(tMs).toISOString() : "";
       const tag = milestoneTag(ath);
+      const caRaw = r.call_ca;
+      const callCa = typeof caRaw === "string" ? caRaw.trim() : String(caRaw ?? "").trim();
+      const imgRaw = r.token_image_url;
+      const tokenImageUrl =
+        typeof imgRaw === "string" && imgRaw.trim() ? imgRaw.trim().slice(0, 800) : null;
       return {
         token,
+        callCa,
+        tokenImageUrl,
         milestone: tag,
         peakMultiple: ath,
         callTimeIso,
