@@ -182,8 +182,8 @@ const MOCK_LEADERS: LeaderCard[] = [
 
 type BotMilestoneRow = {
   token: string;
-  milestone: "2x" | "3x" | "5x" | "10x" | "ATH";
-  timeTo: string;
+  milestone: string;
+  peakMultiple: number;
   ago: string;
 };
 
@@ -192,22 +192,6 @@ type LiveBotActivityRow = {
   mc: number;
   ago: string;
 };
-
-const MOCK_BOT_MILESTONES: BotMilestoneRow[] = [
-  { token: "BOME", milestone: "2x", timeTo: "5m", ago: "just now" },
-  { token: "WIF", milestone: "3x", timeTo: "22m", ago: "2m ago" },
-  { token: "BONK", milestone: "ATH", timeTo: "1h", ago: "10m ago" },
-  { token: "POPCAT", milestone: "5x", timeTo: "2h", ago: "28m ago" },
-  { token: "GIGA", milestone: "10x", timeTo: "6h", ago: "1h ago" },
-];
-
-const MOCK_LIVE_BOT_ACTIVITY: LiveBotActivityRow[] = [
-  { token: "SOLX", mc: 15400, ago: "2m ago" },
-  { token: "WIF", mc: 28100, ago: "5m ago" },
-  { token: "BONK", mc: 120000, ago: "12m ago" },
-  { token: "BOME", mc: 8600, ago: "18m ago" },
-  { token: "POPCAT", mc: 44500, ago: "33m ago" },
-];
 
 function fmtX(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return "—";
@@ -445,6 +429,9 @@ export default function LeaderboardPage() {
     monthly: [],
     all: [],
   });
+  const [botFeedLoading, setBotFeedLoading] = useState(true);
+  const [botMilestones, setBotMilestones] = useState<BotMilestoneRow[]>([]);
+  const [botLiveActivity, setBotLiveActivity] = useState<LiveBotActivityRow[]>([]);
   const [spotlightLoading, setSpotlightLoading] = useState(true);
   const [spotlight, setSpotlight] = useState<{
     daily: LeaderRow | null;
@@ -573,6 +560,78 @@ export default function LeaderboardPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!viewerDiscordId) {
+      setBotMilestones([]);
+      setBotLiveActivity([]);
+      setBotFeedLoading(false);
+      return;
+    }
+    setBotFeedLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch("/api/leaderboard/bot-feed", {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          milestones?: unknown[];
+          live?: unknown[];
+        };
+        if (cancelled) return;
+        if (!res.ok || json.success !== true) {
+          setBotMilestones([]);
+          setBotLiveActivity([]);
+          return;
+        }
+        const rawM = Array.isArray(json.milestones) ? json.milestones : [];
+        const rawL = Array.isArray(json.live) ? json.live : [];
+        const nextM: BotMilestoneRow[] = [];
+        for (const item of rawM) {
+          if (!item || typeof item !== "object") continue;
+          const o = item as Record<string, unknown>;
+          const token = typeof o.token === "string" ? o.token : "—";
+          const milestone = typeof o.milestone === "string" ? o.milestone : "2x";
+          const peak =
+            typeof o.peakMultiple === "number" && Number.isFinite(o.peakMultiple)
+              ? o.peakMultiple
+              : Number(o.peakMultiple) || 0;
+          const iso = typeof o.callTimeIso === "string" ? o.callTimeIso : "";
+          nextM.push({
+            token,
+            milestone,
+            peakMultiple: peak,
+            ago: formatRelativeTime(iso),
+          });
+        }
+        const nextL: LiveBotActivityRow[] = [];
+        for (const item of rawL) {
+          if (!item || typeof item !== "object") continue;
+          const o = item as Record<string, unknown>;
+          const token = typeof o.token === "string" ? o.token : "—";
+          const mc =
+            typeof o.mc === "number" && Number.isFinite(o.mc) ? o.mc : Number(o.mc) || 0;
+          const iso = typeof o.callTimeIso === "string" ? o.callTimeIso : "";
+          nextL.push({ token, mc, ago: formatRelativeTime(iso) });
+        }
+        setBotMilestones(nextM);
+        setBotLiveActivity(nextL);
+      } catch {
+        if (!cancelled) {
+          setBotMilestones([]);
+          setBotLiveActivity([]);
+        }
+      } finally {
+        if (!cancelled) setBotFeedLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerDiscordId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1557,7 +1616,11 @@ export default function LeaderboardPage() {
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">Recent Milestone Hits</h3>
                 <p className="mt-0.5 text-xs text-sky-100/40">
-                  No bot milestones yet — this will populate once McGBot calls are flowing.
+                  {botFeedLoading
+                    ? "Loading recent bot calls…"
+                    : botMilestones.length > 0
+                      ? "Last 90 days — calls that reached at least 2× peak (Supabase snapshot)."
+                      : "No qualifying bot calls in the last 90 days, or upgrade to Pro/Elite to view bot stats here."}
                 </p>
               </div>
               <span className="shrink-0 rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-200/90">
@@ -1566,31 +1629,36 @@ export default function LeaderboardPage() {
             </div>
             <div className="flex-1 overflow-y-auto rounded-xl border border-sky-500/10 bg-black/30 p-3 scrollbar-thin scrollbar-thumb-sky-900/60 scrollbar-track-transparent">
               <ul className="space-y-0.5">
-                {([] as BotMilestoneRow[]).length === 0 ? (
+                {!botFeedLoading && botMilestones.length === 0 ? (
                   <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">
                     No entries yet
                   </li>
                 ) : null}
-                {([] as BotMilestoneRow[]).map((row, idx) => (
+                {botFeedLoading ? (
+                  <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">
+                    Loading…
+                  </li>
+                ) : null}
+                {botMilestones.map((row, idx) => (
                   <li
                     key={`${row.token}-${row.milestone}-${idx}`}
                     className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/10 bg-sky-950/10 px-3 py-1.5 transition-all duration-150 hover:bg-sky-950/35"
                   >
                     <div className="min-w-0 flex-1 truncate text-[11px] text-zinc-200">
                       <span className="font-semibold text-zinc-100">{row.token}</span>{" "}
-                      <span className="text-zinc-600">
-                        {row.milestone === "ATH" ? "reached" : "hit"}
-                      </span>{" "}
+                      <span className="text-zinc-600">≥</span>{" "}
                       <span
                         className={[
                           "font-semibold tabular-nums",
-                          row.milestone === "ATH" ? "text-amber-300" : "text-sky-300",
+                          row.milestone === "10x" ? "text-amber-300" : "text-sky-300",
                         ].join(" ")}
                       >
-                        {row.milestone}
+                        {row.milestone.replace("x", "×")}
                       </span>{" "}
-                      <span className="text-zinc-600">in</span>{" "}
-                      <span className="tabular-nums text-zinc-400">{row.timeTo}</span>
+                      <span className="text-zinc-600">peak</span>{" "}
+                      <span className="font-semibold tabular-nums text-sky-200/90">
+                        {fmtX(row.peakMultiple)}
+                      </span>
                     </div>
                     <div className="shrink-0 text-right text-[10px] tabular-nums text-zinc-600">
                       {row.ago}
@@ -1610,7 +1678,11 @@ export default function LeaderboardPage() {
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">Live Bot Activity</h3>
                 <p className="mt-0.5 text-xs text-sky-100/40">
-                  No bot activity yet — this will populate once McGBot calls are flowing.
+                  {botFeedLoading
+                    ? "Loading…"
+                    : botLiveActivity.length > 0
+                      ? "Last 90 days — most recent McGBot calls (MC at alert)."
+                      : "No recent bot calls in the last 90 days, or upgrade to Pro/Elite to view bot stats here."}
                 </p>
               </div>
               <span className="shrink-0 rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-200/90">
@@ -1619,12 +1691,17 @@ export default function LeaderboardPage() {
             </div>
             <div className="flex-1 overflow-y-auto rounded-xl border border-sky-500/10 bg-black/30 p-3 scrollbar-thin scrollbar-thumb-sky-900/60 scrollbar-track-transparent">
               <ul className="space-y-0.5">
-                {([] as LiveBotActivityRow[]).length === 0 ? (
+                {!botFeedLoading && botLiveActivity.length === 0 ? (
                   <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">
                     No entries yet
                   </li>
                 ) : null}
-                {([] as LiveBotActivityRow[]).map((row, idx) => (
+                {botFeedLoading ? (
+                  <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">
+                    Loading…
+                  </li>
+                ) : null}
+                {botLiveActivity.map((row, idx) => (
                   <li
                     key={`${row.token}-${row.ago}-${idx}`}
                     className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/10 bg-sky-950/10 px-3 py-1.5 transition-all duration-150 hover:bg-sky-950/35"

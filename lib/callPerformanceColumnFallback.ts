@@ -35,6 +35,10 @@ export const CP_TOP_CALLS_LEGACY =
 
 export const CP_TOP_CALLS_WITH_SNAPSHOT = `${CP_TOP_CALLS_LEGACY}, token_name, token_ticker, token_image_url`;
 
+/** Leaderboard bot side-panels — same snapshot shape as call tape (MC + live MC). */
+export const CP_BOT_FEED_LEGACY = CP_TAPE_LEGACY;
+export const CP_BOT_FEED_WITH_SNAPSHOT = CP_TAPE_WITH_SNAPSHOT;
+
 export async function selectCallPerformanceWithSnapshotFallback(opts: {
   run: (columns: string) => Promise<{
     data: unknown;
