@@ -114,7 +114,7 @@ export function PersistentVoiceDock() {
               className={`flex min-h-[2.25rem] flex-1 items-center justify-center rounded-xl border text-[11px] font-bold uppercase tracking-wide transition ${
                 muted
                   ? "border-amber-500/35 bg-amber-950/30 text-amber-100 hover:border-amber-400/50"
-                  : "border-white/12 bg-white/[0.04] text-zinc-100 hover:border-white/20 hover:bg-white/[0.07]"
+                  : "border-zinc-700/50 bg-zinc-900/40 text-zinc-100 hover:border-zinc-500/45 hover:bg-zinc-800/45"
               }`}
             >
               {muted ? "Unmute" : "Mute"}

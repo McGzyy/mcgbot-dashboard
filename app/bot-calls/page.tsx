@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
-import { terminalUi } from "@/lib/terminalDesignTokens";
+import { terminalChrome, terminalUi } from "@/lib/terminalDesignTokens";
 
 type TapeRow = {
   id: string;
@@ -244,7 +244,7 @@ export default function BotCallsPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
-      <header className="border-b border-white/[0.06] pb-8 pt-2" data-tutorial="botCalls.header">
+      <header className={`${terminalChrome.headerRule} pb-8 pt-2`} data-tutorial="botCalls.header">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-fuchsia-300/85">
           Scanner feed
         </p>

@@ -24,18 +24,25 @@ function PanelSkeleton() {
   );
 }
 
-export function ModQueueHomePanel() {
+type ModQueueHomePanelProps = {
+  /** `preview` = dashboard widget (short list). `full` = dedicated /moderation page (larger limit, no “open” link). */
+  mode?: "preview" | "full";
+};
+
+export function ModQueueHomePanel({ mode = "preview" }: ModQueueHomePanelProps) {
   const [data, setData] = useState<ModQueuePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [errHint, setErrHint] = useState<string | null>(null);
+  const limit = mode === "full" ? 100 : 8;
+  const listCap = mode === "full" ? 50 : 5;
 
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
     setErrHint(null);
     try {
-      const res = await fetch("/api/mod/queue?limit=8");
+      const res = await fetch(`/api/mod/queue?limit=${limit}`);
       const json = (await res.json().catch(() => ({}))) as ModQueuePayload & {
         error?: string;
         hint?: string;
@@ -68,7 +75,7 @@ export function ModQueueHomePanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [limit]);
 
   useEffect(() => {
     void load();
@@ -109,12 +116,23 @@ export function ModQueueHomePanel() {
             >
               {loading ? "…" : `${total} pending`}
             </span>
-            <Link
-              href="/moderation"
-              className="rounded-lg border border-zinc-600 bg-zinc-900/70 px-3 py-1.5 text-xs font-semibold text-zinc-100 shadow-sm transition hover:border-zinc-500 hover:bg-zinc-800"
-            >
-              Open moderation
-            </Link>
+            {mode === "full" ? (
+              <button
+                type="button"
+                onClick={() => void load()}
+                disabled={loading}
+                className="rounded-lg border border-zinc-600 bg-zinc-900/70 px-3 py-1.5 text-xs font-semibold text-zinc-100 shadow-sm transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
+              >
+                {loading ? "Refreshing…" : "Refresh"}
+              </button>
+            ) : (
+              <Link
+                href="/moderation"
+                className="rounded-lg border border-zinc-600 bg-zinc-900/70 px-3 py-1.5 text-xs font-semibold text-zinc-100 shadow-sm transition hover:border-zinc-500 hover:bg-zinc-800"
+              >
+                Open moderation
+              </Link>
+            )}
           </div>
         </div>
 
@@ -137,7 +155,7 @@ export function ModQueueHomePanel() {
                   Calls · {data?.counts.callApprovals ?? calls.length}
                 </div>
                 <ul className="mt-2 space-y-1.5">
-                  {calls.slice(0, 5).map((c) => {
+                  {calls.slice(0, listCap).map((c) => {
                     const label =
                       [c.ticker, c.tokenName].filter(Boolean).join(" · ") ||
                       shortAddr(c.contractAddress);
@@ -166,7 +184,7 @@ export function ModQueueHomePanel() {
                   Devs · {data?.counts.devSubmissions ?? devs.length}
                 </div>
                 <ul className="mt-2 space-y-1.5">
-                  {devs.slice(0, 5).map((d) => (
+                  {devs.slice(0, listCap).map((d) => (
                     <li
                       key={d.id}
                       className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800/70 bg-zinc-950/50 px-3 py-2 text-xs transition hover:border-zinc-700/80"

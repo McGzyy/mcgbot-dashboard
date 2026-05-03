@@ -108,7 +108,7 @@ function HelpPageContent() {
   }, [status, tier, tutorialTrackPick]);
 
   const helpCard =
-    "rounded-2xl border border-white/[0.07] bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-black/55 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] backdrop-blur-sm";
+    "rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm";
 
   return (
     <div className="relative mx-auto w-full max-w-6xl px-0 py-8 sm:py-10">
@@ -150,7 +150,7 @@ function HelpPageContent() {
         </div>
         <Link
           href="/"
-          className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-zinc-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-[color:var(--accent)]/35 hover:bg-white/[0.05] hover:text-white sm:self-auto"
+          className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full border border-zinc-800/70 bg-zinc-900/30 px-4 py-2.5 text-xs font-semibold text-zinc-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-[color:var(--accent)]/35 hover:bg-zinc-800/45 hover:text-white sm:self-auto"
         >
           <span className="text-[color:var(--accent)]" aria-hidden>
             ←
@@ -282,7 +282,7 @@ function HelpPageContent() {
                 </button>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-white/[0.06] pt-4 text-[11px] font-semibold text-zinc-500">
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-zinc-800/60 pt-4 text-[11px] font-semibold text-zinc-500">
                 <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">Reset</span>
                 <button
                   type="button"
@@ -366,7 +366,7 @@ function HelpPageContent() {
                 <button
                   type="button"
                   onClick={() => setBugOpen(true)}
-                  className="rounded-full border border-white/[0.1] bg-white/[0.04] px-3.5 py-2 text-xs font-semibold text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/20 hover:bg-white/[0.07]"
+                  className="rounded-full border border-zinc-700/55 bg-zinc-900/40 px-3.5 py-2 text-xs font-semibold text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-zinc-500/50 hover:bg-zinc-800/50"
                 >
                   Submit bug
                 </button>

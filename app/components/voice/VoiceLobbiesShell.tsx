@@ -138,7 +138,7 @@ export function VoiceLobbiesShell({
               </p>
               <p className="mt-1 text-lg font-semibold tracking-tight text-white">{connectedLobbyMeta.label}</p>
             </div>
-            <span className="shrink-0 rounded-full border border-white/15 bg-black/40 px-3 py-1.5 text-xs font-bold tabular-nums text-zinc-100 shadow-inner shadow-black/40">
+            <span className="shrink-0 rounded-full border border-zinc-700/50 bg-black/40 px-3 py-1.5 text-xs font-bold tabular-nums text-zinc-100 shadow-inner shadow-black/40">
               {roomMembers.length} {roomMembers.length === 1 ? "member" : "members"}
             </span>
           </div>
@@ -155,7 +155,7 @@ export function VoiceLobbiesShell({
                 value={micSelectValue}
                 onChange={(e) => void switchMic(e.target.value)}
                 disabled={micSwitchBusy || audioInputs.length === 0}
-                className="mt-1 w-full max-w-sm rounded-lg border border-white/10 bg-black/45 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition focus:border-[color:var(--accent)]/45 focus:ring-2 focus:ring-[color:var(--accent)]/25 disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-1 w-full max-w-sm rounded-lg border border-zinc-800/70 bg-black/45 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition focus:border-[color:var(--accent)]/45 focus:ring-2 focus:ring-[color:var(--accent)]/25 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {audioInputs.length === 0 ? (
                   <option value="">No microphones detected</option>
@@ -205,7 +205,7 @@ export function VoiceLobbiesShell({
                     className={`inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] shadow-sm shadow-black/30 transition-[box-shadow,background-color,border-color] duration-150 ${
                       speaking
                         ? "border-[color:var(--accent)]/55 bg-[color:var(--accent)]/15 text-zinc-100 shadow-[0_0_22px_-6px_rgba(57,255,20,0.55)] ring-2 ring-[color:var(--accent)]/35"
-                        : "border-white/10 bg-zinc-950/70 text-zinc-200"
+                        : "border-zinc-800/70 bg-zinc-950/70 text-zinc-200"
                     }`}
                     title={m.identity}
                   >
@@ -270,7 +270,7 @@ export function VoiceLobbiesShell({
                     className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tabular-nums ${
                       active
                         ? "border-[color:var(--accent)]/40 bg-black/50 text-[color:var(--accent)] shadow-[0_0_12px_-4px_rgba(57,255,20,0.4)]"
-                        : "border-white/10 bg-zinc-950/90 text-zinc-300 shadow-inner shadow-black/40"
+                        : "border-zinc-800/70 bg-zinc-950/90 text-zinc-300 shadow-inner shadow-black/40"
                     }`}
                     title="Participants in this lobby"
                   >

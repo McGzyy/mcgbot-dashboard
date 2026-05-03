@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
-import { terminalUi } from "@/lib/terminalDesignTokens";
+import { terminalChrome, terminalUi } from "@/lib/terminalDesignTokens";
 
 type TrustedProMe = {
   trustedPro: boolean;
@@ -251,7 +251,7 @@ export default function TrustedProPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
-      <header className="border-b border-white/[0.06] pb-8 pt-2" data-tutorial="trustedPro.header">
+      <header className={`${terminalChrome.headerRule} pb-8 pt-2`} data-tutorial="trustedPro.header">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-fuchsia-300/80">
           Arena
         </p>
@@ -277,7 +277,7 @@ export default function TrustedProPage() {
       </header>
 
       {canSubmit && me ? (
-        <div className="mt-6 rounded-2xl border border-white/[0.06] bg-black/20 p-4">
+        <div className="mt-6 rounded-2xl border border-zinc-800/60 bg-zinc-950/25 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-zinc-100">Your Trusted Pro stats</p>
@@ -305,7 +305,7 @@ export default function TrustedProPage() {
       ) : null}
 
       {!canSubmit ? (
-        <div className="mt-6 rounded-2xl border border-white/[0.06] bg-black/20 p-4">
+        <div className="mt-6 rounded-2xl border border-zinc-800/60 bg-zinc-950/25 p-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-zinc-100">Trusted Pro intel</p>
@@ -382,7 +382,7 @@ export default function TrustedProPage() {
           </div>
         ) : (
           calls.map((c) => (
-            <article key={c.id} className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
+            <article key={c.id} className="rounded-2xl border border-zinc-800/60 bg-zinc-950/25 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs text-zinc-500">

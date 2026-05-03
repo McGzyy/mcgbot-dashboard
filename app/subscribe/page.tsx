@@ -619,7 +619,7 @@ export default function SubscribePage() {
           <button
             type="button"
             onClick={() => void signOut({ callbackUrl: "/" })}
-            className="rounded-md px-2 py-1 text-xs font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+            className="rounded-md px-2 py-1 text-xs font-medium text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
           >
             Log out
           </button>
@@ -647,13 +647,13 @@ export default function SubscribePage() {
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs">
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-zinc-200">
+            <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-3 py-1.5 text-zinc-200">
               Discord: Connected
             </span>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-zinc-200">
+            <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-3 py-1.5 text-zinc-200">
               Server: {guildStatus === null ? "Checking…" : guildStatus ? "Member" : "Not in server"}
             </span>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-zinc-200">
+            <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-3 py-1.5 text-zinc-200">
               Access: {active || exempt ? "Active" : "Not active"}
               {periodEnd ? <span className="text-zinc-400"> · until {formatExpiry(periodEnd)}</span> : null}
             </span>
@@ -661,7 +661,7 @@ export default function SubscribePage() {
         </div>
 
         <section className="mx-auto w-full max-w-3xl">
-          <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.075),rgba(0,0,0,0.30))] p-6 shadow-[0_30px_140px_rgba(0,0,0,0.65)] sm:p-7">
+          <div className="rounded-3xl border border-zinc-800/80 bg-[linear-gradient(180deg,rgba(24,24,27,0.65),rgba(0,0,0,0.35))] p-6 shadow-[0_30px_140px_rgba(0,0,0,0.65)] sm:p-7">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
@@ -745,7 +745,7 @@ export default function SubscribePage() {
                             </span>
                           ) : null}
                           {showDiscount ? (
-                            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200">
+                            <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200">
                               Save {discountPercent}%
                             </span>
                           ) : null}
@@ -795,7 +795,7 @@ export default function SubscribePage() {
                     (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin)
                   }
                   onClick={() => void startTestCheckout()}
-                  className="h-11 w-full rounded-2xl border border-white/15 bg-white/5 px-6 text-sm font-semibold text-zinc-200 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-11 w-full rounded-2xl border border-zinc-700/55 bg-zinc-900/40 px-6 text-sm font-semibold text-zinc-200 transition hover:bg-zinc-800/50 focus:outline-none focus:ring-2 focus:ring-zinc-600/30 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {testCheckoutBusy ? "Redirecting…" : "$1 Stripe test checkout"}
                 </button>
@@ -805,7 +805,7 @@ export default function SubscribePage() {
                 Secured by Stripe — you&apos;ll finish payment on their hosted checkout.
               </p>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/60 pt-4">
                 <button
                   type="button"
                   onClick={() => {
@@ -819,7 +819,7 @@ export default function SubscribePage() {
               </div>
 
               {showComplimentary ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="rounded-2xl border border-zinc-800/70 bg-zinc-900/30 p-4">
                   <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
                     Complimentary code
                   </label>
@@ -833,13 +833,13 @@ export default function SubscribePage() {
                       value={complimentaryCode}
                       onChange={(e) => setComplimentaryCode(e.target.value)}
                       placeholder="Enter code"
-                      className="h-11 w-full min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 text-sm text-zinc-100 outline-none ring-[color:var(--accent)]/15 transition placeholder:text-zinc-500 focus:border-white/15 focus:ring-2"
+                      className="h-11 w-full min-w-0 flex-1 rounded-xl border border-zinc-800/70 bg-black/30 px-4 text-sm text-zinc-100 outline-none ring-[color:var(--accent)]/15 transition placeholder:text-zinc-500 focus:border-zinc-600/70 focus:ring-2"
                     />
                     <button
                       type="button"
                       disabled={redeemBusy || !selectedPlan}
                       onClick={() => void redeemComplimentary()}
-                      className="h-11 shrink-0 rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-semibold text-zinc-100 transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="h-11 shrink-0 rounded-xl border border-zinc-700/55 bg-zinc-800/50 px-4 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-700/55 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {redeemBusy ? "Applying…" : "Apply to selected plan"}
                     </button>
@@ -856,7 +856,7 @@ export default function SubscribePage() {
         {pollNote ? <p className="text-sm text-[color:var(--accent)]">{pollNote}</p> : null}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-5 text-xs leading-relaxed text-zinc-500">
+          <section className="rounded-2xl border border-zinc-800/70 bg-zinc-900/30 p-5 text-xs leading-relaxed text-zinc-500">
             <p className="font-semibold text-zinc-200">What you get</p>
             <ul className="mt-2 space-y-1.5 text-zinc-400">
               <li>Full dashboard access (premium tools & views)</li>
@@ -864,7 +864,7 @@ export default function SubscribePage() {
               <li>Activation after checkout; renewals update access via Stripe webhooks</li>
             </ul>
           </section>
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-5 text-xs leading-relaxed text-zinc-500">
+          <section className="rounded-2xl border border-zinc-800/70 bg-zinc-900/30 p-5 text-xs leading-relaxed text-zinc-500">
             <p className="font-semibold text-zinc-200">Refunds</p>
             <p className="mt-2">
               For refunds, contact a moderator in the McGBot Discord. A short automated refund window after purchase is
