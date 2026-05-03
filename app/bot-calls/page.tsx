@@ -66,6 +66,8 @@ export default function BotCallsPage() {
   const [reportDetails, setReportDetails] = useState("");
   const [reportEvidence, setReportEvidence] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [canHideCalls, setCanHideCalls] = useState(false);
+  const [hidingCallCa, setHidingCallCa] = useState<string | null>(null);
 
   const submitCallReport = useCallback(async () => {
     if (!reportCall?.id) return;
@@ -199,9 +201,85 @@ export default function BotCallsPage() {
     }
   }, [offset, query, status, timeWindow]);
 
+  const hideBotCall = useCallback(
+    async (callCa: string) => {
+      const ca = callCa.trim();
+      if (!ca || hidingCallCa) return;
+      setHidingCallCa(ca);
+      try {
+        const res = await fetch("/api/bot/call-hide", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ callCa: ca, reason: "dashboard_bot_calls" }),
+        });
+        const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+        if (!res.ok || json.success !== true) {
+          addNotification({
+            id: crypto.randomUUID(),
+            text:
+              typeof json.error === "string"
+                ? json.error
+                : res.status === 403
+                  ? "You don’t have permission to hide calls (moderators only)."
+                  : `Hide failed (${res.status}).`,
+            type: "call",
+            createdAt: Date.now(),
+            priority: "low",
+          });
+          return;
+        }
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Call hidden from the dashboard and public stats (mint stays tracked on the bot).",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "medium",
+        });
+        await load();
+      } catch {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Could not reach the bot to hide this call.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      } finally {
+        setHidingCallCa(null);
+      }
+    },
+    [addNotification, hidingCallCa, load]
+  );
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setCanHideCalls(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/bot/hide-capability", {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; canHide?: boolean };
+        if (!cancelled && res.ok && json.ok === true && json.canHide === true) {
+          setCanHideCalls(true);
+        }
+      } catch {
+        if (!cancelled) setCanHideCalls(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   useEffect(() => {
     setOffset(0);
@@ -426,7 +504,17 @@ export default function BotCallsPage() {
                           Dex
                         </a>
                       ) : null}
-                      {r.messageUrl ? (
+                      {canHideCalls && r.callCa ? (
+                        <button
+                          type="button"
+                          disabled={hidingCallCa === r.callCa}
+                          onClick={() => void hideBotCall(r.callCa)}
+                          className="text-rose-300/90 hover:text-rose-200 disabled:opacity-50"
+                          title="Hide from dashboard and stats (same as !hidecall)"
+                        >
+                          {hidingCallCa === r.callCa ? "Hiding…" : "Hide"}
+                        </button>
+                      ) : r.messageUrl ? (
                         <a
                           href={r.messageUrl}
                           target="_blank"
@@ -585,7 +673,17 @@ export default function BotCallsPage() {
                               Dex
                             </a>
                           ) : null}
-                          {r.messageUrl ? (
+                          {canHideCalls && r.callCa ? (
+                            <button
+                              type="button"
+                              disabled={hidingCallCa === r.callCa}
+                              onClick={() => void hideBotCall(r.callCa)}
+                              className="text-xs font-semibold text-rose-300/90 hover:text-rose-200 disabled:opacity-50"
+                              title="Hide from dashboard and stats (same as !hidecall)"
+                            >
+                              {hidingCallCa === r.callCa ? "Hiding…" : "Hide"}
+                            </button>
+                          ) : r.messageUrl ? (
                             <a
                               href={r.messageUrl}
                               target="_blank"
