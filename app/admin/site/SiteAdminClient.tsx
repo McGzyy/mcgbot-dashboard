@@ -450,9 +450,9 @@ export function SiteAdminClient() {
             <>
               <div id="stripe-test-checkout" className="scroll-mt-28">
                 <SettingsSection
-                  kicker="Stripe"
-                  title="Test checkout ($1 button on /membership)"
-                  description="Separate recurring Price in Stripe (e.g. a $1/mo test product). When enabled, members see a second checkout button on the membership page. Run the SQL migration for stripe_test_* columns if saves fail."
+                  kicker="Membership"
+                  title="Floating test checkouts ($1 Stripe + $1 SOL)"
+                  description="Separate Stripe Price (e.g. $1/mo test product) and the existing SOL test invoice path. When enabled, a fixed panel appears on /membership (top-right) with both $1 buttons so the main layout stays compact. Run the SQL migration for stripe_test_* columns if saves fail."
                 >
                   <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
                     <input
@@ -464,11 +464,11 @@ export function SiteAdminClient() {
                       }
                     />
                     <span>
-                      <span className="block text-sm font-medium text-white">Show Stripe test checkout on /membership</span>
+                      <span className="block text-sm font-medium text-white">Show $1 test panel on /membership</span>
                       <span className="mt-0.5 block text-xs text-zinc-500">
-                        Same Discord guild and maintenance rules as the main Pay with Stripe button. The Price ID must
-                        match your Stripe secret key mode (test vs live). Promotion codes are disabled on test
-                        checkout.
+                        Same Discord sign-in, server membership, paused signups, and maintenance rules as live checkout.
+                        The Stripe Price ID must match your secret key mode (test vs live). Promotion codes are disabled
+                        on Stripe test checkout.
                       </span>
                     </span>
                   </label>

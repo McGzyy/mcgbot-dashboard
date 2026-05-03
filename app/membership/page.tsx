@@ -7,7 +7,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { DISCORD_SERVER_INVITE_URL } from "@/lib/discordInvite";
-import { MembershipSolCheckout } from "@/app/membership/MembershipSolCheckout";
+import {
+  MembershipSolCheckout,
+  MembershipSolPayNote,
+} from "@/app/membership/MembershipSolCheckout";
+import { MembershipTestToolsFloat } from "@/app/membership/MembershipTestToolsFloat";
 
 type Plan = {
   slug: string;
@@ -523,6 +527,17 @@ export default function MembershipPage() {
 
   return (
     <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
+      <MembershipTestToolsFloat
+        enabled={Boolean(siteFlags?.stripe_test_checkout_enabled)}
+        stripeTestDisabled={testCheckoutBusy || busy || !selectedPlan || !checkoutAllowed}
+        stripeTestBusy={testCheckoutBusy}
+        onStripeTest={() => void startTestCheckout()}
+        solTestDisabled={!checkoutAllowed}
+        onSolActivated={async () => {
+          setPollNote("Payment confirmed. Activating your session…");
+          await update({ refreshSubscription: true });
+        }}
+      />
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-52 left-1/2 h-[620px] w-[980px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.18),transparent_62%)] blur-3xl" />
         <div className="absolute -bottom-72 right-[-14rem] h-[620px] w-[620px] rounded-full bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.12),transparent_62%)] blur-3xl" />
@@ -782,40 +797,27 @@ export default function MembershipPage() {
             )}
 
             <div className="mt-6 flex flex-col gap-3">
-              <button
-                type="button"
-                disabled={
-                  busy ||
-                  testCheckoutBusy ||
-                  !selectedPlan ||
-                  (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin)
-                }
-                onClick={() => void startCheckout()}
-                className="h-12 w-full rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_24px_80px_rgba(34,197,94,0.22)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {busy ? "Redirecting…" : siteFlags?.subscribe_button_label?.trim() || "Pay with Stripe"}
-              </button>
-
-              {siteFlags?.stripe_test_checkout_enabled ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-stretch">
                 <button
                   type="button"
-                  disabled={testCheckoutBusy || busy || !selectedPlan || !checkoutAllowed}
-                  onClick={() => void startTestCheckout()}
-                  className="h-11 w-full rounded-2xl border border-zinc-700/55 bg-zinc-900/40 px-6 text-sm font-semibold text-zinc-200 transition hover:bg-zinc-800/50 focus:outline-none focus:ring-2 focus:ring-zinc-600/30 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={busy || testCheckoutBusy || !selectedPlan || !checkoutAllowed}
+                  onClick={() => void startCheckout()}
+                  className="h-12 w-full rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_24px_80px_rgba(34,197,94,0.22)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {testCheckoutBusy ? "Redirecting…" : "$1 Stripe test checkout"}
+                  {busy ? "Redirecting…" : siteFlags?.subscribe_button_label?.trim() || "Pay with Stripe"}
                 </button>
-              ) : null}
+                <MembershipSolCheckout
+                  compactPrimary
+                  disabled={!checkoutAllowed}
+                  selectedPlanSlug={selectedSlug}
+                  onActivated={async () => {
+                    setPollNote("Payment confirmed. Activating your session…");
+                    await update({ refreshSubscription: true });
+                  }}
+                />
+              </div>
 
-              <MembershipSolCheckout
-                disabled={!checkoutAllowed}
-                selectedPlanSlug={selectedSlug}
-                testSolEnabled={Boolean(siteFlags?.stripe_test_checkout_enabled)}
-                onActivated={async () => {
-                  setPollNote("Payment confirmed. Activating your session…");
-                  await update({ refreshSubscription: true });
-                }}
-              />
+              <MembershipSolPayNote />
 
               <p className="text-center text-xs text-zinc-500">
                 Stripe checkout is hosted by Stripe. SOL checkout is signed in your wallet on Solana.
