@@ -59,46 +59,6 @@ function billingCadenceLabel(durationDays: number): string {
   return "Recurring in Stripe";
 }
 
-/** Signed in but not in guild: send user to Discord so they can join, then return to membership checkout. */
-function SubscribeDiscordGuildRedirect() {
-  useEffect(() => {
-    window.location.replace(DISCORD_SERVER_INVITE_URL);
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
-      <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <span className="relative block h-9 w-9">
-            <Image src="/brand/mcgbot-logo-v2.png" alt="McGBot" fill className="object-contain" sizes="36px" />
-          </span>
-          McGBot
-        </Link>
-        <button
-          type="button"
-          onClick={() => void signOut({ callbackUrl: "/" })}
-          className="text-xs font-medium text-zinc-500 hover:text-zinc-300"
-        >
-          Log out
-        </button>
-      </header>
-      <main className="mx-auto flex max-w-lg flex-col items-center gap-6 px-6 py-16 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Join the McGBot Discord</h1>
-        <p className="text-sm leading-relaxed text-zinc-400">
-          Checkout requires membership in the server. You are being redirected to the invite link now. After you join,
-          come back here to finish membership checkout.
-        </p>
-        <a
-          href={DISCORD_SERVER_INVITE_URL}
-          className="rounded-lg bg-[#5865F2] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4752c4]"
-        >
-          Open Discord invite
-        </a>
-      </main>
-    </div>
-  );
-}
-
 export default function MembershipPage() {
   const { data: session, status, update } = useSession();
   const searchParams = useSearchParams();
@@ -494,52 +454,6 @@ export default function MembershipPage() {
     );
   }
 
-  if (status !== "authenticated" || !session?.user?.id) {
-    return (
-      <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
-        <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
-          <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-            <span className="relative block h-9 w-9">
-              <Image src="/brand/mcgbot-logo-v2.png" alt="McGBot" fill className="object-contain" sizes="36px" />
-            </span>
-            McGBot
-          </Link>
-        </header>
-        <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-16">
-          <h1 className="text-2xl font-semibold tracking-tight">Membership</h1>
-          {siteFlags?.paywall_subtitle ? (
-            <p className="text-sm leading-relaxed text-zinc-300">{siteFlags.paywall_subtitle}</p>
-          ) : null}
-          <p className="text-sm leading-relaxed text-zinc-400">
-            Sign in with Discord to continue. You need to be in the McGBot Discord server before checkout — you will be
-            sent to the invite after you sign in if you are not a member yet.
-          </p>
-          <button
-            type="button"
-            onClick={() =>
-              void signIn("discord", {
-                callbackUrl: referralReferrerId
-                  ? `/membership?ref=${encodeURIComponent(referralReferrerId)}`
-                  : "/membership",
-              })
-            }
-            className="rounded-lg bg-[#5865F2] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4752c4]"
-          >
-            Login with Discord
-          </button>
-          <a
-            href={resolveDiscordInviteUrl(siteFlags)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex w-fit text-sm font-medium text-[#949cf7] underline-offset-4 hover:underline"
-          >
-            Join the McGBot Discord
-          </a>
-        </main>
-      </div>
-    );
-  }
-
   if (hasAccess) {
     return (
       <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
@@ -592,9 +506,20 @@ export default function MembershipPage() {
     );
   }
 
-  if (guildStatus === false) {
-    return <SubscribeDiscordGuildRedirect />;
-  }
+  const isLoggedIn = Boolean(status === "authenticated" && session?.user?.id);
+  const guildLoading = isLoggedIn && guildStatus === null;
+  const guildLocked = isLoggedIn && guildStatus === false;
+  const anonPreview = !isLoggedIn;
+  const planCardsVisuallyLocked = anonPreview || guildLocked;
+  const checkoutAllowed =
+    isLoggedIn &&
+    guildStatus === true &&
+    !(Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin) &&
+    !(Boolean(siteFlags?.maintenance_enabled) && !isDashboardAdmin);
+
+  const membershipCallbackUrl = referralReferrerId
+    ? `/membership?ref=${encodeURIComponent(referralReferrerId)}`
+    : "/membership";
 
   return (
     <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
@@ -617,13 +542,23 @@ export default function MembershipPage() {
             </span>
             McGBot
           </Link>
-          <button
-            type="button"
-            onClick={() => void signOut({ callbackUrl: "/" })}
-            className="rounded-md px-2 py-1 text-xs font-medium text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
-          >
-            Log out
-          </button>
+          {isLoggedIn ? (
+            <button
+              type="button"
+              onClick={() => void signOut({ callbackUrl: "/" })}
+              className="rounded-md px-2 py-1 text-xs font-medium text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
+            >
+              Log out
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void signIn("discord", { callbackUrl: membershipCallbackUrl })}
+              className="rounded-lg bg-[#5865F2] px-3 py-1.5 text-xs font-bold text-white shadow-[0_0_20px_rgba(88,101,242,0.35)] transition hover:bg-[#4752c4]"
+            >
+              Continue with Discord
+            </button>
+          )}
         </div>
       </header>
 
@@ -649,18 +584,84 @@ export default function MembershipPage() {
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs">
-            <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-3 py-1.5 text-zinc-200">
-              Discord: Connected
+            <span
+              className={`rounded-full border px-3 py-1.5 ${
+                isLoggedIn
+                  ? "border-zinc-800/70 bg-zinc-900/35 text-zinc-200"
+                  : "border-[#5865F2]/40 bg-[#5865F2]/10 text-zinc-100 ring-1 ring-[#5865F2]/25"
+              }`}
+            >
+              Discord: {isLoggedIn ? "Connected" : "Not signed in"}
             </span>
             <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-3 py-1.5 text-zinc-200">
-              Server: {guildStatus === null ? "Checking…" : guildStatus ? "Member" : "Not in server"}
+              Server:{" "}
+              {!isLoggedIn
+                ? "—"
+                : guildLoading
+                  ? "Checking…"
+                  : guildStatus
+                    ? "Member"
+                    : "Not joined"}
             </span>
             <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-3 py-1.5 text-zinc-200">
-              Access: {active || exempt ? "Active" : "Not active"}
-              {periodEnd ? <span className="text-zinc-400"> · until {formatExpiry(periodEnd)}</span> : null}
+              Access:{" "}
+              {!isLoggedIn
+                ? "Sign in to purchase"
+                : active || exempt
+                  ? "Active"
+                  : "Not active"}
+              {periodEnd && isLoggedIn ? (
+                <span className="text-zinc-400"> · until {formatExpiry(periodEnd)}</span>
+              ) : null}
             </span>
           </div>
         </div>
+
+        {anonPreview ? (
+          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[#5865F2]/45 bg-[linear-gradient(135deg,rgba(88,101,242,0.18),rgba(24,24,27,0.85))] p-5 shadow-[0_20px_60px_rgba(88,101,242,0.12)] sm:p-6">
+            <p className="text-sm font-semibold text-zinc-50">You&apos;re viewing plans — checkout is locked</p>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+              Tiers below are a preview only (greyed out). To purchase you must{" "}
+              <span className="font-medium text-zinc-100">sign in with Discord</span> and{" "}
+              <span className="font-medium text-zinc-100">join the McGBot server</span> before pay buttons unlock.
+            </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <button
+                type="button"
+                onClick={() => void signIn("discord", { callbackUrl: membershipCallbackUrl })}
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-[#5865F2] px-5 text-sm font-bold text-white shadow-[0_0_28px_rgba(88,101,242,0.45)] transition hover:bg-[#4752c4]"
+              >
+                Continue with Discord
+              </button>
+              <a
+                href={resolveDiscordInviteUrl(siteFlags)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-center text-sm font-semibold text-[#b4b9ff] underline-offset-4 hover:underline sm:text-left"
+              >
+                Open server invite (optional preview)
+              </a>
+            </div>
+          </div>
+        ) : null}
+
+        {isLoggedIn && guildLocked ? (
+          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 sm:p-6">
+            <p className="text-sm font-semibold text-amber-50">Join the Discord server to unlock checkout</p>
+            <p className="mt-2 text-sm leading-relaxed text-amber-100/85">
+              Your Discord account is linked, but you are not detected in the server yet. After you join, refresh this
+              page if buttons stay disabled.
+            </p>
+            <a
+              href={resolveDiscordInviteUrl(siteFlags)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-amber-400 px-5 text-sm font-bold text-zinc-950 transition hover:bg-amber-300"
+            >
+              Join Discord server
+            </a>
+          </div>
+        ) : null}
 
         <section className="mx-auto w-full max-w-3xl">
           <div className="rounded-3xl border border-zinc-800/80 bg-[linear-gradient(180deg,rgba(24,24,27,0.65),rgba(0,0,0,0.35))] p-6 shadow-[0_30px_140px_rgba(0,0,0,0.65)] sm:p-7">
@@ -710,7 +711,13 @@ export default function MembershipPage() {
             ) : plans == null ? (
               <p className="text-sm text-zinc-500">Loading plans…</p>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div
+                className={
+                  planCardsVisuallyLocked
+                    ? "pointer-events-none select-none grid gap-4 opacity-[0.5] grayscale sm:grid-cols-3"
+                    : "grid gap-4 sm:grid-cols-3"
+                }
+              >
                 {plans.map((p) => {
                   const sel = p.slug === selectedSlug;
                   const featured = featuredSlug && p.slug === featuredSlug;
@@ -792,11 +799,7 @@ export default function MembershipPage() {
               {siteFlags?.stripe_test_checkout_enabled ? (
                 <button
                   type="button"
-                  disabled={
-                    testCheckoutBusy ||
-                    busy ||
-                    (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin)
-                  }
+                  disabled={testCheckoutBusy || busy || !selectedPlan || !checkoutAllowed}
                   onClick={() => void startTestCheckout()}
                   className="h-11 w-full rounded-2xl border border-zinc-700/55 bg-zinc-900/40 px-6 text-sm font-semibold text-zinc-200 transition hover:bg-zinc-800/50 focus:outline-none focus:ring-2 focus:ring-zinc-600/30 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -805,10 +808,7 @@ export default function MembershipPage() {
               ) : null}
 
               <MembershipSolCheckout
-                disabled={
-                  (Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin) ||
-                  (Boolean(siteFlags?.maintenance_enabled) && !isDashboardAdmin)
-                }
+                disabled={!checkoutAllowed}
                 selectedPlanSlug={selectedSlug}
                 testSolEnabled={Boolean(siteFlags?.stripe_test_checkout_enabled)}
                 onActivated={async () => {
@@ -853,7 +853,7 @@ export default function MembershipPage() {
                     />
                     <button
                       type="button"
-                      disabled={redeemBusy || !selectedPlan}
+                      disabled={redeemBusy || !selectedPlan || !checkoutAllowed}
                       onClick={() => void redeemComplimentary()}
                       className="h-11 shrink-0 rounded-xl border border-zinc-700/55 bg-zinc-800/50 px-4 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-700/55 disabled:cursor-not-allowed disabled:opacity-50"
                     >
