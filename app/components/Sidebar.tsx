@@ -286,14 +286,29 @@ function SidebarBody({
               ) : null}
 
               {adminNav ? (
-                <Link href="/admin" onClick={pick} data-tutorial="sidebar.nav.admin" className={getNavItemClass(isActive(pathname, "/admin"))}>
-                  <div
-                    className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                      isActive(pathname, "/admin") ? `${tierNavBarClass("admin")} opacity-100` : "opacity-0"
-                    }`}
-                  />
-                  <span>Admin</span>
-                </Link>
+                <>
+                  <Link href="/admin" onClick={pick} data-tutorial="sidebar.nav.admin" className={getNavItemClass(isActive(pathname, "/admin"))}>
+                    <div
+                      className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                        isActive(pathname, "/admin") ? `${tierNavBarClass("admin")} opacity-100` : "opacity-0"
+                      }`}
+                    />
+                    <span>Admin</span>
+                  </Link>
+                  <Link
+                    href="/admin/treasury"
+                    onClick={pick}
+                    data-tutorial="sidebar.nav.treasury"
+                    className={getNavItemClass(isActive(pathname, "/admin/treasury"))}
+                  >
+                    <div
+                      className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                        isActive(pathname, "/admin/treasury") ? `${tierNavBarClass("admin")} opacity-100` : "opacity-0"
+                      }`}
+                    />
+                    <span>Treasury</span>
+                  </Link>
+                </>
               ) : null}
             </>
           ) : null}

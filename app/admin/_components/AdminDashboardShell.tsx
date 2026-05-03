@@ -23,6 +23,16 @@ const NAV: {
     ),
   },
   {
+    href: "/admin/treasury",
+    label: "Treasury",
+    description: "Balances, revenue, activity",
+    icon: (a) => (
+      <svg className={`h-4 w-4 ${a ? adminChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75a.75.75 0 01-.75.75H3.75a.75.75 0 01-.75-.75V6h15zm-18 10.5v.75a.75.75 0 00.75.75h18a.75.75 0 00.75-.75v-.75M6 10.5h.008v.008H6V10.5zm0 3h.008v.008H6V13.5zm3-3h.008v.008H9V10.5zm0 3h.008v.008H9V13.5zm3-3h.008v.008H12V10.5zm0 3h.008v.008H12V13.5zm3-3h.008v.008H15V10.5zm0 3h.008v.008H15V13.5z" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/subscription-exempt",
     label: "Subscription access",
     description: "Bypass list & env",

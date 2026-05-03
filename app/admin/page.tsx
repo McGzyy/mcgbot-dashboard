@@ -48,6 +48,13 @@ export default function AdminOverviewPage() {
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <OverviewCard
+          href="/admin/treasury"
+          title="Treasury hub"
+          subtitle="SOL treasuries, Stripe balance, membership mix, SOL invoice log, tips, and voucher pool."
+          hint="Read · RPC + Stripe + Supabase"
+          data-tutorial="admin.card.treasury"
+        />
+        <OverviewCard
           href="/admin/subscription-exempt"
           title="Subscription access"
           subtitle="Database bypass list and env-based exempt Discord IDs."
