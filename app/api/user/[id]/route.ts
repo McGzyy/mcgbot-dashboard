@@ -1,4 +1,8 @@
-import { createClient, type PostgrestError } from "@supabase/supabase-js";
+import {
+  createClient,
+  type PostgrestError,
+  type SupabaseClient,
+} from "@supabase/supabase-js";
 import {
   CP_PROFILE_LEGACY,
   CP_PROFILE_WITH_SNAPSHOT,
@@ -105,7 +109,7 @@ const USERS_PROFILE_SELECT_MIN_TRUST =
   "id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, created_at, profile_visibility, discord_display_name, discord_avatar_url";
 
 async function fetchUsersProfileRow(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   discordId: string
 ): Promise<{ data: unknown; error: PostgrestError | null }> {
   let res = await supabase
