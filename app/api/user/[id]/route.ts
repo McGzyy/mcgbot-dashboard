@@ -1,7 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type PostgrestError } from "@supabase/supabase-js";
 import {
   CP_PROFILE_LEGACY,
   CP_PROFILE_WITH_SNAPSHOT,
+  isMissingColumnPostgrestError,
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
 import {
@@ -94,6 +95,42 @@ function computeCallDistribution(rows: Record<string, unknown>[]): {
   return { under1, oneToTwo, twoToFive, fivePlus, total };
 }
 
+const USERS_PROFILE_SELECT_FULL =
+  "id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, trusted_pro, is_top_caller, created_at, profile_visibility, discord_display_name, discord_avatar_url";
+
+const USERS_PROFILE_SELECT_NO_TOP_CALLER =
+  "id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, trusted_pro, created_at, profile_visibility, discord_display_name, discord_avatar_url";
+
+const USERS_PROFILE_SELECT_MIN_TRUST =
+  "id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, created_at, profile_visibility, discord_display_name, discord_avatar_url";
+
+async function fetchUsersProfileRow(
+  supabase: ReturnType<typeof createClient>,
+  discordId: string
+): Promise<{ data: unknown; error: PostgrestError | null }> {
+  let res = await supabase
+    .from("users")
+    .select(USERS_PROFILE_SELECT_FULL)
+    .eq("discord_id", discordId)
+    .maybeSingle();
+  if (!res.error) return res;
+  if (!isMissingColumnPostgrestError(res.error)) return res;
+
+  res = await supabase
+    .from("users")
+    .select(USERS_PROFILE_SELECT_NO_TOP_CALLER)
+    .eq("discord_id", discordId)
+    .maybeSingle();
+  if (!res.error) return res;
+  if (!isMissingColumnPostgrestError(res.error)) return res;
+
+  return supabase
+    .from("users")
+    .select(USERS_PROFILE_SELECT_MIN_TRUST)
+    .eq("discord_id", discordId)
+    .maybeSingle();
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> }
@@ -144,13 +181,7 @@ export async function GET(
     const { data, error } = perfResult;
 
     const [userRowResult, cutoverMs] = await Promise.all([
-      supabase
-        .from("users")
-        .select(
-          "id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, trusted_pro, is_top_caller, created_at, profile_visibility, discord_display_name, discord_avatar_url"
-        )
-        .eq("discord_id", discordId)
-        .maybeSingle(),
+      fetchUsersProfileRow(supabase, discordId),
       getStatsCutoverUtcMs(),
     ]);
 
@@ -164,6 +195,7 @@ export async function GET(
 
     if (userRowResult.error) {
       console.error("[user API] GET users row:", userRowResult.error);
+      // Non-fatal: profile can render from call_performance identity; flags default false.
     }
 
     const userRow = userRowResult.data as
@@ -214,7 +246,7 @@ export async function GET(
     const keyStats = computeKeyStats(statsRows);
     const callDistribution = computeCallDistribution(statsRows);
 
-    return Response.json({
+    const payload = {
       discordId,
       /** Latest handle-style name from call rows (Discord username / legacy). */
       username: handleUsername,
@@ -265,7 +297,17 @@ export async function GET(
       keyStats,
       callDistribution,
       recentCalls,
-    });
+    };
+
+    return new Response(
+      JSON.stringify(payload, (_key, val) =>
+        typeof val === "bigint" ? val.toString() : val
+      ),
+      {
+        status: 200,
+        headers: { "content-type": "application/json; charset=utf-8" },
+      }
+    );
   } catch (e) {
     console.error("[user API] GET:", e);
     return Response.json(

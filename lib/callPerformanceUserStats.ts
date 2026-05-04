@@ -136,6 +136,19 @@ export function computeActiveDaysStreakUtc(
   return streak;
 }
 
+/**
+ * `call_time` from Postgres can surface as bigint in some runtimes; `Response.json` throws on bigint.
+ */
+function callTimeForRecentCallJson(time: unknown): unknown {
+  if (time == null) return time;
+  if (typeof time === "bigint") return time.toString();
+  if (typeof time === "number" && Number.isFinite(time)) return time;
+  if (typeof time === "string") return time;
+  if (time instanceof Date && !Number.isNaN(time.getTime())) return time.toISOString();
+  const n = Number(time);
+  return Number.isFinite(n) ? n : String(time);
+}
+
 export function mapCallPerformanceRowToRecentCall(
   row: Record<string, unknown>
 ): RecentCallDto {
@@ -170,7 +183,7 @@ export function mapCallPerformanceRowToRecentCall(
     ...(Number.isFinite(liveMultiple) && liveMultiple > 0
       ? { liveMultiple }
       : {}),
-    time: row.call_time,
+    time: callTimeForRecentCallJson(row.call_time),
     excludedFromStats: (row as any).excluded_from_stats === true,
     tokenName: typeof tn === "string" && tn.trim() ? tn.trim() : null,
     tokenTicker: typeof tt === "string" && tt.trim() ? tt.trim() : null,
