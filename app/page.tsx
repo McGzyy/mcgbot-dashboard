@@ -2901,8 +2901,6 @@ export default function Home() {
   const lastSeenActivityKeysRef = useRef(new Set<string>());
   /** Avoid rank / calls “skeleton flash” on `homeDataRefreshNonce` background refetch. */
   const leaderboardRankBootstrapUserRef = useRef<string | null>(null);
-  const recentCallsRef = useRef<RecentCallRow[]>(recentCalls);
-  recentCallsRef.current = recentCalls;
   /** Latest full `mode=all` activity — used for feed filters + notification diffing. */
   const activityAllSnapshotRef = useRef<ActivityItem[]>([]);
   const [copied, setCopied] = useState(false);
@@ -2910,6 +2908,8 @@ export default function Home() {
   const [statsRefreshing, setStatsRefreshing] = useState(false);
   const [stats, setStats] = useState<MeStats | null>(null);
   const [recentCalls, setRecentCalls] = useState<RecentCallRow[]>([]);
+  const recentCallsRef = useRef<RecentCallRow[]>([]);
+  recentCallsRef.current = recentCalls;
   const [callsLoading, setCallsLoading] = useState(true);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
