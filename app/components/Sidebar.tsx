@@ -135,7 +135,7 @@ function SidebarBody({
               className={
                 isActive(pathname, "/bot-calls")
                   ? "min-w-0"
-                  : "min-w-0 text-zinc-300 [text-shadow:0_0_10px_rgba(56,189,248,0.55),0_0_22px_rgba(56,189,248,0.35),0_0_36px_rgba(56,189,248,0.2)]"
+                  : "min-w-0 text-zinc-300 [text-shadow:0_0_14px_rgba(56,189,248,0.55),0_0_30px_rgba(56,189,248,0.38),0_0_52px_rgba(56,189,248,0.22)]"
               }
             >
               Bot Calls
