@@ -49,8 +49,6 @@ type SidebarBodyProps = {
   discordModUnread: number;
   onDiscordChatsNavClick?: () => void;
   getNavItemClass: (active: boolean) => string;
-  /** Pro/Elite anchor — idle is subtly tinted vs other nav; active matches standard selected row. */
-  getBotCallsNavItemClass: (active: boolean) => string;
   onNavigate?: () => void;
 };
 
@@ -67,7 +65,6 @@ function SidebarBody({
   discordModUnread,
   onDiscordChatsNavClick,
   getNavItemClass,
-  getBotCallsNavItemClass,
   onNavigate,
 }: SidebarBodyProps) {
   const pick = onNavigate
@@ -126,17 +123,23 @@ function SidebarBody({
             href="/bot-calls"
             onClick={pick}
             data-tutorial="sidebar.nav.botCalls"
-            className={getBotCallsNavItemClass(isActive(pathname, "/bot-calls"))}
+            className={getNavItemClass(isActive(pathname, "/bot-calls"))}
           >
             <div
-              className={`absolute left-0 top-1/2 -translate-y-1/2 rounded ${
-                isActive(pathname, "/bot-calls")
-                  ? `h-5 w-[2px] ${tierNavBarClass("user")} opacity-100`
-                  : "h-[15px] w-px bg-gradient-to-b from-sky-400/55 via-sky-500/35 to-transparent opacity-90"
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/bot-calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
               aria-hidden
             />
-            <span className="min-w-0">Bot Calls</span>
+            <span
+              className={
+                isActive(pathname, "/bot-calls")
+                  ? "min-w-0"
+                  : "min-w-0 text-zinc-300 [text-shadow:0_0_10px_rgba(56,189,248,0.55),0_0_22px_rgba(56,189,248,0.35),0_0_36px_rgba(56,189,248,0.2)]"
+              }
+            >
+              Bot Calls
+            </span>
           </Link>
           <Link href="/trusted-pro" onClick={pick} data-tutorial="sidebar.nav.trustedPro" className={getNavItemClass(isActive(pathname, "/trusted-pro"))}>
             <div
@@ -561,22 +564,6 @@ export function Sidebar() {
         : "text-zinc-400 hover:text-white hover:bg-zinc-900"
     }`;
 
-  /**
-   * Bot Calls: idle uses a faint sky wash + hairline ring (visible on black — box-shadow alone was invisible).
-   * Active matches standard nav selection (full-height sky bar + zinc panel).
-   */
-  const getBotCallsNavItemClass = (active: boolean) => {
-    if (active) return getNavItemClass(true);
-    return [
-      "relative flex items-center gap-3 rounded-md px-4 py-2 text-sm transition-all duration-150",
-      "font-medium text-zinc-200",
-      "bg-[linear-gradient(92deg,rgba(56,189,248,0.11)_0%,rgba(39,39,42,0.4)_48%,transparent_100%)]",
-      "ring-1 ring-inset ring-sky-400/[0.09]",
-      "shadow-[0_0_0_1px_rgba(56,189,248,0.05),0_0_28px_-8px_rgba(56,189,248,0.18)]",
-      "hover:bg-zinc-900/50 hover:text-white hover:ring-sky-400/[0.14] hover:shadow-[0_0_36px_-8px_rgba(56,189,248,0.24)]",
-    ].join(" ");
-  };
-
   const bodyProps: SidebarBodyProps = {
     pathname,
     profileId,
@@ -590,7 +577,6 @@ export function Sidebar() {
     discordModUnread,
     onDiscordChatsNavClick: markDiscordChatsNav,
     getNavItemClass,
-    getBotCallsNavItemClass,
   };
 
   return (
