@@ -147,7 +147,7 @@ export async function GET(
       supabase
         .from("users")
         .select(
-          "id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, trusted_pro, created_at, profile_visibility, discord_display_name, discord_avatar_url"
+          "id, discord_id, bio, banner_url, banner_crop_x, banner_crop_y, x_handle, x_verified, trusted_pro, is_top_caller, created_at, profile_visibility, discord_display_name, discord_avatar_url"
         )
         .eq("discord_id", discordId)
         .maybeSingle(),
@@ -222,8 +222,8 @@ export async function GET(
       displayName,
       /** Discord CDN avatar from last sign-in when stored. */
       avatarUrl: rowAv || null,
-      // Badges are now fetched from `user_badges` on the client; keep fields for compatibility.
-      isTopCaller: false,
+      /** Current monthly title holder (`users.is_top_caller`); repeat wins still come from `user_badges` on the client. */
+      isTopCaller: Boolean((userRow as { is_top_caller?: unknown })?.is_top_caller),
       isTrustedPro: Boolean((userRow as any)?.trusted_pro),
       created_at: userRow?.created_at ?? null,
       bio:

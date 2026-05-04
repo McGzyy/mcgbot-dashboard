@@ -1640,8 +1640,9 @@ function RankPanel({
           </div>
         </div>
 
+        <div className="mt-2 min-h-[9rem] flex-1">
         {yourRankLoading ? (
-          <div className="mt-2 flex flex-1 animate-pulse items-center justify-between gap-3" aria-busy="true">
+          <div className="flex h-full min-h-[9rem] flex-1 animate-pulse items-center justify-between gap-3" aria-busy="true">
             <div className="space-y-2">
               <div className="h-2 w-16 rounded bg-zinc-800" />
               <div className="h-8 w-20 rounded bg-zinc-800/90" />
@@ -1653,10 +1654,10 @@ function RankPanel({
             </div>
           </div>
         ) : displayRank === null ? (
-          <p className="mt-2 text-sm leading-relaxed text-zinc-400">{emptyRankHint}</p>
+          <p className="text-sm leading-relaxed text-zinc-400">{emptyRankHint}</p>
         ) : (
           <>
-            <div className="mt-2 flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <div>
                 <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
                   GLOBAL RANK
@@ -1686,6 +1687,7 @@ function RankPanel({
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );
@@ -2897,6 +2899,10 @@ export default function Home() {
   const { openTokenChart } = useTokenChartModal();
   const oauthErrorHandledRef = useRef(false);
   const lastSeenActivityKeysRef = useRef(new Set<string>());
+  /** Avoid rank / calls “skeleton flash” on `homeDataRefreshNonce` background refetch. */
+  const leaderboardRankBootstrapUserRef = useRef<string | null>(null);
+  const recentCallsRef = useRef<RecentCallRow[]>(recentCalls);
+  recentCallsRef.current = recentCalls;
   /** Latest full `mode=all` activity — used for feed filters + notification diffing. */
   const activityAllSnapshotRef = useRef<ActivityItem[]>([]);
   const [copied, setCopied] = useState(false);
@@ -3246,7 +3252,9 @@ export default function Home() {
     }
 
     let cancelled = false;
-    setCallsLoading(true);
+    if (recentCallsRef.current.length === 0) {
+      setCallsLoading(true);
+    }
 
     fetch("/api/me/recent-calls")
       .then((res) => res.json())
@@ -3444,11 +3452,17 @@ export default function Home() {
     if (!session?.user?.id?.trim()) {
       setYourWeekRank(null);
       setYourRankLoading(false);
+      leaderboardRankBootstrapUserRef.current = null;
       return;
     }
 
+    const uid = session.user.id.trim();
     let cancelled = false;
-    setYourRankLoading(true);
+    const firstFetchForUser = leaderboardRankBootstrapUserRef.current !== uid;
+    if (firstFetchForUser) {
+      leaderboardRankBootstrapUserRef.current = uid;
+      setYourRankLoading(true);
+    }
 
     fetch("/api/me/leaderboard-rank", { credentials: "same-origin", cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
@@ -3710,6 +3724,8 @@ export default function Home() {
     return { emoji: "🔥", className: "dashboard-fire-emoji" };
   }
 
+  const personalStatTileClass = `${terminalPage.statTile} flex min-h-[7.25rem] flex-col`;
+
   const streakDays = stats?.activeDaysStreak;
   const streakBadgeUi = streakBadge(streakDays ?? 0);
   const streakValue =
@@ -3779,7 +3795,7 @@ export default function Home() {
         >
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
             <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              <div className={terminalPage.statTile}>
+              <div className={personalStatTileClass}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   AVG X
                 </div>
@@ -3791,7 +3807,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className={terminalPage.statTile}>
+              <div className={personalStatTileClass}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   WIN RATE
                 </div>
@@ -3800,7 +3816,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className={terminalPage.statTile}>
+              <div className={personalStatTileClass}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   STREAK
                 </div>
@@ -3809,7 +3825,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className={terminalPage.statTile}>
+              <div className={personalStatTileClass}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   TOTAL CALLS
                 </div>
@@ -3819,7 +3835,7 @@ export default function Home() {
                 <div className="mt-1 text-xs text-zinc-500">All time</div>
               </div>
 
-              <div className={terminalPage.statTile}>
+              <div className={personalStatTileClass}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   MEDIAN X
                 </div>
@@ -3830,7 +3846,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className={terminalPage.statTile}>
+              <div className={personalStatTileClass}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   2X HIT (30D)
                 </div>
@@ -3841,7 +3857,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className={terminalPage.statTile}>
+              <div className={personalStatTileClass}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   BEST X (30D)
                 </div>
@@ -3852,28 +3868,32 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className={terminalPage.statTile}>
+              <div className={personalStatTileClass}>
                 <div className="text-xs font-semibold tracking-wide text-zinc-300">
                   LAST CALL
                 </div>
                 <div
-                  className="mt-2 min-w-0 truncate text-sm font-medium text-zinc-200"
+                  className="mt-2 min-w-0 flex-1 truncate text-sm font-medium text-zinc-200"
                   title={
-                    callsLoading || recentCalls.length === 0
+                    recentCalls.length === 0
                       ? undefined
                       : homeLastCallHeadline(recentCalls[0])
                   }
                 >
-                  {callsLoading || recentCalls.length === 0
+                  {recentCalls.length === 0
                     ? "—"
                     : homeLastCallHeadline(recentCalls[0])}
                 </div>
                 <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
-                  {callsLoading || recentCalls.length === 0 ? "—" : `${recentCalls[0].multiple.toFixed(1)}x`}
+                  {recentCalls.length === 0
+                    ? "—"
+                    : `${recentCalls[0].multiple.toFixed(1)}x`}
                 </div>
                 <div className="mt-1 text-xs text-zinc-500">
-                  {callsLoading || recentCalls.length === 0
-                    ? "Waiting for your first call"
+                  {recentCalls.length === 0
+                    ? callsLoading
+                      ? "Loading recent calls…"
+                      : "Waiting for your first call"
                     : formatJoinedAt(callTimeMs(recentCalls[0].time), nowMs)}
                 </div>
               </div>
@@ -4114,7 +4134,7 @@ export default function Home() {
               <p className="mt-2 text-xs text-zinc-500">
                 Your last few verified calls.
               </p>
-              {callsLoading ? (
+              {callsLoading && recentCalls.length === 0 ? (
                 <div className="flex min-h-[88px] items-center justify-center py-6">
                   <p className="text-sm text-zinc-500">Loading calls...</p>
                 </div>

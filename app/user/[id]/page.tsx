@@ -1543,8 +1543,9 @@ export default function UserProfilePage() {
         ? followingIds.has(snowflakeForFollow)
         : false;
 
-  const isTopCaller = Boolean(profile?.isTopCaller);
-  const topCallerTimes = isTopCaller ? parseTopCallerTimesFromBadges(badges) : 0;
+  const topCallerTimes = parseTopCallerTimesFromBadges(badges);
+  const isCurrentMonthlyTopCaller = Boolean(profile?.isTopCaller);
+  const showTopCallerChip = isCurrentMonthlyTopCaller || topCallerTimes > 0;
   const isTrustedPro = Boolean(profile?.isTrustedPro);
 
   const bannerUrl = profile?.banner_url?.trim() || "";
@@ -1716,7 +1717,7 @@ export default function UserProfilePage() {
                   displayName
                 )}
               </h1>
-              {!loading && isTopCaller ? (
+              {!loading && showTopCallerChip ? (
                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-orange-500/35 bg-gradient-to-r from-orange-950/90 to-amber-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-100 shadow-md shadow-orange-950/30">
                   <span className="dashboard-fire-emoji text-sm leading-none" aria-hidden>
                     🔥
