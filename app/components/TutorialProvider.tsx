@@ -334,7 +334,8 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
 
   /**
    * Joyride’s built-in scroll can jump to the wrong scroll parent on long `/` layouts.
-   * We disable per-step Joyride scrolling and align the window to each target ourselves.
+   * We disable Joyride’s own scroll and align the window to each target ourselves — including
+   * delayed passes after `router.push` so the DOM and layout shell have settled.
    */
   useLayoutEffect(() => {
     if (!tourOpen || navWait) return;
@@ -354,11 +355,15 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     const outerRaf = window.requestAnimationFrame(() => {
       innerRaf = window.requestAnimationFrame(scroll);
     });
-    const t = window.setTimeout(scroll, 200);
+    const t1 = window.setTimeout(scroll, 200);
+    const t2 = window.setTimeout(scroll, 420);
+    const t3 = window.setTimeout(scroll, 700);
     return () => {
       window.cancelAnimationFrame(outerRaf);
       window.cancelAnimationFrame(innerRaf);
-      window.clearTimeout(t);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
     };
   }, [tourOpen, navWait, pathname, stepIndex, steps]);
 
@@ -456,7 +461,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
           onEvent={onJoyrideEvent}
           options={{
             zIndex: 10050,
-            showProgress: true,
+            showProgress: false,
             buttons: ["back", "close", "primary", "skip"],
             scrollOffset: 112,
             scrollDuration: 480,
