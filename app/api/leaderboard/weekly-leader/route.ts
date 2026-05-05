@@ -7,7 +7,7 @@ import { startOfWeekMondayUtcMs } from "@/lib/leaderboardTimeWindows";
 import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 import {
   displayNameForDiscordId,
-  fetchDiscordDisplayNameMap,
+  fetchDiscordLeaderExtras,
 } from "@/lib/leaderboardDisplayNames";
 
 // WEEKLY LEADER = resets every Monday 00:00 UTC
@@ -45,10 +45,15 @@ export async function GET(request: Request) {
 
     let leader = await getTopLeaderSince(supabase, type, minMs);
     if (leader?.discordId) {
-      const nameMap = await fetchDiscordDisplayNameMap(supabase, [leader.discordId]);
+      const { displayNames, avatarUrls } = await fetchDiscordLeaderExtras(supabase, [
+        leader.discordId,
+      ]);
+      const id = leader.discordId.trim();
+      const avatarUrl = avatarUrls[id];
       leader = {
         ...leader,
-        username: displayNameForDiscordId(leader.discordId, leader.username, nameMap),
+        username: displayNameForDiscordId(leader.discordId, leader.username, displayNames),
+        ...(avatarUrl ? { avatarUrl } : {}),
       };
     }
 

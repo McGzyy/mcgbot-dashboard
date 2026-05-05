@@ -473,12 +473,15 @@ export default function LeaderboardPage() {
       const totalCalls =
         typeof o.totalCalls === "number" ? o.totalCalls : Number(o.totalCalls) || 0;
       const wins = typeof o.wins === "number" ? o.wins : Number(o.wins) || 0;
+      const avRaw = o.avatarUrl ?? o.avatar_url ?? o.discord_avatar_url;
+      const avatarFromApi =
+        typeof avRaw === "string" && avRaw.trim() ? avRaw.trim().slice(0, 800) : undefined;
       if (!rank || !username) continue;
       out.push({
         rank,
         username,
         discordId: discordId || undefined,
-        avatarSrc: avatarUrlFor(username),
+        avatarSrc: avatarFromApi || avatarUrlFor(username),
         avgX,
         bestX: bestMultiple,
         calls: totalCalls,
@@ -996,6 +999,7 @@ export default function LeaderboardPage() {
                   rank: 1,
                   username: (weeklyJson as any).leader?.username,
                   discordId: (weeklyJson as any).leader?.discordId,
+                  avatarUrl: (weeklyJson as any).leader?.avatarUrl,
                   avgX: (weeklyJson as any).leader?.avgX,
                   bestMultiple: (weeklyJson as any).leader?.bestMultiple,
                   totalCalls: (weeklyJson as any).leader?.totalCalls,
@@ -1011,6 +1015,7 @@ export default function LeaderboardPage() {
                   rank: 1,
                   username: (monthlyJson as any).leader?.username,
                   discordId: (monthlyJson as any).leader?.discordId,
+                  avatarUrl: (monthlyJson as any).leader?.avatarUrl,
                   avgX: (monthlyJson as any).leader?.avgX,
                   bestMultiple: (monthlyJson as any).leader?.bestMultiple,
                   totalCalls: (monthlyJson as any).leader?.totalCalls,
@@ -1306,7 +1311,7 @@ export default function LeaderboardPage() {
             Highest multiplier, best average, volume, and win-rate standouts — snapshot metrics.
           </p>
         </div>
-        <div className="mb-6 rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <div className="relative rounded-xl border border-zinc-800/90 bg-zinc-900/40 p-3">
                 <div className="pr-16">
@@ -1409,19 +1414,6 @@ export default function LeaderboardPage() {
                   />
                 </div>
               </div>
-          </div>
-          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-zinc-800/80 bg-black/30 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm leading-snug text-zinc-400">
-              Personal charts, rank trend, and call-by-call history now live on{" "}
-              <Link href="/performance" className="font-semibold text-emerald-200/90 hover:underline">
-                Performance lab
-              </Link>{" "}
-              and{" "}
-              <Link href="/calls" className="font-semibold text-cyan-200/90 hover:underline">
-                Call log
-              </Link>{" "}
-              — this page stays focused on the public boards.
-            </p>
           </div>
         </div>
       </section>
