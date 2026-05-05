@@ -262,8 +262,10 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       route: "/leaderboard",
       title: "Caller boards",
       content: "Ranked callers for the timeframe you pick — drill with the tabs above.",
-      placement: "top",
-      scrollOffset: 130,
+      /** Same as `leaderboard.botSection`: anchor is header strip only, tooltip below with arrow up. */
+      placement: "bottom",
+      scrollOffset: 128,
+      disablePlacementFlip: true,
     },
     {
       section: "leaderboard",
@@ -472,8 +474,10 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       route: "/lounge/discord-chats",
       title: "Discord mirror",
       content: "Read-only channel tabs and live messages — names open dashboard profiles.",
-      placement: "top",
-      scrollOffset: 100,
+      /** Anchor is header strip only (not message list); tooltip below matches stable rect after tabs load. */
+      placement: "bottom",
+      scrollOffset: 108,
+      disablePlacementFlip: true,
     },
 
     {

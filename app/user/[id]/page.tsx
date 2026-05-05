@@ -27,7 +27,11 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 
 const CARD_HOVER =
-  "transition-[box-shadow,border-color] duration-200 ease-out hover:border-zinc-600/50 hover:shadow-lg hover:shadow-black/35";
+  "transition-[box-shadow,border-color,transform] duration-200 ease-out hover:border-zinc-600/50 hover:shadow-lg hover:shadow-black/35";
+
+/** Profile hero + shared deck framing — readable on shares / screenshots. */
+const PROFILE_HERO_SHELL =
+  "relative mb-10 overflow-hidden rounded-[1.75rem] border border-zinc-800/75 bg-zinc-950/50 shadow-[0_40px_120px_-52px_rgba(0,0,0,0.92)] ring-1 ring-white/[0.06] backdrop-blur-[2px]";
 
 type ProfileStats = {
   avgX: number;
@@ -556,10 +560,10 @@ function StatCard({
 }) {
   return (
     <div
-      className={`flex min-h-[5.25rem] flex-col justify-between rounded-xl border px-3.5 py-3 shadow-md backdrop-blur-sm ${CARD_HOVER} ${
+      className={`flex min-h-[5.75rem] flex-col justify-between rounded-xl border px-4 py-3.5 shadow-md backdrop-blur-sm ${CARD_HOVER} ${
         accent
-          ? "border-cyan-500/20 bg-gradient-to-br from-cyan-950/35 via-zinc-900/85 to-zinc-950 shadow-[inset_0_1px_0_0_rgba(34,211,238,0.1)]"
-          : "border-zinc-800/55 bg-gradient-to-br from-zinc-900/80 to-zinc-950/95 shadow-black/25"
+          ? "border-cyan-400/25 bg-gradient-to-br from-cyan-950/40 via-zinc-900/90 to-zinc-950 shadow-[inset_0_1px_0_0_rgba(34,211,238,0.14)] ring-1 ring-cyan-500/10"
+          : "border-zinc-800/50 bg-gradient-to-br from-zinc-900/75 to-zinc-950 ring-1 ring-zinc-700/20 shadow-black/30"
       }`}
     >
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -573,9 +577,9 @@ function StatCard({
         />
       ) : (
         <div
-          className={`mt-1 text-2xl font-bold tabular-nums tracking-tight ${
+          className={`mt-1 text-[1.65rem] font-bold tabular-nums tracking-tight sm:text-[1.75rem] ${
             accent
-              ? "bg-gradient-to-br from-cyan-100 to-cyan-400 bg-clip-text text-transparent"
+              ? "bg-gradient-to-br from-cyan-50 via-cyan-200 to-cyan-400 bg-clip-text text-transparent"
               : "text-zinc-50"
           }`}
         >
@@ -600,11 +604,11 @@ function PanelCard({
   return (
     <div
       data-tutorial={dataTutorial}
-      className={`${terminalSurface.insetPanel} w-full px-4 py-3.5 ${CARD_HOVER} ${className}`.trim()}
+      className={`${terminalSurface.insetPanel} w-full px-4 py-4 sm:px-5 sm:py-4 ${CARD_HOVER} ${className}`.trim()}
     >
-      <h2 className="flex items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+      <h2 className="mb-3 flex items-center gap-2.5 border-b border-zinc-800/45 pb-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-zinc-400">
         <span
-          className="inline-flex h-1 w-1 shrink-0 rounded-full bg-cyan-400/80 shadow-[0_0_12px_rgba(34,211,238,0.45)]"
+          className="inline-flex h-1 w-1 shrink-0 rounded-full bg-cyan-400/90 shadow-[0_0_14px_rgba(34,211,238,0.5)]"
           aria-hidden
         />
         {title}
@@ -1676,157 +1680,183 @@ export default function UserProfilePage() {
 
   return (
     <div className="min-w-0">
-      <div className="mx-auto max-w-4xl animate-fade-in px-2 pb-16 sm:px-0 lg:max-w-5xl" data-tutorial="profile.pageIntro">
-      <div className="relative mb-6 h-36 w-full overflow-hidden rounded-2xl border border-zinc-800/70 bg-zinc-950 shadow-lg shadow-black/40 sm:mb-7 sm:h-40">
-        {profile?.banner_url ? (
-          <img
-            src={profile.banner_url}
-            alt="Profile Banner"
-            className="h-full w-full object-cover"
-            style={{
-              objectPosition: `${clampCropPercent(profile.banner_crop_x, 50)}% ${clampCropPercent(profile.banner_crop_y, 50)}%`,
-            }}
-          />
-        ) : (
-          <div className="h-full w-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950" />
-        )}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[color:var(--mcg-page)] via-[color:var(--mcg-page)]/35 to-transparent" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-10%,rgba(34,211,238,0.14),transparent_50%)]" />
-      </div>
+      <div
+        className="relative mx-auto max-w-4xl animate-fade-in px-2 pb-16 sm:px-0 lg:max-w-6xl"
+        data-tutorial="profile.pageIntro"
+      >
+        <div
+          className="pointer-events-none absolute -left-24 top-0 hidden h-72 w-72 rounded-full bg-cyan-500/[0.06] blur-3xl lg:block"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -right-32 top-48 hidden h-96 w-96 rounded-full bg-violet-600/[0.05] blur-3xl lg:block"
+          aria-hidden
+        />
 
-      <header className="border-b border-zinc-800/60 pb-10 pt-2 sm:pt-3" data-tutorial="profile.header">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:gap-8">
-          <img
-            src={avatarSrc}
-            alt=""
-            width={128}
-            height={128}
-            className="-mt-11 h-28 w-28 shrink-0 rounded-2xl border border-zinc-700/50 bg-zinc-900 object-cover shadow-2xl shadow-black/60 ring-4 ring-[color:var(--mcg-page)] sm:-mt-12 sm:h-32 sm:w-32"
-          />
-          <div className="min-w-0 flex-1 sm:pb-1">
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-              <h1 className="text-2xl font-bold tracking-tight text-zinc-50 drop-shadow-sm sm:text-3xl">
-                {showNameSkeleton ? (
-                  <span className="inline-block h-9 w-52 max-w-full animate-pulse rounded-md bg-zinc-800/90" />
-                ) : (
-                  displayName
-                )}
-              </h1>
-              {!loading && showTopCallerChip ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-orange-500/35 bg-gradient-to-r from-orange-950/90 to-amber-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-100 shadow-md shadow-orange-950/30">
-                  <span className="dashboard-fire-emoji text-sm leading-none" aria-hidden>
-                    🔥
-                  </span>
-                  Top Caller
-                  {topCallerTimes > 1 ? (
-                    <span className="font-extrabold text-amber-200">{topCallerTimes}×</span>
-                  ) : null}
-                </span>
-              ) : null}
-              {!loading && isTrustedPro ? (
-                <span className="inline-flex shrink-0 items-center rounded-full border border-violet-500/35 bg-gradient-to-r from-violet-950/90 to-indigo-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-100 shadow-md shadow-violet-950/25">
-                  Trusted Pro
-                </span>
-              ) : null}
-              {isOwnProfile ? (
-                <button
-                  type="button"
-                  onClick={() => setEditOpen(true)}
-                  className="shrink-0 rounded-lg border border-zinc-600/70 bg-gradient-to-b from-zinc-800/90 to-zinc-900/90 px-3.5 py-1.5 text-xs font-semibold text-zinc-100 shadow-md shadow-black/30 transition hover:border-zinc-500 hover:from-zinc-700/90 hover:to-zinc-800/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/35 sm:ml-auto"
-                >
-                  Edit Profile
-                </button>
-              ) : (
-                <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-                  <FollowButton
-                    targetDiscordId={snowflakeForFollow}
-                    following={followingState}
-                    onFollowingChange={(next) => {
-                      if (!snowflakeForFollow) return;
-                      setFollowing(snowflakeForFollow, next);
-                      setFollowStats((prev) =>
-                        prev ? { ...prev, isFollowing: next } : prev
-                      );
-                    }}
-                    onCountsRefresh={refreshFollowStats}
-                    className="px-3 py-1.5 text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setReportOpen(true)}
-                    className="rounded-lg border border-zinc-700/70 bg-zinc-900/40 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
-                  >
-                    Report
-                  </button>
-                </div>
-              )}
-            </div>
-            {!loading &&
-            profile &&
-            profile.username.trim() !== "" &&
-            profile.displayName.trim() !== profile.username.trim() ? (
-              <p className="mt-1 text-sm text-zinc-500">
-                <span className="text-zinc-600">@{profile.username}</span>
-              </p>
-            ) : null}
-            {!loading && (bioText || joinedText) ? (
-              <>
-                {bioText ? (
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-400">
-                    {bioText}
-                  </p>
-                ) : null}
-                {joinedText ? (
-                  <p
-                    className={`${
-                      bioText ? "mt-1" : "mt-2"
-                    } text-sm text-zinc-500`}
-                  >
-                    {joinedText}
-                  </p>
-                ) : null}
-              </>
-            ) : null}
-            {!loading && xHandle ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <a
-                  href={`https://x.com/${encodeURIComponent(xHandle)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700/60 bg-zinc-900/80 px-2.5 py-1 text-sm font-medium text-sky-300 transition hover:border-sky-500/40 hover:bg-sky-950/30 hover:text-sky-200"
-                >
-                  <span className="text-zinc-500">𝕏</span>@{xHandle}
-                </a>
-                {xVerified ? (
-                  <span className="inline-flex items-center rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
-                    Verified
-                  </span>
-                ) : null}
+        <div className={`${PROFILE_HERO_SHELL}`}>
+          <div className="relative h-[9.5rem] w-full overflow-hidden sm:h-[11rem]">
+            {profile?.banner_url ? (
+              <img
+                src={profile.banner_url}
+                alt="Profile Banner"
+                className="h-full w-full object-cover scale-[1.01]"
+                style={{
+                  objectPosition: `${clampCropPercent(profile.banner_crop_x, 50)}% ${clampCropPercent(profile.banner_crop_y, 50)}%`,
+                }}
+              />
+            ) : (
+              <div className="relative h-full w-full bg-gradient-to-br from-zinc-700 via-zinc-900 to-black">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_100%,rgba(34,211,238,0.14),transparent_55%)]" />
               </div>
-            ) : null}
-            <div className="mt-3 inline-flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800/80 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-400">
-              {followStats ? (
-                <>
-                  <span className="tabular-nums font-semibold text-zinc-200">
-                    {followStats.followers.toLocaleString()}
-                  </span>
-                  <span className="text-zinc-600">followers</span>
-                  <span className="text-zinc-700">·</span>
-                  <span className="tabular-nums font-semibold text-zinc-200">
-                    {followStats.following.toLocaleString()}
-                  </span>
-                  <span className="text-zinc-600">following</span>
-                </>
-              ) : (
-                <span
-                  className="inline-block h-4 w-44 max-w-full animate-pulse rounded bg-zinc-800/80"
+            )}
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.028)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.028)_1px,transparent_1px)] bg-[size:20px_20px] opacity-70" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/65 to-transparent" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_55%_at_50%_-15%,rgba(34,211,238,0.18),transparent_52%)]" />
+          </div>
+
+          <header
+            className="relative border-t border-white/[0.05] px-4 pb-8 pt-1 sm:px-8 sm:pb-10 sm:pt-2"
+            data-tutorial="profile.header"
+          >
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:gap-10">
+              <div className="relative shrink-0">
+                <div
+                  className="pointer-events-none absolute -inset-2 rounded-[1.15rem] bg-gradient-to-br from-cyan-500/25 via-transparent to-violet-600/20 opacity-70 blur-lg sm:-inset-2.5 sm:rounded-2xl"
                   aria-hidden
                 />
-              )}
+                <img
+                  src={avatarSrc}
+                  alt=""
+                  width={128}
+                  height={128}
+                  className="relative -mt-12 h-28 w-28 rounded-2xl border border-white/10 bg-zinc-900 object-cover shadow-[0_24px_56px_-14px_rgba(0,0,0,0.88)] ring-[3px] ring-zinc-950 sm:-mt-14 sm:h-[8.5rem] sm:w-[8.5rem]"
+                />
+              </div>
+              <div className="min-w-0 flex-1 sm:pb-1">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+                  <h1 className="text-[1.65rem] font-semibold tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.55)] sm:text-[2.125rem] sm:leading-tight">
+                    {showNameSkeleton ? (
+                      <span className="inline-block h-9 w-52 max-w-full animate-pulse rounded-md bg-zinc-800/90" />
+                    ) : (
+                      displayName
+                    )}
+                  </h1>
+                  {!loading && showTopCallerChip ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-orange-500/35 bg-gradient-to-r from-orange-950/90 to-amber-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-100 shadow-md shadow-orange-950/30">
+                      <span className="dashboard-fire-emoji text-sm leading-none" aria-hidden>
+                        🔥
+                      </span>
+                      Top Caller
+                      {topCallerTimes > 1 ? (
+                        <span className="font-extrabold text-amber-200">{topCallerTimes}×</span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                  {!loading && isTrustedPro ? (
+                    <span className="inline-flex shrink-0 items-center rounded-full border border-violet-500/35 bg-gradient-to-r from-violet-950/90 to-indigo-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-100 shadow-md shadow-violet-950/25">
+                      Trusted Pro
+                    </span>
+                  ) : null}
+                  {isOwnProfile ? (
+                    <button
+                      type="button"
+                      onClick={() => setEditOpen(true)}
+                      className="shrink-0 rounded-lg border border-zinc-600/70 bg-gradient-to-b from-zinc-800/90 to-zinc-900/90 px-3.5 py-1.5 text-xs font-semibold text-zinc-100 shadow-md shadow-black/30 transition hover:border-zinc-500 hover:from-zinc-700/90 hover:to-zinc-800/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/35 sm:ml-auto"
+                    >
+                      Edit Profile
+                    </button>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                      <FollowButton
+                        targetDiscordId={snowflakeForFollow}
+                        following={followingState}
+                        onFollowingChange={(next) => {
+                          if (!snowflakeForFollow) return;
+                          setFollowing(snowflakeForFollow, next);
+                          setFollowStats((prev) =>
+                            prev ? { ...prev, isFollowing: next } : prev
+                          );
+                        }}
+                        onCountsRefresh={refreshFollowStats}
+                        className="px-3 py-1.5 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReportOpen(true)}
+                        className="rounded-lg border border-zinc-700/70 bg-zinc-900/40 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
+                      >
+                        Report
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {!loading &&
+                profile &&
+                profile.username.trim() !== "" &&
+                profile.displayName.trim() !== profile.username.trim() ? (
+                  <p className="mt-1 text-sm text-zinc-500">
+                    <span className="text-zinc-500">@{profile.username}</span>
+                  </p>
+                ) : null}
+                {!loading && (bioText || joinedText) ? (
+                  <>
+                    {bioText ? (
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
+                        {bioText}
+                      </p>
+                    ) : null}
+                    {joinedText ? (
+                      <p
+                        className={`${
+                          bioText ? "mt-1" : "mt-2"
+                        } text-sm text-zinc-500`}
+                      >
+                        {joinedText}
+                      </p>
+                    ) : null}
+                  </>
+                ) : null}
+                {!loading && xHandle ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <a
+                      href={`https://x.com/${encodeURIComponent(xHandle)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600/50 bg-zinc-950/60 px-2.5 py-1 text-sm font-medium text-sky-300 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] transition hover:border-sky-500/35 hover:bg-sky-950/35 hover:text-sky-200"
+                    >
+                      <span className="text-zinc-500">𝕏</span>@{xHandle}
+                    </a>
+                    {xVerified ? (
+                      <span className="inline-flex items-center rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+                        Verified
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+                <div className="mt-4 inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-xl border border-zinc-700/35 bg-zinc-950/55 px-4 py-2.5 text-xs text-zinc-400 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] backdrop-blur-sm">
+                  {followStats ? (
+                    <>
+                      <span className="tabular-nums font-semibold text-zinc-100">
+                        {followStats.followers.toLocaleString()}
+                      </span>
+                      <span className="text-zinc-500">followers</span>
+                      <span className="text-zinc-600">·</span>
+                      <span className="tabular-nums font-semibold text-zinc-100">
+                        {followStats.following.toLocaleString()}
+                      </span>
+                      <span className="text-zinc-500">following</span>
+                    </>
+                  ) : (
+                    <span
+                      className="inline-block h-4 w-44 max-w-full animate-pulse rounded bg-zinc-800/80"
+                      aria-hidden
+                    />
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          </header>
         </div>
-      </header>
 
       {visibility.show_pinned_call ? (
         <div className="mt-8">
@@ -1839,17 +1869,18 @@ export default function UserProfilePage() {
               timeLabel={formatJoinedAt(callTimeMs(pinnedCall.time), nowMs)}
             />
           ) : isOwnProfile ? (
-            <div className="flex items-start gap-3 rounded-2xl border border-dashed border-zinc-700/50 bg-zinc-900/20 px-4 py-4 sm:items-center sm:gap-4 sm:px-6 sm:py-4">
+            <div className="relative flex items-start gap-4 overflow-hidden rounded-2xl border border-zinc-700/40 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-zinc-950 px-5 py-5 shadow-[0_20px_60px_-36px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.04] sm:items-center sm:gap-5 sm:px-7 sm:py-5">
+              <div className="pointer-events-none absolute -right-16 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-cyan-500/[0.06] blur-3xl" aria-hidden />
               <span
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-700/60 bg-zinc-900/80 text-lg text-zinc-500"
+                className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-500/20 bg-gradient-to-br from-zinc-800/90 to-zinc-950 text-lg shadow-inner shadow-black/40"
                 aria-hidden
               >
                 📌
               </span>
-              <div className="min-w-0 text-left">
-                <p className="text-sm font-medium text-zinc-300">No signature pick yet</p>
-                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                  Pin a call from <span className="text-zinc-400">Recent Calls</span> below — it
+              <div className="relative min-w-0 text-left">
+                <p className="text-sm font-semibold tracking-tight text-zinc-100">No signature pick yet</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
+                  Pin a call from <span className="font-medium text-zinc-400">Recent Calls</span> below — it
                   becomes your headline showcase.
                 </p>
               </div>
@@ -1865,10 +1896,14 @@ export default function UserProfilePage() {
       <div className="mt-10 grid grid-cols-12 gap-5 lg:items-start lg:gap-6">
         {visibility.show_stats ? (
         <section className="col-span-12" data-tutorial="profile.performance">
-          <div className="rounded-2xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)] ring-1 ring-zinc-800/40 sm:p-5">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
-                <span className="h-px w-10 rounded-full bg-gradient-to-r from-cyan-400/90 to-transparent" />
+          <div
+            className={`relative overflow-hidden ${terminalSurface.routeHeroFrame} p-5 sm:p-6`}
+          >
+            <div className="pointer-events-none absolute -right-24 top-0 h-48 w-48 rounded-full bg-cyan-500/[0.07] blur-3xl" aria-hidden />
+            <div className="pointer-events-none absolute -left-20 bottom-0 h-40 w-40 rounded-full bg-emerald-600/[0.06] blur-3xl" aria-hidden />
+            <div className="relative mb-5 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.22em] text-zinc-300">
+                <span className="h-px w-12 rounded-full bg-gradient-to-r from-cyan-400 via-cyan-400/50 to-transparent" />
                 Performance
               </h2>
               {profile && profile.stats.totalCalls > 0 ? (
@@ -1877,7 +1912,7 @@ export default function UserProfilePage() {
                 </span>
               ) : null}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
+            <div className="relative grid gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
               <StatCard
                 title="Avg X"
                 loading={loading}
@@ -1917,9 +1952,9 @@ export default function UserProfilePage() {
         </section>
         ) : visibility.show_key_stats && hasDepthMetrics && keyStatsPayload ? (
         <section className="col-span-12">
-          <div className="rounded-2xl border border-zinc-800/55 bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 sm:p-5">
-            <h2 className="mb-4 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
-              <span className="h-px w-10 rounded-full bg-gradient-to-r from-cyan-400/90 to-transparent" />
+          <div className={`${terminalSurface.routeHeroFrame} p-5 sm:p-6`}>
+            <h2 className="mb-5 flex items-center gap-3 border-b border-zinc-800/45 pb-4 text-xs font-bold uppercase tracking-[0.22em] text-zinc-300">
+              <span className="h-px w-12 rounded-full bg-gradient-to-r from-cyan-400 via-cyan-400/50 to-transparent" />
               Depth metrics
             </h2>
             <DepthMetricsGrid keyStats={keyStatsPayload} />
@@ -2036,9 +2071,9 @@ export default function UserProfilePage() {
                           <span className="w-12 text-xs text-zinc-400">
                             {r.label}
                           </span>
-                          <div className="h-2.5 flex-1 rounded-full bg-zinc-800/90 ring-1 ring-zinc-700/40">
+                          <div className="h-3 flex-1 rounded-full bg-zinc-950/90 ring-1 ring-zinc-700/35 shadow-inner">
                             <div
-                              className="h-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 shadow-sm shadow-cyan-900/40"
+                              className="h-3 rounded-full bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 shadow-[0_0_20px_-4px_rgba(34,211,238,0.35)]"
                               style={{ width: `${pct}%` }}
                             />
                           </div>
@@ -2098,7 +2133,7 @@ export default function UserProfilePage() {
                       return (
                       <li
                         key={`${call.token}-${String(call.time)}-${i}`}
-                        className="group flex flex-col gap-2 py-2.5 text-zinc-300 transition first:pt-2 hover:bg-zinc-800/25 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-x-4"
+                        className="group flex flex-col gap-2 rounded-xl py-2.5 text-zinc-300 transition first:pt-2 hover:bg-zinc-800/20 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-x-4 sm:px-2"
                       >
                         <span className="min-w-0 text-[13px] leading-snug">
                           <div className="flex min-w-0 items-start gap-2">
@@ -2370,12 +2405,14 @@ export default function UserProfilePage() {
               </PanelCard>
             ) : null}
 
-            <PanelCard title="Alpha Score">
-              <div className="mt-1 flex flex-col gap-1">
-                <p className="bg-gradient-to-br from-amber-100 via-amber-200 to-orange-300 bg-clip-text text-4xl font-black tabular-nums tracking-tight text-transparent sm:text-5xl">
+            <PanelCard title="Alpha Score" className="relative overflow-hidden">
+              <div className="pointer-events-none absolute -right-6 -top-10 h-36 w-36 rounded-full bg-amber-400/12 blur-3xl" aria-hidden />
+              <div className="pointer-events-none absolute -bottom-8 left-1/3 h-28 w-28 rounded-full bg-orange-600/10 blur-3xl" aria-hidden />
+              <div className="relative mt-1 flex flex-col gap-1">
+                <p className="bg-gradient-to-br from-amber-50 via-amber-200 to-orange-300 bg-clip-text text-4xl font-black tabular-nums tracking-tight text-transparent drop-shadow-[0_2px_28px_rgba(251,191,36,0.12)] sm:text-[2.75rem] sm:leading-none">
                   {alphaScore ? alphaScore.toFixed(2) : "—"}
                 </p>
-                <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-zinc-500">
+                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
                   Composite score
                 </p>
               </div>

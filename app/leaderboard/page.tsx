@@ -1524,36 +1524,41 @@ export default function LeaderboardPage() {
               id="user-boards"
               className="scroll-mt-28 space-y-8 border-t border-emerald-500/10 pt-8"
             >
-        {/* User Leaderboard */}
-        <section className="space-y-4" data-tutorial="leaderboard.userBoard">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className={sectionTitle}>User Leaderboard</h2>
-              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                Avg / best multiple and win rate by caller — matches timeframe tabs.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {TIMEFRAMES.map((tf) => {
-                const active = usersTimeframe === tf.id;
-                return (
-                  <button
-                    key={tf.id}
-                    type="button"
-                    onClick={() => {
-                      setUsersTimeframe(tf.id);
-                      setUserPage(1);
-                    }}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      active
-                        ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-50 shadow-[0_0_14px_-4px_rgba(16,185,129,0.35)]"
-                        : "border-emerald-500/10 bg-black/20 text-zinc-400 hover:border-emerald-500/30 hover:text-zinc-100"
-                    }`}
-                  >
-                    {tf.label}
-                  </button>
-                );
-              })}
+        {/* User Leaderboard — tour anchor matches bot header strip (`leaderboard.botSection`): compact row only */}
+        <section className="space-y-4">
+          <div
+            className="relative border-b border-emerald-500/15 bg-emerald-950/20 px-4 py-4 sm:px-5 sm:py-5"
+            data-tutorial="leaderboard.userBoard"
+          >
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className={sectionTitle}>User Leaderboard</h2>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                  Avg / best multiple and win rate by caller — matches timeframe tabs.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {TIMEFRAMES.map((tf) => {
+                  const active = usersTimeframe === tf.id;
+                  return (
+                    <button
+                      key={tf.id}
+                      type="button"
+                      onClick={() => {
+                        setUsersTimeframe(tf.id);
+                        setUserPage(1);
+                      }}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        active
+                          ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-50 shadow-[0_0_14px_-4px_rgba(16,185,129,0.35)]"
+                          : "border-emerald-500/10 bg-black/20 text-zinc-400 hover:border-emerald-500/30 hover:text-zinc-100"
+                      }`}
+                    >
+                      {tf.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <Table

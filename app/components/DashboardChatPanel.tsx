@@ -244,14 +244,36 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
     return () => window.clearInterval(t);
   }, [pollMs, refresh, status]);
 
+  /** Joyride measures before lounge tabs/messages settle; force Floating UI to remeasure after layout grows. */
+  useEffect(() => {
+    if (!panelDataTutorial || feed !== "lounge") return;
+    if (loading) return;
+    const nudge = () => window.dispatchEvent(new Event("resize"));
+    nudge();
+    let outerRaf = 0;
+    let innerRaf = 0;
+    outerRaf = requestAnimationFrame(() => {
+      nudge();
+      innerRaf = requestAnimationFrame(nudge);
+    });
+    const t = window.setTimeout(nudge, 120);
+    const t2 = window.setTimeout(nudge, 420);
+    return () => {
+      cancelAnimationFrame(outerRaf);
+      cancelAnimationFrame(innerRaf);
+      window.clearTimeout(t);
+      window.clearTimeout(t2);
+    };
+  }, [loading, panelDataTutorial, feed, messages.length, channelTabs.length]);
+
   if (status !== "authenticated") return null;
 
   return (
     <section
-      {...(panelDataTutorial ? { "data-tutorial": panelDataTutorial } : {})}
       className={`relative overflow-hidden rounded-2xl border border-zinc-800/60 bg-gradient-to-b from-zinc-950/55 to-black/70 ${terminalSurface.insetEdge}`}
     >
       <div
+        {...(panelDataTutorial ? { "data-tutorial": panelDataTutorial } : {})}
         className={`flex flex-col gap-3 ${terminalChrome.headerRule} px-4 py-3 sm:flex-row sm:items-start sm:justify-between`}
       >
         <div className="min-w-0 flex-1">

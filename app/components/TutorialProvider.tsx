@@ -29,6 +29,9 @@ const TOUR_SCROLL_INTO_VIEW_CENTER_TARGETS = new Set<string>([
   '[data-tutorial="botCalls.table"]',
 ]);
 
+/** Lounge chat panel fills tabs/messages after mount — re-scroll + resize so Joyride tracks the header anchor. */
+const TOUR_LOUNGE_DISCORD_CHATS_PANEL_TARGET = '[data-tutorial="lounge.discordChats.panel"]';
+
 function maxWindowScrollTop(): number {
   const root = document.scrollingElement ?? document.documentElement;
   const scrollHeight = Math.max(
@@ -424,10 +427,24 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     });
     /** One delayed pass after route/DOM settle — multiple timeouts were fighting Joyride and inflated scroll height. */
     const t1 = window.setTimeout(scroll, 220);
+
+    let tLounge = 0;
+    let tLounge2 = 0;
+    if (step.target === TOUR_LOUNGE_DISCORD_CHATS_PANEL_TARGET) {
+      const loungeNudge = () => {
+        scroll();
+        window.dispatchEvent(new Event("resize"));
+      };
+      tLounge = window.setTimeout(loungeNudge, 380);
+      tLounge2 = window.setTimeout(loungeNudge, 760);
+    }
+
     return () => {
       window.cancelAnimationFrame(outerRaf);
       window.cancelAnimationFrame(innerRaf);
       window.clearTimeout(t1);
+      window.clearTimeout(tLounge);
+      window.clearTimeout(tLounge2);
     };
   }, [tourOpen, navWait, pathname, stepIndex, steps]);
 
