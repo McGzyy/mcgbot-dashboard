@@ -55,10 +55,7 @@ export default function LoungeVoiceChatsPage() {
   }
 
   return (
-    <div
-      className="relative mx-auto flex min-h-[calc(100dvh-6rem)] w-full max-w-7xl flex-col px-3 pb-12 pt-2 sm:px-5"
-      data-tutorial="lounge.voiceChats"
-    >
+    <div className="relative mx-auto flex min-h-[calc(100dvh-6rem)] w-full max-w-7xl flex-col px-3 pb-12 pt-2 sm:px-5">
       <div
         className="pointer-events-none absolute left-1/2 top-0 h-[min(40vh,320px)] w-[min(100%,900px)] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.09),transparent_70%)]"
         aria-hidden

@@ -32,6 +32,8 @@ type DashboardChatPanelProps = {
   feed?: "lounge" | "dashboard";
   /** Only used when `feed="dashboard"`. */
   dashboardChannel?: DashboardChatKind;
+  /** Optional Joyride anchor for the chat shell (e.g. lounge tutorial). */
+  panelDataTutorial?: string;
 };
 
 function formatTime(ts: number): string {
@@ -83,6 +85,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
   const pollMs = props.pollMs ?? 9000;
   const feed = props.feed ?? "lounge";
   const dashboardChannel = props.dashboardChannel ?? "general";
+  const panelDataTutorial = props.panelDataTutorial;
   const { data: session, status } = useSession();
 
   const [channelTabs, setChannelTabs] = useState<Array<{ key: DashboardChatKind; channelId: string }>>([]);
@@ -245,6 +248,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
 
   return (
     <section
+      {...(panelDataTutorial ? { "data-tutorial": panelDataTutorial } : {})}
       className={`relative overflow-hidden rounded-2xl border border-zinc-800/60 bg-gradient-to-b from-zinc-950/55 to-black/70 ${terminalSurface.insetEdge}`}
     >
       <div

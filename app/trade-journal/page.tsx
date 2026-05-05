@@ -737,7 +737,7 @@ export default function TradeJournalPage() {
   }
 
   return (
-    <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6" data-tutorial="tradeJournal.workspace">
+    <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 -top-4 h-[min(52vh,480px)] bg-[radial-gradient(ellipse_90%_55%_at_50%_0%,rgba(34,197,94,0.14),transparent_62%)] opacity-90 sm:-top-8"
@@ -832,8 +832,8 @@ export default function TradeJournalPage() {
         </div>
       ) : null}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">
-        <section>
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)]" data-tutorial="tradeJournal.mainGrid">
+        <section data-tutorial="tradeJournal.entries">
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
               <h2 className={`${terminalPage.sectionTitle} text-lg`}>Journal</h2>
@@ -990,7 +990,7 @@ export default function TradeJournalPage() {
           </div>
         </section>
 
-        <aside className="lg:pt-8">
+        <aside className="lg:pt-8" data-tutorial="tradeJournal.walletActivity">
           <div
             className={`rounded-2xl border border-zinc-800/90 p-5 shadow-lg shadow-black/30 ${terminalSurface.insetPanel} ring-1 ring-sky-500/[0.04]`}
           >

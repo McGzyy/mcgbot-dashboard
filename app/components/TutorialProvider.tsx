@@ -459,6 +459,9 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
           scrollToFirstStep={false}
           stepIndex={stepIndex}
           onEvent={onJoyrideEvent}
+          styles={{
+            tooltip: { marginTop: 10 },
+          }}
           options={{
             zIndex: 10050,
             showProgress: false,
