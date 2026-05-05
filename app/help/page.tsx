@@ -262,7 +262,7 @@ function HelpPageContent() {
                       await w.__mcgbotTutorial.reset("user");
                       addNotification({
                         id: crypto.randomUUID(),
-                        text: "Tour progress reset — it will auto-start again on next home visit until you finish or skip.",
+                        text: "Tour progress reset — use Start tour here when you want the walkthrough again (it won’t open automatically on login).",
                         type: "call",
                         createdAt: Date.now(),
                         priority: "low",

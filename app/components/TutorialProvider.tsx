@@ -42,6 +42,29 @@ function scrollWindowToY(top: number): void {
   window.scrollTo({ top: Math.min(Math.max(0, top), maxWindowScrollTop()), behavior: "auto" });
 }
 
+/**
+ * Once set, the dashboard tour must never auto-open again on login/home (manual Help / Settings only).
+ * Survives logout; cleared only by intentional browser data wipe — server `seenAt` remains the backup.
+ */
+const TUTORIAL_USER_AUTOSTART_DISABLED_KEY = "mcgbot.tutorial.user.disableAutostart";
+
+function persistTutorialAutostartDisabled(): void {
+  try {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(TUTORIAL_USER_AUTOSTART_DISABLED_KEY, "1");
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function hasTutorialAutostartDisabledClient(): boolean {
+  try {
+    return typeof window !== "undefined" && window.localStorage.getItem(TUTORIAL_USER_AUTOSTART_DISABLED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 type TrackState = {
   seenAt: string | null;
   version: number;
@@ -202,6 +225,8 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       setActiveTrack(track);
       setStepIndex(idx);
       setTourOpen(true);
+      /** Any tour launch (manual or scripted) suppresses future login auto-start if DB/`seen` ever desyncs. */
+      persistTutorialAutostartDisabled();
 
       const seen = trackStates[track]?.seenAt;
       if (!seen) {
@@ -254,6 +279,12 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     void loadTutorialState();
   }, [loadHelpTier, loadTutorialState, session?.user?.id, status]);
 
+  /** Existing accounts already marked `seen` on the server never auto-open again — mirror into localStorage once. */
+  useEffect(() => {
+    if (status !== "authenticated" || stateLoading) return;
+    if (trackStates.user?.seenAt) persistTutorialAutostartDisabled();
+  }, [stateLoading, status, trackStates.user?.seenAt]);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -283,11 +314,14 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     if (!helpRoleLoaded && !sessionTier) return;
     if (tourOpen) return;
     if (!tutorialAutoStartEnabled) return;
+    if (hasTutorialAutostartDisabledClient()) return;
     // One member-facing tour for every authenticated tier (mods/admins see extra staff anchors when present).
     const seen = trackStates.user?.seenAt;
     if (seen) return;
     const list = getTutorialSteps("user", viewerTier, stepCtx);
     if (list.length === 0) return;
+    /** Persist before opening so refresh/logout cannot replay auto-start if PATCH is slow or fails. */
+    persistTutorialAutostartDisabled();
     setActiveTrack("user");
     setStepIndex(0);
     setTourOpen(true);
@@ -403,10 +437,12 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       const index = typeof eventIndex === "number" ? eventIndex : 0;
 
       if (type === EVENTS.TOUR_END) {
+        persistTutorialAutostartDisabled();
         setTourOpen(false);
         return;
       }
       if (st === STATUS.FINISHED || st === STATUS.SKIPPED) {
+        persistTutorialAutostartDisabled();
         setTourOpen(false);
         return;
       }
@@ -414,6 +450,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       if (type !== EVENTS.STEP_AFTER) return;
 
       if (action === ACTIONS.CLOSE || action === ACTIONS.SKIP) {
+        persistTutorialAutostartDisabled();
         setTourOpen(false);
         return;
       }
@@ -445,6 +482,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       }
 
       if (index >= steps.length - 1) {
+        persistTutorialAutostartDisabled();
         setTourOpen(false);
         return;
       }

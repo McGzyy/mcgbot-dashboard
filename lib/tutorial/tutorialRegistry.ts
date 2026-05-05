@@ -534,7 +534,10 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
         title: "Recent calls on profile",
         content: "What visitors see from your last verified rows — pin one as your signature pick above.",
         placement: "top",
-        scrollOffset: 130,
+        skipScroll: true,
+        hideOverlay: true,
+        joyrideOffset: 6,
+        disablePlacementFlip: true,
       }
     );
   }
@@ -746,7 +749,10 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
         title: "Treasury hub",
         content: "Balances and payment rails — staff onboarding covers workflows.",
         placement: "bottom",
-        scrollOffset: 120,
+        skipScroll: true,
+        hideOverlay: true,
+        joyrideOffset: 6,
+        disablePlacementFlip: true,
       }
     );
   }
