@@ -107,7 +107,7 @@ function SidebarBody({
         </Link>
       </div>
 
-      <nav className="flex flex-1 flex-col" aria-label="Main">
+      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label="Main">
         <div className="mt-4 flex flex-col gap-1 px-2">
           <Link href="/" onClick={pick} data-tutorial="sidebar.nav.dashboard" className={getNavItemClass(isActive(pathname, "/"))}>
             <div

@@ -165,6 +165,27 @@ export async function PATCH(request: Request) {
       return Response.json({ success: true, tracks });
     }
 
+    /** Bump stored schema version when the app ships a newer tour — never clears `seenAt` (auto-start is first-visit only). */
+    if (action === "alignVersion") {
+      const cur = tracks[track] ?? emptyTrack();
+      if (cur.version >= latest) {
+        return Response.json({ success: true, tracks });
+      }
+      tracks[track] = {
+        ...cur,
+        version: latest,
+      };
+      const { error: updateErr } = await db
+        .from("users")
+        .update({ tutorial_tracks: tracks as unknown as Record<string, unknown> })
+        .eq("discord_id", discordId);
+      if (updateErr) {
+        console.error("[me/tutorial] PATCH alignVersion:", updateErr);
+        return Response.json({ success: false, error: "Failed to align tutorial version" }, { status: 500 });
+      }
+      return Response.json({ success: true, tracks });
+    }
+
     if (action === "seen") {
       const cur = tracks[track] ?? emptyTrack();
       tracks[track] = {

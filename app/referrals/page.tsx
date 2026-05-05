@@ -390,10 +390,7 @@ export default function ReferralsPage() {
       </section>
 
       {/* How it works */}
-      <div
-        className="rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-4 py-3.5 sm:px-5"
-        data-tutorial="referrals.flow"
-      >
+      <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-4 py-3.5 sm:px-5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Flow</p>
         <ol className="mt-2 flex flex-col gap-2 text-sm text-zinc-400 sm:flex-row sm:flex-wrap sm:items-center sm:gap-1 sm:text-xs">
           <li className="flex items-center gap-2">
@@ -532,7 +529,10 @@ export default function ReferralsPage() {
       </div>
 
       {/* Rewards */}
-      <section className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/[0.2] via-zinc-950 to-zinc-950 p-5 ring-1 ring-violet-500/10 sm:p-8">
+      <section
+        className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/[0.2] via-zinc-950 to-zinc-950 p-5 ring-1 ring-violet-500/10 sm:p-8"
+        data-tutorial="referrals.rewards"
+      >
         <div className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-violet-500/10 blur-3xl" />
         <div className="relative">
           <div className="flex flex-wrap items-center gap-2">

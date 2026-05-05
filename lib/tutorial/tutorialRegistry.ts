@@ -48,8 +48,8 @@ const SECTION_LABELS: Record<string, string> = {
 };
 
 /**
- * Page-first flow: each route shows real UI, then the matching sidebar link on that same URL.
- * Home widgets scroll into view; no redundant `/` hops between workspace pages.
+ * Sidebar-first per section: spotlight the left-rail link (no `route` → no navigation), then open the page.
+ * Home widgets still use explicit `route: "/"` where needed.
  */
 export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext): TutorialStep[] {
   const own = ctx?.ownProfilePath?.trim();
@@ -177,6 +177,15 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
 
     {
       section: "botCalls",
+      target: sel("sidebar.nav.botCalls"),
+      title: "Bot calls",
+      content: "Markets group — McGBot’s live scanner tape opens here.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "botCalls",
       target: sel("botCalls.filters"),
       route: "/bot-calls",
       title: "Scanner filters",
@@ -190,20 +199,19 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       route: "/bot-calls",
       title: "Scanner tape",
       content: "Live and ATH multiples, status, Dex/chart links — the running feed from McGBot.",
-      placement: "top",
-      scrollOffset: 120,
+      placement: "bottom",
+      scrollOffset: 128,
     },
+
     {
-      section: "botCalls",
-      target: sel("sidebar.nav.botCalls"),
-      route: "/bot-calls",
-      title: "Bot calls · sidebar",
-      content: "Same route from the Markets group — one click when you’re elsewhere in the app.",
+      section: "trustedPro",
+      target: sel("sidebar.nav.trustedPro"),
+      title: "Trusted Pro",
+      content: "Markets group — thesis-style calls from approved members.",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
     },
-
     {
       section: "trustedPro",
       target: sel("trustedPro.feed"),
@@ -213,17 +221,16 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       placement: "top",
       scrollOffset: 120,
     },
+
     {
-      section: "trustedPro",
-      target: sel("sidebar.nav.trustedPro"),
-      route: "/trusted-pro",
-      title: "Trusted Pro · sidebar",
-      content: "Markets group link — jumps back here from anywhere in the terminal.",
+      section: "leaderboard",
+      target: sel("sidebar.nav.leaderboard"),
+      title: "Leaderboards",
+      content: "Markets group — public scoreboards, spotlights, and bot milestones.",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
     },
-
     {
       section: "leaderboard",
       target: sel("leaderboard.spotlight"),
@@ -244,15 +251,24 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
     },
     {
       section: "leaderboard",
-      target: sel("sidebar.nav.leaderboard"),
+      target: sel("leaderboard.botSection"),
       route: "/leaderboard",
-      title: "Leaderboards · sidebar",
-      content: "Markets group — community scoreboards and bot milestones live here.",
+      title: "Bot calls (leaderboards)",
+      content:
+        "McGBot’s public bot ladder on this page — KPI cards, milestones, and live bot rows. The full scanner tape lives under Bot Calls in the sidebar.",
+      placement: "top",
+      scrollOffset: 130,
+    },
+
+    {
+      section: "pnlShowcase",
+      target: sel("sidebar.nav.pnlShowcase"),
+      title: "PnL Showcase",
+      content: "Markets group — verified wallet PnL cards for called tokens.",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
     },
-
     {
       section: "pnlShowcase",
       target: sel("pnlShowcase.feed"),
@@ -262,17 +278,16 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       placement: "top",
       scrollOffset: 130,
     },
+
     {
-      section: "pnlShowcase",
-      target: sel("sidebar.nav.pnlShowcase"),
-      route: "/pnl-showcase",
-      title: "PnL Showcase · sidebar",
-      content: "Markets group — open the showcase whenever you want to post or browse.",
+      section: "calls",
+      target: sel("sidebar.nav.calls"),
+      title: "Call log",
+      content: "Workspace — your credited calls only, line by line.",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
     },
-
     {
       section: "calls",
       target: sel("calls.filters"),
@@ -288,20 +303,19 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       route: "/calls",
       title: "Call log table",
       content: "Each row: when, token snapshot, multiples, source, Dex/chart links — your credited calls only.",
-      placement: "top",
-      scrollOffset: 120,
+      placement: "bottom",
+      scrollOffset: 128,
     },
+
     {
-      section: "calls",
-      target: sel("sidebar.nav.calls"),
-      route: "/calls",
-      title: "Call log · sidebar",
-      content: "Workspace link — fastest return to this tape from other routes.",
+      section: "performance",
+      target: sel("sidebar.nav.performance"),
+      title: "Performance lab",
+      content: "Workspace — charts and distribution from the same calls as Call log.",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
     },
-
     {
       section: "performance",
       target: sel("performance.summary"),
@@ -329,23 +343,23 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       placement: "top",
       scrollOffset: 130,
     },
+
     {
-      section: "performance",
-      target: sel("sidebar.nav.performance"),
-      route: "/performance",
-      title: "Performance lab · sidebar",
-      content: "Workspace link — reopen charts and distribution anytime.",
+      section: "tradeJournal",
+      target: sel("sidebar.nav.tradeJournal"),
+      title: "Trade journal",
+      content: "Workspace — Solana-only notes for how you traded, not McGBot call credit or public rankings.",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
     },
-
     {
       section: "tradeJournal",
       target: sel("tradeJournal.mainGrid"),
       route: "/trade-journal",
-      title: "Trade journal layout",
-      content: "Journal on the left, linked-wallet touches on the right — private from public McGBot calls.",
+      title: "Private process log",
+      content:
+        "Write why you took each trade, what counted as edge, and what would prove you wrong. None of it publishes to the call log, milestones, or leaderboards—this page is for your own review and discipline.",
       placement: "top",
       scrollOffset: 100,
     },
@@ -354,7 +368,7 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       target: sel("tradeJournal.entries"),
       route: "/trade-journal",
       title: "Journal entries",
-      content: "Saved plays with thesis and invalidation — New entry / Export Markdown sit in the header above.",
+      content: "Saved plays with setups, thesis, and invalidation. Use New entry or Export Markdown in the header when you are ready.",
       placement: "top",
       scrollOffset: 120,
     },
@@ -363,41 +377,40 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       target: sel("tradeJournal.walletActivity"),
       route: "/trade-journal",
       title: "Wallet activity",
-      content: "Recent SPL touches from a linked wallet — tap a row to draft a journal line with that mint.",
+      content: "Pulls recent SPL touches from your linked wallet so you can anchor a note to a real mint—open a row to start a draft without hunting explorers.",
       placement: "top",
       scrollOffset: 120,
     },
+
     {
-      section: "tradeJournal",
-      target: sel("sidebar.nav.tradeJournal"),
-      route: "/trade-journal",
-      title: "Trade journal · sidebar",
-      content: "Workspace link — your private Solana ledger.",
+      section: "watchlist",
+      target: sel("sidebar.nav.watchlist"),
+      title: "Watchlist",
+      content: "Workspace — private and public contract lists.",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
     },
-
     {
       section: "watchlist",
       target: sel("watchlist.manage"),
       route: "/watchlist",
       title: "Watchlist editor",
       content: "Switch private vs public, paste a Solana mint, add or remove rows.",
-      placement: "top",
-      scrollOffset: 100,
+      placement: "bottom",
+      scrollOffset: 128,
+      skipScroll: true,
     },
+
     {
-      section: "watchlist",
-      target: sel("sidebar.nav.watchlist"),
-      route: "/watchlist",
-      title: "Watchlist · sidebar",
-      content: "Workspace link — same lists surface on your profile when public is on.",
+      section: "referrals",
+      target: sel("sidebar.nav.referrals"),
+      title: "Referrals",
+      content: "Workspace — your link, signups, and downstream caller stats.",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
     },
-
     {
       section: "referrals",
       target: sel("referrals.linkHub"),
@@ -418,15 +431,6 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
     },
     {
       section: "referrals",
-      target: sel("referrals.flow"),
-      route: "/referrals",
-      title: "How it flows",
-      content: "Drop link → friends sign up → their performance rolls up under your network.",
-      placement: "top",
-      scrollOffset: 120,
-    },
-    {
-      section: "referrals",
       target: sel("referrals.lists"),
       route: "/referrals",
       title: "Referral lists",
@@ -436,15 +440,24 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
     },
     {
       section: "referrals",
-      target: sel("sidebar.nav.referrals"),
+      target: sel("referrals.rewards"),
       route: "/referrals",
-      title: "Referrals · sidebar",
-      content: "Workspace link — share and track from one place.",
+      title: "Rewards & attribution",
+      content:
+        "Qualifying subscription payments from your network show up here as a ledger preview—nothing auto-credits until a reward policy is published, but the counts stay visible.",
+      placement: "top",
+      scrollOffset: 140,
+    },
+
+    {
+      section: "lounge",
+      target: sel("sidebar.nav.loungeDiscordChats"),
+      title: "Discord chats",
+      content: "Community — read-only mirror of configured Discord channels.",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
     },
-
     {
       section: "lounge",
       target: sel("lounge.discordChats.panel"),
@@ -454,17 +467,16 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       placement: "top",
       scrollOffset: 100,
     },
+
     {
       section: "lounge",
-      target: sel("sidebar.nav.loungeDiscordChats"),
-      route: "/lounge/discord-chats",
-      title: "Discord chats · sidebar",
-      content: "Community group — jump here from any page.",
+      target: sel("sidebar.nav.loungeVoiceChats"),
+      title: "Voice chats",
+      content: "Community — premium voice tables when enabled on this host.",
       placement: "right",
       scrollOffset: 72,
       skipScroll: true,
     },
-
     {
       section: "lounge",
       target: sel("lounge.voiceChats.panel"),
@@ -473,16 +485,6 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       content: "Pick a table, see who’s live, join with one tap — staff tools appear when your tier allows.",
       placement: "top",
       scrollOffset: 100,
-    },
-    {
-      section: "lounge",
-      target: sel("sidebar.nav.loungeVoiceChats"),
-      route: "/lounge/voice-chats",
-      title: "Voice chats · sidebar",
-      content: "Community group — premium tables when the voice flag is on for this host.",
-      placement: "right",
-      scrollOffset: 72,
-      skipScroll: true,
     },
   ];
 
@@ -585,28 +587,36 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
     core.push(
       {
         section: "staffModeration",
+        target: sel("sidebar.nav.moderation"),
+        title: "Moderation",
+        content: "Staff group — approvals, Trusted Pro queues, mirrored Discord intake.",
+        placement: "right",
+        scrollOffset: 72,
+        skipScroll: true,
+      },
+      {
+        section: "staffModeration",
         target: sel("moderation.header"),
         route: "/moderation",
         title: "Moderation desk",
         content: "Live queue plus Supabase-backed desks your team triages together.",
         placement: "bottom",
         scrollOffset: 120,
-      },
-      {
-        section: "staffModeration",
-        target: sel("sidebar.nav.moderation"),
-        route: "/moderation",
-        title: "Moderation · sidebar",
-        content: "Staff group link — return here from anywhere when you’re triaging.",
-        placement: "right",
-        scrollOffset: 72,
-        skipScroll: true,
       }
     );
   }
 
   if (tier === "admin") {
     core.push(
+      {
+        section: "adminPanel",
+        target: sel("sidebar.nav.admin"),
+        title: "Admin",
+        content: "Staff group — subscriptions, bot, site flags, bugs, feature requests.",
+        placement: "right",
+        scrollOffset: 72,
+        skipScroll: true,
+      },
       {
         section: "adminPanel",
         target: sel("admin.intro"),
@@ -617,11 +627,10 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
         scrollOffset: 120,
       },
       {
-        section: "adminPanel",
-        target: sel("sidebar.nav.admin"),
-        route: "/admin",
-        title: "Admin · sidebar",
-        content: "Staff group link — subscriptions, bot, site flags, bugs, and requests.",
+        section: "adminTreasury",
+        target: sel("sidebar.nav.treasury"),
+        title: "Treasury",
+        content: "Staff group — SOL treasuries, Stripe balance, tips, voucher pool.",
         placement: "right",
         scrollOffset: 72,
         skipScroll: true,
@@ -634,16 +643,6 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
         content: "Balances and payment rails — staff onboarding covers workflows.",
         placement: "bottom",
         scrollOffset: 120,
-      },
-      {
-        section: "adminTreasury",
-        target: sel("sidebar.nav.treasury"),
-        route: "/admin/treasury",
-        title: "Treasury · sidebar",
-        content: "SOL treasuries, Stripe balance, tips, voucher pool — same entry from the staff rail.",
-        placement: "right",
-        scrollOffset: 72,
-        skipScroll: true,
       }
     );
   }

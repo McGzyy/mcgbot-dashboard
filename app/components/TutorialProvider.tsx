@@ -10,6 +10,12 @@ import {
   type TutorialStepContext,
 } from "@/lib/tutorial/tutorialRegistry";
 import type { TutorialTrackId } from "@/lib/tutorial/tutorialVersions";
+import {
+  isSidebarDuplicateTutorialSelector,
+  queryFirstVisibleTutorialTarget,
+  stableVisibleTutorialTargetGetter,
+  tutorialSelectorUsesDataTutorial,
+} from "@/lib/tutorial/tourTargetResolution";
 import { TUTORIAL_LATEST_VERSIONS } from "@/lib/tutorial/tutorialVersions";
 import { userProfileHref } from "@/lib/userProfileHref";
 import { Joyride, ACTIONS, EVENTS, STATUS, type EventHandler } from "react-joyride";
@@ -131,7 +137,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
             method: "PATCH",
             credentials: "same-origin",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ action: "reset", track: t }),
+            body: JSON.stringify({ action: "alignVersion", track: t }),
           });
         }
       }
@@ -344,7 +350,9 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
 
     const offset = typeof step.scrollOffset === "number" ? step.scrollOffset : 112;
     const scroll = () => {
-      const el = document.querySelector(step.target);
+      const el = tutorialSelectorUsesDataTutorial(step.target)
+        ? queryFirstVisibleTutorialTarget(step.target)
+        : document.querySelector(step.target);
       if (!(el instanceof Element)) return;
       const y = el.getBoundingClientRect().top + window.scrollY - offset;
       window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
@@ -427,7 +435,10 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
   const joyrideSteps = useMemo(() => {
     return steps.map((s) => {
       const row: Record<string, unknown> = {
-        target: s.target,
+        target:
+          tutorialSelectorUsesDataTutorial(s.target) && isSidebarDuplicateTutorialSelector(s.target)
+            ? stableVisibleTutorialTargetGetter(s.target)
+            : s.target,
         title: s.title,
         content: s.content,
         placement: s.placement ?? "auto",
