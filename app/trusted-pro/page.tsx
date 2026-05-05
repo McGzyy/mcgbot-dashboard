@@ -1,10 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
-import { terminalChrome, terminalUi } from "@/lib/terminalDesignTokens";
+import { looksLikeDiscordSnowflake } from "@/lib/discordIdentity";
+import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
+import { terminalChrome, terminalSurface, terminalPage, terminalUi } from "@/lib/terminalDesignTokens";
+
+const SOLANA_MINT_LIKE = /^[1-9A-HJ-NP-Za-km-z]{32,48}$/;
+
+function solMintDexUrl(ca: string): string | null {
+  const t = ca.trim();
+  if (!t || !SOLANA_MINT_LIKE.test(t)) return null;
+  return dexscreenerTokenUrl("solana", t);
+}
+
+const panelShell = `${terminalSurface.routeSectionFrame} bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 sm:p-5`;
+const feedScrollClass =
+  "max-h-[min(40rem,72vh)] overflow-y-auto overscroll-contain pr-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 type TrustedProMe = {
   trustedPro: boolean;
@@ -242,33 +256,57 @@ export default function TrustedProPage() {
 
   if (status === "loading") {
     return (
-      <div className="mx-auto max-w-6xl animate-pulse space-y-4 px-4 py-10">
-        <div className="h-10 w-72 rounded-lg bg-zinc-800/60" />
-        <div className="h-32 rounded-xl bg-zinc-900/40" />
+      <div className="mx-auto max-w-6xl animate-pulse space-y-6 px-4 py-10 sm:px-6">
+        <div className={`${terminalSurface.routeHeroFrame} p-8`}>
+          <div className="h-4 w-32 rounded-md bg-zinc-800/70" />
+          <div className="mt-5 h-9 max-w-xs rounded-lg bg-zinc-800/60 sm:h-10" />
+          <div className="mt-4 h-20 max-w-2xl rounded-lg bg-zinc-800/45" />
+        </div>
+        <div className={`${panelShell} space-y-3`}>
+          <div className="h-16 rounded-lg bg-zinc-800/40" />
+        </div>
+        <div className="space-y-3">
+          <div className="h-28 rounded-2xl bg-zinc-900/40" />
+          <div className="h-28 rounded-2xl bg-zinc-900/40" />
+        </div>
       </div>
     );
   }
 
+  const statTileBase = `${terminalPage.statTile} flex flex-col gap-0.5`;
+
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
-      <header className={`${terminalChrome.headerRule} pb-8 pt-2`} data-tutorial="trustedPro.header">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-fuchsia-300/80">
+      <header
+        className={`relative overflow-hidden ${terminalSurface.routeHeroFrame} p-6 sm:p-8 ${terminalChrome.headerRule}`}
+        data-tutorial="trustedPro.header"
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-fuchsia-500/[0.07] blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-28 left-12 h-64 w-64 rounded-full bg-violet-600/[0.06] blur-3xl"
+        />
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-fuchsia-300/85">
           Markets
         </p>
-        <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
+        <div className="relative mt-2 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-[2.125rem] sm:leading-tight">
               Trusted Pro calls
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-              Longform, thesis-driven posts from Trusted Pro members. Everyone can read; only Trusted Pro can submit.
+              Longform, thesis-driven posts from Trusted Pro members. Everyone can read; only Trusted Pros
+              can submit new calls.
             </p>
           </div>
           {canSubmit ? (
             <button
               type="button"
               onClick={() => setSubmitOpen(true)}
-              className="rounded-xl bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500"
+              className="w-full shrink-0 rounded-xl bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 sm:w-auto"
             >
               Submit Trusted Pro call
             </button>
@@ -277,144 +315,207 @@ export default function TrustedProPage() {
       </header>
 
       {canSubmit && me ? (
-        <div className="mt-6 rounded-2xl border border-zinc-800/60 bg-zinc-950/25 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <section className={`${panelShell} mt-8`}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-zinc-100">Your Trusted Pro stats</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                {statLine}
-              </p>
+              <p className={terminalPage.sectionTitle}>Your Trusted Pro stats</p>
+              <p className={terminalPage.sectionHint}>{statLine}</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
-              <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
-                Total <span className="font-semibold tabular-nums text-zinc-100">{me.totals.submitted}</span>
-              </span>
-              <span className="rounded-lg border border-emerald-500/25 bg-emerald-950/20 px-2.5 py-1">
-                Approved{" "}
-                <span className="font-semibold tabular-nums text-emerald-100">{me.totals.approved}</span>
-              </span>
-              <span className="rounded-lg border border-red-500/25 bg-red-950/15 px-2.5 py-1">
-                Denied <span className="font-semibold tabular-nums text-red-100">{me.totals.denied}</span>
-              </span>
-              <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
-                Views <span className="font-semibold tabular-nums text-zinc-100">{me.viewsTotal}</span>
-              </span>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className={statTileBase}>
+                <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Total</span>
+                <span className="text-lg font-semibold tabular-nums text-zinc-100">{me.totals.submitted}</span>
+              </div>
+              <div className={statTileBase}>
+                <span className="text-[11px] font-medium uppercase tracking-wide text-emerald-500/80">
+                  Approved
+                </span>
+                <span className="text-lg font-semibold tabular-nums text-emerald-100">{me.totals.approved}</span>
+              </div>
+              <div className={statTileBase}>
+                <span className="text-[11px] font-medium uppercase tracking-wide text-red-400/80">Denied</span>
+                <span className="text-lg font-semibold tabular-nums text-red-100">{me.totals.denied}</span>
+              </div>
+              <div className={statTileBase}>
+                <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Views</span>
+                <span className="text-lg font-semibold tabular-nums text-zinc-100">{me.viewsTotal}</span>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
       ) : null}
 
       {!canSubmit ? (
-        <div className="mt-6 rounded-2xl border border-zinc-800/60 bg-zinc-950/25 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+        <section className={`${panelShell} mt-8`}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-zinc-100">Trusted Pro intel</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                Aggregates across approved Trusted Pro calls.
-              </p>
+              <p className={terminalPage.sectionTitle}>Trusted Pro intel</p>
+              <p className={terminalPage.sectionHint}>Network aggregates across approved Trusted Pro calls.</p>
+              {status === "unauthenticated" ? (
+                <p className="mt-3 text-xs leading-relaxed text-zinc-500">
+                  <button
+                    type="button"
+                    onClick={() => void signIn("discord", { callbackUrl: "/trusted-pro" })}
+                    className="font-semibold text-fuchsia-300/90 underline decoration-fuchsia-500/30 underline-offset-2 transition hover:text-fuchsia-200"
+                  >
+                    Sign in with Discord
+                  </button>{" "}
+                  to apply for Trusted Pro.
+                </p>
+              ) : null}
             </div>
             {canApply ? (
               <button
                 type="button"
                 onClick={() => setApplyOpen(true)}
-                className="rounded-xl border border-emerald-500/25 bg-emerald-950/20 px-4 py-2 text-xs font-semibold text-emerald-100/90 transition hover:border-emerald-400/35"
+                className="w-full shrink-0 rounded-xl border border-emerald-500/30 bg-emerald-950/25 px-4 py-2.5 text-sm font-semibold text-emerald-100/95 shadow-[inset_0_1px_0_0_rgba(16,185,129,0.12)] transition hover:border-emerald-400/40 hover:bg-emerald-950/40 sm:w-auto"
               >
                 Become a Trusted Pro
               </button>
             ) : null}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-zinc-400">
-            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
-              Trusted Pros{" "}
-              <span className="font-semibold tabular-nums text-zinc-100">
-                {publicStats?.trustedPros ?? "—"}
-              </span>
-            </span>
-            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
-              Total calls{" "}
-              <span className="font-semibold tabular-nums text-zinc-100">
-                {publicStats?.totalCalls ?? "—"}
-              </span>
-            </span>
-            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
-              Avg call MC{" "}
-              <span className="font-semibold tabular-nums text-zinc-100">
-                {publicSummary?.mc ?? "—"}
-              </span>
-            </span>
-            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
-              Avg ATH{" "}
-              <span className="font-semibold tabular-nums text-zinc-100">
-                {publicSummary?.avgAth ?? "—"}
-              </span>
-            </span>
-            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
-              Avg time to ATH{" "}
-              <span className="font-semibold tabular-nums text-zinc-100">
-                {publicSummary?.avgT ?? "—"}
-              </span>
-            </span>
-            <span className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-2.5 py-1">
-              Best call (ATH){" "}
-              <span className="font-semibold tabular-nums text-zinc-100">
-                {publicSummary?.bestAth ?? "—"}
-              </span>
-            </span>
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            {[
+              { label: "Trusted Pros", value: publicStats?.trustedPros ?? "—" },
+              { label: "Total calls", value: publicStats?.totalCalls ?? "—" },
+              { label: "Avg call MC", value: publicSummary?.mc ?? "—" },
+              { label: "Avg ATH", value: publicSummary?.avgAth ?? "—" },
+              { label: "Avg time to ATH", value: publicSummary?.avgT ?? "—" },
+              { label: "Best ATH", value: publicSummary?.bestAth ?? "—" },
+            ].map((row) => (
+              <div key={row.label} className={statTileBase}>
+                <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">{row.label}</span>
+                <span className="text-base font-semibold tabular-nums text-zinc-100">{row.value}</span>
+              </div>
+            ))}
           </div>
-        </div>
+        </section>
       ) : null}
 
       {err ? (
-        <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">
+        <div className="mt-8 rounded-xl border border-red-500/25 bg-red-950/25 px-4 py-3 text-sm text-red-200 ring-1 ring-red-500/10">
           {err}
         </div>
       ) : null}
 
-      <div className="mt-8 space-y-3" data-tutorial="trustedPro.feed">
-        {loading ? (
-          <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-10 text-center text-sm text-zinc-500">
-            Loading…
+      <section className={`${panelShell} mt-10`}>
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-800/60 pb-4">
+          <div>
+            <h2 className={terminalPage.sectionTitle}>Latest posts</h2>
+            <p className={terminalPage.sectionHint}>
+              {loading ? "Loading feed…" : `${calls.length} shown`}
+            </p>
           </div>
-        ) : calls.length === 0 ? (
-          <div className="rounded-xl border border-zinc-800 bg-black/20 px-4 py-10 text-center text-sm text-zinc-500">
-            No Trusted Pro calls yet.
-          </div>
-        ) : (
-          calls.map((c) => (
-            <article key={c.id} className="rounded-2xl border border-zinc-800/60 bg-zinc-950/25 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs text-zinc-500">
-                    CA{" "}
-                    <span className="break-all font-mono text-zinc-300">{shortAddr(c.contract_address)}</span>{" "}
-                    <span className="text-zinc-700">·</span>{" "}
-                    <span className="break-all font-mono">{c.author_discord_id}</span>
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-zinc-100">{c.thesis}</p>
-                  {c.narrative ? (
-                    <p className="mt-2 text-sm leading-relaxed text-zinc-300">{c.narrative}</p>
-                  ) : null}
-                </div>
-                <div className="shrink-0 text-right text-xs text-zinc-500">
-                  <div className="tabular-nums">{c.views_count ?? 0} views</div>
-                  <div className="mt-1 tabular-nums" title={c.published_at ?? c.created_at}>
-                    {c.published_at ? "Published" : "Posted"}{" "}
-                    <span className="text-zinc-300">{new Date(c.published_at ?? c.created_at).toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-            </article>
-          ))
-        )}
-      </div>
+        </div>
 
-      <Link
-        href="/"
-        className="mt-10 inline-flex text-sm font-semibold text-[color:var(--accent)] hover:underline"
-      >
-        ← Back to dashboard
-      </Link>
+        <div className={`${feedScrollClass} mt-5 space-y-3`} data-tutorial="trustedPro.feed">
+          {loading ? (
+            <div className="space-y-3" aria-busy>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className={`${terminalSurface.panelCardElevated} rounded-2xl p-4 shadow-none`}>
+                  <div className="h-3 w-2/5 animate-pulse rounded bg-zinc-800/65" />
+                  <div className="mt-3 h-5 w-4/5 animate-pulse rounded bg-zinc-800/55" />
+                  <div className="mt-2 h-14 w-full animate-pulse rounded-lg bg-zinc-800/40" />
+                </div>
+              ))}
+            </div>
+          ) : calls.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-zinc-700/55 bg-zinc-950/35 px-4 py-14 text-center">
+              <span className="text-2xl opacity-30" aria-hidden>
+                ✦
+              </span>
+              <p className="mt-2 text-sm font-medium text-zinc-400">No Trusted Pro calls yet</p>
+              <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-zinc-600">
+                When members publish approved theses, they will appear here for everyone to read.
+              </p>
+            </div>
+          ) : (
+            calls.map((c) => {
+              const dexUrl = solMintDexUrl(c.contract_address);
+              const authorId = c.author_discord_id.trim();
+              const authorHref = looksLikeDiscordSnowflake(authorId)
+                ? `/user/${encodeURIComponent(authorId)}`
+                : null;
+              const displayTs = c.published_at ?? c.created_at;
+
+              return (
+                <article
+                  key={c.id}
+                  className={`group ${terminalSurface.panelCardElevated} relative rounded-2xl border-violet-500/10 bg-zinc-950/30 p-4 ring-1 ring-white/[0.02] transition hover:border-violet-500/25 hover:bg-zinc-900/25 sm:p-5`}
+                >
+                  <div className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-l-2xl bg-gradient-to-b from-violet-500/50 to-fuchsia-500/35 opacity-60 transition group-hover:opacity-100" />
+                  <div className="relative flex flex-wrap items-start justify-between gap-4 pl-2 sm:pl-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500">
+                        <span className="font-semibold uppercase tracking-[0.14em] text-zinc-600">CA</span>
+                        {dexUrl ? (
+                          <a
+                            href={dexUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-violet-200/90 underline decoration-violet-500/30 underline-offset-2 transition hover:text-violet-100"
+                          >
+                            {shortAddr(c.contract_address)}
+                          </a>
+                        ) : (
+                          <span className="break-all font-mono text-zinc-300">{shortAddr(c.contract_address)}</span>
+                        )}
+                        <span className="hidden text-zinc-700 sm:inline" aria-hidden>
+                          ·
+                        </span>
+                        <span className="w-full text-zinc-600 sm:w-auto">Caller</span>
+                        {authorHref ? (
+                          <Link
+                            href={authorHref}
+                            className="font-mono text-zinc-300 underline decoration-zinc-600 underline-offset-2 transition hover:text-white"
+                          >
+                            {shortAddr(authorId)}
+                          </Link>
+                        ) : (
+                          <span className="break-all font-mono text-zinc-400">{authorId || "—"}</span>
+                        )}
+                      </p>
+                      <p className="mt-3 text-base font-semibold leading-snug tracking-tight text-zinc-50">
+                        {c.thesis}
+                      </p>
+                      {c.narrative ? (
+                        <p className="mt-2 text-sm leading-relaxed text-zinc-400">{c.narrative}</p>
+                      ) : null}
+                    </div>
+                    <div className="shrink-0 text-right text-xs text-zinc-500">
+                      <div className="tabular-nums text-zinc-400">
+                        <span className="font-semibold text-zinc-300">{c.views_count ?? 0}</span> views
+                      </div>
+                      <div className="mt-1.5 tabular-nums">
+                        <span className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
+                          {c.published_at ? "Published" : "Posted"}
+                        </span>
+                        <time
+                          className="text-zinc-400"
+                          dateTime={displayTs}
+                          title={new Date(displayTs).toLocaleString()}
+                        >
+                          {formatRelativeTime(displayTs)}
+                        </time>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })
+          )}
+        </div>
+      </section>
+
+      <div className="mt-10 border-t border-zinc-800/60 pt-8">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-[color:var(--accent)] transition hover:underline"
+        >
+          <span aria-hidden>←</span> Back to dashboard
+        </Link>
+      </div>
 
       {submitOpen ? (
         <div

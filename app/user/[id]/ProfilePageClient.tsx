@@ -1264,8 +1264,23 @@ export default function ProfilePageClient() {
   }, [fetchProfile]);
 
   useEffect(() => {
+    setTrustedProCalls([]);
+    setTrustedProCallsErr(null);
+    setTrustedProIncludeAll(false);
+    setTrustedProCallsLoading(false);
+  }, [profileUserId]);
+
+  useEffect(() => {
+    if (!profileUserId || loading) return;
+    if (!profile?.isTrustedPro) {
+      setTrustedProCalls([]);
+      setTrustedProCallsErr(null);
+      setTrustedProIncludeAll(false);
+      setTrustedProCallsLoading(false);
+      return;
+    }
     void loadTrustedProCalls();
-  }, [loadTrustedProCalls]);
+  }, [profileUserId, loading, profile?.isTrustedPro, loadTrustedProCalls]);
 
   useEffect(() => {
     if (!profileUserId) {
@@ -2195,6 +2210,67 @@ export default function ProfilePageClient() {
             </PanelCard>
           </section>
 
+          {isTrustedPro ? (
+          <section id="trusted-pro" className={`mb-4 ${PROFILE_SECTION_SCROLL}`}>
+            <PanelCard title="Trusted Pro calls">
+              {trustedProCallsErr ? (
+                <div className="mt-3 rounded-xl border border-red-500/15 bg-red-950/20 px-4 py-6 text-center">
+                  <p className="text-sm text-red-300/90">{trustedProCallsErr}</p>
+                </div>
+              ) : trustedProCallsLoading ? (
+                <div className="mt-3 flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-xl border border-zinc-800/35 bg-zinc-950/25 py-8">
+                  <div className="h-4 w-40 animate-pulse rounded bg-zinc-800/70" aria-busy />
+                  <p className="text-xs text-zinc-600">Loading Trusted Pro calls…</p>
+                </div>
+              ) : trustedProCalls.length === 0 ? (
+                <div className="mt-3 flex min-h-[100px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700/45 bg-zinc-950/25 px-6 py-10 text-center">
+                  <span className="text-xl opacity-30" aria-hidden>
+                    ✦
+                  </span>
+                  <p className="text-sm font-medium text-zinc-400">No Trusted Pro calls yet</p>
+                  <p className="max-w-xs text-xs text-zinc-600">
+                    Approved thesis posts appear here for verified callers.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="mt-2 rounded-lg border border-violet-500/15 bg-violet-950/15 px-3 py-2 text-[11px] leading-snug text-zinc-500">
+                    {trustedProIncludeAll
+                      ? "Showing all statuses (owner/staff view)."
+                      : "Showing approved-only."}
+                  </p>
+                  <ul className="mt-3 divide-y divide-zinc-800/30 rounded-xl border border-zinc-800/35 bg-zinc-950/20 text-sm ring-1 ring-white/[0.02]">
+                    {trustedProCalls.map((c) => (
+                      <li
+                        key={c.id}
+                        className="group flex flex-wrap items-start justify-between gap-3 px-2 py-3 transition first:rounded-t-xl last:rounded-b-xl hover:bg-zinc-800/[0.15]"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs text-zinc-500">
+                            <span className="font-mono text-zinc-300">{abbreviateCa(c.contract_address)}</span>
+                            <span className="mx-2 text-zinc-700">·</span>
+                            <span className="uppercase tracking-wide">{c.status}</span>
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-zinc-100">{c.thesis}</p>
+                          {trustedProIncludeAll && c.staff_notes ? (
+                            <p className="mt-1 text-xs text-zinc-500">Staff: {c.staff_notes}</p>
+                          ) : null}
+                        </div>
+                        <div className="shrink-0 text-right text-xs text-zinc-500">
+                          <div className="tabular-nums">{c.views_count} views</div>
+                          <div className="mt-1 tabular-nums" title={c.published_at ?? c.created_at}>
+                            {new Date(c.published_at ?? c.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </PanelCard>
+          </section>
+          ) : null}
+
           {visibility.show_calls ? (
           <section id="recent-calls" className={`mb-4 ${PROFILE_SECTION_SCROLL}`}>
             <PanelCard title="Recent Calls" data-tutorial="profile.recentCalls">
@@ -2224,7 +2300,10 @@ export default function ProfilePageClient() {
                     <span className="text-right">Result</span>
                     <span className="text-right">Time</span>
                   </div>
-                  <ul className="divide-y divide-zinc-800/30 rounded-xl border border-zinc-800/35 bg-zinc-950/20 text-sm ring-1 ring-white/[0.02] sm:mt-2">
+                  <div
+                    className="max-h-[min(26rem,48vh)] overflow-y-auto overscroll-contain sm:mt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  >
+                  <ul className="divide-y divide-zinc-800/30 rounded-xl border border-zinc-800/35 bg-zinc-950/20 text-sm ring-1 ring-white/[0.02]">
                     {profile.recentCalls.map((call, i) => {
                       const ca = call.token.trim();
                       const dexUrl =
@@ -2362,70 +2441,12 @@ export default function ProfilePageClient() {
                     );
                     })}
                   </ul>
+                  </div>
                 </>
               )}
             </PanelCard>
           </section>
           ) : null}
-
-          <section id="trusted-pro" className={`mb-4 ${PROFILE_SECTION_SCROLL}`}>
-            <PanelCard title="Trusted Pro calls">
-              {trustedProCallsErr ? (
-                <div className="mt-3 rounded-xl border border-red-500/15 bg-red-950/20 px-4 py-6 text-center">
-                  <p className="text-sm text-red-300/90">{trustedProCallsErr}</p>
-                </div>
-              ) : trustedProCallsLoading ? (
-                <div className="mt-3 flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-xl border border-zinc-800/35 bg-zinc-950/25 py-8">
-                  <div className="h-4 w-40 animate-pulse rounded bg-zinc-800/70" aria-busy />
-                  <p className="text-xs text-zinc-600">Loading Trusted Pro calls…</p>
-                </div>
-              ) : trustedProCalls.length === 0 ? (
-                <div className="mt-3 flex min-h-[100px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700/45 bg-zinc-950/25 px-6 py-10 text-center">
-                  <span className="text-xl opacity-30" aria-hidden>
-                    ✦
-                  </span>
-                  <p className="text-sm font-medium text-zinc-400">No Trusted Pro calls yet</p>
-                  <p className="max-w-xs text-xs text-zinc-600">
-                    Approved thesis posts appear here for verified callers.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <p className="mt-2 rounded-lg border border-violet-500/15 bg-violet-950/15 px-3 py-2 text-[11px] leading-snug text-zinc-500">
-                    {trustedProIncludeAll
-                      ? "Showing all statuses (owner/staff view)."
-                      : "Showing approved-only."}
-                  </p>
-                  <ul className="mt-3 divide-y divide-zinc-800/30 rounded-xl border border-zinc-800/35 bg-zinc-950/20 text-sm ring-1 ring-white/[0.02]">
-                    {trustedProCalls.map((c) => (
-                      <li
-                        key={c.id}
-                        className="group flex flex-wrap items-start justify-between gap-3 px-2 py-3 transition first:rounded-t-xl last:rounded-b-xl hover:bg-zinc-800/[0.15]"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-xs text-zinc-500">
-                            <span className="font-mono text-zinc-300">{abbreviateCa(c.contract_address)}</span>
-                            <span className="mx-2 text-zinc-700">·</span>
-                            <span className="uppercase tracking-wide">{c.status}</span>
-                          </p>
-                          <p className="mt-1 text-sm font-semibold text-zinc-100">{c.thesis}</p>
-                          {trustedProIncludeAll && c.staff_notes ? (
-                            <p className="mt-1 text-xs text-zinc-500">Staff: {c.staff_notes}</p>
-                          ) : null}
-                        </div>
-                        <div className="shrink-0 text-right text-xs text-zinc-500">
-                          <div className="tabular-nums">{c.views_count} views</div>
-                          <div className="mt-1 tabular-nums" title={c.published_at ?? c.created_at}>
-                            {new Date(c.published_at ?? c.created_at).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </PanelCard>
-          </section>
         </div>
 
         <aside className="col-span-12 lg:col-span-4">
