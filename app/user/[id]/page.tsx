@@ -33,6 +33,22 @@ const CARD_HOVER =
 const PROFILE_HERO_SHELL =
   "relative mb-10 overflow-hidden rounded-[1.75rem] border border-zinc-800/75 bg-zinc-950/50 shadow-[0_40px_120px_-52px_rgba(0,0,0,0.92)] ring-1 ring-white/[0.06] backdrop-blur-[2px]";
 
+const TROPHY_TIER_WELL =
+  "rounded-xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/45 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.14)] ring-1 ring-white/[0.03]";
+
+function TrophyEmptyHint({ short }: { short?: boolean }) {
+  return (
+    <div className="flex min-h-[2.75rem] items-center gap-2.5 rounded-lg border border-dashed border-zinc-700/40 bg-zinc-950/45 px-3 py-2">
+      <span className="text-[15px] leading-none opacity-35 grayscale" aria-hidden>
+        🏆
+      </span>
+      <p className={`leading-snug text-zinc-500 ${short ? "text-[11px]" : "text-xs"}`}>
+        {short ? "Open slot" : "No podium finishes yet — keep calling."}
+      </p>
+    </div>
+  );
+}
+
 type ProfileStats = {
   avgX: number;
   winRate: number;
@@ -433,16 +449,23 @@ function formatMilestoneJoinedTooltip(createdAt: string | null): string {
 function MilestoneClubStrip({ items }: { items: MilestoneTrophyRow[] }) {
   return (
     <div className="overflow-visible">
-      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400">
         Call clubs
       </p>
-      <p className="mb-2 text-[11px] leading-snug text-zinc-600">
+      <p className="mb-2 text-[11px] leading-snug text-zinc-500">
         One badge per club when any of your eligible dashboard calls hits the
         multiple (lifetime).
       </p>
       <div className="flex flex-wrap items-center gap-2 overflow-visible sm:gap-2.5">
         {items.length === 0 ? (
-          <span className="text-sm text-zinc-600">None yet</span>
+          <div className="flex min-h-[2.75rem] items-center gap-2.5 rounded-lg border border-dashed border-violet-500/15 bg-violet-950/10 px-3 py-2">
+            <span className="text-[15px] leading-none opacity-40" aria-hidden>
+              ◇
+            </span>
+            <p className="text-[11px] leading-snug text-zinc-500">
+              Club badges unlock when you hit lifetime multiples.
+            </p>
+          </div>
         ) : (
           items.map((m) => {
             const label = callClubMilestoneLabel(m.milestoneKey);
@@ -498,12 +521,12 @@ function TrophyTierRow({
 
   return (
     <div className="overflow-visible">
-      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400">
         {label}
       </p>
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 overflow-visible sm:gap-x-3">
         {items.length === 0 ? (
-          <span className="text-sm text-zinc-600">None yet</span>
+          <TrophyEmptyHint short />
         ) : (
           items.map((t) => {
             const tooltipText = trophyTooltipText(
@@ -623,34 +646,40 @@ function DepthMetricsGrid({
 }: {
   keyStats: NonNullable<ProfilePayload["keyStats"]>;
 }) {
+  const baseTile =
+    "rounded-xl border px-3.5 py-3 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.16)] ring-1 ring-zinc-700/20";
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-3">
       {ks.bestMultiple != null ? (
-        <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/50 px-3 py-2.5">
+        <div
+          className={`${baseTile} border-emerald-500/20 bg-gradient-to-br from-emerald-950/35 via-zinc-900/90 to-zinc-950 ring-emerald-500/10`}
+        >
           <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
             Peak multiple
           </p>
-          <p className="mt-1 text-lg font-bold tabular-nums text-emerald-300">
+          <p className="mt-1 bg-gradient-to-br from-emerald-100 to-emerald-400 bg-clip-text text-xl font-bold tabular-nums text-transparent">
             {ks.bestMultiple.toFixed(1)}×
           </p>
         </div>
       ) : null}
       {ks.medianMultiple != null ? (
-        <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/50 px-3 py-2.5">
+        <div className={`${baseTile} border-zinc-800/50 bg-gradient-to-br from-zinc-900/70 to-zinc-950`}>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
             Median X
           </p>
-          <p className="mt-1 text-lg font-bold tabular-nums text-zinc-100">
+          <p className="mt-1 text-xl font-bold tabular-nums text-zinc-50">
             {ks.medianMultiple.toFixed(1)}×
           </p>
         </div>
       ) : null}
       {ks.last10Avg != null ? (
-        <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/50 px-3 py-2.5">
+        <div
+          className={`${baseTile} border-cyan-500/18 bg-gradient-to-br from-cyan-950/25 via-zinc-900/85 to-zinc-950 ring-cyan-500/8`}
+        >
           <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
             Last 10 avg
           </p>
-          <p className="mt-1 text-lg font-bold tabular-nums text-cyan-200/90">
+          <p className="mt-1 bg-gradient-to-br from-cyan-100 to-cyan-300 bg-clip-text text-xl font-bold tabular-nums text-transparent">
             {ks.last10Avg.toFixed(1)}×
           </p>
         </div>
@@ -1893,7 +1922,7 @@ export default function UserProfilePage() {
         <p className="mt-8 text-sm text-red-400/90">{error}</p>
       ) : null}
 
-      <div className="mt-10 grid grid-cols-12 gap-5 lg:items-start lg:gap-6">
+      <div className="mt-10 grid grid-cols-12 gap-6 lg:items-start lg:gap-8">
         {visibility.show_stats ? (
         <section className="col-span-12" data-tutorial="profile.performance">
           <div
@@ -1907,7 +1936,7 @@ export default function UserProfilePage() {
                 Performance
               </h2>
               {profile && profile.stats.totalCalls > 0 ? (
-                <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+                <span className="rounded-full border border-zinc-700/45 bg-zinc-950/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] tabular-nums">
                   {profile.stats.totalCalls} recorded
                 </span>
               ) : null}
@@ -1965,7 +1994,11 @@ export default function UserProfilePage() {
         <div className="col-span-12 lg:col-span-8">
           {visibility.show_trophies ? (
           <section className="mb-4" data-tutorial="profile.trophies">
-            <PanelCard title="Trophy Case" className="overflow-visible">
+            <PanelCard title="Trophy Case" className="relative overflow-visible">
+              <div
+                className="pointer-events-none absolute -right-12 top-24 h-44 w-44 rounded-full bg-amber-400/[0.06] blur-3xl sm:top-28"
+                aria-hidden
+              />
               {trophiesLoading ? (
                 <div className="mt-3 space-y-4" aria-busy aria-label="Loading trophies">
                   <div className="grid gap-3 sm:grid-cols-3">
@@ -1995,9 +2028,9 @@ export default function UserProfilePage() {
                   </div>
                 </div>
               ) : trophies ? (
-                <div className="mt-3 space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-3 sm:gap-3">
-                    <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
+                <div className="relative mt-3 space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+                    <div className={TROPHY_TIER_WELL}>
                       <TrophyTierRow
                         label="Daily"
                         timeframe="daily"
@@ -2005,7 +2038,7 @@ export default function UserProfilePage() {
                         size="sm"
                       />
                     </div>
-                    <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
+                    <div className={TROPHY_TIER_WELL}>
                       <TrophyTierRow
                         label="Weekly"
                         timeframe="weekly"
@@ -2013,7 +2046,7 @@ export default function UserProfilePage() {
                         size="md"
                       />
                     </div>
-                    <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3">
+                    <div className={`${TROPHY_TIER_WELL} ring-amber-500/10`}>
                       <TrophyTierRow
                         label="Monthly"
                         timeframe="monthly"
@@ -2022,7 +2055,7 @@ export default function UserProfilePage() {
                       />
                     </div>
                   </div>
-                  <div className="rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-2.5 py-2.5 sm:px-3 sm:py-3">
+                  <div className={`${TROPHY_TIER_WELL} sm:py-3`}>
                     <MilestoneClubStrip items={milestoneTrophies} />
                   </div>
                 </div>
@@ -2062,28 +2095,32 @@ export default function UserProfilePage() {
                 }
 
                 return (
-                  <div className="mt-3 space-y-2.5">
-                    {rows.map((r) => {
-                      const pct =
-                        total > 0 ? Math.round((r.count / total) * 100) : 0;
-                      return (
-                        <div key={r.label} className="flex items-center gap-2">
-                          <span className="w-12 text-xs text-zinc-400">
-                            {r.label}
-                          </span>
-                          <div className="h-3 flex-1 rounded-full bg-zinc-950/90 ring-1 ring-zinc-700/35 shadow-inner">
-                            <div
-                              className="h-3 rounded-full bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 shadow-[0_0_20px_-4px_rgba(34,211,238,0.35)]"
-                              style={{ width: `${pct}%` }}
-                            />
+                  <div className="mt-3 rounded-xl border border-zinc-800/40 bg-zinc-950/30 p-4 ring-1 ring-white/[0.03]">
+                    <div className="space-y-3">
+                      {rows.map((r) => {
+                        const pct =
+                          total > 0 ? Math.round((r.count / total) * 100) : 0;
+                        return (
+                          <div key={r.label} className="flex items-center gap-3">
+                            <span className="w-[3.25rem] shrink-0 font-mono text-[11px] font-medium tabular-nums text-zinc-500">
+                              {r.label}
+                            </span>
+                            <div className="h-3 min-w-0 flex-1 rounded-full bg-black/40 ring-1 ring-zinc-700/35 shadow-inner">
+                              <div
+                                className="h-3 rounded-full bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 shadow-[0_0_20px_-4px_rgba(34,211,238,0.35)] transition-[width] duration-500 ease-out"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="w-[4.5rem] shrink-0 text-right text-[11px] tabular-nums text-zinc-400">
+                              <span className="font-semibold text-zinc-300">{r.count}</span>
+                              {total > 0 ? (
+                                <span className="text-zinc-600"> · {pct}%</span>
+                              ) : null}
+                            </span>
                           </div>
-                          <span className="w-16 text-right text-xs text-zinc-500 tabular-nums">
-                            {r.count}
-                            {total > 0 ? ` (${pct}%)` : ""}
-                          </span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })()}
@@ -2094,24 +2131,32 @@ export default function UserProfilePage() {
           <section className="mb-4">
             <PanelCard title="Recent Calls" data-tutorial="profile.recentCalls">
               {loading ? (
-                <div className="flex min-h-[88px] items-center justify-center py-6">
-                  <p className="text-sm text-zinc-500">Loading calls…</p>
+                <div className="mt-3 flex min-h-[100px] flex-col items-center justify-center gap-3 rounded-xl border border-zinc-800/35 bg-zinc-950/25 py-10">
+                  <div className="h-5 w-36 animate-pulse rounded-md bg-zinc-800/80" aria-busy />
+                  <div className="h-4 w-48 animate-pulse rounded bg-zinc-800/60" aria-busy />
+                  <p className="text-xs text-zinc-600">Loading calls…</p>
                 </div>
               ) : !profile || profile.recentCalls.length === 0 ? (
-                <div className="flex min-h-[88px] items-center justify-center py-6">
-                  <p className="text-sm text-zinc-500">No calls yet</p>
+                <div className="mt-3 flex min-h-[112px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700/45 bg-gradient-to-b from-zinc-950/40 to-zinc-950/20 px-6 py-10 text-center">
+                  <span className="text-2xl opacity-25" aria-hidden>
+                    📈
+                  </span>
+                  <p className="text-sm font-medium text-zinc-400">No calls yet</p>
+                  <p className="max-w-[18rem] text-xs leading-relaxed text-zinc-600">
+                    Calls you log on the dashboard build your public track record here.
+                  </p>
                 </div>
               ) : (
                 <>
                   <div
-                    className="mt-2 hidden grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-700/50 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 sm:grid sm:gap-x-4"
+                    className="mt-3 hidden grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-700/40 pb-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 sm:grid sm:gap-x-4 sm:px-2"
                     aria-hidden
                   >
                     <span>Call</span>
                     <span className="text-right">Result</span>
                     <span className="text-right">Time</span>
                   </div>
-                  <ul className="divide-y divide-zinc-800/40 text-sm">
+                  <ul className="divide-y divide-zinc-800/30 rounded-xl border border-zinc-800/35 bg-zinc-950/20 text-sm ring-1 ring-white/[0.02] sm:mt-2">
                     {profile.recentCalls.map((call, i) => {
                       const ca = call.token.trim();
                       const dexUrl =
@@ -2133,7 +2178,7 @@ export default function UserProfilePage() {
                       return (
                       <li
                         key={`${call.token}-${String(call.time)}-${i}`}
-                        className="group flex flex-col gap-2 rounded-xl py-2.5 text-zinc-300 transition first:pt-2 hover:bg-zinc-800/20 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-x-4 sm:px-2"
+                        className="group flex flex-col gap-2 px-2 py-3 text-zinc-300 transition first:rounded-t-xl last:rounded-b-xl hover:bg-zinc-800/[0.18] sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-x-4 sm:py-2.5"
                       >
                         <span className="min-w-0 text-[13px] leading-snug">
                           <div className="flex min-w-0 items-start gap-2">
@@ -2142,7 +2187,7 @@ export default function UserProfilePage() {
                               <img
                                 src={call.tokenImageUrl}
                                 alt=""
-                                className="mt-0.5 h-7 w-7 shrink-0 rounded-md border border-zinc-700/50 object-cover"
+                                className="mt-0.5 h-8 w-8 shrink-0 rounded-lg border border-zinc-600/40 object-cover shadow-sm shadow-black/40 ring-1 ring-white/[0.04]"
                                 loading="lazy"
                                 referrerPolicy="no-referrer"
                               />
@@ -2258,29 +2303,36 @@ export default function UserProfilePage() {
           <section className="mb-4">
             <PanelCard title="Trusted Pro calls">
               {trustedProCallsErr ? (
-                <div className="flex min-h-[88px] items-center justify-center py-6">
-                  <p className="text-sm text-zinc-500">{trustedProCallsErr}</p>
+                <div className="mt-3 rounded-xl border border-red-500/15 bg-red-950/20 px-4 py-6 text-center">
+                  <p className="text-sm text-red-300/90">{trustedProCallsErr}</p>
                 </div>
               ) : trustedProCallsLoading ? (
-                <div className="flex min-h-[88px] items-center justify-center py-6">
-                  <p className="text-sm text-zinc-500">Loading Trusted Pro calls…</p>
+                <div className="mt-3 flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-xl border border-zinc-800/35 bg-zinc-950/25 py-8">
+                  <div className="h-4 w-40 animate-pulse rounded bg-zinc-800/70" aria-busy />
+                  <p className="text-xs text-zinc-600">Loading Trusted Pro calls…</p>
                 </div>
               ) : trustedProCalls.length === 0 ? (
-                <div className="flex min-h-[88px] items-center justify-center py-6">
-                  <p className="text-sm text-zinc-500">No Trusted Pro calls yet</p>
+                <div className="mt-3 flex min-h-[100px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700/45 bg-zinc-950/25 px-6 py-10 text-center">
+                  <span className="text-xl opacity-30" aria-hidden>
+                    ✦
+                  </span>
+                  <p className="text-sm font-medium text-zinc-400">No Trusted Pro calls yet</p>
+                  <p className="max-w-xs text-xs text-zinc-600">
+                    Approved thesis posts appear here for verified callers.
+                  </p>
                 </div>
               ) : (
                 <>
-                  <p className="mt-2 text-xs text-zinc-500">
+                  <p className="mt-2 rounded-lg border border-violet-500/15 bg-violet-950/15 px-3 py-2 text-[11px] leading-snug text-zinc-500">
                     {trustedProIncludeAll
                       ? "Showing all statuses (owner/staff view)."
                       : "Showing approved-only."}
                   </p>
-                  <ul className="mt-3 divide-y divide-zinc-800/40 text-sm">
+                  <ul className="mt-3 divide-y divide-zinc-800/30 rounded-xl border border-zinc-800/35 bg-zinc-950/20 text-sm ring-1 ring-white/[0.02]">
                     {trustedProCalls.map((c) => (
                       <li
                         key={c.id}
-                        className="group flex flex-wrap items-start justify-between gap-3 py-2.5 first:pt-1.5"
+                        className="group flex flex-wrap items-start justify-between gap-3 px-2 py-3 transition first:rounded-t-xl last:rounded-b-xl hover:bg-zinc-800/[0.15]"
                       >
                         <div className="min-w-0">
                           <p className="text-xs text-zinc-500">
@@ -2309,7 +2361,7 @@ export default function UserProfilePage() {
         </div>
 
         <aside className="col-span-12 lg:col-span-4">
-          <div className="w-full max-w-sm space-y-4 lg:sticky lg:top-20 lg:z-10 lg:ml-auto lg:self-start">
+          <div className="w-full max-w-sm space-y-5 lg:sticky lg:top-20 lg:z-10 lg:ml-auto lg:self-start">
             {isAdmin ? (
               <PanelCard title="Admin tools">
                 <p className="mt-2 text-xs leading-relaxed text-zinc-500">
@@ -2419,45 +2471,56 @@ export default function UserProfilePage() {
             </PanelCard>
 
             <PanelCard title="Profile Summary">
-              <div className="mt-2 space-y-2 text-sm text-zinc-400">
+              <div className="mt-2 space-y-0 overflow-hidden rounded-xl border border-zinc-800/45 bg-zinc-950/40 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
                 {xHandle ? (
-                  <p className="truncate">
-                    <span className="text-zinc-500">X:</span>{" "}
-                    <a
-                      href={`https://x.com/${encodeURIComponent(xHandle)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:underline"
-                    >
-                      @{xHandle}
-                    </a>
-                    {xVerified ? (
-                      <span className="ml-2 rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-300">
-                        ✓ Verified
-                      </span>
-                    ) : null}
-                  </p>
+                  <div className="border-b border-zinc-800/40 px-3.5 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                      X (Twitter)
+                    </p>
+                    <p className="mt-1.5 truncate text-sm">
+                      <a
+                        href={`https://x.com/${encodeURIComponent(xHandle)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-sky-300 transition hover:text-sky-200"
+                      >
+                        @{xHandle}
+                      </a>
+                      {xVerified ? (
+                        <span className="ml-2 inline-flex items-center rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300">
+                          Verified
+                        </span>
+                      ) : null}
+                    </p>
+                  </div>
                 ) : null}
                 {isOwnProfile && xVerified ? (
-                  <p className="text-xs text-zinc-500">
-                    <Link
-                      href="/settings#connected-accounts"
-                      className="text-sky-400/90 hover:underline"
-                    >
-                      Unlink or reconnect X
-                    </Link>{" "}
-                    in Settings.
-                  </p>
+                  <div className="border-b border-zinc-800/40 px-3.5 py-2.5">
+                    <p className="text-xs text-zinc-500">
+                      <Link
+                        href="/settings#connected-accounts"
+                        className="font-medium text-sky-400/90 hover:text-sky-300 hover:underline"
+                      >
+                        Unlink or reconnect X
+                      </Link>{" "}
+                      in Settings.
+                    </p>
+                  </div>
                 ) : null}
+                <div className="px-3.5 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                    Discord ID
+                  </p>
+                  <p className="mt-1.5 font-mono text-[11px] tabular-nums text-zinc-300">
+                    {resolvedSnowflake || "—"}
+                  </p>
+                </div>
               </div>
-              <p className="mt-3 text-xs text-zinc-500">
-                Discord ID · {resolvedSnowflake || "—"}
-              </p>
             </PanelCard>
 
             <PanelCard title="Call snapshot">
-              <div className="mt-3 grid gap-5 sm:grid-cols-2 sm:gap-4">
-                <div>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2 sm:gap-3">
+                <div className="rounded-xl border border-zinc-800/45 bg-gradient-to-b from-zinc-900/50 to-zinc-950/90 p-3.5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.12)]">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                     Best call
                   </p>
@@ -2488,28 +2551,28 @@ export default function UserProfilePage() {
                       </p>
                     );
                   })()}
-                  <p className="mt-2 text-3xl font-semibold tabular-nums text-emerald-400">
+                  <p className="mt-2 bg-gradient-to-br from-emerald-100 to-emerald-400 bg-clip-text text-3xl font-bold tabular-nums text-transparent">
                     {bestCall.best != null ? `${bestCall.best.toFixed(1)}×` : "—"}
                   </p>
                   <p className="mt-1 text-[11px] text-zinc-500">
                     Highest in recent history
                   </p>
                 </div>
-                <div>
+                <div className="rounded-xl border border-zinc-800/45 bg-gradient-to-b from-zinc-900/50 to-zinc-950/90 p-3.5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.12)]">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                     Recent form
                   </p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {recentForm.length > 0 ? (
                       recentForm.map((f, i) => (
                         <span
                           key={i}
-                          className={`h-3 w-3 rounded-full ring-1 ring-black/40 ${
+                          className={`h-3.5 w-3.5 rounded-full ring-2 ring-zinc-950 ${
                             f === "green"
-                              ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.35)]"
+                              ? "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.45)]"
                               : f === "neutral"
-                                ? "bg-zinc-500"
-                                : "bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.25)]"
+                                ? "bg-zinc-500 shadow-inner"
+                                : "bg-red-400 shadow-[0_0_12px_rgba(248,113,113,0.35)]"
                           }`}
                           title={f === "green" ? "≥2×" : f === "neutral" ? "1–2×" : "<1×"}
                         />
