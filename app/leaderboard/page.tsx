@@ -1268,7 +1268,7 @@ export default function LeaderboardPage() {
                   <div className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800/70 bg-black/50 text-xs font-black tabular-nums text-zinc-200 shadow-inner backdrop-blur-sm">
                     {idx + 1}
                   </div>
-                  <div className="pr-20 pl-12">
+                  <div className="pr-28 pl-12">
                     <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-yellow-500/80">
                       {slot.label}
                     </p>
@@ -1287,7 +1287,7 @@ export default function LeaderboardPage() {
                     </div>
                   </div>
 
-                  <div className="absolute right-6 top-5 h-12 w-12 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100 sm:h-14 sm:w-14">
+                  <div className="absolute right-5 top-6 h-14 w-14 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100 sm:h-16 sm:w-16">
                     <Avatar src={w?.avatarSrc} name={w?.username ?? "—"} size="lg" />
                   </div>
 
