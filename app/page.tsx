@@ -3881,7 +3881,17 @@ export default function Home() {
                 <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   LAST CALL
                 </div>
-                <div className="flex min-w-0 items-center gap-2">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div
+                    className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-200"
+                    title={
+                      recentCalls.length === 0
+                        ? undefined
+                        : homeLastCallHeadline(recentCalls[0])
+                    }
+                  >
+                    {recentCalls.length === 0 ? "—" : homeLastCallHeadline(recentCalls[0])}
+                  </div>
                   {(() => {
                     if (recentCalls.length === 0) return null;
                     const c = recentCalls[0]!;
@@ -3894,22 +3904,12 @@ export default function Home() {
                       <img
                         src={src}
                         alt=""
-                        className="h-7 w-7 shrink-0 rounded-lg border border-zinc-700/50 object-cover shadow-sm shadow-black/40"
+                        className="h-11 w-11 shrink-0 rounded-xl border border-zinc-700/50 object-cover shadow-md shadow-black/50 ring-1 ring-white/[0.04]"
                         loading="lazy"
                         referrerPolicy="no-referrer"
                       />
                     );
                   })()}
-                  <div
-                    className="min-w-0 truncate text-[13px] font-medium text-zinc-200"
-                    title={
-                      recentCalls.length === 0
-                        ? undefined
-                        : homeLastCallHeadline(recentCalls[0])
-                    }
-                  >
-                    {recentCalls.length === 0 ? "—" : homeLastCallHeadline(recentCalls[0])}
-                  </div>
                 </div>
                 <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   {recentCalls.length === 0
