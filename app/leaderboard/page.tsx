@@ -1210,26 +1210,6 @@ export default function LeaderboardPage() {
           </div>
         </header>
 
-      <section
-        id="your-terminal"
-        className="scroll-mt-24 rounded-lg border border-zinc-800/75 bg-zinc-950/40 px-3 py-2 ring-1 ring-white/[0.02] sm:px-4"
-        aria-label="Links to your private call pages"
-      >
-        <p className="text-[11px] leading-snug text-zinc-500">
-          Private row history and charts (not leaderboards):{" "}
-          <Link href="/calls" className="font-semibold text-cyan-300/95 underline-offset-2 hover:text-cyan-200 hover:underline">
-            Call log
-          </Link>
-          <span className="text-zinc-600"> · </span>
-          <Link
-            href="/performance"
-            className="font-semibold text-emerald-300/95 underline-offset-2 hover:text-emerald-200 hover:underline"
-          >
-            Performance
-          </Link>
-        </p>
-      </section>
-
       {/* 1) Leaders */}
       <section id="leaders" className="scroll-mt-28 space-y-4" data-tutorial="leaderboard.spotlight">
         <div>

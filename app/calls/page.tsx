@@ -125,14 +125,14 @@ export default function CallTapePage() {
         </p>
       </header>
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4" data-tutorial="calls.filters">
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3" data-tutorial="calls.filters">
         <div className="flex flex-wrap gap-2">
           {WINDOWS.map((w) => (
             <button
               key={w.id}
               type="button"
               onClick={() => setWindow(w.id)}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+              className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
                 window === w.id
                   ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-100 shadow-[0_0_14px_-4px_rgba(34,211,238,0.35)]"
                   : "border-zinc-700/80 bg-zinc-950/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
@@ -142,18 +142,14 @@ export default function CallTapePage() {
             </button>
           ))}
         </div>
-        <p className="text-xs tabular-nums text-zinc-500">
-          {loading ? "…" : `${total} call${total === 1 ? "" : "s"}`} in window
-        </p>
+        <p className="text-xs tabular-nums text-zinc-500">{loading ? "…" : total.toLocaleString("en-US")} in window</p>
       </div>
 
       {err ? (
         <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">{err}</div>
       ) : null}
 
-      <div
-        className={`mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ${terminalSurface.insetEdge}`}
-      >
+      <div className={`mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ${terminalSurface.insetEdge}`}>
         <div className="overflow-x-auto">
           <table className="min-w-[720px] w-full text-left text-sm">
             <thead
@@ -197,14 +193,14 @@ export default function CallTapePage() {
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-zinc-400">
                         {iso ? formatRelativeTime(iso) : "—"}
                       </td>
-                      <td className="max-w-[min(360px,55vw)] px-4 py-3 text-xs text-zinc-200">
+                      <td className="max-w-[min(420px,55vw)] px-4 py-3 text-xs text-zinc-200">
                         <div className="flex min-w-0 gap-2">
                           {r.tokenImageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={r.tokenImageUrl}
                               alt=""
-                              className="mt-0.5 h-8 w-8 shrink-0 rounded-md border border-zinc-700/50 object-cover"
+                              className="mt-0.5 h-8 w-8 shrink-0 rounded-lg border border-zinc-700/50 object-cover shadow-sm shadow-black/40 ring-1 ring-white/[0.03]"
                               loading="lazy"
                               referrerPolicy="no-referrer"
                             />
