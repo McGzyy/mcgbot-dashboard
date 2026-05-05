@@ -121,7 +121,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       const latest = (json.latestVersions ?? TUTORIAL_LATEST_VERSIONS) as Record<TutorialTrackId, number>;
       const tracksRaw = json.tracks && typeof json.tracks === "object" ? json.tracks : {};
 
-      for (const t of ["user", "mod", "admin"] as const) {
+      for (const t of ["user"] as const) {
         const st = tracksRaw[t];
         const lv = Number(latest[t]);
         if (!st || !Number.isFinite(lv) || lv <= 0) continue;
@@ -258,7 +258,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     if (!helpRoleLoaded && !sessionTier) return;
     if (tourOpen) return;
     if (!tutorialAutoStartEnabled) return;
-    if (viewerTier !== "user") return;
+    // One member-facing tour for every authenticated tier (mods/admins see extra staff anchors when present).
     const seen = trackStates.user?.seenAt;
     if (seen) return;
     const list = getTutorialSteps("user", viewerTier, stepCtx);

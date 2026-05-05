@@ -737,7 +737,7 @@ export default function TradeJournalPage() {
   }
 
   return (
-    <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6">
+    <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6" data-tutorial="tradeJournal.workspace">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 -top-4 h-[min(52vh,480px)] bg-[radial-gradient(ellipse_90%_55%_at_50%_0%,rgba(34,197,94,0.14),transparent_62%)] opacity-90 sm:-top-8"

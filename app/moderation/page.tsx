@@ -44,7 +44,7 @@ export default function ModerationPage() {
       </div>
 
       <div className={modChrome.pageInner}>
-        <header className={`${terminalChrome.headerRule} pb-8 pt-2`}>
+        <header className={`${terminalChrome.headerRule} pb-8 pt-2`} data-tutorial="moderation.header">
           <p className={`text-[10px] font-semibold uppercase tracking-[0.28em] ${modChrome.kicker}`}>Staff</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Moderation queue</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">

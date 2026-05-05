@@ -14,7 +14,6 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { terminalUi } from "@/lib/terminalDesignTokens";
 import type { TutorialSection } from "@/lib/tutorial/tutorialRegistry";
-import type { TutorialTrackId } from "@/lib/tutorial/tutorialVersions";
 
 function HelpPageContent() {
   const { status } = useSession();
@@ -41,7 +40,6 @@ function HelpPageContent() {
   const [featureSubmitting, setFeatureSubmitting] = useState(false);
   const [tutorialSections, setTutorialSections] = useState<TutorialSection[]>([]);
   const [tutorialSectionId, setTutorialSectionId] = useState<string>("");
-  const [tutorialTrackPick, setTutorialTrackPick] = useState<TutorialTrackId>("user");
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -100,12 +98,12 @@ function HelpPageContent() {
     try {
       const w = window as any;
       const fn = w?.__mcgbotTutorial?.sectionsForTrack;
-      const sections = typeof fn === "function" ? fn(tutorialTrackPick) : [];
+      const sections = typeof fn === "function" ? fn("user") : [];
       if (Array.isArray(sections)) {
         setTutorialSections(sections as TutorialSection[]);
       }
     } catch {}
-  }, [status, tier, tutorialTrackPick]);
+  }, [status, tier]);
 
   const helpCard =
     "rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 p-5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.26),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm";
@@ -192,64 +190,35 @@ function HelpPageContent() {
                   <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Onboarding</p>
                   <h2 className="mt-1.5 text-base font-semibold tracking-tight text-white">Tutorial mode</h2>
                   <p className="mt-2 text-xs leading-relaxed text-zinc-400">
-                    Caller, moderator, and admin tours are separate. Pick a tour, jump to a section, or reset one
-                    track without touching the others.
+                    One dashboard walkthrough for everyone. Staff-only areas get a short pointer when your account
+                    can see them — full mod/admin workflows are covered in onboarding.
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-end gap-2">
-                  {(() => {
-                    const w = window as any;
-                    const tracks: TutorialTrackId[] =
-                      typeof w?.__mcgbotTutorial?.availableTracks === "function"
-                        ? w.__mcgbotTutorial.availableTracks()
-                        : ["user"];
-                    const labels: Record<TutorialTrackId, string> = {
-                      user: "Caller tour",
-                      mod: "Mod tour",
-                      admin: "Admin tour",
-                    };
-                    return tracks.map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => {
-                          if (typeof w?.__mcgbotTutorial?.start === "function") {
-                            w.__mcgbotTutorial.start({ track: t });
-                            addNotification({
-                              id: crypto.randomUUID(),
-                              text: `${labels[t]} started.`,
-                              type: "call",
-                              createdAt: Date.now(),
-                              priority: "low",
-                              silent: true,
-                            });
-                          }
-                        }}
-                        className="rounded-full border border-[color:var(--accent)]/35 bg-[color:var(--accent)]/10 px-3 py-1.5 text-[11px] font-semibold text-[color:var(--accent)] shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)] transition hover:border-[color:var(--accent)]/55 hover:bg-[color:var(--accent)]/16"
-                      >
-                        {labels[t]}
-                      </button>
-                    ));
-                  })()}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const w = window as any;
+                      if (typeof w?.__mcgbotTutorial?.start === "function") {
+                        w.__mcgbotTutorial.start();
+                        addNotification({
+                          id: crypto.randomUUID(),
+                          text: "Dashboard tour started.",
+                          type: "call",
+                          createdAt: Date.now(),
+                          priority: "low",
+                          silent: true,
+                        });
+                      }
+                    }}
+                    className="rounded-full border border-[color:var(--accent)]/35 bg-[color:var(--accent)]/10 px-3 py-1.5 text-[11px] font-semibold text-[color:var(--accent)] shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)] transition hover:border-[color:var(--accent)]/55 hover:bg-[color:var(--accent)]/16"
+                  >
+                    Start tour
+                  </button>
                 </div>
               </div>
 
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Tour</label>
-                  <select
-                    value={tutorialTrackPick}
-                    onChange={(e) => {
-                      setTutorialTrackPick(e.target.value as TutorialTrackId);
-                      setTutorialSectionId("");
-                    }}
-                    className="w-full rounded-xl border border-zinc-700/50 bg-black/35 px-3 py-2.5 text-xs text-zinc-100 outline-none ring-0 transition focus:border-[color:var(--accent)]/40 focus:ring-2 focus:ring-[color:var(--accent)]/15"
-                  >
-                    <option value="user">Caller</option>
-                    {tier === "mod" || tier === "admin" ? <option value="mod">Moderator</option> : null}
-                    {tier === "admin" ? <option value="admin">Administrator</option> : null}
-                  </select>
-                </div>
                 <div className="flex min-w-0 flex-[2] flex-col gap-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Jump to</label>
                   <select
@@ -272,7 +241,7 @@ function HelpPageContent() {
                     if (!id) return;
                     const w = window as any;
                     if (typeof w?.__mcgbotTutorial?.start === "function") {
-                      w.__mcgbotTutorial.start({ sectionId: id, track: tutorialTrackPick });
+                      w.__mcgbotTutorial.start({ sectionId: id });
                     }
                   }}
                   disabled={!tutorialSectionId.trim()}
@@ -293,7 +262,7 @@ function HelpPageContent() {
                       await w.__mcgbotTutorial.reset("user");
                       addNotification({
                         id: crypto.randomUUID(),
-                        text: "Caller tutorial reset.",
+                        text: "Tour progress reset — it will auto-start again on next home visit until you finish or skip.",
                         type: "call",
                         createdAt: Date.now(),
                         priority: "low",
@@ -302,52 +271,8 @@ function HelpPageContent() {
                     }
                   }}
                 >
-                  Caller
+                  Reset tour progress
                 </button>
-                {tier === "mod" || tier === "admin" ? (
-                  <button
-                    type="button"
-                    className="text-zinc-400 underline-offset-2 transition hover:text-[color:var(--accent)] hover:underline"
-                    onClick={async () => {
-                      const w = window as any;
-                      if (typeof w?.__mcgbotTutorial?.reset === "function") {
-                        await w.__mcgbotTutorial.reset("mod");
-                        addNotification({
-                          id: crypto.randomUUID(),
-                          text: "Moderator tutorial reset.",
-                          type: "call",
-                          createdAt: Date.now(),
-                          priority: "low",
-                          silent: true,
-                        });
-                      }
-                    }}
-                  >
-                    Moderator
-                  </button>
-                ) : null}
-                {tier === "admin" ? (
-                  <button
-                    type="button"
-                    className="text-zinc-400 underline-offset-2 transition hover:text-[color:var(--accent)] hover:underline"
-                    onClick={async () => {
-                      const w = window as any;
-                      if (typeof w?.__mcgbotTutorial?.reset === "function") {
-                        await w.__mcgbotTutorial.reset("admin");
-                        addNotification({
-                          id: crypto.randomUUID(),
-                          text: "Admin tutorial reset.",
-                          type: "call",
-                          createdAt: Date.now(),
-                          priority: "low",
-                          silent: true,
-                        });
-                      }
-                    }}
-                  >
-                    Admin
-                  </button>
-                ) : null}
               </div>
             </section>
             <section

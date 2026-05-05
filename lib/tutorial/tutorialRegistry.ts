@@ -24,1028 +24,764 @@ function sel(id: string): string {
   return `[data-tutorial="${id}"]`;
 }
 
-const USER_SECTION_LABELS: Record<string, string> = {
-  dashboard: "Home dashboard",
+const SECTION_LABELS: Record<string, string> = {
+  dashboard: "Dashboard",
   watchlist: "Watchlist",
   calls: "Call log",
   performance: "Performance lab",
+  tradeJournal: "Trade journal",
   botCalls: "Bot calls",
   trustedPro: "Trusted Pro",
   leaderboard: "Leaderboards",
   pnlShowcase: "PnL Showcase",
-  topNav: "Top bar",
-  accountMenu: "Account menu",
-  profile: "Your profile",
+  referrals: "Referrals",
+  lounge: "Lounge",
+  profile: "Profile",
   settings: "Settings",
   help: "Help",
-  referrals: "Referrals",
+  staffModeration: "Moderation",
+  adminPanel: "Admin",
+  adminTreasury: "Treasury",
+  topNav: "Top bar",
 };
 
-const MOD_SECTION_LABELS: Record<string, string> = {
-  dashboard: "Home · queue preview",
-  staffModeration: "Moderation desk",
-};
+/**
+ * One condensed spotlight tour for every dashboard role.
+ * Order: home highlights → deep pages (2–3 targets) → home nav reinforcement → …
+ */
+export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext): TutorialStep[] {
+  const own = ctx?.ownProfilePath?.trim();
 
-const ADMIN_SECTION_LABELS: Record<string, string> = {
-  adminPanel: "Admin overview",
-};
-
-/** First step on `/`: general welcome before top bar or widgets. */
-function dashboardWelcomeStep(): TutorialStep[] {
-  return [
+  const core: TutorialStep[] = [
     {
       section: "dashboard",
       target: sel("dashboard.tutorialWelcome"),
       route: "/",
-      title: "Welcome to McGBot Terminal",
-      content:
-        "Welcome. This tutorial highlights the main features available in the terminal — press Next to begin, or skip anytime.",
+      title: "Welcome",
+      content: "Short orientation: we spotlight real UI. Next / Skip anytime — replay later in Settings.",
       placement: "center",
       scrollOffset: 72,
       skipScroll: true,
     },
-  ];
-}
-
-/** After the account-menu preview: full-page home overview, then widget steps. */
-function dashboardHomePageIntro(): TutorialStep[] {
-  return [
     {
       section: "dashboard",
-      target: sel("dashboard.pageIntro"),
+      target: sel("sidebar.logo"),
       route: "/",
-      title: "Home dashboard",
-      content:
-        "Your hub: chart, personal stats, feeds, quick actions, Discord chat, and previews. Next we walk each block—then Call log, Performance lab, Watchlist, and the Arena pages on the left, followed by deeper tours of Profile, Settings, Help, and Referrals from the account menu.",
-      placement: "center",
+      title: "Terminal home",
+      content: "Logo returns here. The left rail lists every main workspace route.",
+      placement: "right",
       scrollOffset: 72,
       skipScroll: true,
-      closeAccountMenu: true,
     },
-  ];
-}
-
-/** After account-menu rows: closes the dropdown, then spotlights the main chart before personal stats. */
-function dashboardHomePerformanceStep(): TutorialStep[] {
-  return [
-    {
-      section: "dashboard",
-      target: sel("dashboard.performanceChart"),
-      route: "/",
-      title: "Performance",
-      content:
-        "Call performance and win rate over time. Use W / M / 3M / A to change the window. Tutorial controls live under Help.",
-      placement: "bottom",
-      scrollOffset: 120,
-      skipScroll: true,
-      closeAccountMenu: true,
-    },
-  ];
-}
-
-function dashboardTopBarSteps(): TutorialStep[] {
-  const skip = { skipScroll: true as const };
-  return [
     {
       section: "topNav",
       target: sel("nav.tokenSearch"),
       route: "/",
       title: "Token search",
-      content:
-        "Search by symbol or contract. When focus is not in a field, press / to open search from anywhere.",
+      content: "Look up symbols or contracts. Press / when focus isn’t in a field to jump here.",
       placement: "bottom",
       scrollOffset: 88,
-      ...skip,
+      skipScroll: true,
     },
     {
       section: "topNav",
       target: sel("nav.notifications"),
       route: "/",
       title: "Notifications",
-      content: "Bell for staff decisions, bug and feature updates, and other inbox-style alerts.",
+      content: "Bell inbox: staff decisions, bugs, features, and other alerts.",
       placement: "bottom",
       scrollOffset: 88,
-      ...skip,
+      skipScroll: true,
     },
     {
       section: "topNav",
       target: sel("nav.userMenu"),
       route: "/",
       title: "Account menu",
-      content:
-        "Profile, settings, help, referrals, sign out. Next we walk each row while the menu stays open.",
+      content: "Profile, Settings, Help, Referrals, sign out — always one click away.",
       placement: "bottom",
       scrollOffset: 88,
-      ...skip,
-    },
-  ];
-}
-
-function dashboardAccountMenuRows(): TutorialStep[] {
-  const common = { route: "/", placement: "left" as const, scrollOffset: 72, openAccountMenu: true, skipScroll: true };
-  return [
-    {
-      section: "accountMenu",
-      target: sel("nav.menu.profile"),
-      title: "Profile",
-      content:
-        "Your public profile card—quick preview. Later we open your profile and walk each section.",
-      ...common,
+      skipScroll: true,
     },
     {
-      section: "accountMenu",
-      target: sel("nav.menu.settings"),
-      title: "Settings",
-      content: "Account, notifications, widgets, and layout—preview only; full Settings tour after the left-nav pages.",
-      ...common,
+      section: "dashboard",
+      target: sel("dashboard.performanceChart"),
+      route: "/",
+      title: "Performance chart",
+      content: "Your verified-call performance over time. Performance Lab expands this next.",
+      placement: "bottom",
+      scrollOffset: 120,
+      skipScroll: true,
     },
-    {
-      section: "accountMenu",
-      target: sel("nav.menu.help"),
-      title: "Help",
-      content: "Docs, FAQ, bugs, features, and tutorial controls—preview only; full Help tour after Settings.",
-      ...common,
-    },
-    {
-      section: "accountMenu",
-      target: sel("nav.menu.referralsOverview"),
-      title: "Referrals — overview",
-      content: "Your link and network stats—preview only; full Referrals tour last.",
-      ...common,
-    },
-    {
-      section: "accountMenu",
-      target: sel("nav.menu.referralsPerformance"),
-      title: "Referrals — performance",
-      content: "Referred callers’ performance—preview only; covered again on Referrals.",
-      ...common,
-    },
-    {
-      section: "accountMenu",
-      target: sel("nav.menu.referralsRewards"),
-      title: "Referrals — rewards",
-      content: "Rewards-style view—preview only; covered again on Referrals.",
-      ...common,
-    },
-  ];
-}
-
-function dashboardBodySteps(): TutorialStep[] {
-  return [
     {
       section: "dashboard",
       target: sel("dashboard.personalStats"),
       route: "/",
       title: "Personal stats",
-      content: "Averages, win rate, streak, totals, and recent highlights from your verified calls.",
+      content: "Averages, streak, win rate, and headline totals from your calls.",
       placement: "top",
       scrollOffset: 130,
       skipScroll: true,
-      closeAccountMenu: true,
     },
-  ];
-}
-
-const dashHome: Pick<TutorialStep, "section" | "route"> = { section: "dashboard", route: "/" };
-
-function dashboardMainFeedSteps(): TutorialStep[] {
-  return [
     {
-      ...dashHome,
+      section: "dashboard",
       target: sel("dashboard.activityFeed"),
-      title: "Activity feed",
-      content: "Live-style stream of notable calls and moves (when the Activity widget is enabled in Settings).",
+      route: "/",
+      title: "Activity pulse",
+      content: "Live-style feed of notable moves (toggle the widget in Settings if you prefer a calmer home).",
       placement: "top",
       scrollOffset: 148,
+      skipScroll: true,
     },
-    {
-      ...dashHome,
-      target: sel("dashboard.topPerformers"),
-      title: "Top performers today",
-      content: "Standout callers for the UTC day—ranks refresh as calls verify.",
-      placement: "top",
-      scrollOffset: 148,
-    },
-    {
-      ...dashHome,
-      target: sel("dashboard.socialFeed"),
-      title: "Social feed",
-      content: "Curated X posts and highlights wired into the terminal.",
-      placement: "top",
-      scrollOffset: 148,
-    },
-    {
-      ...dashHome,
-      target: sel("dashboard.trending"),
-      title: "Trending tokens",
-      content: "What the desk is watching right now (when the market strip / trending widget is on).",
-      placement: "top",
-      scrollOffset: 148,
-    },
-  ];
-}
-
-function dashboardQuickActionsRailStep(): TutorialStep[] {
-  return [
     {
       section: "dashboard",
       target: sel("dashboard.quickActions"),
       route: "/",
-      title: "Quick actions & rail",
-      content:
-        "Submit call, profile shortcuts, watchlist modal, referral copy—when the Quick Actions widget is on it sits here. Mods/admins also see the staff queue card in this column.",
+      title: "Quick actions",
+      content: "Submit a call, jump to profile, watchlist modal, referral link — your fastest shortcuts.",
       placement: "top",
       scrollOffset: 148,
+      skipScroll: true,
     },
-  ];
-}
-
-function dashboardRightColumnLowerSteps(): TutorialStep[] {
-  return [
-    {
-      ...dashHome,
-      target: sel("dashboard.discordChat"),
-      title: "Discord chat",
-      content: "Terminal chat with callers; staff see an extra mod tab when configured.",
-      placement: "top",
-      scrollOffset: 148,
-    },
-    {
-      ...dashHome,
-      target: sel("dashboard.dailyLeaderboard"),
-      title: "Daily leaderboard",
-      content: "Snapshot of today’s leaderboard race on your dashboard (when enabled).",
-      placement: "top",
-      scrollOffset: 148,
-    },
-    {
-      ...dashHome,
-      target: sel("dashboard.homeRecentCalls"),
-      title: "Recent calls (home)",
-      content: "Last few verified calls with a shortcut into the full call log.",
-      placement: "top",
-      scrollOffset: 148,
-    },
-    {
-      ...dashHome,
-      target: sel("dashboard.homeWatchlist"),
-      title: "Watchlist preview",
-      content: "A peek at saved contracts; the full editor is on the Watchlist page after Call log and Performance lab.",
-      placement: "top",
-      scrollOffset: 148,
-    },
-  ];
-}
-
-function dashboardModQueueStep(): TutorialStep[] {
-  return [
     {
       section: "dashboard",
-      target: sel("dashboard.modQueue"),
+      target: sel("dashboard.homeWatchlist"),
       route: "/",
-      title: "Staff queue preview",
-      content:
-        "Moderators and admins see a compact pending queue here so you can triage without opening Moderation.",
+      title: "Watchlist preview",
+      content: "Saved mints on the home board. Next: full editor on the Watchlist page.",
       placement: "top",
       scrollOffset: 148,
-    },
-  ];
-}
-
-function callLogPageIntro(): TutorialStep[] {
-  return [
-    {
-      section: "calls",
-      target: sel("calls.header"),
-      route: "/calls",
-      title: "Call log",
-      content:
-        "Your verified calls only—time windows, totals, and the table. Next: switch 7d / 30d / all time, then the rows.",
-      placement: "bottom",
-      scrollOffset: 100,
       skipScroll: true,
     },
-  ];
-}
-
-function performancePageIntro(): TutorialStep[] {
-  return [
     {
-      section: "performance",
-      target: sel("performance.header"),
-      route: "/performance",
-      title: "Performance lab",
-      content:
-        "Same calls as Call log, summarized: headline stats, 14-day activity, multiple mix, and rank. Next: the summary tiles.",
-      placement: "bottom",
-      scrollOffset: 100,
+      section: "watchlist",
+      target: sel("sidebar.nav.watchlist"),
+      route: "/",
+      title: "Watchlist · nav",
+      content: "Always reachable from the rail — opens your private/public contract lists.",
+      placement: "right",
+      scrollOffset: 72,
       skipScroll: true,
     },
-  ];
-}
-
-function watchlistPageIntro(): TutorialStep[] {
-  return [
     {
       section: "watchlist",
       target: sel("watchlist.header"),
       route: "/watchlist",
       title: "Watchlist",
-      content:
-        "Private and public Solana contract lists for quick chart jumps. Next: scope, add row, and saved contracts.",
+      content: "Full editor: scope, refresh, and how lists appear on your profile.",
       placement: "bottom",
       scrollOffset: 100,
       skipScroll: true,
-      closeAccountMenu: true,
     },
-  ];
-}
-
-function watchlistPageSteps(): TutorialStep[] {
-  return [
     {
       section: "watchlist",
       target: sel("watchlist.manage"),
       route: "/watchlist",
-      title: "Private / public & list",
-      content: "Toggle scope, refresh, and browse or remove saved mints for the active list.",
+      title: "Lists & add row",
+      content: "Toggle private/public, then paste a Solana mint below to track it.",
       placement: "top",
       scrollOffset: 120,
-    },
-    {
-      section: "watchlist",
-      target: sel("watchlist.input"),
-      route: "/watchlist",
-      title: "Add contracts",
-      content: "Paste a valid mint, then Add. Rows dedupe automatically.",
-      placement: "top",
-      scrollOffset: 120,
-    },
-  ];
-}
-
-function botCallsPageIntro(): TutorialStep[] {
-  return [
-    {
-      section: "botCalls",
-      target: sel("botCalls.header"),
-      route: "/bot-calls",
-      title: "Bot calls",
-      content:
-        "Live McGBot scanner feed (Pro): time windows, min multiple, excluded toggle, and the tape. Next: filters.",
-      placement: "bottom",
-      scrollOffset: 100,
       skipScroll: true,
     },
-  ];
-}
-
-function botCallsPageSteps(): TutorialStep[] {
-  return [
     {
-      section: "botCalls",
-      target: sel("botCalls.filters"),
-      route: "/bot-calls",
-      title: "Filters",
-      content: "24h / 7d / all time, minimum ×, and whether excluded calls show in the list.",
-      placement: "bottom",
-      scrollOffset: 96,
-    },
-    {
-      section: "botCalls",
-      target: sel("botCalls.table"),
-      route: "/bot-calls",
-      title: "Bot call table",
-      content: "Each row: timing, token, live and ATH multiples, status, Dex and chart shortcuts.",
+      section: "dashboard",
+      target: sel("dashboard.homeRecentCalls"),
+      route: "/",
+      title: "Recent calls",
+      content: "Latest verified rows with a shortcut into the full Call log — next step opens it.",
       placement: "top",
-      scrollOffset: 120,
-    },
-  ];
-}
-
-function trustedProPageIntro(): TutorialStep[] {
-  return [
-    {
-      section: "trustedPro",
-      target: sel("trustedPro.header"),
-      route: "/trusted-pro",
-      title: "Trusted Pro",
-      content:
-        "Longform thesis posts from Trusted Pro members; everyone reads, only approved members submit. Next: the public feed.",
-      placement: "bottom",
-      scrollOffset: 100,
+      scrollOffset: 148,
       skipScroll: true,
     },
-  ];
-}
-
-function trustedProPageSteps(): TutorialStep[] {
-  return [
-    {
-      section: "trustedPro",
-      target: sel("trustedPro.feed"),
-      route: "/trusted-pro",
-      title: "Trusted Pro feed",
-      content: "Published calls with thesis, narrative, views, and timestamps—apply or submit from the header when eligible.",
-      placement: "top",
-      scrollOffset: 120,
-    },
-  ];
-}
-
-function leaderboardPageIntro(): TutorialStep[] {
-  return [
-    {
-      section: "leaderboard",
-      target: sel("leaderboard.header"),
-      route: "/leaderboard",
-      title: "Leaderboards",
-      content:
-        "Public arena: spotlight leaders, records, caller boards, and top single-call multiples—separate from your private Call log and Performance lab. Next: spotlight cards.",
-      placement: "bottom",
-      scrollOffset: 100,
-      skipScroll: true,
-    },
-  ];
-}
-
-function leaderboardPageSteps(): TutorialStep[] {
-  return [
-    {
-      section: "leaderboard",
-      target: sel("leaderboard.spotlight"),
-      route: "/leaderboard",
-      title: "Spotlight leaders",
-      content: "Daily, weekly, and monthly faces on the board with best and average multiples.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "leaderboard",
-      target: sel("leaderboard.userBoard"),
-      route: "/leaderboard",
-      title: "User leaderboard",
-      content: "Ranked callers for the selected timeframe—avg, best, win rate, calls, and rank deltas.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "leaderboard",
-      target: sel("leaderboard.topCalls"),
-      route: "/leaderboard",
-      title: "Top single calls",
-      content: "Highest multiples and time-to-ATH for standout individual calls in the window.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "leaderboard",
-      target: sel("leaderboard.botSection"),
-      route: "/leaderboard",
-      title: "McGBot · bot performance",
-      content:
-        "Everything below is McGBot-issued automation: headline KPIs, milestone and live feeds, and the bot-only leaderboard—core product surface alongside the community boards above.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "leaderboard",
-      target: sel("leaderboard.botStats"),
-      route: "/leaderboard",
-      title: "Bot stats",
-      content:
-        "Best bot call, average multiple, total bot calls, aggregate win rate, and speed-to-ATH / 2×—same card language as the community hub, scoped to scanner calls.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "leaderboard",
-      target: sel("leaderboard.botMilestones"),
-      route: "/leaderboard",
-      title: "Recent milestone hits",
-      content: "Rolling feed of notable 2× / 3× / 5× / 10× / ATH marks as McGBot calls verify (fills in as volume grows).",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "leaderboard",
-      target: sel("leaderboard.botLiveActivity"),
-      route: "/leaderboard",
-      title: "Live bot activity",
-      content: "Lightweight pulse of what the scanner is calling right now—pairs with the milestone strip.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "leaderboard",
-      target: sel("leaderboard.botMcgbotBoard"),
-      route: "/leaderboard",
-      title: "McGBot board",
-      content: "Ranked bot rows by timeframe—compare McGBot consistency vs manual callers using the tabs and pagination.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-  ];
-}
-
-function pnlShowcasePageIntro(): TutorialStep[] {
-  return [
-    {
-      section: "pnlShowcase",
-      target: sel("pnlShowcase.header"),
-      route: "/pnl-showcase",
-      title: "PnL Showcase",
-      content:
-        "Verified realized and unrealized PnLs from on-chain data for tokens you’ve called—post from here when eligible. Next: the public feed.",
-      placement: "bottom",
-      scrollOffset: 100,
-      skipScroll: true,
-    },
-  ];
-}
-
-function pnlShowcasePageSteps(): TutorialStep[] {
-  return [
-    {
-      section: "pnlShowcase",
-      target: sel("pnlShowcase.feed"),
-      route: "/pnl-showcase",
-      title: "Verified posts",
-      content: "Recent showcase cards with % moves, SOL figures, wallet and token context, and refresh.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-  ];
-}
-
-function profilePageIntro(ownProfilePath: string): TutorialStep[] {
-  return [
-    {
-      section: "profile",
-      target: sel("profile.pageIntro"),
-      route: ownProfilePath,
-      title: "Your profile",
-      content:
-        "What others see: banner, avatar, bio, optional performance, trophies, and recent calls. Next: the header and actions.",
-      placement: "center",
-      scrollOffset: 100,
-      skipScroll: true,
-    },
-  ];
-}
-
-function settingsPageIntro(): TutorialStep[] {
-  return [
-    {
-      section: "settings",
-      target: sel("settings.header"),
-      route: "/settings",
-      title: "Settings",
-      content:
-        "Link Discord/X, notifications, public profile visibility, and which home widgets render. Next: Account & X.",
-      placement: "center",
-      scrollOffset: 120,
-      skipScroll: true,
-    },
-  ];
-}
-
-function helpPageIntro(): TutorialStep[] {
-  return [
-    {
-      section: "help",
-      target: sel("help.header"),
-      route: "/help",
-      title: "Help",
-      content: "Tutorial controls, bug and feature forms, and role-sized handbooks. Next: Tutorial mode.",
-      placement: "center",
-      scrollOffset: 120,
-      skipScroll: true,
-    },
-  ];
-}
-
-function referralsPageIntro(): TutorialStep[] {
-  return [
-    {
-      section: "referrals",
-      target: sel("referrals.hero"),
-      route: "/referrals",
-      title: "Referrals",
-      content: "Share your link, track signups, and see how referred callers perform. Next: link hub and copy tools.",
-      placement: "center",
-      scrollOffset: 120,
-      skipScroll: true,
-    },
-  ];
-}
-
-function callLogPageSteps(): TutorialStep[] {
-  return [
     {
       section: "calls",
-      target: sel("calls.filters"),
+      target: sel("calls.header"),
       route: "/calls",
-      title: "Time windows",
-      content: "Switch between 7 days, 30 days, or all time to change which rows load.",
+      title: "Call log",
+      content: "Line-by-line history: only your credited calls, filterable by window.",
       placement: "bottom",
-      scrollOffset: 96,
+      scrollOffset: 100,
+      skipScroll: true,
     },
     {
       section: "calls",
       target: sel("calls.table"),
       route: "/calls",
       title: "Call table",
-      content: "Each row: timing, token, live and ATH multiples, status, source, and outbound links.",
+      content: "Use the window chips above for 7d / 30d / all time. Each row links to Dex and charts.",
       placement: "top",
       scrollOffset: 120,
+      skipScroll: true,
     },
-  ];
-}
-
-function performancePageSteps(): TutorialStep[] {
-  return [
+    {
+      section: "calls",
+      target: sel("sidebar.nav.calls"),
+      route: "/",
+      title: "Call log · nav",
+      content: "This rail link is the fastest way back when you’re deep in other pages.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "performance",
+      target: sel("performance.header"),
+      route: "/performance",
+      title: "Performance lab",
+      content: "Same calls as Call log — summarized: streak, distribution, and rank context.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
     {
       section: "performance",
       target: sel("performance.summary"),
       route: "/performance",
-      title: "Summary metrics",
-      content: "Averages, medians, win rate, rolling rank, totals, best multiples, hit rates, and streak.",
+      title: "Summary tiles",
+      content: "Averages, medians, win rate, totals, and your rolling 7d rank among callers.",
       placement: "top",
       scrollOffset: 130,
+      skipScroll: true,
     },
     {
       section: "performance",
-      target: sel("performance.activity"),
-      route: "/performance",
-      title: "Activity chart",
-      content: "Two-week view: call count per UTC day and average ATH multiple per day.",
-      placement: "top",
-      scrollOffset: 130,
+      target: sel("sidebar.nav.performance"),
+      route: "/",
+      title: "Performance · nav",
+      content: "Re-open the lab anytime from Workspace.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
     },
     {
-      section: "performance",
-      target: sel("performance.distribution"),
-      route: "/performance",
-      title: "Multiple mix",
-      content: "How your calls stack into ATH buckets (under 2×, 2–5×, 5×+).",
-      placement: "top",
-      scrollOffset: 130,
+      section: "tradeJournal",
+      target: sel("sidebar.nav.tradeJournal"),
+      route: "/",
+      title: "Trade journal · nav",
+      content: "Private Solana trade log (separate from milestones). Next: the journal workspace.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
     },
-  ];
-}
-
-function profileChapter(ownProfilePath: string): TutorialStep[] {
-  return [
     {
-      section: "profile",
-      target: sel("profile.header"),
-      route: ownProfilePath,
-      title: "Profile header",
-      content: "Banner, avatar, badges, bio, and actions visitors or you see on your card.",
+      section: "tradeJournal",
+      target: sel("tradeJournal.workspace"),
+      route: "/trade-journal",
+      title: "Trade journal",
+      content: "Log thesis, MC levels, wallet touches — export Markdown when you want a offline review.",
       placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+    {
+      section: "dashboard",
+      target: sel("sidebar.nav.dashboard"),
+      route: "/",
+      title: "Dashboard",
+      content: "Back to your hub. Next: Markets — McGBot scanner feed.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "botCalls",
+      target: sel("sidebar.nav.botCalls"),
+      route: "/",
+      title: "Bot calls · nav",
+      content: "McGBot’s live scanner tape (Pro). Opens the full feed next.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "botCalls",
+      target: sel("botCalls.header"),
+      route: "/bot-calls",
+      title: "Bot calls",
+      content: "Automation feed: time windows, min multiple, excluded toggle, and the running tape.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+    {
+      section: "botCalls",
+      target: sel("botCalls.table"),
+      route: "/bot-calls",
+      title: "Scanner tape",
+      content: "Rows show live/ATH multiples, status, and outbound links — pair with filters above.",
+      placement: "top",
       scrollOffset: 120,
+      skipScroll: true,
     },
     {
-      section: "profile",
-      target: sel("profile.performance"),
-      route: ownProfilePath,
-      title: "On-card performance",
-      content: "Public averages, win rate, totals, and hit rates you choose to show.",
-      placement: "top",
-      scrollOffset: 130,
+      section: "dashboard",
+      target: sel("sidebar.nav.dashboard"),
+      route: "/",
+      title: "Home",
+      content: "Trusted Pro next — long-form thesis posts from approved members.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
     },
     {
-      section: "profile",
-      target: sel("profile.trophies"),
-      route: ownProfilePath,
-      title: "Trophy case",
-      content: "Daily / weekly / monthly ladders plus milestone club picks.",
-      placement: "top",
-      scrollOffset: 130,
+      section: "trustedPro",
+      target: sel("sidebar.nav.trustedPro"),
+      route: "/",
+      title: "Trusted Pro · nav",
+      content: "Curated thesis feed; submission rules live on the page header when you’re eligible.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
     },
     {
-      section: "profile",
-      target: sel("profile.recentCalls"),
-      route: ownProfilePath,
-      title: "Recent calls",
-      content: "Latest verified calls others can browse from your profile.",
+      section: "trustedPro",
+      target: sel("trustedPro.header"),
+      route: "/trusted-pro",
+      title: "Trusted Pro",
+      content: "Read published calls; apply or submit from the header when your account qualifies.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+    {
+      section: "trustedPro",
+      target: sel("trustedPro.feed"),
+      route: "/trusted-pro",
+      title: "Feed",
+      content: "Thesis cards with engagement stats — your research layer above raw tape.",
+      placement: "top",
+      scrollOffset: 120,
+      skipScroll: true,
+    },
+    {
+      section: "dashboard",
+      target: sel("sidebar.nav.dashboard"),
+      route: "/",
+      title: "Home",
+      content: "Public arena next: Leaderboards.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "leaderboard",
+      target: sel("sidebar.nav.leaderboard"),
+      route: "/",
+      title: "Leaderboards · nav",
+      content: "Community scoreboards — separate from your private Call log / Performance lab.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "leaderboard",
+      target: sel("leaderboard.header"),
+      route: "/leaderboard",
+      title: "Leaderboards",
+      content: "Spotlights, records, caller boards, and McGBot-only sections — all public arena data.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+    {
+      section: "leaderboard",
+      target: sel("leaderboard.spotlight"),
+      route: "/leaderboard",
+      title: "Spotlight boards",
+      content: "Daily / weekly / monthly faces and best calls — drill tabs below for other boards.",
       placement: "top",
       scrollOffset: 130,
+      skipScroll: true,
+    },
+    {
+      section: "dashboard",
+      target: sel("sidebar.nav.dashboard"),
+      route: "/",
+      title: "Home",
+      content: "PnL Showcase next — verified wallet posts when you’re eligible.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "pnlShowcase",
+      target: sel("sidebar.nav.pnlShowcase"),
+      route: "/",
+      title: "PnL Showcase · nav",
+      content: "On-chain verified PnL cards — opens the public feed next.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "pnlShowcase",
+      target: sel("pnlShowcase.header"),
+      route: "/pnl-showcase",
+      title: "PnL Showcase",
+      content: "Post realized/unrealized wins when linked wallets qualify — social proof layer.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+    {
+      section: "pnlShowcase",
+      target: sel("pnlShowcase.feed"),
+      route: "/pnl-showcase",
+      title: "Showcase feed",
+      content: "Recent verified cards with % moves and token context.",
+      placement: "top",
+      scrollOffset: 130,
+      skipScroll: true,
+    },
+    {
+      section: "dashboard",
+      target: sel("sidebar.nav.dashboard"),
+      route: "/",
+      title: "Home",
+      content: "Referrals next — your link, signups, and downstream caller stats.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "referrals",
+      target: sel("sidebar.nav.referrals"),
+      route: "/",
+      title: "Referrals · nav",
+      content: "Share McGBot; performance rolls up for people who join on your link.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "referrals",
+      target: sel("referrals.hero"),
+      route: "/referrals",
+      title: "Referrals",
+      content: "Copy your URL, track signups, and see how referred callers perform.",
+      placement: "center",
+      scrollOffset: 120,
+      skipScroll: true,
+    },
+    {
+      section: "referrals",
+      target: sel("referrals.linkHub"),
+      route: "/referrals",
+      title: "Link hub",
+      content: "Vanity slug or Discord ID link — copy buttons and quick stats live here.",
+      placement: "top",
+      scrollOffset: 120,
+      skipScroll: true,
+    },
+    {
+      section: "dashboard",
+      target: sel("sidebar.nav.dashboard"),
+      route: "/",
+      title: "Home",
+      content: "Lounge next — Discord text mirrored in the dashboard.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "lounge",
+      target: sel("sidebar.nav.loungeDiscordChats"),
+      route: "/",
+      title: "Discord chats · nav",
+      content: "Read-only mirror of configured channels — opens the terminal view next.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "lounge",
+      target: sel("lounge.discordChats"),
+      route: "/lounge/discord-chats",
+      title: "Discord chats",
+      content: "General + staff tabs when available; click names to open dashboard profiles.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+    {
+      section: "dashboard",
+      target: sel("sidebar.nav.dashboard"),
+      route: "/",
+      title: "Home",
+      content: "Voice tables next — premium voice lounge.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "lounge",
+      target: sel("sidebar.nav.loungeVoiceChats"),
+      route: "/",
+      title: "Voice chats · nav",
+      content: "Join curated voice lobbies (feature-flagged). Opens the docked experience next.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    },
+    {
+      section: "lounge",
+      target: sel("lounge.voiceChats"),
+      route: "/lounge/voice-chats",
+      title: "Voice chats",
+      content: "Lobby list, join flow, and moderation affordances when voice is enabled for your tier.",
+      placement: "bottom",
+      scrollOffset: 100,
+      skipScroll: true,
+    },
+    {
+      section: "dashboard",
+      target: sel("sidebar.nav.dashboard"),
+      route: "/",
+      title: "Home",
+      content: "Account destinations next: your public profile, Settings, and Help.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
     },
   ];
-}
 
-function settingsChapter(): TutorialStep[] {
-  return [
+  if (own) {
+    core.push(
+      {
+        section: "profile",
+        target: sel("nav.menu.profile"),
+        route: "/",
+        title: "Profile · menu",
+        content: "Opening your menu — Profile is your public card.",
+        placement: "bottom",
+        scrollOffset: 88,
+        skipScroll: true,
+        openAccountMenu: true,
+      },
+      {
+        section: "profile",
+        target: sel("profile.pageIntro"),
+        route: own,
+        title: "Your profile",
+        content: "What others see: banner, avatar, bio, optional stats, trophies, and recent calls.",
+        placement: "center",
+        scrollOffset: 100,
+        skipScroll: true,
+        closeAccountMenu: true,
+      },
+      {
+        section: "profile",
+        target: sel("profile.header"),
+        route: own,
+        title: "Header & actions",
+        content: "Edit card, follow state for visitors, and pinned call when you set one.",
+        placement: "bottom",
+        scrollOffset: 120,
+        skipScroll: true,
+      },
+      {
+        section: "dashboard",
+        target: sel("sidebar.nav.dashboard"),
+        route: "/",
+        title: "Home",
+        content: "Settings next — notifications, widgets, and profile visibility.",
+        placement: "right",
+        scrollOffset: 72,
+        skipScroll: true,
+      }
+    );
+  } else {
+    core.push({
+      section: "settings",
+      target: sel("sidebar.nav.dashboard"),
+      route: "/",
+      title: "Home",
+      content: "Settings next — open the account menu → Settings anytime.",
+      placement: "right",
+      scrollOffset: 72,
+      skipScroll: true,
+    });
+  }
+
+  core.push(
     {
       section: "settings",
-      target: sel("settings.account"),
+      target: sel("settings.header"),
       route: "/settings",
-      title: "Account & X",
-      content: "Link X, milestone @mention rules, and how you appear on approved posts.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "settings",
-      target: sel("settings.notifications"),
-      route: "/settings",
-      title: "Notifications",
-      content: "In-dashboard alerts: scope (your calls vs global), sounds, and quiet hours.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "settings",
-      target: sel("settings.publicProfile"),
-      route: "/settings",
-      title: "Public profile",
-      content: "Toggle which stats, trophies, calls, and distribution visitors can see.",
-      placement: "top",
-      scrollOffset: 130,
+      title: "Settings",
+      content: "Notifications, public profile toggles, linked wallets, and which home widgets render.",
+      placement: "center",
+      scrollOffset: 120,
+      skipScroll: true,
     },
     {
       section: "settings",
       target: sel("settings.dashboardLayout"),
       route: "/settings",
       title: "Dashboard layout",
-      content: "Show or hide home widgets like market strip, rank, and staff previews.",
+      content: "Show or hide market pulse, feeds, quick actions, Discord chat, and more.",
       placement: "top",
       scrollOffset: 130,
+      skipScroll: true,
     },
-  ];
-}
-
-function helpChapter(): TutorialStep[] {
-  return [
+    {
+      section: "help",
+      target: sel("help.header"),
+      route: "/help",
+      title: "Help",
+      content: "Docs sized to your role, bug + feature forms, and tutorial replay controls.",
+      placement: "center",
+      scrollOffset: 120,
+      skipScroll: true,
+    },
     {
       section: "help",
       target: sel("help.tutorialPanel"),
       route: "/help",
-      title: "Tutorial mode",
-      content: "Restart tours, jump to a section, or reset progress per track (caller / mod / admin).",
+      title: "Replay tour",
+      content: "Restart this walkthrough or jump to a section — same tour for every role.",
       placement: "top",
       scrollOffset: 120,
-    },
-    {
-      section: "help",
-      target: sel("help.reportBug"),
-      route: "/help",
-      title: "Report a bug",
-      content: "Submit issues to the team; you get a bell when it is closed.",
-      placement: "top",
-      scrollOffset: 120,
-    },
-    {
-      section: "help",
-      target: sel("help.featureRequest"),
-      route: "/help",
-      title: "Feature requests",
-      content: "Ideas for the dashboard or bot—triaged like bugs.",
-      placement: "top",
-      scrollOffset: 120,
-    },
-    {
-      section: "help",
-      target: sel("help.docs"),
-      route: "/help",
-      title: "Role docs",
-      content: "Caller, moderator, and admin handbooks sized to your access.",
-      placement: "top",
-      scrollOffset: 120,
-    },
-  ];
-}
-
-function referralsChapter(): TutorialStep[] {
-  return [
-    {
-      section: "referrals",
-      target: sel("referrals.linkHub"),
-      route: "/referrals",
-      title: "Your referral link",
-      content: "Copy your URL and share it; signups attach here.",
-      placement: "top",
-      scrollOffset: 120,
-    },
-    {
-      section: "referrals",
-      target: sel("referrals.stats"),
-      route: "/referrals",
-      title: "Network snapshot",
-      content: "Totals, active callers, best performer, and conversion (when wired).",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "referrals",
-      target: sel("referrals.flow"),
-      route: "/referrals",
-      title: "How it flows",
-      content: "Share link → friends sign up on McGBot → performance rolls up here.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "referrals",
-      target: sel("referrals.lists"),
-      route: "/referrals",
-      title: "Recent signups & performance",
-      content: "Latest referrals and per-user averages at a glance.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-  ];
-}
-
-/** Full caller-facing tour (everyone runs this track for the shared terminal). */
-export function getUserTutorialSteps(_tier: HelpTier, ctx?: TutorialStepContext): TutorialStep[] {
-  const own = ctx?.ownProfilePath?.trim();
-  const out: TutorialStep[] = [
-    ...dashboardWelcomeStep(),
-    ...dashboardTopBarSteps(),
-    ...dashboardAccountMenuRows(),
-    ...dashboardHomePageIntro(),
-    ...dashboardHomePerformanceStep(),
-    ...dashboardBodySteps(),
-    ...dashboardMainFeedSteps(),
-    ...dashboardQuickActionsRailStep(),
-    ...dashboardRightColumnLowerSteps(),
-    ...callLogPageIntro(),
-    ...callLogPageSteps(),
-    ...performancePageIntro(),
-    ...performancePageSteps(),
-    ...watchlistPageIntro(),
-    ...watchlistPageSteps(),
-    ...botCallsPageIntro(),
-    ...botCallsPageSteps(),
-    ...trustedProPageIntro(),
-    ...trustedProPageSteps(),
-    ...leaderboardPageIntro(),
-    ...leaderboardPageSteps(),
-    ...pnlShowcasePageIntro(),
-    ...pnlShowcasePageSteps(),
-  ];
-  if (own) out.push(...profilePageIntro(own), ...profileChapter(own));
-  out.push(
-    ...settingsPageIntro(),
-    ...settingsChapter(),
-    ...helpPageIntro(),
-    ...helpChapter(),
-    ...referralsPageIntro(),
-    ...referralsChapter()
+      skipScroll: true,
+    }
   );
-  return out;
-}
 
-/** Moderator-only tour: queue preview on home, then the full moderation desk. */
-export function getModTutorialSteps(): TutorialStep[] {
-  return [
-    ...dashboardModQueueStep(),
-    {
-      section: "staffModeration",
-      target: sel("sidebar.nav.moderation"),
-      route: "/moderation",
-      title: "Moderation",
-      content: "Full approval desk for bot calls, Trusted Pro posts, and related staff workflows.",
-      placement: "right",
-      scrollOffset: 72,
-    },
-    {
-      section: "staffModeration",
-      target: sel("moderation.header"),
-      route: "/moderation",
-      title: "Command center",
-      content: "Context for what lands in this queue and how it ties to Discord approvals.",
-      placement: "bottom",
-      scrollOffset: 130,
-    },
-    {
-      section: "staffModeration",
-      target: sel("moderation.liveQueue"),
-      route: "/moderation",
-      title: "Live queue strip",
-      content: "Refresh, timestamps, and quick counts for Trusted Pro intake alongside call totals.",
-      placement: "bottom",
-      scrollOffset: 130,
-    },
-    {
-      section: "staffModeration",
-      target: sel("moderation.queueStats"),
-      route: "/moderation",
-      title: "Queue counters",
-      content: "Totals split between McGBot calls, other pending calls, and dev submissions.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-  ];
-}
+  if (tier === "mod" || tier === "admin") {
+    core.push(
+      {
+        section: "staffModeration",
+        target: sel("sidebar.nav.moderation"),
+        route: "/",
+        title: "Moderation · nav",
+        content: "Staff approvals: calls, Trusted Pro, and mirrored Discord queues — details onboard separately.",
+        placement: "right",
+        scrollOffset: 72,
+        skipScroll: true,
+      },
+      {
+        section: "staffModeration",
+        target: sel("moderation.header"),
+        route: "/moderation",
+        title: "Moderation desk",
+        content: "Live queue + Supabase-backed desks for intake you triage with the team.",
+        placement: "bottom",
+        scrollOffset: 120,
+        skipScroll: true,
+      },
+      {
+        section: "dashboard",
+        target: sel("sidebar.nav.dashboard"),
+        route: "/",
+        title: "Home",
+        content: "Back to the hub.",
+        placement: "right",
+        scrollOffset: 72,
+        skipScroll: true,
+      }
+    );
+  }
 
-/** Administrator-only tour: overview snapshot and each workspace entry point. */
-export function getAdminTutorialSteps(): TutorialStep[] {
-  return [
-    {
-      section: "adminPanel",
-      target: sel("sidebar.nav.admin"),
-      route: "/admin",
-      title: "Admin",
-      content: "Subscription bypass, bot controls, site flags, bugs, and feature requests.",
-      placement: "right",
-      scrollOffset: 72,
-    },
-    {
-      section: "adminPanel",
-      target: sel("admin.intro"),
-      route: "/admin",
-      title: "Overview",
-      content: "Jump cards mirror serious workspaces; stats above summarize live health.",
-      placement: "bottom",
-      scrollOffset: 120,
-    },
-    {
-      section: "adminPanel",
-      target: sel("admin.stats"),
-      route: "/admin",
-      title: "Live snapshot",
-      content: "Scanner flag, Discord socket, users, subscriptions, and coarse retention.",
-      placement: "top",
-      scrollOffset: 130,
-    },
-    {
-      section: "adminPanel",
-      target: sel("admin.card.subscription"),
-      route: "/admin",
-      title: "Subscription access",
-      content: "Bypass list and exempt Discord IDs for dashboard access.",
-      placement: "top",
-      scrollOffset: 120,
-    },
-    {
-      section: "adminPanel",
-      target: sel("admin.card.bot"),
-      route: "/admin",
-      title: "Bot controls",
-      content: "Health checks and scanner toggles (same effect as Discord commands).",
-      placement: "top",
-      scrollOffset: 120,
-    },
-    {
-      section: "adminPanel",
-      target: sel("admin.card.site"),
-      route: "/admin",
-      title: "Site & flags",
-      content: "Maintenance mode, banners, paywall, and live Supabase-backed settings.",
-      placement: "top",
-      scrollOffset: 120,
-    },
-    {
-      section: "adminPanel",
-      target: sel("admin.card.bugs"),
-      route: "/admin",
-      title: "Bug reports",
-      content: "Triage user bugs, leave notes, close with a bell back to the reporter.",
-      placement: "top",
-      scrollOffset: 120,
-    },
-    {
-      section: "adminPanel",
-      target: sel("admin.card.features"),
-      route: "/admin",
-      title: "Feature requests",
-      content: "Same workflow as bugs for product ideas.",
-      placement: "top",
-      scrollOffset: 120,
-    },
-  ];
+  if (tier === "admin") {
+    core.push(
+      {
+        section: "adminPanel",
+        target: sel("sidebar.nav.admin"),
+        route: "/",
+        title: "Admin · nav",
+        content: "Subscription tools, bot controls, site flags, bugs, and feature requests — deep dives onboard separately.",
+        placement: "right",
+        scrollOffset: 72,
+        skipScroll: true,
+      },
+      {
+        section: "adminPanel",
+        target: sel("admin.intro"),
+        route: "/admin",
+        title: "Admin overview",
+        content: "Jump cards into each workspace; stats above summarize live health.",
+        placement: "bottom",
+        scrollOffset: 120,
+        skipScroll: true,
+      },
+      {
+        section: "dashboard",
+        target: sel("sidebar.nav.dashboard"),
+        route: "/",
+        title: "Home",
+        content: "Treasury hub next — on-chain SOL, Stripe, and membership flows.",
+        placement: "right",
+        scrollOffset: 72,
+        skipScroll: true,
+      },
+      {
+        section: "adminTreasury",
+        target: sel("sidebar.nav.treasury"),
+        route: "/",
+        title: "Treasury · nav",
+        content: "SOL treasuries, Stripe balance, tips, and voucher pool — opens the hub next.",
+        placement: "right",
+        scrollOffset: 72,
+        skipScroll: true,
+      },
+      {
+        section: "adminTreasury",
+        target: sel("admin.treasury"),
+        route: "/admin/treasury",
+        title: "Treasury hub",
+        content: "Live balances and payment rails; details covered in staff onboarding.",
+        placement: "bottom",
+        scrollOffset: 120,
+        skipScroll: true,
+      },
+      {
+        section: "dashboard",
+        target: sel("sidebar.nav.dashboard"),
+        route: "/",
+        title: "Home",
+        content: "Return here after admin work.",
+        placement: "right",
+        scrollOffset: 72,
+        skipScroll: true,
+      }
+    );
+  }
+
+  core.push({
+    section: "dashboard",
+    target: sel("dashboard.tutorialWelcome"),
+    route: "/",
+    title: "You’re set",
+    content: "Explore at your own pace. Replay anytime from Settings → Replay dashboard tour, or Help → Tutorial.",
+    placement: "center",
+    scrollOffset: 72,
+    skipScroll: true,
+  });
+
+  return core;
 }
 
 export function getTutorialSteps(track: TutorialTrackId, tier: HelpTier, ctx?: TutorialStepContext): TutorialStep[] {
-  if (track === "user") return getUserTutorialSteps(tier, ctx);
-  if (track === "mod") return getModTutorialSteps();
-  return getAdminTutorialSteps();
+  if (track !== "user") return [];
+  return getUserTutorialSteps(tier, ctx);
 }
 
-function sectionLabel(track: TutorialTrackId, id: string): string {
-  if (track === "admin") return ADMIN_SECTION_LABELS[id] ?? id;
-  if (track === "mod") return MOD_SECTION_LABELS[id] ?? id;
-  return USER_SECTION_LABELS[id] ?? id;
+function sectionLabel(id: string): string {
+  return SECTION_LABELS[id] ?? id;
 }
 
 export function getTutorialSections(track: TutorialTrackId, tier: HelpTier, ctx?: TutorialStepContext): TutorialSection[] {
-  const steps = getTutorialSteps(track, tier, ctx);
+  if (track !== "user") return [];
+  const steps = getUserTutorialSteps(tier, ctx);
   const seen = new Set<string>();
   const out: TutorialSection[] = [];
   for (const s of steps) {
     if (seen.has(s.section)) continue;
     seen.add(s.section);
-    out.push({ id: s.section, label: sectionLabel(track, s.section) });
+    out.push({ id: s.section, label: sectionLabel(s.section) });
   }
   return out;
 }
 
-export function availableTutorialTracks(tier: HelpTier): TutorialTrackId[] {
-  if (tier === "admin") return ["user", "mod", "admin"];
-  if (tier === "mod") return ["user", "mod"];
+export function availableTutorialTracks(_tier: HelpTier): TutorialTrackId[] {
   return ["user"];
 }

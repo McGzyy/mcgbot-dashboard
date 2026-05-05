@@ -856,6 +856,23 @@ function SettingsPageInner() {
             ) : null}
           </div>
 
+          <div className="mt-6 rounded-xl border border-zinc-800/60 bg-zinc-950/40 p-4 sm:mt-8">
+            <p className="text-sm font-medium text-zinc-100">Dashboard tour</p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+              Replay the guided walkthrough of the home board, sidebar, and main routes.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                const w = window as unknown as { __mcgbotTutorial?: { start?: () => void } };
+                w.__mcgbotTutorial?.start?.();
+              }}
+              className="mt-3 rounded-lg border border-cyan-500/35 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-100 transition hover:border-cyan-400/50 hover:bg-cyan-500/15"
+            >
+              Replay dashboard tour
+            </button>
+          </div>
+
           <div className="mt-8 space-y-6 lg:mt-10 lg:space-y-7">
       <div data-tutorial="settings.account">
       <SettingsSection
