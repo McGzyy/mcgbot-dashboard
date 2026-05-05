@@ -21,6 +21,10 @@ export type TutorialStep = {
    * Use with `placement: "top"` when the tooltip must stay above the target (e.g. panels at the bottom of the page).
    */
   disablePlacementFlip?: boolean;
+  /** Per-step: no dimmed SVG overlay (avoids full-document height / layout issues on dense pages). */
+  hideOverlay?: boolean;
+  /** Spacing between tooltip and target (react-joyride `offset`); default from Joyride. */
+  joyrideOffset?: number;
 };
 
 export type TutorialStepContext = {
@@ -149,9 +153,14 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       route: "/",
       title: "Trending tokens",
       content: "Heat snapshot of what the terminal is watching right now.",
-      /** Tooltip above the card; flip disabled so it stays there. Extra top offset leaves room for the floater. */
+      /**
+       * No custom window scroll: scrolling this step was stretching/breaking the shell. No overlay: full-page SVG
+       * overlay used document height and fought the layout. Flip off + small offset keeps the bubble on the card.
+       */
       placement: "top",
-      scrollOffset: 220,
+      skipScroll: true,
+      hideOverlay: true,
+      joyrideOffset: 6,
       disablePlacementFlip: true,
     },
     {

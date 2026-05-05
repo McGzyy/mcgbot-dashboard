@@ -357,17 +357,6 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     return () => document.body.removeAttribute("data-mcgbot-tour-block-account-nav");
   }, [tourOpen, navWait, stepIndex, steps]);
 
-  /** Dampen rubber-band / stray scroll chaining while a tour is open (esp. after programmatic scroll). */
-  useEffect(() => {
-    if (!tourOpen) return;
-    const root = document.documentElement;
-    const prev = root.style.overscrollBehaviorY;
-    root.style.overscrollBehaviorY = "none";
-    return () => {
-      root.style.overscrollBehaviorY = prev;
-    };
-  }, [tourOpen]);
-
   /**
    * Joyride’s built-in scroll can jump to the wrong scroll parent on long `/` layouts.
    * We disable Joyride’s own scroll and align the window to each target ourselves — including
@@ -399,15 +388,12 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     const outerRaf = window.requestAnimationFrame(() => {
       innerRaf = window.requestAnimationFrame(scroll);
     });
-    const t1 = window.setTimeout(scroll, 200);
-    const t2 = window.setTimeout(scroll, 420);
-    const t3 = window.setTimeout(scroll, 700);
+    /** One delayed pass after route/DOM settle — multiple timeouts were fighting Joyride and inflated scroll height. */
+    const t1 = window.setTimeout(scroll, 220);
     return () => {
       window.cancelAnimationFrame(outerRaf);
       window.cancelAnimationFrame(innerRaf);
       window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
     };
   }, [tourOpen, navWait, pathname, stepIndex, steps]);
 
@@ -483,6 +469,8 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
         skipScroll: true,
       };
       if (typeof s.scrollOffset === "number") row.scrollOffset = s.scrollOffset;
+      if (typeof s.joyrideOffset === "number") row.offset = s.joyrideOffset;
+      if (s.hideOverlay === true) row.hideOverlay = true;
       if (s.disablePlacementFlip) {
         row.floatingOptions = { flipOptions: false };
       }
