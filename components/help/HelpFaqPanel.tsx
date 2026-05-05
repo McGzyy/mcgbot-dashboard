@@ -74,7 +74,10 @@ export function HelpFaqPanel() {
   }, [visible]);
 
   return (
-    <div className="rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 p-5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.26),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm">
+    <div
+      className="rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/85 via-zinc-950/75 to-zinc-950/90 p-5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.26),0_28px_90px_-52px_rgba(0,0,0,0.85)] shadow-sm shadow-black/25 backdrop-blur-sm"
+      data-tutorial="help.faq"
+    >
       <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Reference</p>
       <h2 className="mt-1.5 text-base font-semibold tracking-tight text-white">FAQ</h2>
       <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">

@@ -153,11 +153,13 @@ export default function CallTapePage() {
 
       <div
         className={`mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ${terminalSurface.insetEdge}`}
-        data-tutorial="calls.table"
       >
         <div className="overflow-x-auto">
           <table className="min-w-[720px] w-full text-left text-sm">
-            <thead className="border-b border-zinc-800/90 bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            <thead
+              className="border-b border-zinc-800/90 bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-zinc-500"
+              data-tutorial="calls.table"
+            >
               <tr>
                 <th className="px-4 py-3">When</th>
                 <th className="px-4 py-3 min-w-[220px]">Call</th>

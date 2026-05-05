@@ -832,7 +832,7 @@ export default function TradeJournalPage() {
         </div>
       ) : null}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)]" data-tutorial="tradeJournal.mainGrid">
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">
         <section data-tutorial="tradeJournal.entries">
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>

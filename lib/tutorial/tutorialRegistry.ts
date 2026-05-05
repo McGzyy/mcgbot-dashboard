@@ -16,6 +16,11 @@ export type TutorialStep = {
   closeAccountMenu?: boolean;
   /** When true, skip window scroll-to-target (modals, centered welcome, fixed chrome). */
   skipScroll?: boolean;
+  /**
+   * When true, react-joyride keeps `placement` fixed (no flip to the opposite edge when the viewport is tight).
+   * Use with `placement: "top"` when the tooltip must stay above the target (e.g. panels at the bottom of the page).
+   */
+  disablePlacementFlip?: boolean;
 };
 
 export type TutorialStepContext = {
@@ -256,8 +261,8 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       title: "Bot calls (leaderboards)",
       content:
         "McGBot’s public bot ladder on this page — KPI cards, milestones, and live bot rows. The full scanner tape lives under Bot Calls in the sidebar.",
-      placement: "top",
-      scrollOffset: 130,
+      placement: "bottom",
+      scrollOffset: 128,
     },
 
     {
@@ -355,22 +360,13 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
     },
     {
       section: "tradeJournal",
-      target: sel("tradeJournal.mainGrid"),
-      route: "/trade-journal",
-      title: "Private process log",
-      content:
-        "Write why you took each trade, what counted as edge, and what would prove you wrong. None of it publishes to the call log, milestones, or leaderboards—this page is for your own review and discipline.",
-      placement: "top",
-      scrollOffset: 100,
-    },
-    {
-      section: "tradeJournal",
       target: sel("tradeJournal.entries"),
       route: "/trade-journal",
       title: "Journal entries",
       content: "Saved plays with setups, thesis, and invalidation. Use New entry or Export Markdown in the header when you are ready.",
       placement: "top",
-      scrollOffset: 120,
+      scrollOffset: 200,
+      disablePlacementFlip: true,
     },
     {
       section: "tradeJournal",
@@ -379,7 +375,8 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       title: "Wallet activity",
       content: "Pulls recent SPL touches from your linked wallet so you can anchor a note to a real mint—open a row to start a draft without hunting explorers.",
       placement: "top",
-      scrollOffset: 120,
+      scrollOffset: 200,
+      disablePlacementFlip: true,
     },
 
     {
@@ -546,12 +543,52 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       section: "settings",
       target: sel("settings.header"),
       route: "/settings",
-      title: "Settings",
-      content: "Every account preference for the terminal — layout, alerts, and linked accounts.",
+      title: "Settings overview",
+      content: "Every account preference for the terminal — layout, alerts, linked X, and public visibility.",
       placement: "center",
       scrollOffset: 120,
       skipScroll: true,
       closeAccountMenu: true,
+    },
+    {
+      section: "settings",
+      target: sel("settings.connectedX"),
+      route: "/settings",
+      title: "Connect X",
+      content:
+        "Link X to verify your handle on your profile and unlock optional @mentions on approved high-multiple milestone posts.",
+      placement: "bottom",
+      scrollOffset: 120,
+    },
+    {
+      section: "settings",
+      target: sel("settings.xMilestones"),
+      route: "/settings",
+      title: "X milestone posts",
+      content:
+        "Allow @mentions on milestone posts and set the minimum multiple — so you are not pinged on every small move.",
+      placement: "bottom",
+      scrollOffset: 130,
+    },
+    {
+      section: "settings",
+      target: sel("settings.notifications"),
+      route: "/settings",
+      title: "Notifications",
+      content:
+        "My Calls Only, Following, Global, and in-dashboard sound — tune what alerts you without leaving the terminal.",
+      placement: "bottom",
+      scrollOffset: 130,
+    },
+    {
+      section: "settings",
+      target: sel("settings.publicProfile"),
+      route: "/settings",
+      title: "Public profile",
+      content:
+        "Toggle what visitors see on your McGBot profile: stats, trophy case, recent calls, and your pinned call.",
+      placement: "bottom",
+      scrollOffset: 140,
     },
     {
       section: "settings",
@@ -564,13 +601,24 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
     },
     {
       section: "help",
+      target: sel("nav.menu.help"),
+      title: "Help",
+      content: "Support hub, role docs, FAQ, bug reports, and Ask McGBot — open from your avatar menu anytime.",
+      placement: "left",
+      scrollOffset: 88,
+      skipScroll: true,
+      openAccountMenu: true,
+    },
+    {
+      section: "help",
       target: sel("help.header"),
       route: "/help",
-      title: "Help",
-      content: "Role docs, FAQ, bug and feature forms.",
+      title: "Help hub",
+      content: "Role docs, FAQ, quick answers, and forms — plus ? (Shift + /) when focus is not in a field.",
       placement: "center",
       scrollOffset: 120,
       skipScroll: true,
+      closeAccountMenu: true,
     },
     {
       section: "help",
@@ -580,6 +628,51 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       content: "Start this tour again, jump to a section, or reset progress.",
       placement: "top",
       scrollOffset: 120,
+    },
+    {
+      section: "help",
+      target: sel("help.reportBug"),
+      route: "/help",
+      title: "Report a bug",
+      content: "Submit broken behavior with steps and screenshots — you get a bell when it is closed.",
+      placement: "bottom",
+      scrollOffset: 130,
+    },
+    {
+      section: "help",
+      target: sel("help.featureRequest"),
+      route: "/help",
+      title: "Feature request",
+      content: "Share product ideas and why they matter — separate from bugs so triage stays clean.",
+      placement: "bottom",
+      scrollOffset: 130,
+    },
+    {
+      section: "help",
+      target: sel("help.docs"),
+      route: "/help",
+      title: "User docs",
+      content: "Role-matched guides open as modals — deeper runbooks unlock for staff accounts.",
+      placement: "bottom",
+      scrollOffset: 140,
+    },
+    {
+      section: "help",
+      target: sel("help.faq"),
+      route: "/help",
+      title: "FAQ",
+      content: "Filter by topic and expand answers for common flows — ranks, referrals, login, and Help itself.",
+      placement: "bottom",
+      scrollOffset: 140,
+    },
+    {
+      section: "help",
+      target: sel("help.askMcGBot"),
+      route: "/help",
+      title: "Ask McGBot",
+      content: "Try suggested prompts or type a short question — keyword hints today, doc-backed answers later.",
+      placement: "bottom",
+      scrollOffset: 140,
     }
   );
 

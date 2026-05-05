@@ -23,6 +23,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 
+/** Wide log tables: center in the viewport so Joyride’s floater measures a stable rect (smooth window scroll was racing the tooltip). */
+const TOUR_SCROLL_INTO_VIEW_CENTER_TARGETS = new Set<string>([
+  '[data-tutorial="calls.table"]',
+  '[data-tutorial="botCalls.table"]',
+]);
+
 type TrackState = {
   seenAt: string | null;
   version: number;
@@ -350,12 +356,17 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
 
     const offset = typeof step.scrollOffset === "number" ? step.scrollOffset : 112;
     const scroll = () => {
-      const el = tutorialSelectorUsesDataTutorial(step.target)
-        ? queryFirstVisibleTutorialTarget(step.target)
-        : document.querySelector(step.target);
-      if (!(el instanceof Element)) return;
+      const el =
+        tutorialSelectorUsesDataTutorial(step.target) && isSidebarDuplicateTutorialSelector(step.target)
+          ? queryFirstVisibleTutorialTarget(step.target)
+          : document.querySelector(step.target);
+      if (!(el instanceof HTMLElement)) return;
+      if (TOUR_SCROLL_INTO_VIEW_CENTER_TARGETS.has(step.target)) {
+        el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+        return;
+      }
       const y = el.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+      window.scrollTo({ top: Math.max(0, y), behavior: "auto" });
     };
 
     scroll();
@@ -447,6 +458,9 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
         skipScroll: true,
       };
       if (typeof s.scrollOffset === "number") row.scrollOffset = s.scrollOffset;
+      if (s.disablePlacementFlip) {
+        row.floatingOptions = { flipOptions: false };
+      }
       if (s.openAccountMenu || s.closeAccountMenu) {
         row.before = async () => {
           if (s.openAccountMenu) await openAccountMenu();

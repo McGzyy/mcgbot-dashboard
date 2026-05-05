@@ -131,7 +131,6 @@ type ProfileVisibility = {
   show_calls: boolean;
   show_key_stats: boolean;
   show_pinned_call: boolean;
-  show_distribution: boolean;
 };
 
 const DEFAULT_PROFILE_VISIBILITY: ProfileVisibility = {
@@ -140,7 +139,6 @@ const DEFAULT_PROFILE_VISIBILITY: ProfileVisibility = {
   show_calls: true,
   show_key_stats: true,
   show_pinned_call: true,
-  show_distribution: true,
 };
 
 function parseProfileVisibility(raw: unknown): ProfileVisibility {
@@ -881,7 +879,11 @@ function SettingsPageInner() {
         description="Link X for a verified handle. Milestone posts use these preferences for your calls; bot calls on X always credit McGBot."
       >
         <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
-        <div id="connected-accounts" className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5">
+        <div
+          id="connected-accounts"
+          className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5"
+          data-tutorial="settings.connectedX"
+        >
           <p className="text-sm font-medium text-zinc-100">X (Twitter)</p>
           <p className="mt-1 text-xs text-zinc-500">
             Sign in with X to prove your handle. Used for a verified @ on your profile and for
@@ -928,7 +930,10 @@ function SettingsPageInner() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5">
+        <div
+          className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5"
+          data-tutorial="settings.xMilestones"
+        >
           <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
             X milestone posts
           </h3>
@@ -1240,7 +1245,7 @@ function SettingsPageInner() {
       <SettingsSection
         id="public-profile"
         title="Public profile"
-        description="What visitors see on your McGBot profile page (stats, trophies, calls, pinned pick)."
+        description="What visitors see on your McGBot profile page (stats, trophies, calls, pinned pick). Call distribution and Alpha score always appear for context."
       >
         <div className="grid gap-2 sm:grid-cols-2 sm:gap-2.5">
           <ToggleRow
@@ -1304,19 +1309,6 @@ function SettingsPageInner() {
               setProfileVisibility((prev) => ({
                 ...prev,
                 show_pinned_call: !prev.show_pinned_call,
-              }))
-            }
-            disabled={settingsLoading}
-          />
-          <ToggleRow
-            id="profile-show-distribution"
-            label="Call Distribution"
-            description="Show call performance breakdown."
-            checked={profileVisibility.show_distribution}
-            onToggle={() =>
-              setProfileVisibility((prev) => ({
-                ...prev,
-                show_distribution: !prev.show_distribution,
               }))
             }
             disabled={settingsLoading}

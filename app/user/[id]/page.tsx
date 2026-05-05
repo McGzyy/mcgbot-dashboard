@@ -95,7 +95,6 @@ type ProfilePayload = {
     show_calls?: boolean;
     show_key_stats?: boolean;
     show_pinned_call?: boolean;
-    show_distribution?: boolean;
   } | null;
   stats: ProfileStats;
   recentCalls: RecentCallRow[];
@@ -298,17 +297,14 @@ function computeAlphaScore({
   last10: number | null;
   winRate: number | null;
 }) {
-  if (!avg || !median || !last10 || !winRate) return null;
-
+  if (avg == null || !Number.isFinite(avg) || winRate == null || !Number.isFinite(winRate)) {
+    return null;
+  }
+  const m = median != null && Number.isFinite(median) ? median : avg;
+  const l = last10 != null && Number.isFinite(last10) ? last10 : avg;
   const winRateNormalized = winRate / 100;
 
-  const score =
-    median * 0.4 +
-    last10 * 0.3 +
-    avg * 0.2 +
-    winRateNormalized * 0.1;
-
-  return score;
+  return m * 0.4 + l * 0.3 + avg * 0.2 + winRateNormalized * 0.1;
 }
 
 function rankMedal(rank: number): string {
@@ -1578,7 +1574,6 @@ export default function UserProfilePage() {
     show_calls: profile?.profile_visibility?.show_calls ?? true,
     show_key_stats: profile?.profile_visibility?.show_key_stats ?? true,
     show_pinned_call: profile?.profile_visibility?.show_pinned_call ?? true,
-    show_distribution: profile?.profile_visibility?.show_distribution ?? true,
   };
 
   const keyStatsPayload = profile?.keyStats;
@@ -2005,7 +2000,6 @@ export default function UserProfilePage() {
           </section>
           ) : null}
 
-          {visibility.show_distribution ? (
           <section className="mb-4" data-tutorial="profile.distribution">
             <PanelCard title="Call Distribution">
               {(() => {
@@ -2060,7 +2054,6 @@ export default function UserProfilePage() {
               })()}
             </PanelCard>
           </section>
-          ) : null}
 
           {visibility.show_calls ? (
           <section className="mb-4">

@@ -249,6 +249,37 @@ export default function ReferralsPage() {
         </div>
       </header>
 
+      {/* How it works */}
+      <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-4 py-3.5 sm:px-5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Flow</p>
+        <ol className="mt-2 flex flex-col gap-2 text-sm text-zinc-400 sm:flex-row sm:flex-wrap sm:items-center sm:gap-1 sm:text-xs">
+          <li className="flex items-center gap-2">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-300">
+              1
+            </span>
+            <span>Drop your link in X, Discord, or DMs</span>
+          </li>
+          <span className="hidden text-zinc-700 sm:inline" aria-hidden>
+            ·
+          </span>
+          <li className="flex items-center gap-2">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-300">
+              2
+            </span>
+            <span>Friends sign up through McGBot</span>
+          </li>
+          <span className="hidden text-zinc-700 sm:inline" aria-hidden>
+            ·
+          </span>
+          <li className="flex items-center gap-2">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-300">
+              3
+            </span>
+            <span>Performance rolls up here in real time</span>
+          </li>
+        </ol>
+      </div>
+
       {/* Link hub */}
       <section
         className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-950/[0.18] via-zinc-950 to-zinc-950 shadow-[0_0_0_1px_rgba(16,185,129,0.08),0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-emerald-500/10"
@@ -388,37 +419,6 @@ export default function ReferralsPage() {
           </div>
         </div>
       </section>
-
-      {/* How it works */}
-      <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-4 py-3.5 sm:px-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Flow</p>
-        <ol className="mt-2 flex flex-col gap-2 text-sm text-zinc-400 sm:flex-row sm:flex-wrap sm:items-center sm:gap-1 sm:text-xs">
-          <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-300">
-              1
-            </span>
-            <span>Drop your link in X, Discord, or DMs</span>
-          </li>
-          <span className="hidden text-zinc-700 sm:inline" aria-hidden>
-            ·
-          </span>
-          <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-300">
-              2
-            </span>
-            <span>Friends sign up through McGBot</span>
-          </li>
-          <span className="hidden text-zinc-700 sm:inline" aria-hidden>
-            ·
-          </span>
-          <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-300">
-              3
-            </span>
-            <span>Performance rolls up here in real time</span>
-          </li>
-        </ol>
-      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2" data-tutorial="referrals.lists">
         <section className={panelShell}>

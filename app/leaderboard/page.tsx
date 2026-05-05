@@ -1660,11 +1660,7 @@ export default function LeaderboardPage() {
       </section>
 
       {/* BOT — same layout pattern as community; sky accent */}
-      <section
-        id="bot-performance"
-        className="relative mt-16 scroll-mt-28"
-        data-tutorial="leaderboard.botSection"
-      >
+      <section id="bot-performance" className="relative mt-16 scroll-mt-28">
         <div
           className="pointer-events-none absolute -top-5 left-1/2 h-px w-[min(100%,48rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-sky-500/35 to-transparent"
           aria-hidden
@@ -1674,7 +1670,10 @@ export default function LeaderboardPage() {
             className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-sky-400/90 via-sky-500/60 to-cyan-600/50"
             aria-hidden
           />
-          <div className="relative border-b border-sky-500/15 bg-sky-950/20 px-5 py-5 sm:px-6">
+          <div
+            className="relative border-b border-sky-500/15 bg-sky-950/20 px-5 py-5 sm:px-6"
+            data-tutorial="leaderboard.botSection"
+          >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
