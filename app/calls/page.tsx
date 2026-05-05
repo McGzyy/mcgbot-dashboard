@@ -157,13 +157,13 @@ export default function CallTapePage() {
               data-tutorial="calls.table"
             >
               <tr>
-                <th className="px-4 py-3">When</th>
-                <th className="px-4 py-3 min-w-[220px]">Call</th>
-                <th className="px-4 py-3 text-right">Live ×</th>
-                <th className="px-4 py-3 text-right">ATH ×</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Source</th>
-                <th className="px-4 py-3 text-right">Links</th>
+                <th className="px-4 py-2.5">When</th>
+                <th className="px-4 py-2.5 min-w-[220px]">Call</th>
+                <th className="px-4 py-2.5 text-right">Live ×</th>
+                <th className="px-4 py-2.5 text-right">ATH ×</th>
+                <th className="px-4 py-2.5">Status</th>
+                <th className="px-4 py-2.5">Source</th>
+                <th className="px-4 py-2.5 text-right">Links</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
@@ -189,11 +189,11 @@ export default function CallTapePage() {
                         : null;
                   const dex = r.callCa ? dexscreenerTokenUrl("solana", r.callCa) : null;
                   return (
-                    <tr key={r.id || r.callCa + String(r.callTime)} className="hover:bg-zinc-900/40">
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-zinc-400">
+                    <tr key={r.id || r.callCa + String(r.callTime)} className="hover:bg-zinc-900/35">
+                      <td className="whitespace-nowrap px-4 py-2.5 text-xs text-zinc-400">
                         {iso ? formatRelativeTime(iso) : "—"}
                       </td>
-                      <td className="max-w-[min(420px,55vw)] px-4 py-3 text-xs text-zinc-200">
+                      <td className="max-w-[min(420px,55vw)] px-4 py-2.5 text-xs text-zinc-200">
                         <div className="flex min-w-0 gap-2">
                           {r.tokenImageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -205,7 +205,7 @@ export default function CallTapePage() {
                               referrerPolicy="no-referrer"
                             />
                           ) : null}
-                          <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="min-w-0 flex-1">
                           <div className="font-medium leading-snug text-zinc-100">
                             {formatCalledSnapshotLine({
                               tokenName: r.tokenName,
@@ -214,29 +214,18 @@ export default function CallTapePage() {
                               callCa: r.callCa,
                             })}
                           </div>
-                          {r.callCa ? (
-                            <a
-                              href={dex ?? "#"}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-block text-[11px] font-medium text-cyan-400/90 hover:underline"
-                              title="Open chart on Dexscreener"
-                            >
-                              Dex
-                            </a>
-                          ) : null}
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold tabular-nums text-emerald-300">
+                      <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-emerald-300">
                         {Number.isFinite(r.liveMultiple) ? `${r.liveMultiple.toFixed(2)}×` : "—"}
                       </td>
-                      <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-400">
+                      <td className="px-4 py-2.5 text-right font-medium tabular-nums text-zinc-400">
                         {Number.isFinite(r.athMultiple) && r.athMultiple > 0
                           ? `${r.athMultiple.toFixed(2)}×`
                           : "—"}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2.5">
                         {r.excludedFromStats ? (
                           <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
                             Excluded
@@ -247,12 +236,12 @@ export default function CallTapePage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2.5">
                         <span className="rounded-md border border-zinc-700/80 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
                           {r.source || "user"}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right">
                         <div className="flex justify-end gap-2">
                           {r.callCa ? (
                             <button
@@ -266,7 +255,7 @@ export default function CallTapePage() {
                                   tokenImageUrl: r.tokenImageUrl ?? null,
                                 })
                               }
-                              className="text-xs font-semibold text-emerald-300/95 hover:text-emerald-200"
+                              className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-100/90 transition hover:border-emerald-400/40 hover:bg-emerald-500/15"
                               title="Live chart (TradingView)"
                             >
                               Chart
@@ -277,7 +266,7 @@ export default function CallTapePage() {
                               href={dex}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-xs font-semibold text-cyan-400/90 hover:text-cyan-300"
+                              className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[11px] font-semibold text-cyan-100/90 transition hover:border-cyan-400/35 hover:bg-cyan-500/15"
                             >
                               Dex
                             </a>
