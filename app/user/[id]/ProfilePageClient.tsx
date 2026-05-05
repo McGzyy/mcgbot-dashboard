@@ -1769,11 +1769,11 @@ export default function ProfilePageClient() {
           </div>
 
           <header
-            className="relative px-4 pb-8 pt-1 sm:px-8 sm:pb-10 sm:pt-2"
+            className="relative px-4 pb-8 pt-6 sm:px-8 sm:pb-10 sm:pt-8"
             data-tutorial="profile.header"
           >
             <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent sm:inset-x-8" />
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:gap-10">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8 lg:gap-10">
               <div className="relative shrink-0">
                 <div
                   className="pointer-events-none absolute -inset-2 rounded-[1.15rem] bg-gradient-to-br from-cyan-500/25 via-transparent to-violet-600/20 opacity-70 blur-lg sm:-inset-2.5 sm:rounded-2xl"
@@ -1784,129 +1784,162 @@ export default function ProfilePageClient() {
                   alt=""
                   width={128}
                   height={128}
-                  className="relative -mt-12 h-28 w-28 rounded-2xl border border-white/10 bg-zinc-900 object-cover shadow-[0_24px_56px_-14px_rgba(0,0,0,0.88)] ring-[3px] ring-zinc-950 sm:-mt-14 sm:h-[8.5rem] sm:w-[8.5rem]"
+                  className="relative -mt-11 h-28 w-28 rounded-2xl border border-white/10 bg-zinc-900 object-cover shadow-[0_24px_56px_-14px_rgba(0,0,0,0.88)] ring-[3px] ring-zinc-950 sm:-mt-[3.35rem] sm:h-[8.5rem] sm:w-[8.5rem]"
                 />
               </div>
-              <div className="min-w-0 flex-1 sm:pb-1">
-                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-                  <h1 className="text-[1.65rem] font-semibold tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.55)] sm:text-[2.125rem] sm:leading-tight">
-                    {showNameSkeleton ? (
-                      <span className="inline-block h-9 w-52 max-w-full animate-pulse rounded-md bg-zinc-800/90" />
-                    ) : (
-                      displayName
-                    )}
-                  </h1>
-                  {!loading && showTopCallerChip ? (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-orange-500/35 bg-gradient-to-r from-orange-950/90 to-amber-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-100 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.5),0_0_30px_-12px_rgba(251,146,60,0.38)]">
-                      <span className="dashboard-fire-emoji text-sm leading-none" aria-hidden>
-                        🔥
-                      </span>
-                      Top Caller
-                      {topCallerTimes > 1 ? (
-                        <span className="font-extrabold text-amber-200">{topCallerTimes}×</span>
+              <div className="min-w-0 flex-1 pt-1 sm:pb-1 sm:pt-0 lg:pt-1">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+                      <h1 className="text-[1.65rem] font-semibold tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.55)] sm:text-[2.125rem] sm:leading-tight">
+                        {showNameSkeleton ? (
+                          <span className="inline-block h-9 w-52 max-w-full animate-pulse rounded-md bg-zinc-800/90" />
+                        ) : (
+                          displayName
+                        )}
+                      </h1>
+                      {!loading && showTopCallerChip ? (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-orange-500/35 bg-gradient-to-r from-orange-950/90 to-amber-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-100 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.5),0_0_30px_-12px_rgba(251,146,60,0.38)]">
+                          <span className="dashboard-fire-emoji text-sm leading-none" aria-hidden>
+                            🔥
+                          </span>
+                          Top Caller
+                          {topCallerTimes > 1 ? (
+                            <span className="font-extrabold text-amber-200">{topCallerTimes}×</span>
+                          ) : null}
+                        </span>
                       ) : null}
-                    </span>
-                  ) : null}
-                  {!loading && isTrustedPro ? (
-                    <span className="inline-flex shrink-0 items-center rounded-full border border-violet-500/35 bg-gradient-to-r from-violet-950/90 to-indigo-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-100 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.45),0_0_28px_-12px_rgba(139,92,246,0.32)]">
-                      Trusted Pro
-                    </span>
-                  ) : null}
-                  {isOwnProfile ? (
-                    <button
-                      type="button"
-                      onClick={() => setEditOpen(true)}
-                      className="shrink-0 rounded-lg border border-zinc-600/70 bg-gradient-to-b from-zinc-800/90 to-zinc-900/90 px-3.5 py-1.5 text-xs font-semibold text-zinc-100 shadow-md shadow-black/30 transition hover:border-cyan-500/35 hover:from-zinc-700/95 hover:to-zinc-900 hover:shadow-[0_0_28px_-10px_rgba(34,211,238,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40 motion-safe:active:scale-[0.98] sm:ml-auto"
-                    >
-                      Edit Profile
-                    </button>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-                      <FollowButton
-                        targetDiscordId={snowflakeForFollow}
-                        following={followingState}
-                        onFollowingChange={(next) => {
-                          if (!snowflakeForFollow) return;
-                          setFollowing(snowflakeForFollow, next);
-                          setFollowStats((prev) =>
-                            prev ? { ...prev, isFollowing: next } : prev
-                          );
-                        }}
-                        onCountsRefresh={refreshFollowStats}
-                        className="px-3 py-1.5 text-xs"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setReportOpen(true)}
-                        className="rounded-lg border border-zinc-700/70 bg-zinc-900/40 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
-                      >
-                        Report
-                      </button>
+                      {!loading && isTrustedPro ? (
+                        <span className="inline-flex shrink-0 items-center rounded-full border border-violet-500/35 bg-gradient-to-r from-violet-950/90 to-indigo-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-100 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.45),0_0_28px_-12px_rgba(139,92,246,0.32)]">
+                          Trusted Pro
+                        </span>
+                      ) : null}
                     </div>
-                  )}
-                </div>
-                {!loading &&
-                profile &&
-                profile.username.trim() !== "" &&
-                profile.displayName.trim() !== profile.username.trim() ? (
-                  <p className="mt-1 text-sm text-zinc-500">
-                    <span className="text-zinc-500">@{profile.username}</span>
-                  </p>
-                ) : null}
-                {!loading && (bioText || joinedText) ? (
-                  <>
-                    {bioText ? (
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
-                        {bioText}
+                    {!loading &&
+                    profile &&
+                    profile.username.trim() !== "" &&
+                    profile.displayName.trim() !== profile.username.trim() ? (
+                      <p className="mt-3 text-sm text-zinc-500">
+                        <span className="text-zinc-500">@{profile.username}</span>
                       </p>
                     ) : null}
-                    {joinedText ? (
-                      <p
-                        className={`${
-                          bioText ? "mt-1" : "mt-2"
-                        } text-sm text-zinc-500`}
-                      >
-                        {joinedText}
-                      </p>
+                    {!loading && (bioText || joinedText) ? (
+                      <>
+                        {bioText ? (
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
+                            {bioText}
+                          </p>
+                        ) : null}
+                        {joinedText ? (
+                          <p
+                            className={`${
+                              bioText ? "mt-1" : "mt-2"
+                            } text-sm text-zinc-500`}
+                          >
+                            {joinedText}
+                          </p>
+                        ) : null}
+                      </>
                     ) : null}
-                  </>
-                ) : null}
-                {!loading && xHandle ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <a
-                      href={`https://x.com/${encodeURIComponent(xHandle)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600/50 bg-zinc-950/60 px-2.5 py-1 text-sm font-medium text-sky-300 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] transition hover:border-sky-500/35 hover:bg-sky-950/35 hover:text-sky-200"
-                    >
-                      <span className="text-zinc-500">𝕏</span>@{xHandle}
-                    </a>
-                    {xVerified ? (
-                      <span className="inline-flex items-center rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
-                        Verified
-                      </span>
+                    {!loading && xHandle ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <a
+                          href={`https://x.com/${encodeURIComponent(xHandle)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600/50 bg-zinc-950/60 px-2.5 py-1 text-sm font-medium text-sky-300 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] transition hover:border-sky-500/35 hover:bg-sky-950/35 hover:text-sky-200"
+                        >
+                          <span className="text-zinc-500">𝕏</span>@{xHandle}
+                        </a>
+                        {xVerified ? (
+                          <span className="inline-flex items-center rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+                            Verified
+                          </span>
+                        ) : null}
+                      </div>
                     ) : null}
+                    <div className="mt-4 inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-xl border border-zinc-700/35 bg-zinc-950/55 px-4 py-2.5 text-xs text-zinc-400 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] backdrop-blur-sm">
+                      {followStats ? (
+                        <>
+                          <span className="tabular-nums font-semibold text-zinc-100">
+                            {followStats.followers.toLocaleString()}
+                          </span>
+                          <span className="text-zinc-500">followers</span>
+                          <span className="text-zinc-600">·</span>
+                          <span className="tabular-nums font-semibold text-zinc-100">
+                            {followStats.following.toLocaleString()}
+                          </span>
+                          <span className="text-zinc-500">following</span>
+                        </>
+                      ) : (
+                        <span
+                          className="inline-block h-4 w-44 max-w-full animate-pulse rounded bg-zinc-800/80"
+                          aria-hidden
+                        />
+                      )}
+                    </div>
                   </div>
-                ) : null}
-                <div className="mt-4 inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-xl border border-zinc-700/35 bg-zinc-950/55 px-4 py-2.5 text-xs text-zinc-400 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] backdrop-blur-sm">
-                  {followStats ? (
-                    <>
-                      <span className="tabular-nums font-semibold text-zinc-100">
-                        {followStats.followers.toLocaleString()}
-                      </span>
-                      <span className="text-zinc-500">followers</span>
-                      <span className="text-zinc-600">·</span>
-                      <span className="tabular-nums font-semibold text-zinc-100">
-                        {followStats.following.toLocaleString()}
-                      </span>
-                      <span className="text-zinc-500">following</span>
-                    </>
-                  ) : (
-                    <span
-                      className="inline-block h-4 w-44 max-w-full animate-pulse rounded bg-zinc-800/80"
-                      aria-hidden
-                    />
-                  )}
+
+                  <aside className="flex w-full shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 lg:w-[13.5rem] lg:flex-col lg:items-stretch xl:w-60">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+                      {isOwnProfile ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditOpen(true)}
+                          className="w-full rounded-lg border border-zinc-600/70 bg-gradient-to-b from-zinc-800/90 to-zinc-900/90 px-3.5 py-2 text-xs font-semibold text-zinc-100 shadow-md shadow-black/30 transition hover:border-cyan-500/35 hover:from-zinc-700/95 hover:to-zinc-900 hover:shadow-[0_0_28px_-10px_rgba(34,211,238,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40 motion-safe:active:scale-[0.98] sm:w-auto sm:px-3.5 sm:py-1.5"
+                        >
+                          Edit Profile
+                        </button>
+                      ) : (
+                        <>
+                          <FollowButton
+                            targetDiscordId={snowflakeForFollow}
+                            following={followingState}
+                            onFollowingChange={(next) => {
+                              if (!snowflakeForFollow) return;
+                              setFollowing(snowflakeForFollow, next);
+                              setFollowStats((prev) =>
+                                prev ? { ...prev, isFollowing: next } : prev
+                              );
+                            }}
+                            onCountsRefresh={refreshFollowStats}
+                            className="px-3 py-1.5 text-xs sm:py-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setReportOpen(true)}
+                            className="rounded-lg border border-zinc-700/70 bg-zinc-900/40 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 sm:py-1.5"
+                          >
+                            Report
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    {!loading && profile && visibility.show_stats ? (
+                      <Link
+                        href="#performance"
+                        scroll
+                        className="group w-full min-w-[12rem] rounded-xl border border-zinc-700/50 bg-gradient-to-b from-zinc-900/80 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] ring-1 ring-white/[0.04] transition motion-safe:hover:border-cyan-500/25 motion-safe:hover:ring-cyan-500/10 sm:flex-1 lg:flex-none lg:text-right"
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                          Track record
+                        </p>
+                        <p className="mt-1 bg-gradient-to-br from-cyan-100 to-cyan-400 bg-clip-text text-2xl font-bold tabular-nums tracking-tight text-transparent">
+                          {profile.stats.avgX.toFixed(1)}×
+                          <span className="ml-1 text-sm font-semibold tracking-normal text-zinc-400">
+                            avg
+                          </span>
+                        </p>
+                        <p className="mt-1 text-[11px] tabular-nums text-zinc-500">
+                          {profile.stats.totalCalls.toLocaleString()} calls ·{" "}
+                          <span className="text-zinc-400">{Math.round(profile.stats.winRate)}% WR</span>
+                        </p>
+                        <p className="mt-2 text-[10px] font-medium uppercase tracking-wider text-cyan-500/80 transition group-hover:text-cyan-400">
+                          View performance →
+                        </p>
+                      </Link>
+                    ) : null}
+                  </aside>
                 </div>
               </div>
             </div>
