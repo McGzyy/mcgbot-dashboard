@@ -84,5 +84,38 @@ export async function fetchWalletTokenActivityRows(
     out.push({ signature: s.signature, blockTime, mints });
   }
 
-  return out;
+  return dedupeWalletTokenActivityRows(out);
+}
+
+/** Same signature should never appear twice; collapse if it does. */
+function dedupeBySignature(rows: WalletTokenActivityRow[]): WalletTokenActivityRow[] {
+  const seen = new Set<string>();
+  const next: WalletTokenActivityRow[] = [];
+  for (const r of rows) {
+    if (seen.has(r.signature)) continue;
+    seen.add(r.signature);
+    next.push(r);
+  }
+  return next;
+}
+
+/**
+ * Collapse rows that look identical in the UI: same chain time + same mint set.
+ * Keeps the first row (newest — list is built newest-first from signatures).
+ */
+function dedupeByBlockTimeAndMints(rows: WalletTokenActivityRow[]): WalletTokenActivityRow[] {
+  const seen = new Set<string>();
+  const next: WalletTokenActivityRow[] = [];
+  for (const r of rows) {
+    const mintKey = [...r.mints].sort().join(",");
+    const fp = `${r.blockTime ?? "na"}|${mintKey}`;
+    if (seen.has(fp)) continue;
+    seen.add(fp);
+    next.push(r);
+  }
+  return next;
+}
+
+export function dedupeWalletTokenActivityRows(rows: WalletTokenActivityRow[]): WalletTokenActivityRow[] {
+  return dedupeByBlockTimeAndMints(dedupeBySignature(rows));
 }

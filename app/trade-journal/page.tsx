@@ -222,6 +222,34 @@ function formatJournalWhen(iso: string | null): string {
   });
 }
 
+/** Short relative label for scan-friendly lists (e.g. "2h ago"). */
+function formatRelativeShort(iso: string | null): string {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return "";
+  const diff = Date.now() - t;
+  if (diff < 0) return "";
+  const sec = Math.floor(diff / 1000);
+  if (sec < 45) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 36) return `${hr}h ago`;
+  const d = Math.floor(hr / 24);
+  if (d < 21) return `${d}d ago`;
+  return "";
+}
+
+function pnlSummaryClasses(usd: number | null, pct: number | null): string {
+  const u = usd != null && Number.isFinite(usd) ? usd : null;
+  const p = pct != null && Number.isFinite(pct) ? pct : null;
+  if (u == null && p == null) return "text-zinc-500";
+  const sign = (u ?? 0) !== 0 ? Math.sign(u!) : p != null ? Math.sign(p) : 0;
+  if (sign > 0) return "font-semibold text-emerald-300/95 tabular-nums";
+  if (sign < 0) return "font-semibold text-rose-300/95 tabular-nums";
+  return "font-medium text-zinc-400 tabular-nums";
+}
+
 function entryDisplayTitle(e: JournalEntry): string {
   const t = e.entryTitle?.trim();
   if (t) return t;
@@ -676,6 +704,15 @@ export default function TradeJournalPage() {
 
   const sortedPreview = useMemo(() => entries.slice(0, 200), [entries]);
 
+  const journalStats = useMemo(() => {
+    const total = entries.length;
+    const open = entries.filter((e) => e.status === "open").length;
+    const withPlan = entries.filter(
+      (e) => Boolean(e.thesis?.trim()) || Boolean(e.plannedInvalidation?.trim())
+    ).length;
+    return { total, open, withPlan };
+  }, [entries]);
+
   if (status === "loading") {
     return (
       <div className="mx-auto max-w-6xl animate-pulse space-y-4 px-4 py-10">
@@ -700,12 +737,25 @@ export default function TradeJournalPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6">
+    <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 -top-4 h-[min(52vh,480px)] bg-[radial-gradient(ellipse_90%_55%_at_50%_0%,rgba(34,197,94,0.14),transparent_62%)] opacity-90 sm:-top-8"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute right-0 top-[28%] h-72 w-72 translate-x-1/3 rounded-full bg-sky-500/[0.05] blur-3xl sm:top-[22%]"
+      />
+
       <header
         className={`${terminalSurface.routeHeroFrame} relative overflow-hidden px-5 py-8 sm:px-8 sm:py-10 ${terminalChrome.headerRule}`}
       >
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/35 to-transparent"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -right-16 top-1/2 h-56 w-56 -translate-y-1/2 rounded-full bg-emerald-400/[0.06] blur-2xl"
           aria-hidden
         />
         <div className="relative">
@@ -717,11 +767,50 @@ export default function TradeJournalPage() {
             A private ledger for <span className="text-zinc-200">process</span>, not public performance. Solana only —
             separate from McGBot calls and milestones. Export as Markdown anytime.
           </p>
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            {[
+              { t: "Setups & thesis", d: "Capture why you clicked" },
+              { t: "MC + invalidation", d: "Levels you actually traded" },
+              { t: "Markdown export", d: "Yours offline, anytime" },
+            ].map((x) => (
+              <div
+                key={x.t}
+                className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] px-3 py-2 shadow-[inset_0_1px_0_0_rgba(52,211,153,0.12)]"
+              >
+                <p className="text-[11px] font-semibold text-emerald-100/90">{x.t}</p>
+                <p className="text-[10px] leading-snug text-zinc-500">{x.d}</p>
+              </div>
+            ))}
+          </div>
+
+          {journalStats.total > 0 ? (
+            <div className="mt-6 grid max-w-xl grid-cols-3 gap-2 sm:gap-3">
+              <div className="rounded-xl border border-zinc-700/50 bg-zinc-950/40 px-3 py-2.5 text-center shadow-inner shadow-black/20 sm:px-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Entries</p>
+                <p className="mt-0.5 text-lg font-bold tabular-nums text-zinc-50">{journalStats.total}</p>
+              </div>
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2.5 text-center shadow-inner shadow-black/20 sm:px-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-200/70">Open</p>
+                <p className="mt-0.5 text-lg font-bold tabular-nums text-amber-100">{journalStats.open}</p>
+              </div>
+              <div className="rounded-xl border border-zinc-700/50 bg-zinc-950/40 px-3 py-2.5 text-center shadow-inner shadow-black/20 sm:px-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">With edge</p>
+                <p className="mt-0.5 text-lg font-bold tabular-nums text-emerald-200/95">{journalStats.withPlan}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-6 max-w-xl rounded-xl border border-dashed border-zinc-700/60 bg-zinc-950/30 px-4 py-3 text-xs leading-relaxed text-zinc-500">
+              Your first entry unlocks a live snapshot deck here — open plays, documented theses, and how much of
+              the book has real <span className="text-zinc-400">thesis / invalidation</span> on file.
+            </p>
+          )}
+
           <div className="mt-7 flex flex-wrap gap-3">
             <button
               type="button"
               onClick={openNew}
-              className="rounded-xl bg-[color:var(--accent)] px-5 py-2.5 text-sm font-semibold text-black shadow-[0_12px_40px_-12px_rgba(34,197,94,0.55)] transition hover:bg-green-400"
+              className="rounded-xl bg-[color:var(--accent)] px-5 py-2.5 text-sm font-semibold text-black shadow-[0_12px_40px_-12px_rgba(34,197,94,0.55)] transition hover:bg-green-400 hover:motion-safe:scale-[1.02] active:motion-safe:scale-[0.99] motion-reduce:hover:scale-100"
             >
               New entry
             </button>
@@ -758,18 +847,42 @@ export default function TradeJournalPage() {
           </div>
 
           <div
-            className={`rounded-2xl border border-zinc-800/90 p-1 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)] ${terminalSurface.routeSectionFrame} bg-zinc-950/40`}
+            className={`rounded-2xl border border-zinc-800/90 p-1 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)] ${terminalSurface.routeSectionFrame} bg-gradient-to-b from-zinc-900/35 via-zinc-950/50 to-zinc-950/80 ring-1 ring-emerald-500/[0.06]`}
           >
             {loading ? (
               <div className="px-5 py-12 text-center text-sm text-zinc-500">Opening journal…</div>
             ) : sortedPreview.length === 0 ? (
-              <div className="px-5 py-14 text-center">
-                <p className="text-sm font-medium text-zinc-300">No entries yet</p>
-                <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-zinc-500">
-                  Start from <span className="text-zinc-300">Wallet activity</span> (mint chip) or{" "}
-                  <span className="text-zinc-300">New entry</span>. Paste a CA — we&apos;ll pull name, ticker, and art
-                  from DexScreener when available.
+              <div className="relative overflow-hidden px-5 py-16 text-center sm:py-20">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(34,197,94,0.08),transparent_70%)]"
+                />
+                <p className="relative text-base font-semibold tracking-tight text-zinc-100">Start your first line</p>
+                <p className="relative mx-auto mt-2 max-w-md text-sm leading-relaxed text-zinc-500">
+                  One clear write-up beats ten vague screenshots. Log the mint, the thesis, and where you were wrong —
+                  then iterate.
                 </p>
+                <ol className="relative mx-auto mt-8 max-w-sm space-y-3 text-left text-xs text-zinc-400">
+                  {[
+                    "Pick a mint from Wallet activity or paste a CA.",
+                    "Name the setup and your invalidation before price noise.",
+                    "Re-open entries after the trade — honesty compounds.",
+                  ].map((step, i) => (
+                    <li key={step} className="flex gap-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-200">
+                        {i + 1}
+                      </span>
+                      <span className="pt-0.5 leading-relaxed">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+                <button
+                  type="button"
+                  onClick={openNew}
+                  className="relative mt-8 rounded-xl bg-[color:var(--accent)] px-6 py-2.5 text-sm font-semibold text-black shadow-[0_12px_36px_-10px_rgba(34,197,94,0.5)] transition hover:bg-green-400 hover:motion-safe:scale-[1.02] motion-reduce:hover:scale-100"
+                >
+                  New entry
+                </button>
               </div>
             ) : (
               <ul className="divide-y divide-zinc-800/80">
@@ -778,10 +891,10 @@ export default function TradeJournalPage() {
                     <button
                       type="button"
                       onClick={() => openView(e)}
-                      className="group relative flex w-full gap-4 rounded-xl px-3 py-4 text-left transition-colors hover:bg-zinc-900/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 sm:px-4 sm:py-5"
+                      className="group relative flex w-full gap-4 rounded-xl border border-transparent px-3 py-4 text-left transition-all duration-200 hover:border-emerald-500/15 hover:bg-zinc-900/70 hover:shadow-[0_16px_48px_-28px_rgba(34,197,94,0.18)] hover:motion-safe:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 motion-reduce:hover:translate-y-0 sm:px-4 sm:py-5"
                     >
                       <span
-                        className="absolute bottom-2 left-2 top-2 w-[3px] rounded-full bg-gradient-to-b from-emerald-400/90 via-emerald-500/40 to-transparent opacity-90 group-hover:opacity-100"
+                        className="absolute bottom-2 left-2 top-2 w-[3px] rounded-full bg-gradient-to-b from-emerald-400/90 via-emerald-500/50 to-emerald-600/20 opacity-90 shadow-[0_0_12px_rgba(52,211,153,0.25)] transition group-hover:opacity-100"
                         aria-hidden
                       />
                       <div className="relative ml-2 shrink-0">
@@ -790,12 +903,12 @@ export default function TradeJournalPage() {
                           <img
                             src={e.tokenImageUrl}
                             alt=""
-                            className="h-12 w-12 rounded-xl border border-zinc-700/80 bg-zinc-900 object-cover shadow-md shadow-black/40"
+                            className="h-12 w-12 rounded-xl border border-zinc-700/80 bg-zinc-900 object-cover shadow-md shadow-black/40 ring-1 ring-white/5 transition group-hover:ring-emerald-400/25"
                             loading="lazy"
                             referrerPolicy="no-referrer"
                           />
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-700/80 bg-gradient-to-br from-zinc-800/80 to-zinc-950 text-xs font-bold text-zinc-500">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-700/80 bg-gradient-to-br from-zinc-800/90 to-zinc-950 text-xs font-bold text-zinc-500 ring-1 ring-white/5 transition group-hover:border-emerald-500/20 group-hover:text-emerald-200/80">
                             {e.tokenSymbol?.slice(0, 2).toUpperCase() || "—"}
                           </div>
                         )}
@@ -823,21 +936,40 @@ export default function TradeJournalPage() {
                         <p className="mt-1 font-mono text-[11px] text-zinc-500">
                           {e.mint.slice(0, 8)}…{e.mint.slice(-6)}
                         </p>
-                        <p className="mt-2 text-xs text-zinc-500">
+                        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+                          {formatRelativeShort(e.tradedAt) ? (
+                            <span className="rounded-md bg-zinc-800/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200/85">
+                              {formatRelativeShort(e.tradedAt)}
+                            </span>
+                          ) : null}
                           <span className="text-zinc-400">{formatJournalWhen(e.tradedAt)}</span>
                           {e.closedAt ? (
                             <>
-                              {" "}
-                              <span className="text-zinc-600">→</span>{" "}
+                              <span className="text-zinc-600">→</span>
                               <span className="text-zinc-400">{formatJournalWhen(e.closedAt)}</span>
                             </>
                           ) : null}
                           {e.pnlUsd != null && Number.isFinite(e.pnlUsd) ? (
-                            <span className="ml-2 text-emerald-200/90">PnL ${e.pnlUsd}</span>
+                            <span className={`ml-1 ${pnlSummaryClasses(e.pnlUsd, e.pnlPct)}`}>
+                              {e.pnlUsd >= 0 ? "+" : ""}
+                              {e.pnlUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} USD
+                              {e.pnlPct != null && Number.isFinite(e.pnlPct) ? (
+                                <span className="font-normal text-zinc-500">
+                                  {" "}
+                                  ({e.pnlPct >= 0 ? "+" : ""}
+                                  {e.pnlPct.toFixed(1)}%)
+                                </span>
+                              ) : null}
+                            </span>
+                          ) : e.pnlPct != null && Number.isFinite(e.pnlPct) ? (
+                            <span className={`ml-1 ${pnlSummaryClasses(e.pnlUsd, e.pnlPct)}`}>
+                              {e.pnlPct >= 0 ? "+" : ""}
+                              {e.pnlPct.toFixed(1)}%
+                            </span>
                           ) : null}
                         </p>
                         {e.setupLabel ? (
-                          <p className="mt-2 inline-flex rounded-lg border border-zinc-700/50 bg-zinc-900/30 px-2 py-0.5 text-[11px] font-medium text-zinc-300">
+                          <p className="mt-2 inline-flex rounded-lg border border-zinc-700/50 bg-zinc-900/40 px-2 py-0.5 text-[11px] font-medium text-zinc-200">
                             {e.setupLabel}
                           </p>
                         ) : null}
@@ -847,6 +979,9 @@ export default function TradeJournalPage() {
                           <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-zinc-500">{e.notes}</p>
                         ) : null}
                       </div>
+                      <span className="hidden shrink-0 self-center text-xs font-semibold text-emerald-300/90 opacity-0 transition group-hover:opacity-100 sm:inline sm:pr-2">
+                        View →
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -857,9 +992,20 @@ export default function TradeJournalPage() {
 
         <aside className="lg:pt-8">
           <div
-            className={`rounded-2xl border border-zinc-800/90 p-5 shadow-lg shadow-black/30 ${terminalSurface.insetPanel}`}
+            className={`rounded-2xl border border-zinc-800/90 p-5 shadow-lg shadow-black/30 ${terminalSurface.insetPanel} ring-1 ring-sky-500/[0.04]`}
           >
-            <h2 className={`${terminalPage.sectionTitle} text-base`}>Wallet activity</h2>
+            <div className="flex items-start justify-between gap-2">
+              <h2 className={`${terminalPage.sectionTitle} text-base`}>Wallet activity</h2>
+              {linked && activity.length > 0 ? (
+                <span className="mt-0.5 flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200/90">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60 opacity-75 motion-reduce:hidden" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  </span>
+                  Live
+                </span>
+              ) : null}
+            </div>
             <p className={`mt-1 ${terminalPage.sectionHint}`}>
               Recent SPL touches from your linked wallet. Tap a row to start a journal draft with that mint.
             </p>
@@ -868,7 +1014,7 @@ export default function TradeJournalPage() {
                 Connect and verify a wallet from the top bar to surface recent SPL touches.
               </p>
             ) : activityLoading ? (
-              <p className="mt-4 text-sm text-zinc-500">Scanning recent transactions…</p>
+              <p className="mt-4 animate-pulse text-sm font-medium text-emerald-200/60">Scanning recent transactions…</p>
             ) : activity.length === 0 ? (
               <p className="mt-4 text-sm text-zinc-500">No token-touch rows in the last few txs — add manually.</p>
             ) : (
@@ -885,16 +1031,27 @@ export default function TradeJournalPage() {
                       imageUrl: null,
                     };
                   });
+                  const blockIso =
+                    row.blockTime != null ? new Date(row.blockTime * 1000).toISOString() : null;
+                  const rel = blockIso ? formatRelativeShort(blockIso) : "";
                   return (
                     <li
                       key={row.signature}
-                      className="rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-3 shadow-inner shadow-black/25"
+                      className="rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-3 shadow-inner shadow-black/25 transition hover:border-zinc-700/90 hover:bg-zinc-900/55"
                     >
                       <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500">
-                        <span className="tabular-nums">
-                          {row.blockTime != null
-                            ? new Date(row.blockTime * 1000).toLocaleString()
-                            : "Recent"}
+                        <span className="min-w-0 truncate tabular-nums">
+                          {blockIso ? (
+                            <>
+                              {rel ? (
+                                <span className="font-semibold text-emerald-200/80">{rel}</span>
+                              ) : null}
+                              {rel ? <span className="text-zinc-600"> · </span> : null}
+                              <span>{new Date(blockIso).toLocaleString()}</span>
+                            </>
+                          ) : (
+                            "Recent"
+                          )}
                         </span>
                         <a
                           href={row.explorerUrl}
@@ -916,7 +1073,7 @@ export default function TradeJournalPage() {
                               key={`${row.signature}-${t.mint}`}
                               type="button"
                               onClick={() => applyMintFromActivity(t.mint, row.signature)}
-                              className="flex w-full items-center gap-3 rounded-lg border border-zinc-800/90 bg-black/35 px-2.5 py-2 text-left transition hover:border-emerald-500/30 hover:bg-zinc-900/50"
+                              className="flex w-full items-center gap-3 rounded-lg border border-zinc-800/90 bg-black/35 px-2.5 py-2 text-left transition hover:border-emerald-400/35 hover:bg-emerald-500/[0.06] hover:shadow-[0_8px_24px_-12px_rgba(34,197,94,0.15)]"
                             >
                               {t.imageUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
