@@ -1287,7 +1287,7 @@ export default function LeaderboardPage() {
                     </div>
                   </div>
 
-                  <div className="absolute right-6 top-5 h-10 w-10 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
+                  <div className="absolute right-6 top-5 h-12 w-12 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100 sm:h-14 sm:w-14">
                     <Avatar src={w?.avatarSrc} name={w?.username ?? "—"} size="lg" />
                   </div>
 
@@ -1329,7 +1329,7 @@ export default function LeaderboardPage() {
                   </p>
                 </div>
 
-                <div className="absolute right-6 top-5 h-8 w-8 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
+                <div className="absolute right-6 top-5 h-9 w-9 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
                   <Avatar
                     src={allTimeRecords.highestMultiplierUser?.avatarSrc}
                     name={allTimeRecords.highestMultiplierUser?.username ?? "—"}
@@ -1353,7 +1353,7 @@ export default function LeaderboardPage() {
                   </p>
                 </div>
 
-                <div className="absolute right-6 top-5 h-8 w-8 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
+                <div className="absolute right-6 top-5 h-9 w-9 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
                   <Avatar
                     src={allTimeRecords.bestAverageUser?.avatarSrc}
                     name={allTimeRecords.bestAverageUser?.username ?? "—"}
@@ -1380,7 +1380,7 @@ export default function LeaderboardPage() {
                   </p>
                 </div>
 
-                <div className="absolute right-6 top-5 h-8 w-8 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
+                <div className="absolute right-6 top-5 h-9 w-9 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
                   <Avatar
                     src={allTimeRecords.mostCalls?.avatarSrc}
                     name={allTimeRecords.mostCalls?.username ?? "—"}
@@ -1406,7 +1406,7 @@ export default function LeaderboardPage() {
                   </p>
                 </div>
 
-                <div className="absolute right-6 top-5 h-8 w-8 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
+                <div className="absolute right-6 top-5 h-9 w-9 overflow-hidden rounded-full opacity-90 transition-opacity hover:opacity-100">
                   <Avatar
                     src={allTimeRecords.bestWinRateUser?.avatarSrc}
                     name={allTimeRecords.bestWinRateUser?.username ?? "—"}
