@@ -1402,7 +1402,7 @@ function TrendingPanel() {
     }`;
 
   return (
-    <PanelCard title="Trending Tokens" titleClassName="normal-case">
+    <PanelCard title="Trending Tokens" titleClassName="normal-case" data-tutorial="dashboard.trending">
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
@@ -3979,9 +3979,7 @@ export default function Home() {
             </div>
           )}
 
-          <div data-tutorial="dashboard.trending">
           {showTrendingWidget ? <TrendingPanel /> : null}
-          </div>
         </div>
 
         <div className="flex flex-col gap-4" data-tutorial="dashboard.quickActions">

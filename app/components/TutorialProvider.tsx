@@ -27,6 +27,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactN
 const TOUR_SCROLL_INTO_VIEW_CENTER_TARGETS = new Set<string>([
   '[data-tutorial="calls.table"]',
   '[data-tutorial="botCalls.table"]',
+  /** Deep in the home grid; window scroll + flip was racing Joyride and dropped the tooltip off the anchor. */
+  '[data-tutorial="dashboard.trending"]',
 ]);
 
 type TrackState = {
