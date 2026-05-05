@@ -10,6 +10,7 @@ import {
 } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type JournalEntry = {
@@ -37,10 +38,19 @@ type JournalEntry = {
   updatedAt: string | null;
 };
 
+type ActivityTokenRow = {
+  mint: string;
+  found: boolean;
+  symbol: string | null;
+  name: string | null;
+  imageUrl: string | null;
+};
+
 type ActivityRow = {
   signature: string;
   blockTime: number | null;
   mints: string[];
+  tokens?: ActivityTokenRow[];
   explorerUrl: string;
 };
 
@@ -181,8 +191,8 @@ function exportMarkdown(entries: JournalEntry[]): string {
     if (e.setupLabel) lines.push(`- Setup: ${e.setupLabel}`);
     if (e.thesis) lines.push(`- Thesis: ${e.thesis}`);
     if (e.plannedInvalidation) lines.push(`- Planned invalidation: ${e.plannedInvalidation}`);
-    if (e.entryPriceUsd != null) lines.push(`- Entry (USD): ${e.entryPriceUsd}`);
-    if (e.exitPriceUsd != null) lines.push(`- Exit (USD): ${e.exitPriceUsd}`);
+    if (e.entryPriceUsd != null) lines.push(`- Entry (MC): ${e.entryPriceUsd}`);
+    if (e.exitPriceUsd != null) lines.push(`- Exit (MC): ${e.exitPriceUsd}`);
     if (e.sizeUsd != null) lines.push(`- Size (USD): ${e.sizeUsd}`);
     if (e.pnlUsd != null) lines.push(`- PnL (USD): ${e.pnlUsd}`);
     if (e.pnlPct != null) lines.push(`- PnL (%): ${e.pnlPct}`);
@@ -218,6 +228,145 @@ function entryDisplayTitle(e: JournalEntry): string {
   return e.tokenName?.trim() || e.tokenSymbol?.trim() || "Untitled entry";
 }
 
+function formatMetric(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return String(n);
+}
+
+function ViewField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-3 py-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
+      <div className="mt-1 text-sm text-zinc-100">{children}</div>
+    </div>
+  );
+}
+
+function JournalEntryViewBody({ v }: { v: JournalEntry }) {
+  const dex = dexscreenerTokenUrl("solana", v.mint);
+  return (
+    <div className="space-y-5 px-5 py-6 sm:px-6">
+      <div className="flex flex-wrap items-start gap-4">
+        {v.tokenImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={v.tokenImageUrl}
+            alt=""
+            className="h-14 w-14 shrink-0 rounded-xl border border-zinc-700/80 bg-zinc-900 object-cover"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-zinc-700/80 bg-zinc-900/80 text-xs font-bold text-zinc-500">
+            {v.tokenSymbol?.slice(0, 2).toUpperCase() || "—"}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {v.tokenSymbol ? (
+              <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 font-mono text-xs font-semibold uppercase tracking-wide text-emerald-200/95">
+                {v.tokenSymbol}
+              </span>
+            ) : null}
+            <span
+              className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                v.status === "closed"
+                  ? "border border-zinc-600/50 bg-zinc-800/60 text-zinc-300"
+                  : "border border-amber-500/25 bg-amber-500/10 text-amber-100/90"
+              }`}
+            >
+              {v.status}
+            </span>
+          </div>
+          {v.tokenName ? <p className="mt-1 text-sm text-zinc-300">{v.tokenName}</p> : null}
+          <p className="mt-1 break-all font-mono text-[11px] text-zinc-500">{v.mint}</p>
+          <a
+            href={dex}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex text-xs font-semibold text-emerald-300/90 underline-offset-2 hover:underline"
+          >
+            Dexscreener ↗
+          </a>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <ViewField label="Journal title">{entryDisplayTitle(v)}</ViewField>
+        <ViewField label="Setup">{v.setupLabel?.trim() ? v.setupLabel : "—"}</ViewField>
+        <ViewField label="Opened / traded">{formatJournalWhen(v.tradedAt)}</ViewField>
+        <ViewField label="Closed">{v.closedAt ? formatJournalWhen(v.closedAt) : "—"}</ViewField>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <ViewField label="Thesis">
+          {v.thesis?.trim() ? (
+            <p className="whitespace-pre-wrap text-zinc-200">{v.thesis}</p>
+          ) : (
+            "—"
+          )}
+        </ViewField>
+        <ViewField label="Planned invalidation">
+          {v.plannedInvalidation?.trim() ? (
+            <p className="whitespace-pre-wrap text-zinc-200">{v.plannedInvalidation}</p>
+          ) : (
+            "—"
+          )}
+        </ViewField>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Execution</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ViewField label="Entry (MC)">{formatMetric(v.entryPriceUsd)}</ViewField>
+          <ViewField label="Exit (MC)">{formatMetric(v.exitPriceUsd)}</ViewField>
+          <ViewField label="Size (USD)">{formatMetric(v.sizeUsd)}</ViewField>
+          <ViewField label="PnL (USD)">{formatMetric(v.pnlUsd)}</ViewField>
+          <ViewField label="PnL (%)">{formatMetric(v.pnlPct)}</ViewField>
+        </div>
+      </div>
+
+      <ViewField label="Notes">
+        {v.notes?.trim() ? <p className="whitespace-pre-wrap text-zinc-200">{v.notes}</p> : "—"}
+      </ViewField>
+
+      {v.referenceLinks?.length ? (
+        <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-3 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Reference links</p>
+          <ul className="mt-2 space-y-1.5 text-sm">
+            {v.referenceLinks.map((u) => (
+              <li key={u}>
+                <a href={u} target="_blank" rel="noreferrer" className="break-all text-sky-300/90 hover:underline">
+                  {u}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {v.sourceTxSignature?.trim() ? (
+        <ViewField label="Source transaction">
+          <a
+            href={`https://solscan.io/tx/${encodeURIComponent(v.sourceTxSignature.trim())}`}
+            target="_blank"
+            rel="noreferrer"
+            className="break-all font-mono text-xs text-sky-300/90 hover:underline"
+          >
+            {v.sourceTxSignature}
+          </a>
+        </ViewField>
+      ) : null}
+    </div>
+  );
+}
+
 export default function TradeJournalPage() {
   const { status } = useSession();
   const { linked } = useDashboardWallet();
@@ -227,6 +376,9 @@ export default function TradeJournalPage() {
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  /** view = read-only snapshot; edit = form (new or existing). */
+  const [modalPhase, setModalPhase] = useState<"view" | "edit">("edit");
+  const [viewEntry, setViewEntry] = useState<JournalEntry | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [mintLookup, setMintLookup] = useState<"idle" | "loading" | "ok" | "miss" | "error">("idle");
@@ -360,7 +512,7 @@ export default function TradeJournalPage() {
   }, []);
 
   useEffect(() => {
-    if (!modalOpen) {
+    if (!modalOpen || modalPhase !== "edit") {
       setMintLookup("idle");
       if (mintDebounceRef.current) {
         clearTimeout(mintDebounceRef.current);
@@ -380,25 +532,41 @@ export default function TradeJournalPage() {
     return () => {
       if (mintDebounceRef.current) clearTimeout(mintDebounceRef.current);
     };
-  }, [modalOpen, form.mint, resolveMintMeta]);
+  }, [modalOpen, modalPhase, form.mint, resolveMintMeta]);
 
   const openNew = () => {
+    setViewEntry(null);
+    setModalPhase("edit");
     setEditingId(null);
     setForm(emptyForm());
     setMintLookup("idle");
     setModalOpen(true);
   };
 
-  const openEdit = (e: JournalEntry) => {
-    setEditingId(e.id);
-    setForm(entryToForm(e));
+  const openView = (e: JournalEntry) => {
+    setViewEntry(e);
+    setModalPhase("view");
+    setEditingId(null);
     setMintLookup("ok");
     setModalOpen(true);
+  };
+
+  const enterEditFromView = () => {
+    const base = viewEntry;
+    if (!base) return;
+    const fresh = entries.find((x) => x.id === base.id) ?? base;
+    setModalPhase("edit");
+    setEditingId(fresh.id);
+    setForm(entryToForm(fresh));
+    setMintLookup("ok");
   };
 
   const closeModal = () => {
     if (saving) return;
     setModalOpen(false);
+    setModalPhase("edit");
+    setViewEntry(null);
+    setEditingId(null);
   };
 
   const submit = async () => {
@@ -494,6 +662,8 @@ export default function TradeJournalPage() {
   };
 
   const applyMintFromActivity = (mint: string, signature?: string) => {
+    setViewEntry(null);
+    setModalPhase("edit");
     setEditingId(null);
     setForm({
       ...emptyForm(),
@@ -578,7 +748,9 @@ export default function TradeJournalPage() {
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
               <h2 className={`${terminalPage.sectionTitle} text-lg`}>Journal</h2>
-              <p className={terminalPage.sectionHint}>Newest first — click anywhere on an entry to open it.</p>
+              <p className={terminalPage.sectionHint}>
+                Newest first — click an entry to review; use Edit to change fields.
+              </p>
             </div>
             <span className="rounded-full border border-zinc-700/80 bg-zinc-950/50 px-3 py-1 text-xs font-medium tabular-nums text-zinc-400">
               {entries.length} saved
@@ -605,7 +777,7 @@ export default function TradeJournalPage() {
                   <li key={e.id} className="px-2 py-1 sm:px-3 sm:py-1.5">
                     <button
                       type="button"
-                      onClick={() => openEdit(e)}
+                      onClick={() => openView(e)}
                       className="group relative flex w-full gap-4 rounded-xl px-3 py-4 text-left transition-colors hover:bg-zinc-900/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 sm:px-4 sm:py-5"
                     >
                       <span
@@ -689,7 +861,7 @@ export default function TradeJournalPage() {
           >
             <h2 className={`${terminalPage.sectionTitle} text-base`}>Wallet activity</h2>
             <p className={`mt-1 ${terminalPage.sectionHint}`}>
-              Linked wallet + Solana RPC. Tap a mint to open a new draft with that CA.
+              Recent SPL touches from your linked wallet. Tap a row to start a journal draft with that mint.
             </p>
             {!linked ? (
               <p className="mt-4 text-sm leading-relaxed text-zinc-500">
@@ -700,41 +872,86 @@ export default function TradeJournalPage() {
             ) : activity.length === 0 ? (
               <p className="mt-4 text-sm text-zinc-500">No token-touch rows in the last few txs — add manually.</p>
             ) : (
-              <ul className="mt-4 max-h-[min(28rem,52vh)] space-y-3 overflow-y-auto pr-1 text-sm">
-                {activity.map((row) => (
-                  <li
-                    key={row.signature}
-                    className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3 shadow-inner shadow-black/20"
-                  >
-                    <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500">
-                      <span className="tabular-nums">
-                        {row.blockTime != null
-                          ? new Date(row.blockTime * 1000).toLocaleString()
-                          : "Recent"}
-                      </span>
-                      <a
-                        href={row.explorerUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="shrink-0 font-semibold text-sky-300/90 hover:underline"
-                      >
-                        Tx ↗
-                      </a>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {row.mints.map((m) => (
-                        <button
-                          key={`${row.signature}-${m}`}
-                          type="button"
-                          onClick={() => applyMintFromActivity(m, row.signature)}
-                          className="rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-2 py-1 font-mono text-[11px] text-zinc-200 transition hover:border-emerald-400/35 hover:text-white"
+              <ul className="mt-4 max-h-[min(28rem,52vh)] space-y-3 overflow-y-auto pr-1 text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {activity.map((row) => {
+                  const tokens: ActivityTokenRow[] = row.mints.map((mint, i) => {
+                    const t = row.tokens?.[i];
+                    if (t && t.mint === mint) return t;
+                    return {
+                      mint,
+                      found: false,
+                      symbol: null,
+                      name: null,
+                      imageUrl: null,
+                    };
+                  });
+                  return (
+                    <li
+                      key={row.signature}
+                      className="rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-3 shadow-inner shadow-black/25"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+                        <span className="tabular-nums">
+                          {row.blockTime != null
+                            ? new Date(row.blockTime * 1000).toLocaleString()
+                            : "Recent"}
+                        </span>
+                        <a
+                          href={row.explorerUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="shrink-0 font-semibold text-sky-300/90 hover:underline"
                         >
-                          {m.slice(0, 4)}…{m.slice(-4)}
-                        </button>
-                      ))}
-                    </div>
-                  </li>
-                ))}
+                          Tx ↗
+                        </a>
+                      </div>
+                      <div className="mt-2 space-y-2">
+                        {tokens.map((t) => {
+                          const label =
+                            t.symbol?.trim() ||
+                            (t.name?.trim() ? t.name.trim().slice(0, 18) : null) ||
+                            `${t.mint.slice(0, 4)}…${t.mint.slice(-4)}`;
+                          return (
+                            <button
+                              key={`${row.signature}-${t.mint}`}
+                              type="button"
+                              onClick={() => applyMintFromActivity(t.mint, row.signature)}
+                              className="flex w-full items-center gap-3 rounded-lg border border-zinc-800/90 bg-black/35 px-2.5 py-2 text-left transition hover:border-emerald-500/30 hover:bg-zinc-900/50"
+                            >
+                              {t.imageUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={t.imageUrl}
+                                  alt=""
+                                  className="h-9 w-9 shrink-0 rounded-lg border border-zinc-700/70 bg-zinc-900 object-cover"
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-700/70 bg-zinc-900/80 text-[10px] font-bold text-zinc-500">
+                                  {(t.symbol || "?").slice(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-zinc-100">{label}</p>
+                                <p className="truncate text-[11px] text-zinc-500">
+                                  {t.name?.trim() && t.symbol?.trim() ? (
+                                    <span>{t.name.trim()}</span>
+                                  ) : (
+                                    <span className="font-mono">{t.mint.slice(0, 6)}…{t.mint.slice(-6)}</span>
+                                  )}
+                                </p>
+                              </div>
+                              <span className="shrink-0 rounded-md border border-zinc-700/60 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+                                CA
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
             {activityHint ? (
@@ -746,91 +963,143 @@ export default function TradeJournalPage() {
 
       {modalOpen ? (
         <div
-          className="fixed inset-0 z-[70] overflow-y-auto bg-zinc-950/[0.92] backdrop-blur-md"
+          className="fixed inset-0 z-[70] overflow-y-auto bg-black/[0.88] backdrop-blur-[2px]"
           role="dialog"
           aria-modal="true"
-          aria-label={editingId ? "Edit journal entry" : "New journal entry"}
+          aria-label={
+            modalPhase === "view"
+              ? "Journal entry"
+              : editingId
+                ? "Edit journal entry"
+                : "New journal entry"
+          }
           onMouseDown={(ev) => {
             if (ev.target === ev.currentTarget) closeModal();
           }}
         >
           <div
-            className="flex min-h-full flex-col justify-center px-4 py-20 sm:px-8 sm:py-28"
+            className="flex min-h-full flex-col justify-center overflow-y-auto px-4 py-16 sm:px-8 sm:py-24 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             onMouseDown={(ev) => {
               if (ev.target === ev.currentTarget) closeModal();
             }}
           >
-          <div className="relative mx-auto max-h-[min(88vh,860px)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-zinc-600/90 bg-zinc-950 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.95)] ring-1 ring-emerald-500/15">
-            <div
-              className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-emerald-400/50 via-[color:var(--accent)]/40 to-transparent"
-              aria-hidden
-            />
-            <div className="border-b border-zinc-800/90 bg-zinc-950/40 px-5 py-4 sm:px-6 sm:py-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-400/80">
-                    {editingId ? "Edit entry" : "New journal entry"}
-                  </p>
-                  <h3 className="mt-1 text-xl font-semibold tracking-tight text-zinc-50">
-                    {editingId ? "Refine this trade" : "Log a trade"}
-                  </h3>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                    Paste a Solana mint — metadata fills from DexScreener when found. Dates use your browser calendar.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className={terminalUi.modalCloseIconBtn}
-                  aria-label="Close"
-                  disabled={saving}
-                  onClick={closeModal}
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="mt-5 flex flex-wrap items-center gap-4">
-                {form.tokenImageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={form.tokenImageUrl}
-                    alt=""
-                    className="h-14 w-14 shrink-0 rounded-xl border border-zinc-700/80 bg-zinc-900 object-cover shadow-lg shadow-black/40"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-zinc-700/80 bg-zinc-900/40 text-xs font-medium text-zinc-600">
-                    No art
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-zinc-100">
-                    {form.entryTitle.trim() || form.tokenName || form.tokenSymbol || "—"}
-                  </p>
-                  <p className="truncate font-mono text-[11px] text-zinc-500">{form.mint || "Mint not set"}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-600">
-                    <span>
-                      {mintLookup === "loading" ? "Resolving mint…" : null}
-                      {mintLookup === "ok" ? "Metadata loaded." : null}
-                      {mintLookup === "miss" ? "No DexScreener pair yet — fill fields manually." : null}
-                      {mintLookup === "error" ? "Metadata lookup failed — you can still save." : null}
-                    </span>
-                    {form.mint.trim().length >= 32 ? (
-                      <a
-                        href={dexscreenerTokenUrl("solana", form.mint.trim())}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-semibold text-emerald-300/90 underline-offset-2 hover:underline"
+            <div className="relative mx-auto max-h-[min(90vh,880px)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-zinc-700/80 bg-[#09090b] shadow-[0_0_0_1px_rgba(34,197,94,0.05),0_32px_96px_-24px_rgba(0,0,0,0.92)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div
+                className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-emerald-400/45 via-[color:var(--accent)]/35 to-transparent"
+                aria-hidden
+              />
+              {modalPhase === "view" && viewEntry ? (
+                <>
+                  <div className="border-b border-zinc-800/80 bg-[#0c0c0f] px-5 py-4 sm:px-6 sm:py-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-400/80">
+                          Journal entry
+                        </p>
+                        <h3 className="mt-1 text-xl font-semibold tracking-tight text-zinc-50">
+                          {entryDisplayTitle(viewEntry)}
+                        </h3>
+                        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                          Read-only snapshot. Use Edit to change fields; Delete is available while editing.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className={terminalUi.modalCloseIconBtn}
+                        aria-label="Close"
+                        onClick={closeModal}
                       >
-                        Dexscreener ↗
-                      </a>
-                    ) : null}
+                        ×
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
+                  <JournalEntryViewBody v={viewEntry} />
+                  <div className="flex flex-wrap items-center justify-end gap-2 border-t border-zinc-800/80 bg-[#0c0c0f] px-5 py-4 sm:px-6">
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="rounded-xl border border-zinc-700/90 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-zinc-900/50"
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="button"
+                      onClick={enterEditFromView}
+                      className="rounded-xl bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-400"
+                    >
+                      Edit entry
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="border-b border-zinc-800/80 bg-[#0c0c0f] px-5 py-4 sm:px-6 sm:py-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-400/80">
+                          {editingId ? "Edit entry" : "New journal entry"}
+                        </p>
+                        <h3 className="mt-1 text-xl font-semibold tracking-tight text-zinc-50">
+                          {editingId ? "Refine this trade" : "Log a trade"}
+                        </h3>
+                        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                          Paste a Solana mint — metadata fills from DexScreener when found. Dates use your browser
+                          calendar.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className={terminalUi.modalCloseIconBtn}
+                        aria-label="Close"
+                        disabled={saving}
+                        onClick={closeModal}
+                      >
+                        ×
+                      </button>
+                    </div>
 
-            <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
+                    <div className="mt-5 flex flex-wrap items-center gap-4">
+                      {form.tokenImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={form.tokenImageUrl}
+                          alt=""
+                          className="h-14 w-14 shrink-0 rounded-xl border border-zinc-700/80 bg-zinc-900 object-cover shadow-lg shadow-black/40"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-zinc-700/80 bg-zinc-900/40 text-xs font-medium text-zinc-600">
+                          No art
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-zinc-100">
+                          {form.entryTitle.trim() || form.tokenName || form.tokenSymbol || "—"}
+                        </p>
+                        <p className="truncate font-mono text-[11px] text-zinc-500">{form.mint || "Mint not set"}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-600">
+                          <span>
+                            {mintLookup === "loading" ? "Resolving mint…" : null}
+                            {mintLookup === "ok" ? "Metadata loaded." : null}
+                            {mintLookup === "miss" ? "No DexScreener pair yet — fill fields manually." : null}
+                            {mintLookup === "error" ? "Metadata lookup failed — you can still save." : null}
+                          </span>
+                          {form.mint.trim().length >= 32 ? (
+                            <a
+                              href={dexscreenerTokenUrl("solana", form.mint.trim())}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-semibold text-emerald-300/90 underline-offset-2 hover:underline"
+                            >
+                              Dexscreener ↗
+                            </a>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-5 bg-[#09090b] px-5 py-5 sm:px-6 sm:py-6">
               <label className="block">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                   Journal title
@@ -999,7 +1268,7 @@ export default function TradeJournalPage() {
               <label className="block">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Thesis</span>
                 <textarea
-                  className={`mt-1.5 min-h-[88px] ${terminalUi.formInput} leading-relaxed`}
+                  className={`mt-1.5 min-h-[88px] ${terminalUi.formInput} leading-relaxed [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
                   value={form.thesis}
                   onChange={(ev) => setForm((f) => ({ ...f, thesis: ev.target.value }))}
                   placeholder="Why you took the trade…"
@@ -1010,7 +1279,7 @@ export default function TradeJournalPage() {
                   Planned invalidation
                 </span>
                 <textarea
-                  className={`mt-1.5 min-h-[72px] ${terminalUi.formInput} leading-relaxed`}
+                  className={`mt-1.5 min-h-[72px] ${terminalUi.formInput} leading-relaxed [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
                   value={form.plannedInvalidation}
                   onChange={(ev) => setForm((f) => ({ ...f, plannedInvalidation: ev.target.value }))}
                 />
@@ -1019,22 +1288,24 @@ export default function TradeJournalPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                    Entry (USD)
+                    Entry (MC)
                   </span>
                   <input
                     className={`mt-1.5 ${terminalUi.formInput}`}
                     value={form.entryPriceUsd}
                     onChange={(ev) => setForm((f) => ({ ...f, entryPriceUsd: ev.target.value }))}
                     inputMode="decimal"
+                    placeholder="e.g. FDV / mcap at entry"
                   />
                 </label>
                 <label className="block">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Exit (USD)</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Exit (MC)</span>
                   <input
                     className={`mt-1.5 ${terminalUi.formInput}`}
                     value={form.exitPriceUsd}
                     onChange={(ev) => setForm((f) => ({ ...f, exitPriceUsd: ev.target.value }))}
                     inputMode="decimal"
+                    placeholder="e.g. FDV / mcap at exit"
                   />
                 </label>
                 <label className="block">
@@ -1069,7 +1340,7 @@ export default function TradeJournalPage() {
               <label className="block">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Notes</span>
                 <textarea
-                  className={`mt-1.5 min-h-[100px] ${terminalUi.formInput} leading-relaxed`}
+                  className={`mt-1.5 min-h-[100px] ${terminalUi.formInput} leading-relaxed [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
                   value={form.notes}
                   onChange={(ev) => setForm((f) => ({ ...f, notes: ev.target.value }))}
                 />
@@ -1079,7 +1350,7 @@ export default function TradeJournalPage() {
                   Reference links (one per line)
                 </span>
                 <textarea
-                  className={`mt-1.5 min-h-[64px] font-mono text-xs ${terminalUi.formInput}`}
+                  className={`mt-1.5 min-h-[64px] font-mono text-xs ${terminalUi.formInput} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
                   value={form.referenceLinksText}
                   onChange={(ev) => setForm((f) => ({ ...f, referenceLinksText: ev.target.value }))}
                   placeholder="https://…"
@@ -1097,7 +1368,7 @@ export default function TradeJournalPage() {
               </label>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800/90 bg-zinc-950 px-5 py-4 sm:px-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800/80 bg-[#0c0c0f] px-5 py-4 sm:px-6">
               {editingId ? (
                 <button
                   type="button"
@@ -1129,7 +1400,9 @@ export default function TradeJournalPage() {
                 </button>
               </div>
             </div>
-          </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       ) : null}

@@ -1,6 +1,7 @@
 import { Connection } from "@solana/web3.js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { fetchDexscreenerMintMetaBatch } from "@/lib/dexscreenerMintMeta";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { solanaRpcUrlServer, usdcMintForCluster } from "@/lib/solanaEnv";
 import { fetchWalletTokenActivityRows } from "@/lib/walletTokenActivity";
@@ -59,6 +60,9 @@ export async function GET() {
       txDepth: 10,
     });
 
+    const allMints = rows.flatMap((r) => r.mints);
+    const metaByMint = await fetchDexscreenerMintMetaBatch(allMints, { concurrency: 4, maxMints: 32 });
+
     const payload = {
       linked: true as const,
       walletPubkey: pkStr,
@@ -66,6 +70,22 @@ export async function GET() {
         signature: r.signature,
         blockTime: r.blockTime,
         mints: r.mints,
+        tokens: r.mints.map((mint) => {
+          const m = metaByMint.get(mint.trim()) ?? {
+            mint: mint.trim(),
+            found: false,
+            symbol: null,
+            name: null,
+            imageUrl: null,
+          };
+          return {
+            mint,
+            found: m.found,
+            symbol: m.symbol,
+            name: m.name,
+            imageUrl: m.imageUrl,
+          };
+        }),
         explorerUrl: `https://solscan.io/tx/${encodeURIComponent(r.signature)}`,
       })),
       hint:
