@@ -98,6 +98,7 @@ function rowToApi(o: Record<string, unknown>) {
     closedAt: typeof o.closed_at === "string" ? o.closed_at : null,
     status: o.status === "closed" ? "closed" : "open",
     setupLabel: typeof o.setup_label === "string" ? o.setup_label : null,
+    entryTitle: typeof o.entry_title === "string" ? o.entry_title : null,
     thesis: typeof o.thesis === "string" ? o.thesis : null,
     plannedInvalidation:
       typeof o.planned_invalidation === "string" ? o.planned_invalidation : null,
@@ -200,6 +201,7 @@ export async function POST(request: Request) {
       closed_at: optIso(o.closedAt ?? o.closed_at),
       status,
       setup_label: clampStr(o.setupLabel ?? o.setup_label, 120),
+      entry_title: clampStr(o.entryTitle ?? o.entry_title, 200),
       thesis: clampStr(o.thesis, 4000),
       planned_invalidation: clampStr(
         o.plannedInvalidation ?? o.planned_invalidation,
@@ -230,7 +232,11 @@ export async function POST(request: Request) {
 
     if (error || !data) {
       console.error("[me/trade-journal] POST:", error);
-      return Response.json({ error: "Could not save entry" }, { status: 500 });
+      const msg =
+        error && typeof error.message === "string" && error.message.trim()
+          ? error.message.trim()
+          : "Could not save entry";
+      return Response.json({ error: msg }, { status: 500 });
     }
 
     return Response.json({ success: true as const, entry: rowToApi(data as Record<string, unknown>) });

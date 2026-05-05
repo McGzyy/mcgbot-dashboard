@@ -18,6 +18,7 @@ type JournalEntry = {
   tokenSymbol: string | null;
   tokenName: string | null;
   tokenImageUrl: string | null;
+  entryTitle: string | null;
   tradedAt: string | null;
   closedAt: string | null;
   status: "open" | "closed";
@@ -47,6 +48,7 @@ const LABEL_PRESETS = ["Breakout", "Dip buy", "Reversal", "News / catalyst", "Sc
 
 type FormState = {
   mint: string;
+  entryTitle: string;
   tokenSymbol: string;
   tokenName: string;
   tokenImageUrl: string;
@@ -70,6 +72,7 @@ type FormState = {
 
 const emptyForm = (): FormState => ({
   mint: "",
+  entryTitle: "",
   tokenSymbol: "",
   tokenName: "",
   tokenImageUrl: "",
@@ -136,6 +139,7 @@ function entryToForm(e: JournalEntry): FormState {
   const cd = toDateParts(e.closedAt);
   return {
     mint: e.mint,
+    entryTitle: e.entryTitle ?? "",
     tokenSymbol: e.tokenSymbol ?? "",
     tokenName: e.tokenName ?? "",
     tokenImageUrl: e.tokenImageUrl ?? "",
@@ -166,9 +170,12 @@ function exportMarkdown(entries: JournalEntry[]): string {
     "",
   ];
   for (const e of entries) {
-    lines.push(`## ${e.tokenSymbol || "TOKEN"} — ${e.mint}`);
+    const head =
+      e.entryTitle?.trim() || e.tokenName?.trim() || e.tokenSymbol?.trim() || "Entry";
+    lines.push(`## ${head} — ${e.mint}`);
     lines.push("");
     lines.push(`- Status: **${e.status}**`);
+    if (e.entryTitle?.trim()) lines.push(`- Title: ${e.entryTitle.trim()}`);
     if (e.tradedAt) lines.push(`- Traded at: ${e.tradedAt}`);
     if (e.closedAt) lines.push(`- Closed at: ${e.closedAt}`);
     if (e.setupLabel) lines.push(`- Setup: ${e.setupLabel}`);
@@ -203,6 +210,12 @@ function formatJournalWhen(iso: string | null): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function entryDisplayTitle(e: JournalEntry): string {
+  const t = e.entryTitle?.trim();
+  if (t) return t;
+  return e.tokenName?.trim() || e.tokenSymbol?.trim() || "Untitled entry";
 }
 
 export default function TradeJournalPage() {
@@ -327,12 +340,20 @@ export default function TradeJournalPage() {
         return;
       }
       setMintLookup("ok");
-      setForm((f) => ({
-        ...f,
-        tokenSymbol: typeof json.symbol === "string" ? json.symbol : f.tokenSymbol,
-        tokenName: typeof json.name === "string" ? json.name : f.tokenName,
-        tokenImageUrl: typeof json.imageUrl === "string" && json.imageUrl ? json.imageUrl : "",
-      }));
+      setForm((f) => {
+        const sym = typeof json.symbol === "string" ? json.symbol : f.tokenSymbol;
+        const nm = typeof json.name === "string" ? json.name : f.tokenName;
+        const img = typeof json.imageUrl === "string" && json.imageUrl ? json.imageUrl : "";
+        const autoTitle =
+          typeof json.name === "string" && json.name.trim() ? json.name.trim() : "";
+        return {
+          ...f,
+          tokenSymbol: sym,
+          tokenName: nm,
+          tokenImageUrl: img,
+          entryTitle: f.entryTitle.trim() ? f.entryTitle : autoTitle,
+        };
+      });
     } catch {
       setMintLookup("error");
     }
@@ -386,6 +407,7 @@ export default function TradeJournalPage() {
     try {
       const payload = {
         mint: form.mint.trim(),
+        entryTitle: form.entryTitle.trim() || null,
         tokenSymbol: form.tokenSymbol.trim() || null,
         tokenName: form.tokenName.trim() || null,
         tokenImageUrl: form.tokenImageUrl.trim() || null,
@@ -452,6 +474,8 @@ export default function TradeJournalPage() {
         setErr(typeof json.error === "string" ? json.error : "Delete failed.");
         return;
       }
+      setModalOpen(false);
+      setEditingId(null);
       await load();
     } catch {
       setErr("Delete failed.");
@@ -554,7 +578,7 @@ export default function TradeJournalPage() {
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
               <h2 className={`${terminalPage.sectionTitle} text-lg`}>Journal</h2>
-              <p className={terminalPage.sectionHint}>Newest entries first — click a row to refine the story.</p>
+              <p className={terminalPage.sectionHint}>Newest first — click anywhere on an entry to open it.</p>
             </div>
             <span className="rounded-full border border-zinc-700/80 bg-zinc-950/50 px-3 py-1 text-xs font-medium tabular-nums text-zinc-400">
               {entries.length} saved
@@ -578,13 +602,17 @@ export default function TradeJournalPage() {
             ) : (
               <ul className="divide-y divide-zinc-800/80">
                 {sortedPreview.map((e) => (
-                  <li key={e.id} className="group px-4 py-4 sm:px-5 sm:py-5">
-                    <article className="relative flex gap-4">
+                  <li key={e.id} className="px-2 py-1 sm:px-3 sm:py-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(e)}
+                      className="group relative flex w-full gap-4 rounded-xl px-3 py-4 text-left transition-colors hover:bg-zinc-900/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 sm:px-4 sm:py-5"
+                    >
                       <span
-                        className="absolute bottom-0 left-0 top-0 w-[3px] rounded-full bg-gradient-to-b from-emerald-400/90 via-emerald-500/40 to-transparent opacity-90"
+                        className="absolute bottom-2 left-2 top-2 w-[3px] rounded-full bg-gradient-to-b from-emerald-400/90 via-emerald-500/40 to-transparent opacity-90 group-hover:opacity-100"
                         aria-hidden
                       />
-                      <div className="relative ml-1 shrink-0">
+                      <div className="relative ml-2 shrink-0">
                         {e.tokenImageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -600,10 +628,10 @@ export default function TradeJournalPage() {
                           </div>
                         )}
                       </div>
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 pr-2">
                         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                          <h3 className="truncate text-base font-semibold tracking-tight text-zinc-50">
-                            {e.tokenName?.trim() || e.tokenSymbol?.trim() || "Position"}
+                          <h3 className="truncate text-base font-semibold tracking-tight text-zinc-50 group-hover:text-white">
+                            {entryDisplayTitle(e)}
                           </h3>
                           {e.tokenSymbol ? (
                             <span className="rounded-md border border-zinc-700/60 bg-zinc-900/50 px-1.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-emerald-200/90">
@@ -647,31 +675,7 @@ export default function TradeJournalPage() {
                           <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-zinc-500">{e.notes}</p>
                         ) : null}
                       </div>
-                      <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row sm:items-start">
-                        <a
-                          href={dexscreenerTokenUrl("solana", e.mint)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-lg border border-zinc-700/80 px-2.5 py-1 text-center text-[11px] font-semibold text-emerald-200/90 transition hover:border-emerald-500/40 hover:bg-emerald-500/5"
-                        >
-                          Chart
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => openEdit(e)}
-                          className="rounded-lg border border-zinc-700/80 px-2.5 py-1 text-[11px] font-semibold text-zinc-100 transition hover:bg-zinc-800/60"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void remove(e.id)}
-                          className="rounded-lg border border-red-500/30 px-2.5 py-1 text-[11px] font-semibold text-red-200/90 transition hover:bg-red-950/35"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </article>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -742,7 +746,7 @@ export default function TradeJournalPage() {
 
       {modalOpen ? (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/80 px-3 py-12 backdrop-blur-[2px] sm:px-6 sm:py-16"
+          className="fixed inset-0 z-[70] overflow-y-auto bg-zinc-950/[0.92] backdrop-blur-md"
           role="dialog"
           aria-modal="true"
           aria-label={editingId ? "Edit journal entry" : "New journal entry"}
@@ -751,8 +755,12 @@ export default function TradeJournalPage() {
           }}
         >
           <div
-            className="relative my-auto max-h-[min(90vh,880px)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-zinc-700/70 bg-gradient-to-b from-zinc-900/98 via-zinc-950 to-zinc-950 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.95)] ring-1 ring-emerald-500/10"
+            className="flex min-h-full flex-col justify-center px-4 py-20 sm:px-8 sm:py-28"
+            onMouseDown={(ev) => {
+              if (ev.target === ev.currentTarget) closeModal();
+            }}
           >
+          <div className="relative mx-auto max-h-[min(88vh,860px)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-zinc-600/90 bg-zinc-950 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.95)] ring-1 ring-emerald-500/15">
             <div
               className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-emerald-400/50 via-[color:var(--accent)]/40 to-transparent"
               aria-hidden
@@ -797,20 +805,44 @@ export default function TradeJournalPage() {
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-zinc-100">
-                    {form.tokenName || form.tokenSymbol || "—"}
+                    {form.entryTitle.trim() || form.tokenName || form.tokenSymbol || "—"}
                   </p>
                   <p className="truncate font-mono text-[11px] text-zinc-500">{form.mint || "Mint not set"}</p>
-                  <p className="mt-1 text-[11px] text-zinc-600">
-                    {mintLookup === "loading" ? "Resolving mint…" : null}
-                    {mintLookup === "ok" ? "Metadata loaded." : null}
-                    {mintLookup === "miss" ? "No DexScreener pair yet — fill fields manually." : null}
-                    {mintLookup === "error" ? "Metadata lookup failed — you can still save." : null}
-                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-600">
+                    <span>
+                      {mintLookup === "loading" ? "Resolving mint…" : null}
+                      {mintLookup === "ok" ? "Metadata loaded." : null}
+                      {mintLookup === "miss" ? "No DexScreener pair yet — fill fields manually." : null}
+                      {mintLookup === "error" ? "Metadata lookup failed — you can still save." : null}
+                    </span>
+                    {form.mint.trim().length >= 32 ? (
+                      <a
+                        href={dexscreenerTokenUrl("solana", form.mint.trim())}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-emerald-300/90 underline-offset-2 hover:underline"
+                      >
+                        Dexscreener ↗
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  Journal title
+                </span>
+                <input
+                  className={`mt-1.5 ${terminalUi.formInput}`}
+                  value={form.entryTitle}
+                  onChange={(ev) => setForm((f) => ({ ...f, entryTitle: ev.target.value }))}
+                  placeholder="e.g. SOL meme reversal — shows on your list"
+                  maxLength={200}
+                />
+              </label>
               <label className="block">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Mint (CA)</span>
                 <input
@@ -825,6 +857,7 @@ export default function TradeJournalPage() {
                         return {
                           ...f,
                           mint: next,
+                          entryTitle: "",
                           tokenSymbol: "",
                           tokenName: "",
                           tokenImageUrl: "",
@@ -1064,24 +1097,39 @@ export default function TradeJournalPage() {
               </label>
             </div>
 
-            <div className="flex flex-wrap justify-end gap-2 border-t border-zinc-800/90 bg-zinc-950/50 px-5 py-4 sm:px-6">
-              <button
-                type="button"
-                onClick={closeModal}
-                disabled={saving}
-                className="rounded-xl border border-zinc-700/90 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-zinc-900/50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void submit()}
-                disabled={saving}
-                className="rounded-xl bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-black shadow-lg shadow-black/35 transition hover:bg-green-400 disabled:opacity-50"
-              >
-                {saving ? "Saving…" : "Save entry"}
-              </button>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800/90 bg-zinc-950 px-5 py-4 sm:px-6">
+              {editingId ? (
+                <button
+                  type="button"
+                  onClick={() => void remove(editingId)}
+                  disabled={saving}
+                  className="rounded-xl border border-red-500/35 px-4 py-2 text-sm font-semibold text-red-200/95 transition hover:bg-red-950/40 disabled:opacity-40"
+                >
+                  Delete entry
+                </button>
+              ) : (
+                <div className="min-w-0 flex-1" aria-hidden />
+              )}
+              <div className="flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={saving}
+                  className="rounded-xl border border-zinc-700/90 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-zinc-900/50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void submit()}
+                  disabled={saving}
+                  className="rounded-xl bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-black shadow-lg shadow-black/35 transition hover:bg-green-400 disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : "Save entry"}
+                </button>
+              </div>
             </div>
+          </div>
           </div>
         </div>
       ) : null}

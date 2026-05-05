@@ -103,6 +103,7 @@ function rowToApi(o: Record<string, unknown>) {
     closedAt: typeof o.closed_at === "string" ? o.closed_at : null,
     status: o.status === "closed" ? "closed" : "open",
     setupLabel: typeof o.setup_label === "string" ? o.setup_label : null,
+    entryTitle: typeof o.entry_title === "string" ? o.entry_title : null,
     thesis: typeof o.thesis === "string" ? o.thesis : null,
     plannedInvalidation:
       typeof o.planned_invalidation === "string" ? o.planned_invalidation : null,
@@ -167,6 +168,9 @@ export async function PATCH(request: Request, context: Ctx) {
     if ("setupLabel" in o || "setup_label" in o) {
       patch.setup_label = clampStr(o.setupLabel ?? o.setup_label, 120);
     }
+    if ("entryTitle" in o || "entry_title" in o) {
+      patch.entry_title = clampStr(o.entryTitle ?? o.entry_title, 200);
+    }
     if ("thesis" in o) patch.thesis = clampStr(o.thesis, 4000);
     if ("plannedInvalidation" in o || "planned_invalidation" in o) {
       patch.planned_invalidation = clampStr(
@@ -206,30 +210,39 @@ export async function PATCH(request: Request, context: Ctx) {
 
     patch.updated_at = new Date().toISOString();
 
-    if (Object.keys(patch).length <= 1) {
+    const cleaned = Object.fromEntries(
+      Object.entries(patch).filter(([, v]) => v !== undefined)
+    ) as Record<string, unknown>;
+
+    if (Object.keys(cleaned).length <= 1) {
       return Response.json({ error: "No fields to update" }, { status: 400 });
     }
 
     const db = getSupabaseAdmin();
     if (!db) return Response.json({ error: "Database not configured" }, { status: 503 });
 
-    const { data, error } = await db
+    const { data: updatedRows, error } = await db
       .from("trade_journal_entries")
-      .update(patch)
+      .update(cleaned)
       .eq("id", id)
       .eq("discord_id", discordId)
-      .select("*")
-      .maybeSingle();
+      .select("*");
 
     if (error) {
       console.error("[me/trade-journal/:id] PATCH:", error);
-      return Response.json({ error: "Could not update" }, { status: 500 });
+      const msg =
+        typeof error.message === "string" && error.message.trim()
+          ? error.message.trim()
+          : "Could not update";
+      return Response.json({ error: msg }, { status: 500 });
     }
-    if (!data) {
+
+    const row = Array.isArray(updatedRows) ? (updatedRows[0] as Record<string, unknown> | undefined) : undefined;
+    if (!row) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
-    return Response.json({ success: true as const, entry: rowToApi(data as Record<string, unknown>) });
+    return Response.json({ success: true as const, entry: rowToApi(row) });
   } catch (e) {
     console.error("[me/trade-journal/:id] PATCH exception:", e);
     return Response.json({ error: "Internal error" }, { status: 500 });
