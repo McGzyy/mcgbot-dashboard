@@ -29,6 +29,7 @@ import {
 } from "@/lib/callDisplayFormat";
 import { useDashboardHelpRole } from "./hooks/useDashboardHelpRole";
 import { userProfileHref } from "@/lib/userProfileHref";
+import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
 import {
   useCallback,
   useEffect,
@@ -3732,7 +3733,7 @@ export default function Home() {
     return { emoji: "🔥", className: "dashboard-fire-emoji" };
   }
 
-  const personalStatTileClass = `${terminalPage.statTile} flex min-h-[6.25rem] flex-col p-3 sm:p-3.5`;
+  const personalStatTileClass = `${terminalPage.statTile} flex flex-col gap-1.5 p-3 sm:p-3.5`;
 
   const streakDays = stats?.activeDaysStreak;
   const streakBadgeUi = streakBadge(streakDays ?? 0);
@@ -3807,10 +3808,10 @@ export default function Home() {
                 <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   AVG X
                 </div>
-                <div className="mt-1.5 text-xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
+                <div className="text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
                   {stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
                 </div>
-                <div className="mt-0.5 text-[11px] leading-snug text-zinc-500">
+                <div className="text-[11px] leading-snug text-zinc-500">
                   Mean ATH multiple since your calls (peak ÷ entry MC)
                 </div>
               </div>
@@ -3819,7 +3820,7 @@ export default function Home() {
                 <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   WIN RATE
                 </div>
-                <div className="mt-1.5 text-xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
+                <div className="text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
                   {stats === null || (stats.totalCalls ?? 0) <= 0 ? "—" : `${stats.winRate.toFixed(0)}%`}
                 </div>
               </div>
@@ -3828,7 +3829,7 @@ export default function Home() {
                 <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   STREAK
                 </div>
-                <div className="mt-1.5">
+                <div>
                   {streakValue}
                 </div>
               </div>
@@ -3837,17 +3838,17 @@ export default function Home() {
                 <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   TOTAL CALLS
                 </div>
-                <div className="mt-1.5 text-xl font-bold tabular-nums text-[color:var(--accent)]">
+                <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   {stats === null ? "—" : stats.totalCalls.toLocaleString("en-US")}
                 </div>
-                <div className="mt-0.5 text-[11px] text-zinc-500">All time</div>
+                <div className="text-[11px] text-zinc-500">All time</div>
               </div>
 
               <div className={personalStatTileClass}>
                 <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   MEDIAN X
                 </div>
-                <div className="mt-1.5 text-xl font-bold tabular-nums text-[color:var(--accent)]">
+                <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   {stats === null || (stats.medianX ?? 0) <= 0
                     ? "—"
                     : `${(stats.medianX ?? 0).toFixed(1)}x`}
@@ -3858,7 +3859,7 @@ export default function Home() {
                 <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   2X HIT (30D)
                 </div>
-                <div className="mt-1.5 text-xl font-bold tabular-nums text-[color:var(--accent)]">
+                <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   {stats === null || (stats.bestX30d ?? 0) <= 0
                     ? "—"
                     : `${Math.round(stats.hitRate2x30d ?? 0)}%`}
@@ -3869,7 +3870,7 @@ export default function Home() {
                 <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   BEST X (30D)
                 </div>
-                <div className="mt-1.5 text-xl font-bold tabular-nums text-[color:var(--accent)]">
+                <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   {stats === null || (stats.bestX30d ?? 0) <= 0
                     ? "—"
                     : `${(stats.bestX30d ?? 0).toFixed(1)}x`}
@@ -3880,24 +3881,42 @@ export default function Home() {
                 <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   LAST CALL
                 </div>
-                <div
-                  className="mt-1.5 min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-200"
-                  title={
-                    recentCalls.length === 0
-                      ? undefined
-                      : homeLastCallHeadline(recentCalls[0])
-                  }
-                >
-                  {recentCalls.length === 0
-                    ? "—"
-                    : homeLastCallHeadline(recentCalls[0])}
+                <div className="flex min-w-0 items-center gap-2">
+                  {(() => {
+                    if (recentCalls.length === 0) return null;
+                    const c = recentCalls[0]!;
+                    const src =
+                      resolveTokenAvatarUrl({ tokenImageUrl: c.tokenImageUrl, mint: c.token }) ??
+                      null;
+                    if (!src) return null;
+                    // eslint-disable-next-line @next/next/no-img-element
+                    return (
+                      <img
+                        src={src}
+                        alt=""
+                        className="h-7 w-7 shrink-0 rounded-lg border border-zinc-700/50 object-cover shadow-sm shadow-black/40"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    );
+                  })()}
+                  <div
+                    className="min-w-0 truncate text-[13px] font-medium text-zinc-200"
+                    title={
+                      recentCalls.length === 0
+                        ? undefined
+                        : homeLastCallHeadline(recentCalls[0])
+                    }
+                  >
+                    {recentCalls.length === 0 ? "—" : homeLastCallHeadline(recentCalls[0])}
+                  </div>
                 </div>
-                <div className="mt-1 text-xl font-bold tabular-nums text-[color:var(--accent)]">
+                <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   {recentCalls.length === 0
                     ? "—"
                     : `${recentCalls[0].multiple.toFixed(1)}x`}
                 </div>
-                <div className="mt-0.5 text-[11px] text-zinc-500">
+                <div className="text-[11px] text-zinc-500">
                   {recentCalls.length === 0
                     ? callsLoading
                       ? "Loading recent calls…"

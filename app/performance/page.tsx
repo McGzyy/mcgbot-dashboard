@@ -222,7 +222,7 @@ export default function PerformanceLabPage() {
           <p className="mt-1 text-xs text-zinc-500">
             Bars = call count per UTC day · line = average ATH multiple that day.
           </p>
-          <div className="mt-4 h-72 rounded-2xl border border-emerald-500/15 bg-gradient-to-b from-emerald-950/20 to-black/40 p-3 pl-0 ring-1 ring-emerald-500/10">
+          <div className="mt-4 h-64 rounded-2xl border border-emerald-500/15 bg-gradient-to-b from-emerald-950/20 to-black/40 p-3 pl-0 ring-1 ring-emerald-500/10">
             {series.length === 0 && !loading ? (
               <div className="flex h-full items-center justify-center text-sm text-zinc-500">No calls in range yet.</div>
             ) : (
@@ -277,7 +277,7 @@ export default function PerformanceLabPage() {
           <p className="mt-1 text-xs text-zinc-500">
             Buckets use ATH multiple since each call (peak ÷ entry MC).
           </p>
-          <div className="mt-4 h-72 rounded-2xl border border-zinc-800/90 bg-zinc-950/50 p-3 ring-1 ring-zinc-700/20">
+          <div className="mt-4 h-64 rounded-2xl border border-zinc-800/90 bg-zinc-950/50 p-3 ring-1 ring-zinc-700/20">
             {distChart.length === 0 || dist?.total === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-zinc-500">No distribution yet.</div>
             ) : (
