@@ -23,12 +23,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 
+/** Home trending: Joyride’s `shift` middleware uses a non-root scroll parent as `boundary` by default, which can shove the floater to the viewport edge. */
+const DASHBOARD_TRENDING_TUTORIAL_TARGET = '[data-tutorial="dashboard.trending"]';
+
 /** Wide log tables: center in the viewport so Joyride’s floater measures a stable rect (smooth window scroll was racing the tooltip). */
 const TOUR_SCROLL_INTO_VIEW_CENTER_TARGETS = new Set<string>([
   '[data-tutorial="calls.table"]',
   '[data-tutorial="botCalls.table"]',
-  /** Deep in the home grid; window scroll + flip was racing Joyride and dropped the tooltip off the anchor. */
-  '[data-tutorial="dashboard.trending"]',
+  /** Deep in the home grid; center scroll + delayed passes so layout settles before Floating UI measures. */
+  DASHBOARD_TRENDING_TUTORIAL_TARGET,
 ]);
 
 type TrackState = {
@@ -379,12 +382,18 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     const t1 = window.setTimeout(scroll, 200);
     const t2 = window.setTimeout(scroll, 420);
     const t3 = window.setTimeout(scroll, 700);
+    const t4 =
+      step.target === DASHBOARD_TRENDING_TUTORIAL_TARGET ? window.setTimeout(scroll, 950) : 0;
+    const t5 =
+      step.target === DASHBOARD_TRENDING_TUTORIAL_TARGET ? window.setTimeout(scroll, 1350) : 0;
     return () => {
       window.cancelAnimationFrame(outerRaf);
       window.cancelAnimationFrame(innerRaf);
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.clearTimeout(t3);
+      if (t4) window.clearTimeout(t4);
+      if (t5) window.clearTimeout(t5);
     };
   }, [tourOpen, navWait, pathname, stepIndex, steps]);
 
@@ -460,8 +469,22 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
         skipScroll: true,
       };
       if (typeof s.scrollOffset === "number") row.scrollOffset = s.scrollOffset;
-      if (s.disablePlacementFlip) {
-        row.floatingOptions = { flipOptions: false };
+      const floating: Record<string, unknown> = {};
+      if (s.disablePlacementFlip) floating.flipOptions = false;
+      /** Override Joyride’s scroll-parent `boundary` so `shift` doesn’t pin the tooltip to the bottom of the viewport. */
+      if (s.target === DASHBOARD_TRENDING_TUTORIAL_TARGET) {
+        floating.strategy = "fixed";
+        floating.shiftOptions = {
+          boundary: document.scrollingElement ?? document.documentElement,
+          rootBoundary: "viewport",
+          padding: 20,
+        };
+      }
+      if (Object.keys(floating).length > 0) {
+        row.floatingOptions = floating;
+      }
+      if (s.target === DASHBOARD_TRENDING_TUTORIAL_TARGET) {
+        row.isFixed = true;
       }
       if (s.openAccountMenu || s.closeAccountMenu) {
         row.before = async () => {

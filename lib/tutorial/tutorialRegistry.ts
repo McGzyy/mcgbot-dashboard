@@ -149,8 +149,8 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       route: "/",
       title: "Trending tokens",
       content: "Heat snapshot of what the terminal is watching right now.",
-      /** Bottom + no flip: long left column above this card often leaves too little space above; flip pushed the floater toward the viewport bottom. */
-      placement: "bottom",
+      /** Right + no flip: vertical space is tight under the social stack; side placement avoids `shift` slamming the floater to the viewport bottom. */
+      placement: "right",
       scrollOffset: 148,
       disablePlacementFlip: true,
     },
