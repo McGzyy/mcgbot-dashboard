@@ -1308,10 +1308,17 @@ export default function LeaderboardPage() {
                       </div>
                       <div className="mt-4 text-right">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
-                          Average
+                          Win rate
                         </p>
                         <p className="mt-1 bg-gradient-to-b from-emerald-200 via-emerald-300 to-emerald-500 bg-clip-text text-xl font-semibold tabular-nums text-transparent">
-                          {spotlightLoading ? "—" : fmtX(w?.avgX ?? 0)}
+                          {spotlightLoading
+                            ? "—"
+                            : typeof w?.winRate === "number"
+                              ? `${w.winRate.toFixed(0)}%`
+                              : "—"}
+                        </p>
+                        <p className="mt-1 text-[11px] font-medium tabular-nums text-zinc-600">
+                          {spotlightLoading ? "—" : `${w?.calls ?? 0} calls`}
                         </p>
                       </div>
                     </div>

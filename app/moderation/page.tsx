@@ -39,7 +39,6 @@ export default function ModerationPage() {
   return (
     <div className={`relative mx-auto max-w-5xl px-4 pb-20 pt-4 sm:px-6 ${modChrome.pageShell}`}>
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
-        <div className={`absolute inset-0 ${modChrome.layoutGrid}`} />
         <div className={modChrome.layoutGlow} />
       </div>
 

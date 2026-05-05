@@ -3732,7 +3732,7 @@ export default function Home() {
     return { emoji: "🔥", className: "dashboard-fire-emoji" };
   }
 
-  const personalStatTileClass = `${terminalPage.statTile} flex min-h-[7.25rem] flex-col`;
+  const personalStatTileClass = `${terminalPage.statTile} flex min-h-[6.25rem] flex-col p-3 sm:p-3.5`;
 
   const streakDays = stats?.activeDaysStreak;
   const streakBadgeUi = streakBadge(streakDays ?? 0);
@@ -3797,57 +3797,57 @@ export default function Home() {
           </p>
         </div>
         <div
-          className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-4 ${smoothClass(
+          className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-3 sm:p-4 ${smoothClass(
             statsRefreshing || statsLoading
           )}`}
         >
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
-            <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
+            <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4">
               <div className={personalStatTileClass}>
-                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   AVG X
                 </div>
-                <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
+                <div className="mt-1.5 text-xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
                   {stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
                 </div>
-                <div className="mt-1 text-xs text-zinc-500">
+                <div className="mt-0.5 text-[11px] leading-snug text-zinc-500">
                   Mean ATH multiple since your calls (peak ÷ entry MC)
                 </div>
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   WIN RATE
                 </div>
-                <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
+                <div className="mt-1.5 text-xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
                   {stats === null || (stats.totalCalls ?? 0) <= 0 ? "—" : `${stats.winRate.toFixed(0)}%`}
                 </div>
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   STREAK
                 </div>
-                <div className="mt-2">
+                <div className="mt-1.5">
                   {streakValue}
                 </div>
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   TOTAL CALLS
                 </div>
-                <div className="mt-2 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
+                <div className="mt-1.5 text-xl font-bold tabular-nums text-[color:var(--accent)]">
                   {stats === null ? "—" : stats.totalCalls.toLocaleString("en-US")}
                 </div>
-                <div className="mt-1 text-xs text-zinc-500">All time</div>
+                <div className="mt-0.5 text-[11px] text-zinc-500">All time</div>
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   MEDIAN X
                 </div>
-                <div className="mt-2 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
+                <div className="mt-1.5 text-xl font-bold tabular-nums text-[color:var(--accent)]">
                   {stats === null || (stats.medianX ?? 0) <= 0
                     ? "—"
                     : `${(stats.medianX ?? 0).toFixed(1)}x`}
@@ -3855,10 +3855,10 @@ export default function Home() {
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   2X HIT (30D)
                 </div>
-                <div className="mt-2 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
+                <div className="mt-1.5 text-xl font-bold tabular-nums text-[color:var(--accent)]">
                   {stats === null || (stats.bestX30d ?? 0) <= 0
                     ? "—"
                     : `${Math.round(stats.hitRate2x30d ?? 0)}%`}
@@ -3866,10 +3866,10 @@ export default function Home() {
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   BEST X (30D)
                 </div>
-                <div className="mt-2 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
+                <div className="mt-1.5 text-xl font-bold tabular-nums text-[color:var(--accent)]">
                   {stats === null || (stats.bestX30d ?? 0) <= 0
                     ? "—"
                     : `${(stats.bestX30d ?? 0).toFixed(1)}x`}
@@ -3877,11 +3877,11 @@ export default function Home() {
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-xs font-semibold tracking-wide text-zinc-300">
+                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
                   LAST CALL
                 </div>
                 <div
-                  className="mt-2 min-w-0 flex-1 truncate text-sm font-medium text-zinc-200"
+                  className="mt-1.5 min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-200"
                   title={
                     recentCalls.length === 0
                       ? undefined
@@ -3892,12 +3892,12 @@ export default function Home() {
                     ? "—"
                     : homeLastCallHeadline(recentCalls[0])}
                 </div>
-                <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
+                <div className="mt-1 text-xl font-bold tabular-nums text-[color:var(--accent)]">
                   {recentCalls.length === 0
                     ? "—"
                     : `${recentCalls[0].multiple.toFixed(1)}x`}
                 </div>
-                <div className="mt-1 text-xs text-zinc-500">
+                <div className="mt-0.5 text-[11px] text-zinc-500">
                   {recentCalls.length === 0
                     ? callsLoading
                       ? "Loading recent calls…"
