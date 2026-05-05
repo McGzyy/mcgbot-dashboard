@@ -1792,7 +1792,7 @@ function TopPerformersPanel({
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-yellow-500/35 via-[color:var(--accent)]/35 to-transparent" />
         {topPerformersLoading ? (
-          <div className="mt-3 flex min-h-[64px] items-center justify-center">
+          <div className="mt-3 flex min-h-[min(24rem,55vh)] items-center justify-center rounded-xl border border-zinc-900/80 bg-zinc-950/20">
             <p className="text-sm text-zinc-500">Loading…</p>
           </div>
         ) : topPerformersToday.length === 0 ? (
@@ -2901,6 +2901,8 @@ export default function Home() {
   const lastSeenActivityKeysRef = useRef(new Set<string>());
   /** Avoid rank / calls “skeleton flash” on `homeDataRefreshNonce` background refetch. */
   const leaderboardRankBootstrapUserRef = useRef<string | null>(null);
+  /** Same idea as rank: keep Top Performers layout stable on periodic refresh (don’t collapse to “Loading…”). */
+  const topPerformersBootstrapUserRef = useRef<string | null>(null);
   /** Latest full `mode=all` activity — used for feed filters + notification diffing. */
   const activityAllSnapshotRef = useRef<ActivityItem[]>([]);
   const [copied, setCopied] = useState(false);
@@ -3362,11 +3364,17 @@ export default function Home() {
     if (!session?.user?.id?.trim()) {
       setTopPerformersToday([]);
       setTopPerformersLoading(false);
+      topPerformersBootstrapUserRef.current = null;
       return;
     }
 
+    const uid = session.user.id.trim();
     let cancelled = false;
-    setTopPerformersLoading(true);
+    const firstFetchForUser = topPerformersBootstrapUserRef.current !== uid;
+    if (firstFetchForUser) {
+      topPerformersBootstrapUserRef.current = uid;
+      setTopPerformersLoading(true);
+    }
 
     fetch("/api/leaderboard?type=user&period=today")
       .then((res) => (res.ok ? res.json() : null))

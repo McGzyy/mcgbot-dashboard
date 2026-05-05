@@ -188,6 +188,19 @@ function SidebarBody({
             />
             <span>Performance Lab</span>
           </Link>
+          <Link
+            href="/trade-journal"
+            onClick={pick}
+            data-tutorial="sidebar.nav.tradeJournal"
+            className={getNavItemClass(isActive(pathname, "/trade-journal"))}
+          >
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/trade-journal") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span>Trade Journal</span>
+          </Link>
           <Link href="/watchlist" onClick={pick} data-tutorial="sidebar.nav.watchlist" className={getNavItemClass(isActive(pathname, "/watchlist"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
