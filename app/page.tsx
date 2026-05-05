@@ -3733,7 +3733,7 @@ export default function Home() {
     return { emoji: "🔥", className: "dashboard-fire-emoji" };
   }
 
-  const personalStatTileClass = `${terminalPage.statTile} flex flex-col gap-1.5 p-3 sm:p-3.5`;
+  const personalStatTileClass = `${terminalPage.statTile} flex flex-col gap-1 p-2.5 sm:p-3`;
 
   const streakDays = stats?.activeDaysStreak;
   const streakBadgeUi = streakBadge(streakDays ?? 0);
@@ -3742,29 +3742,29 @@ export default function Home() {
       <div className="text-base font-semibold text-zinc-500">—</div>
     ) : (streakDays ?? 0) > 0 ? (
       <div>
-        <div className="inline-flex items-center gap-2 text-base font-semibold text-zinc-100">
+        <div className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-100">
           <span
-            className={`${streakBadgeUi.className ?? ""} text-lg leading-none`}
+            className={`${streakBadgeUi.className ?? ""} text-base leading-none`}
             aria-hidden
           >
             {streakBadgeUi.emoji}
           </span>
           <span>{streakDays} day streak</span>
         </div>
-        <div className="mt-1 text-xs text-zinc-500">Active days</div>
+        <div className="mt-0.5 text-[10px] text-zinc-500">Active days</div>
       </div>
     ) : (
       <div>
-        <div className="inline-flex items-center gap-2 text-base font-semibold text-zinc-300">
+        <div className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-300">
           <span
-            className={`${streakBadgeUi.className ?? ""} text-lg leading-none`}
+            className={`${streakBadgeUi.className ?? ""} text-base leading-none`}
             aria-hidden
           >
             {streakBadgeUi.emoji}
           </span>
           <span>No streak yet</span>
         </div>
-        <div className="mt-1 text-xs text-zinc-500">Call today to start one</div>
+        <div className="mt-0.5 text-[10px] text-zinc-500">Call today to start one</div>
       </div>
     );
 
@@ -3798,26 +3798,26 @@ export default function Home() {
           </p>
         </div>
         <div
-          className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-3 sm:p-4 ${smoothClass(
+          className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-2.5 sm:p-3.5 ${smoothClass(
             statsRefreshing || statsLoading
           )}`}
         >
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
             <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4">
               <div className={personalStatTileClass}>
-                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
+                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
                   AVG X
                 </div>
                 <div className="text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
                   {stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
                 </div>
-                <div className="text-[11px] leading-snug text-zinc-500">
+                <div className="line-clamp-2 text-[10px] leading-snug text-zinc-500">
                   Mean ATH multiple since your calls (peak ÷ entry MC)
                 </div>
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
+                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
                   WIN RATE
                 </div>
                 <div className="text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
@@ -3826,7 +3826,7 @@ export default function Home() {
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
+                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
                   STREAK
                 </div>
                 <div>
@@ -3835,17 +3835,17 @@ export default function Home() {
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
+                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
                   TOTAL CALLS
                 </div>
                 <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
                   {stats === null ? "—" : stats.totalCalls.toLocaleString("en-US")}
                 </div>
-                <div className="text-[11px] text-zinc-500">All time</div>
+                <div className="text-[10px] text-zinc-500">All time</div>
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
+                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
                   MEDIAN X
                 </div>
                 <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
@@ -3856,7 +3856,7 @@ export default function Home() {
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
+                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
                   2X HIT (30D)
                 </div>
                 <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
@@ -3867,7 +3867,7 @@ export default function Home() {
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
+                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
                   BEST X (30D)
                 </div>
                 <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
@@ -3878,7 +3878,7 @@ export default function Home() {
               </div>
 
               <div className={personalStatTileClass}>
-                <div className="text-[11px] font-semibold tracking-wide text-zinc-300">
+                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
                   LAST CALL
                 </div>
                 <div className="flex min-w-0 items-start justify-between gap-3">
@@ -3916,7 +3916,7 @@ export default function Home() {
                     ? "—"
                     : `${recentCalls[0].multiple.toFixed(1)}x`}
                 </div>
-                <div className="text-[11px] text-zinc-500">
+                <div className="text-[10px] text-zinc-500">
                   {recentCalls.length === 0
                     ? callsLoading
                       ? "Loading recent calls…"
