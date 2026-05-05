@@ -1160,8 +1160,6 @@ export default function LeaderboardPage() {
   };
 
   const sectionTitle = "text-base font-semibold tracking-tight text-zinc-100";
-  const navPill =
-    "rounded-full border border-zinc-800/90 bg-zinc-950/70 px-3 py-1.5 text-[11px] font-medium text-zinc-400 outline-none transition-all duration-200 hover:-translate-y-px hover:border-cyan-500/40 hover:bg-zinc-900/80 hover:text-cyan-100 hover:shadow-[0_12px_40px_-24px_rgba(0,0,0,0.85)] focus-visible:ring-2 focus-visible:ring-cyan-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--mcg-stage)] active:translate-y-0";
 
   return (
     <div className="text-zinc-100">
@@ -1204,71 +1202,27 @@ export default function LeaderboardPage() {
                 Post calls · climb ranks →
               </Link>
             </div>
-            <nav
-              className="mt-6 flex flex-wrap gap-2 border-t border-zinc-800/60 pt-5"
-              aria-label="Jump to leaderboards section"
-            >
-              <a href="#leaders" className={navPill}>
-                Spotlight
-              </a>
-              <a href="#records" className={navPill}>
-                Records
-              </a>
-              <a href="#your-terminal" className={navPill}>
-                Your pages
-              </a>
-              <a href="#community-performance" className={navPill}>
-                Community
-              </a>
-              <a href="#user-boards" className={navPill}>
-                Caller boards
-              </a>
-              <a href="#bot-performance" className={navPill}>
-                McGBot
-              </a>
-            </nav>
           </div>
         </header>
 
       <section
         id="your-terminal"
-        className="mb-2 scroll-mt-28 rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-zinc-900/70 via-zinc-950 to-[color:var(--mcg-stage)] p-4 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-cyan-500/15 sm:p-5"
+        className="scroll-mt-24 rounded-lg border border-zinc-800/75 bg-zinc-950/40 px-3 py-2 ring-1 ring-white/[0.02] sm:px-4"
+        aria-label="Links to your private call pages"
       >
-        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-400/85">Your terminal</p>
-        <h2 className="mt-1.5 text-base font-semibold tracking-tight text-white sm:text-lg">Where your personal data lives</h2>
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          The <span className="font-medium text-zinc-200">Leaderboards</span> below are the public arena. Two other pages are
-          only about <span className="font-medium text-zinc-200">you</span> — so nothing here pretends to be your
-          analytics anymore.
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Link
-            href="/calls"
-            className="group rounded-xl border border-zinc-800/80 bg-black/35 p-4 transition hover:border-cyan-500/35 hover:bg-zinc-900/50"
-          >
-            <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300/90">Call log</p>
-            <p className="mt-2 text-sm font-semibold text-white">Your calls, one row each</p>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              Only your account — contracts, multiples, links. Not the public leaderboards.
-            </p>
-            <span className="mt-3 inline-flex text-xs font-semibold text-cyan-200/90 group-hover:underline">
-              Open call log →
-            </span>
+        <p className="text-[11px] leading-snug text-zinc-500">
+          Private row history and charts (not leaderboards):{" "}
+          <Link href="/calls" className="font-semibold text-cyan-300/95 underline-offset-2 hover:text-cyan-200 hover:underline">
+            Call log
           </Link>
+          <span className="text-zinc-600"> · </span>
           <Link
             href="/performance"
-            className="group rounded-xl border border-zinc-800/80 bg-black/35 p-4 transition hover:border-emerald-500/35 hover:bg-zinc-900/50"
+            className="font-semibold text-emerald-300/95 underline-offset-2 hover:text-emerald-200 hover:underline"
           >
-            <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-300/90">Performance lab</p>
-            <p className="mt-2 text-sm font-semibold text-white">Your stats in charts</p>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              Same calls as Call log, rolled up — not other people’s rows.
-            </p>
-            <span className="mt-3 inline-flex text-xs font-semibold text-emerald-200/90 group-hover:underline">
-              Open performance lab →
-            </span>
+            Performance
           </Link>
-        </div>
+        </p>
       </section>
 
       {/* 1) Leaders */}
