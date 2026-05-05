@@ -60,11 +60,27 @@ function optNum(raw: unknown): number | null {
 }
 
 function optIso(raw: unknown): string | null {
-  const s = clampStr(raw, 40);
+  if (raw == null) return null;
+  if (typeof raw !== "string") return null;
+  const s = raw.trim();
   if (!s) return null;
   const t = Date.parse(s);
   if (!Number.isFinite(t)) return null;
   return new Date(t).toISOString();
+}
+
+function normalizeHttpUrl(raw: unknown, max: number): string | null {
+  if (raw == null) return null;
+  if (typeof raw !== "string") return null;
+  const s = raw.trim().slice(0, max);
+  if (!s) return null;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    return u.toString().slice(0, max);
+  } catch {
+    return null;
+  }
 }
 
 function normalizeStatus(raw: unknown): "open" | "closed" | null {
@@ -96,6 +112,7 @@ function rowToApi(o: Record<string, unknown>) {
       : [],
     sourceTxSignature:
       typeof o.source_tx_signature === "string" ? o.source_tx_signature : null,
+    tokenImageUrl: typeof o.token_image_url === "string" ? o.token_image_url : null,
     createdAt: typeof o.created_at === "string" ? o.created_at : null,
     updatedAt: typeof o.updated_at === "string" ? o.updated_at : null,
   };
@@ -123,9 +140,30 @@ export async function GET() {
     }
 
     const rows = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
+
+    const { data: labelRows, error: labelErr } = await db
+      .from("trade_journal_entries")
+      .select("setup_label")
+      .eq("discord_id", discordId)
+      .not("setup_label", "is", null);
+
+    if (labelErr) {
+      console.error("[me/trade-journal] GET labels:", labelErr);
+    }
+
+    const labelSet = new Set<string>();
+    for (const r of Array.isArray(labelRows) ? labelRows : []) {
+      if (!r || typeof r !== "object") continue;
+      const row = r as Record<string, unknown>;
+      const lab = typeof row.setup_label === "string" ? row.setup_label.trim() : "";
+      if (lab) labelSet.add(lab);
+    }
+    const labels = Array.from(labelSet).sort((a, b) => a.localeCompare(b));
+
     return Response.json({
       success: true as const,
       entries: rows.map(rowToApi),
+      labels,
     });
   } catch (e) {
     console.error("[me/trade-journal] GET exception:", e);
@@ -178,6 +216,7 @@ export async function POST(request: Request) {
         o.sourceTxSignature ?? o.source_tx_signature,
         128
       ),
+      token_image_url: normalizeHttpUrl(o.tokenImageUrl ?? o.token_image_url, 800),
     };
 
     const db = getSupabaseAdmin();

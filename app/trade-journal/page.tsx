@@ -10,13 +10,14 @@ import {
 } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type JournalEntry = {
   id: string;
   mint: string;
   tokenSymbol: string | null;
   tokenName: string | null;
+  tokenImageUrl: string | null;
   tradedAt: string | null;
   closedAt: string | null;
   status: "open" | "closed";
@@ -42,13 +43,41 @@ type ActivityRow = {
   explorerUrl: string;
 };
 
-const emptyForm = () => ({
+const LABEL_PRESETS = ["Breakout", "Dip buy", "Reversal", "News / catalyst", "Scalp", "Swing", "Hype / social"];
+
+type FormState = {
+  mint: string;
+  tokenSymbol: string;
+  tokenName: string;
+  tokenImageUrl: string;
+  tradedDate: string;
+  tradedTime: string;
+  closedDate: string;
+  closedTime: string;
+  status: "open" | "closed";
+  setupLabel: string;
+  thesis: string;
+  plannedInvalidation: string;
+  entryPriceUsd: string;
+  exitPriceUsd: string;
+  sizeUsd: string;
+  pnlUsd: string;
+  pnlPct: string;
+  notes: string;
+  referenceLinksText: string;
+  sourceTxSignature: string;
+};
+
+const emptyForm = (): FormState => ({
   mint: "",
   tokenSymbol: "",
   tokenName: "",
-  tradedAt: "",
-  closedAt: "",
-  status: "open" as "open" | "closed",
+  tokenImageUrl: "",
+  tradedDate: "",
+  tradedTime: "",
+  closedDate: "",
+  closedTime: "",
+  status: "open",
   setupLabel: "",
   thesis: "",
   plannedInvalidation: "",
@@ -62,24 +91,32 @@ const emptyForm = () => ({
   sourceTxSignature: "",
 });
 
-function toLocalInputValue(iso: string | null): string {
-  if (!iso) return "";
+function toDateParts(iso: string | null): { date: string; time: string } {
+  if (!iso) return { date: "", time: "" };
   const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return "";
+  if (!Number.isFinite(d.getTime())) return { date: "", time: "" };
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
 }
 
-function fromLocalInputValue(s: string): string | null {
-  const t = s.trim();
-  if (!t) return null;
-  const d = new Date(t);
-  if (!Number.isFinite(d.getTime())) return null;
-  return d.toISOString();
+function combineDateTime(date: string, time: string): string | null {
+  const dPart = date.trim();
+  if (!dPart) return null;
+  const tPart = time.trim() || "12:00";
+  const composed = `${dPart}T${tPart.length === 5 ? `${tPart}:00` : tPart}`;
+  const ms = Date.parse(composed);
+  if (!Number.isFinite(ms)) return null;
+  return new Date(ms).toISOString();
 }
 
 function linksFromTextarea(text: string): string[] {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   const out: string[] = [];
   for (const line of lines) {
     try {
@@ -94,13 +131,18 @@ function linksFromTextarea(text: string): string[] {
   return out;
 }
 
-function entryToForm(e: JournalEntry) {
+function entryToForm(e: JournalEntry): FormState {
+  const td = toDateParts(e.tradedAt);
+  const cd = toDateParts(e.closedAt);
   return {
     mint: e.mint,
     tokenSymbol: e.tokenSymbol ?? "",
     tokenName: e.tokenName ?? "",
-    tradedAt: toLocalInputValue(e.tradedAt),
-    closedAt: toLocalInputValue(e.closedAt),
+    tokenImageUrl: e.tokenImageUrl ?? "",
+    tradedDate: td.date,
+    tradedTime: td.time,
+    closedDate: cd.date,
+    closedTime: cd.time,
     status: e.status,
     setupLabel: e.setupLabel ?? "",
     thesis: e.thesis ?? "",
@@ -143,25 +185,51 @@ function exportMarkdown(entries: JournalEntry[]): string {
       for (const u of e.referenceLinks) lines.push(`  - ${u}`);
     }
     if (e.sourceTxSignature) lines.push(`- Source tx: https://solscan.io/tx/${e.sourceTxSignature}`);
+    if (e.tokenImageUrl) lines.push(`- Image: ${e.tokenImageUrl}`);
     lines.push(`- Dexscreener: ${dexscreenerTokenUrl("solana", e.mint)}`);
     lines.push("");
   }
   return lines.join("\n");
 }
 
+function formatJournalWhen(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "—";
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function TradeJournalPage() {
   const { status } = useSession();
   const { linked } = useDashboardWallet();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [savedLabels, setSavedLabels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [mintLookup, setMintLookup] = useState<"idle" | "loading" | "ok" | "miss" | "error">("idle");
+  const mintDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityHint, setActivityHint] = useState<string | null>(null);
+
+  const setupLabelOptions = useMemo(() => {
+    const s = new Set<string>([...LABEL_PRESETS, ...savedLabels]);
+    for (const e of entries) {
+      const lab = e.setupLabel?.trim();
+      if (lab) s.add(lab);
+    }
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [entries, savedLabels]);
 
   const load = useCallback(async () => {
     if (status !== "authenticated") return;
@@ -172,17 +240,21 @@ export default function TradeJournalPage() {
       const json = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         entries?: JournalEntry[];
+        labels?: string[];
         error?: string;
       };
       if (!res.ok || !json.success) {
         setErr(typeof json.error === "string" ? json.error : "Could not load journal.");
         setEntries([]);
+        setSavedLabels([]);
         return;
       }
-      setEntries(Array.isArray(json.entries) ? json.entries : []);
+      setEntries(Array.isArray(json.entries) ? (json.entries as JournalEntry[]) : []);
+      setSavedLabels(Array.isArray(json.labels) ? json.labels.filter((x) => typeof x === "string") : []);
     } catch {
       setErr("Could not load journal.");
       setEntries([]);
+      setSavedLabels([]);
     } finally {
       setLoading(false);
     }
@@ -226,15 +298,80 @@ export default function TradeJournalPage() {
     void loadActivity();
   }, [loadActivity]);
 
+  const resolveMintMeta = useCallback(async (mint: string) => {
+    const m = mint.trim();
+    if (m.length < 32) {
+      setMintLookup("idle");
+      return;
+    }
+    setMintLookup("loading");
+    try {
+      const res = await fetch(
+        `/api/solana/mint-meta?mint=${encodeURIComponent(m)}`,
+        { credentials: "same-origin" }
+      );
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        found?: boolean;
+        symbol?: string | null;
+        name?: string | null;
+        imageUrl?: string | null;
+      };
+      if (!res.ok || json.ok === false) {
+        setMintLookup("error");
+        return;
+      }
+      if (!json.found) {
+        setMintLookup("miss");
+        setForm((f) => ({ ...f, tokenSymbol: "", tokenName: "", tokenImageUrl: "" }));
+        return;
+      }
+      setMintLookup("ok");
+      setForm((f) => ({
+        ...f,
+        tokenSymbol: typeof json.symbol === "string" ? json.symbol : f.tokenSymbol,
+        tokenName: typeof json.name === "string" ? json.name : f.tokenName,
+        tokenImageUrl: typeof json.imageUrl === "string" && json.imageUrl ? json.imageUrl : "",
+      }));
+    } catch {
+      setMintLookup("error");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!modalOpen) {
+      setMintLookup("idle");
+      if (mintDebounceRef.current) {
+        clearTimeout(mintDebounceRef.current);
+        mintDebounceRef.current = null;
+      }
+      return;
+    }
+    const m = form.mint.trim();
+    if (mintDebounceRef.current) clearTimeout(mintDebounceRef.current);
+    if (m.length < 32) {
+      setMintLookup("idle");
+      return;
+    }
+    mintDebounceRef.current = setTimeout(() => {
+      void resolveMintMeta(m);
+    }, 500);
+    return () => {
+      if (mintDebounceRef.current) clearTimeout(mintDebounceRef.current);
+    };
+  }, [modalOpen, form.mint, resolveMintMeta]);
+
   const openNew = () => {
     setEditingId(null);
     setForm(emptyForm());
+    setMintLookup("idle");
     setModalOpen(true);
   };
 
   const openEdit = (e: JournalEntry) => {
     setEditingId(e.id);
     setForm(entryToForm(e));
+    setMintLookup("ok");
     setModalOpen(true);
   };
 
@@ -251,8 +388,9 @@ export default function TradeJournalPage() {
         mint: form.mint.trim(),
         tokenSymbol: form.tokenSymbol.trim() || null,
         tokenName: form.tokenName.trim() || null,
-        tradedAt: fromLocalInputValue(form.tradedAt),
-        closedAt: fromLocalInputValue(form.closedAt),
+        tokenImageUrl: form.tokenImageUrl.trim() || null,
+        tradedAt: combineDateTime(form.tradedDate, form.tradedTime),
+        closedAt: combineDateTime(form.closedDate, form.closedTime),
         status: form.status,
         setupLabel: form.setupLabel.trim() || null,
         thesis: form.thesis.trim() || null,
@@ -273,14 +411,20 @@ export default function TradeJournalPage() {
         return;
       }
 
-      const url = editingId ? `/api/me/trade-journal/${encodeURIComponent(editingId)}` : "/api/me/trade-journal";
+      const url = editingId
+        ? `/api/me/trade-journal/${encodeURIComponent(editingId)}`
+        : "/api/me/trade-journal";
       const res = await fetch(url, {
         method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         body: JSON.stringify(payload),
       });
-      const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string; entry?: JournalEntry };
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        entry?: JournalEntry;
+      };
       if (!res.ok || !json.success) {
         setErr(typeof json.error === "string" ? json.error : "Save failed.");
         setSaving(false);
@@ -326,13 +470,14 @@ export default function TradeJournalPage() {
   };
 
   const applyMintFromActivity = (mint: string, signature?: string) => {
-    setForm((f) => ({
-      ...f,
-      mint,
-      sourceTxSignature: signature ?? f.sourceTxSignature,
-    }));
-    setModalOpen(true);
     setEditingId(null);
+    setForm({
+      ...emptyForm(),
+      mint,
+      sourceTxSignature: signature ?? "",
+    });
+    setMintLookup("idle");
+    setModalOpen(true);
   };
 
   const sortedPreview = useMemo(() => entries.slice(0, 200), [entries]);
@@ -361,169 +506,243 @@ export default function TradeJournalPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
-      <header className={`${terminalChrome.headerRule} pb-8 pt-2`}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Workspace</p>
-        <h1 className="mt-2 bg-gradient-to-r from-white via-emerald-50/95 to-emerald-300/85 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
-          Trade journal
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          Private entries for your own process and reviews. Solana mints only; not linked to McGBot call performance or
-          milestones. Export anytime as Markdown.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={openNew}
-            className="rounded-xl bg-[color:var(--accent)] px-4 py-2 text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-500"
-          >
-            New entry
-          </button>
-          <button
-            type="button"
-            onClick={() => downloadExport()}
-            disabled={entries.length === 0}
-            className="rounded-xl border border-zinc-700/90 bg-zinc-950/50 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-900/50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Export Markdown
-          </button>
+    <div className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6">
+      <header
+        className={`${terminalSurface.routeHeroFrame} relative overflow-hidden px-5 py-8 sm:px-8 sm:py-10 ${terminalChrome.headerRule}`}
+      >
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/35 to-transparent"
+          aria-hidden
+        />
+        <div className="relative">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/85">Workspace</p>
+          <h1 className="mt-2 bg-gradient-to-r from-white via-zinc-100 to-emerald-200/90 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
+            Trade journal
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
+            A private ledger for <span className="text-zinc-200">process</span>, not public performance. Solana only —
+            separate from McGBot calls and milestones. Export as Markdown anytime.
+          </p>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={openNew}
+              className="rounded-xl bg-[color:var(--accent)] px-5 py-2.5 text-sm font-semibold text-black shadow-[0_12px_40px_-12px_rgba(34,197,94,0.55)] transition hover:bg-green-400"
+            >
+              New entry
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadExport()}
+              disabled={entries.length === 0}
+              className="rounded-xl border border-zinc-600/80 bg-zinc-950/60 px-5 py-2.5 text-sm font-semibold text-zinc-100 shadow-inner shadow-black/20 transition hover:border-zinc-500 hover:bg-zinc-900/70 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Export Markdown
+            </button>
+          </div>
         </div>
       </header>
 
       {err ? (
-        <div className="mb-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">{err}</div>
+        <div className="mb-6 mt-6 rounded-xl border border-red-500/35 bg-red-950/25 px-4 py-3 text-sm text-red-100">
+          {err}
+        </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
-        <section
-          className={`rounded-2xl border border-zinc-800/90 p-4 shadow-md shadow-black/25 sm:p-5 ${terminalSurface.panelCardElevated}`}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <h2 className={terminalPage.sectionTitle}>Entries</h2>
-            <span className="text-xs tabular-nums text-zinc-500">{entries.length} saved</span>
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">
+        <section>
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <h2 className={`${terminalPage.sectionTitle} text-lg`}>Journal</h2>
+              <p className={terminalPage.sectionHint}>Newest entries first — click a row to refine the story.</p>
+            </div>
+            <span className="rounded-full border border-zinc-700/80 bg-zinc-950/50 px-3 py-1 text-xs font-medium tabular-nums text-zinc-400">
+              {entries.length} saved
+            </span>
           </div>
-          {loading ? (
-            <p className="mt-6 text-sm text-zinc-500">Loading…</p>
-          ) : sortedPreview.length === 0 ? (
-            <p className="mt-6 text-sm text-zinc-500">
-              No entries yet. Add one from your linked wallet activity (right column) or click{" "}
-              <span className="font-medium text-zinc-300">New entry</span>.
-            </p>
-          ) : (
-            <ul className="mt-4 space-y-2">
-              {sortedPreview.map((e) => (
-                <li
-                  key={e.id}
-                  className={`rounded-xl border border-zinc-800/90 bg-zinc-950/35 px-3 py-3 ${terminalSurface.insetEdgeSoft}`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-zinc-100">
-                        {e.tokenSymbol?.trim() || "Token"}{" "}
-                        <span className="font-normal text-zinc-500">·</span>{" "}
-                        <span className="font-mono text-xs text-zinc-400">{e.mint.slice(0, 6)}…{e.mint.slice(-4)}</span>
-                      </p>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {e.status === "closed" ? "Closed" : "Open"}
-                        {e.tradedAt ? ` · ${new Date(e.tradedAt).toLocaleString()}` : ""}
-                        {e.pnlUsd != null && Number.isFinite(e.pnlUsd) ? ` · PnL $${e.pnlUsd}` : ""}
-                      </p>
-                      {e.setupLabel ? (
-                        <p className="mt-1 line-clamp-2 text-xs text-zinc-400">{e.setupLabel}</p>
-                      ) : null}
-                    </div>
-                    <div className="flex shrink-0 flex-wrap gap-2">
-                      <a
-                        href={dexscreenerTokenUrl("solana", e.mint)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-lg border border-zinc-700/80 px-2 py-1 text-[11px] font-semibold text-emerald-200/90 hover:border-emerald-500/40"
-                      >
-                        Chart
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => openEdit(e)}
-                        className="rounded-lg border border-zinc-700/80 px-2 py-1 text-[11px] font-semibold text-zinc-200 hover:bg-zinc-800/50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void remove(e.id)}
-                        className="rounded-lg border border-red-500/25 px-2 py-1 text-[11px] font-semibold text-red-200/90 hover:bg-red-950/30"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+
+          <div
+            className={`rounded-2xl border border-zinc-800/90 p-1 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)] ${terminalSurface.routeSectionFrame} bg-zinc-950/40`}
+          >
+            {loading ? (
+              <div className="px-5 py-12 text-center text-sm text-zinc-500">Opening journal…</div>
+            ) : sortedPreview.length === 0 ? (
+              <div className="px-5 py-14 text-center">
+                <p className="text-sm font-medium text-zinc-300">No entries yet</p>
+                <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-zinc-500">
+                  Start from <span className="text-zinc-300">Wallet activity</span> (mint chip) or{" "}
+                  <span className="text-zinc-300">New entry</span>. Paste a CA — we&apos;ll pull name, ticker, and art
+                  from DexScreener when available.
+                </p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-zinc-800/80">
+                {sortedPreview.map((e) => (
+                  <li key={e.id} className="group px-4 py-4 sm:px-5 sm:py-5">
+                    <article className="relative flex gap-4">
+                      <span
+                        className="absolute bottom-0 left-0 top-0 w-[3px] rounded-full bg-gradient-to-b from-emerald-400/90 via-emerald-500/40 to-transparent opacity-90"
+                        aria-hidden
+                      />
+                      <div className="relative ml-1 shrink-0">
+                        {e.tokenImageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={e.tokenImageUrl}
+                            alt=""
+                            className="h-12 w-12 rounded-xl border border-zinc-700/80 bg-zinc-900 object-cover shadow-md shadow-black/40"
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-700/80 bg-gradient-to-br from-zinc-800/80 to-zinc-950 text-xs font-bold text-zinc-500">
+                            {e.tokenSymbol?.slice(0, 2).toUpperCase() || "—"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                          <h3 className="truncate text-base font-semibold tracking-tight text-zinc-50">
+                            {e.tokenName?.trim() || e.tokenSymbol?.trim() || "Position"}
+                          </h3>
+                          {e.tokenSymbol ? (
+                            <span className="rounded-md border border-zinc-700/60 bg-zinc-900/50 px-1.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-emerald-200/90">
+                              {e.tokenSymbol}
+                            </span>
+                          ) : null}
+                          <span
+                            className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                              e.status === "closed"
+                                ? "border border-zinc-600/50 bg-zinc-800/60 text-zinc-300"
+                                : "border border-amber-500/25 bg-amber-500/10 text-amber-100/90"
+                            }`}
+                          >
+                            {e.status}
+                          </span>
+                        </div>
+                        <p className="mt-1 font-mono text-[11px] text-zinc-500">
+                          {e.mint.slice(0, 8)}…{e.mint.slice(-6)}
+                        </p>
+                        <p className="mt-2 text-xs text-zinc-500">
+                          <span className="text-zinc-400">{formatJournalWhen(e.tradedAt)}</span>
+                          {e.closedAt ? (
+                            <>
+                              {" "}
+                              <span className="text-zinc-600">→</span>{" "}
+                              <span className="text-zinc-400">{formatJournalWhen(e.closedAt)}</span>
+                            </>
+                          ) : null}
+                          {e.pnlUsd != null && Number.isFinite(e.pnlUsd) ? (
+                            <span className="ml-2 text-emerald-200/90">PnL ${e.pnlUsd}</span>
+                          ) : null}
+                        </p>
+                        {e.setupLabel ? (
+                          <p className="mt-2 inline-flex rounded-lg border border-zinc-700/50 bg-zinc-900/30 px-2 py-0.5 text-[11px] font-medium text-zinc-300">
+                            {e.setupLabel}
+                          </p>
+                        ) : null}
+                        {e.thesis ? (
+                          <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-zinc-400">{e.thesis}</p>
+                        ) : e.notes ? (
+                          <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-zinc-500">{e.notes}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row sm:items-start">
+                        <a
+                          href={dexscreenerTokenUrl("solana", e.mint)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-lg border border-zinc-700/80 px-2.5 py-1 text-center text-[11px] font-semibold text-emerald-200/90 transition hover:border-emerald-500/40 hover:bg-emerald-500/5"
+                        >
+                          Chart
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(e)}
+                          className="rounded-lg border border-zinc-700/80 px-2.5 py-1 text-[11px] font-semibold text-zinc-100 transition hover:bg-zinc-800/60"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void remove(e.id)}
+                          className="rounded-lg border border-red-500/30 px-2.5 py-1 text-[11px] font-semibold text-red-200/90 transition hover:bg-red-950/35"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </article>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
 
-        <aside
-          className={`h-fit rounded-2xl border border-zinc-800/90 p-4 shadow-md shadow-black/25 sm:p-5 ${terminalSurface.panelCard}`}
-        >
-          <h2 className={terminalPage.sectionTitle}>Wallet activity</h2>
-          <p className={`mt-1 ${terminalPage.sectionHint}`}>
-            Uses your{" "}
-            <span className="text-zinc-400">verified linked Solana wallet</span> + the same RPC as balances. Pick a
-            mint to start a draft entry.
-          </p>
-          {!linked ? (
-            <p className="mt-4 text-sm text-zinc-500">
-              Link a wallet from the top bar to load recent token touches (heuristic, not a full portfolio parser).
+        <aside className="lg:pt-8">
+          <div
+            className={`rounded-2xl border border-zinc-800/90 p-5 shadow-lg shadow-black/30 ${terminalSurface.insetPanel}`}
+          >
+            <h2 className={`${terminalPage.sectionTitle} text-base`}>Wallet activity</h2>
+            <p className={`mt-1 ${terminalPage.sectionHint}`}>
+              Linked wallet + Solana RPC. Tap a mint to open a new draft with that CA.
             </p>
-          ) : activityLoading ? (
-            <p className="mt-4 text-sm text-zinc-500">Scanning recent transactions…</p>
-          ) : activity.length === 0 ? (
-            <p className="mt-4 text-sm text-zinc-500">
-              No SPL mint touches found in the last few transactions. You can still add entries manually.
-            </p>
-          ) : (
-            <ul className="mt-4 max-h-[min(28rem,55vh)] space-y-3 overflow-y-auto pr-1 text-sm no-scrollbar">
-              {activity.map((row) => (
-                <li key={row.signature} className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-2">
-                  <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500">
-                    <span className="tabular-nums">
-                      {row.blockTime != null
-                        ? new Date(row.blockTime * 1000).toLocaleString()
-                        : "Recent"}
-                    </span>
-                    <a
-                      href={row.explorerUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="shrink-0 font-semibold text-sky-300/90 hover:underline"
-                    >
-                      Tx ↗
-                    </a>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {row.mints.map((m) => (
-                      <button
-                        key={`${row.signature}-${m}`}
-                        type="button"
-                        onClick={() => applyMintFromActivity(m, row.signature)}
-                        className="rounded-md border border-zinc-700/80 bg-zinc-900/50 px-2 py-0.5 font-mono text-[11px] text-zinc-200 hover:border-[color:var(--accent)]/40"
+            {!linked ? (
+              <p className="mt-4 text-sm leading-relaxed text-zinc-500">
+                Connect and verify a wallet from the top bar to surface recent SPL touches.
+              </p>
+            ) : activityLoading ? (
+              <p className="mt-4 text-sm text-zinc-500">Scanning recent transactions…</p>
+            ) : activity.length === 0 ? (
+              <p className="mt-4 text-sm text-zinc-500">No token-touch rows in the last few txs — add manually.</p>
+            ) : (
+              <ul className="mt-4 max-h-[min(28rem,52vh)] space-y-3 overflow-y-auto pr-1 text-sm">
+                {activity.map((row) => (
+                  <li
+                    key={row.signature}
+                    className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3 shadow-inner shadow-black/20"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+                      <span className="tabular-nums">
+                        {row.blockTime != null
+                          ? new Date(row.blockTime * 1000).toLocaleString()
+                          : "Recent"}
+                      </span>
+                      <a
+                        href={row.explorerUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="shrink-0 font-semibold text-sky-300/90 hover:underline"
                       >
-                        {m.slice(0, 4)}…{m.slice(-4)}
-                      </button>
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {activityHint ? <p className="mt-3 text-[11px] leading-relaxed text-zinc-600">{activityHint}</p> : null}
+                        Tx ↗
+                      </a>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {row.mints.map((m) => (
+                        <button
+                          key={`${row.signature}-${m}`}
+                          type="button"
+                          onClick={() => applyMintFromActivity(m, row.signature)}
+                          className="rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-2 py-1 font-mono text-[11px] text-zinc-200 transition hover:border-emerald-400/35 hover:text-white"
+                        >
+                          {m.slice(0, 4)}…{m.slice(-4)}
+                        </button>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {activityHint ? (
+              <p className="mt-4 text-[11px] leading-relaxed text-zinc-600">{activityHint}</p>
+            ) : null}
+          </div>
         </aside>
       </div>
 
       {modalOpen ? (
         <div
-          className={terminalUi.modalBackdropZ50}
+          className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/80 px-3 py-12 backdrop-blur-[2px] sm:px-6 sm:py-16"
           role="dialog"
           aria-modal="true"
           aria-label={editingId ? "Edit journal entry" : "New journal entry"}
@@ -531,188 +750,326 @@ export default function TradeJournalPage() {
             if (ev.target === ev.currentTarget) closeModal();
           }}
         >
-          <div className={`${terminalUi.modalPanel3xlWide} max-h-[min(92vh,900px)] overflow-y-auto`}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold text-zinc-50">{editingId ? "Edit entry" : "New entry"}</h3>
-                <p className="mt-1 text-xs text-zinc-500">Solana contract address + your notes and optional PnL.</p>
+          <div
+            className="relative my-auto max-h-[min(90vh,880px)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-zinc-700/70 bg-gradient-to-b from-zinc-900/98 via-zinc-950 to-zinc-950 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.95)] ring-1 ring-emerald-500/10"
+          >
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-emerald-400/50 via-[color:var(--accent)]/40 to-transparent"
+              aria-hidden
+            />
+            <div className="border-b border-zinc-800/90 bg-zinc-950/40 px-5 py-4 sm:px-6 sm:py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-400/80">
+                    {editingId ? "Edit entry" : "New journal entry"}
+                  </p>
+                  <h3 className="mt-1 text-xl font-semibold tracking-tight text-zinc-50">
+                    {editingId ? "Refine this trade" : "Log a trade"}
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                    Paste a Solana mint — metadata fills from DexScreener when found. Dates use your browser calendar.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className={terminalUi.modalCloseIconBtn}
+                  aria-label="Close"
+                  disabled={saving}
+                  onClick={closeModal}
+                >
+                  ×
+                </button>
               </div>
-              <button
-                type="button"
-                className={terminalUi.modalCloseIconBtn}
-                aria-label="Close"
-                disabled={saving}
-                onClick={closeModal}
-              >
-                ×
-              </button>
+
+              <div className="mt-5 flex flex-wrap items-center gap-4">
+                {form.tokenImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={form.tokenImageUrl}
+                    alt=""
+                    className="h-14 w-14 shrink-0 rounded-xl border border-zinc-700/80 bg-zinc-900 object-cover shadow-lg shadow-black/40"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-zinc-700/80 bg-zinc-900/40 text-xs font-medium text-zinc-600">
+                    No art
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-zinc-100">
+                    {form.tokenName || form.tokenSymbol || "—"}
+                  </p>
+                  <p className="truncate font-mono text-[11px] text-zinc-500">{form.mint || "Mint not set"}</p>
+                  <p className="mt-1 text-[11px] text-zinc-600">
+                    {mintLookup === "loading" ? "Resolving mint…" : null}
+                    {mintLookup === "ok" ? "Metadata loaded." : null}
+                    {mintLookup === "miss" ? "No DexScreener pair yet — fill fields manually." : null}
+                    {mintLookup === "error" ? "Metadata lookup failed — you can still save." : null}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Mint (CA)</span>
+            <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Mint (CA)</span>
                 <input
-                  className={`mt-1 ${terminalUi.formInput}`}
+                  className={`mt-1.5 ${terminalUi.formInput} font-mono text-sm`}
                   value={form.mint}
-                  onChange={(ev) => setForm((f) => ({ ...f, mint: ev.target.value }))}
+                  onChange={(ev) => {
+                    const next = ev.target.value;
+                    setForm((f) => {
+                      const wasLong = f.mint.trim().length >= 32;
+                      const nowShort = next.trim().length < 32;
+                      if (wasLong && nowShort) {
+                        return {
+                          ...f,
+                          mint: next,
+                          tokenSymbol: "",
+                          tokenName: "",
+                          tokenImageUrl: "",
+                        };
+                      }
+                      return { ...f, mint: next };
+                    });
+                  }}
                   placeholder="Solana mint address"
                   autoComplete="off"
+                  spellCheck={false}
                 />
               </label>
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Symbol (optional)</span>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Ticker</span>
+                  <input
+                    className={`mt-1.5 ${terminalUi.formInput}`}
+                    value={form.tokenSymbol}
+                    onChange={(ev) => setForm((f) => ({ ...f, tokenSymbol: ev.target.value }))}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Name</span>
+                  <input
+                    className={`mt-1.5 ${terminalUi.formInput}`}
+                    value={form.tokenName}
+                    onChange={(ev) => setForm((f) => ({ ...f, tokenName: ev.target.value }))}
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Status</span>
+                  <select
+                    className={`mt-1.5 ${terminalUi.formInput}`}
+                    value={form.status}
+                    onChange={(ev) =>
+                      setForm((f) => ({ ...f, status: ev.target.value === "closed" ? "closed" : "open" }))
+                    }
+                  >
+                    <option value="open">Open</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <fieldset className="rounded-xl border border-zinc-800/90 bg-zinc-950/30 p-3">
+                  <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Opened / traded
+                  </legend>
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                    <label className="block">
+                      <span className="text-[10px] font-medium text-zinc-600">Date</span>
+                      <input
+                        type="date"
+                        className={`mt-1 ${terminalUi.formInput}`}
+                        value={form.tradedDate}
+                        onChange={(ev) => setForm((f) => ({ ...f, tradedDate: ev.target.value }))}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-[10px] font-medium text-zinc-600">Time</span>
+                      <input
+                        type="time"
+                        className={`mt-1 ${terminalUi.formInput}`}
+                        value={form.tradedTime}
+                        onChange={(ev) => setForm((f) => ({ ...f, tradedTime: ev.target.value }))}
+                      />
+                    </label>
+                  </div>
+                </fieldset>
+                <fieldset className="rounded-xl border border-zinc-800/90 bg-zinc-950/30 p-3">
+                  <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Closed (optional)
+                  </legend>
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                    <label className="block">
+                      <span className="text-[10px] font-medium text-zinc-600">Date</span>
+                      <input
+                        type="date"
+                        className={`mt-1 ${terminalUi.formInput}`}
+                        value={form.closedDate}
+                        onChange={(ev) => setForm((f) => ({ ...f, closedDate: ev.target.value }))}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-[10px] font-medium text-zinc-600">Time</span>
+                      <input
+                        type="time"
+                        className={`mt-1 ${terminalUi.formInput}`}
+                        value={form.closedTime}
+                        onChange={(ev) => setForm((f) => ({ ...f, closedTime: ev.target.value }))}
+                      />
+                    </label>
+                  </div>
+                </fieldset>
+              </div>
+
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Setup label</span>
                 <input
-                  className={`mt-1 ${terminalUi.formInput}`}
-                  value={form.tokenSymbol}
-                  onChange={(ev) => setForm((f) => ({ ...f, tokenSymbol: ev.target.value }))}
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Name (optional)</span>
-                <input
-                  className={`mt-1 ${terminalUi.formInput}`}
-                  value={form.tokenName}
-                  onChange={(ev) => setForm((f) => ({ ...f, tokenName: ev.target.value }))}
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Status</span>
-                <select
-                  className={`mt-1 ${terminalUi.formInput}`}
-                  value={form.status}
-                  onChange={(ev) =>
-                    setForm((f) => ({ ...f, status: ev.target.value === "closed" ? "closed" : "open" }))
-                  }
-                >
-                  <option value="open">Open</option>
-                  <option value="closed">Closed</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Traded at</span>
-                <input
-                  type="datetime-local"
-                  className={`mt-1 ${terminalUi.formInput}`}
-                  value={form.tradedAt}
-                  onChange={(ev) => setForm((f) => ({ ...f, tradedAt: ev.target.value }))}
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Closed at</span>
-                <input
-                  type="datetime-local"
-                  className={`mt-1 ${terminalUi.formInput}`}
-                  value={form.closedAt}
-                  onChange={(ev) => setForm((f) => ({ ...f, closedAt: ev.target.value }))}
-                />
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Setup label</span>
-                <input
-                  className={`mt-1 ${terminalUi.formInput}`}
+                  className={`mt-1.5 ${terminalUi.formInput}`}
+                  list="journal-setup-labels"
                   value={form.setupLabel}
                   onChange={(ev) => setForm((f) => ({ ...f, setupLabel: ev.target.value }))}
-                  placeholder="e.g. Breakout, dip buy, catalyst"
+                  placeholder="Type to search or create a new label"
+                  autoComplete="off"
                 />
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Thesis</span>
+                <datalist id="journal-setup-labels">
+                  {setupLabelOptions.map((lab) => (
+                    <option key={lab} value={lab} />
+                  ))}
+                </datalist>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {setupLabelOptions.slice(0, 12).map((lab) => (
+                    <button
+                      key={lab}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, setupLabel: lab }))}
+                      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition ${
+                        form.setupLabel.trim() === lab
+                          ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-100"
+                          : "border-zinc-700/80 bg-zinc-900/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                      }`}
+                    >
+                      {lab}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[10px] text-zinc-600">
+                  New labels are saved automatically when you save an entry that uses them.
+                </p>
+              </div>
+
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Thesis</span>
                 <textarea
-                  className={`mt-1 min-h-[72px] ${terminalUi.formInput}`}
+                  className={`mt-1.5 min-h-[88px] ${terminalUi.formInput} leading-relaxed`}
                   value={form.thesis}
                   onChange={(ev) => setForm((f) => ({ ...f, thesis: ev.target.value }))}
+                  placeholder="Why you took the trade…"
                 />
               </label>
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Planned invalidation</span>
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  Planned invalidation
+                </span>
                 <textarea
-                  className={`mt-1 min-h-[56px] ${terminalUi.formInput}`}
+                  className={`mt-1.5 min-h-[72px] ${terminalUi.formInput} leading-relaxed`}
                   value={form.plannedInvalidation}
                   onChange={(ev) => setForm((f) => ({ ...f, plannedInvalidation: ev.target.value }))}
                 />
               </label>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Entry (USD)
+                  </span>
+                  <input
+                    className={`mt-1.5 ${terminalUi.formInput}`}
+                    value={form.entryPriceUsd}
+                    onChange={(ev) => setForm((f) => ({ ...f, entryPriceUsd: ev.target.value }))}
+                    inputMode="decimal"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Exit (USD)</span>
+                  <input
+                    className={`mt-1.5 ${terminalUi.formInput}`}
+                    value={form.exitPriceUsd}
+                    onChange={(ev) => setForm((f) => ({ ...f, exitPriceUsd: ev.target.value }))}
+                    inputMode="decimal"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Size (USD)</span>
+                  <input
+                    className={`mt-1.5 ${terminalUi.formInput}`}
+                    value={form.sizeUsd}
+                    onChange={(ev) => setForm((f) => ({ ...f, sizeUsd: ev.target.value }))}
+                    inputMode="decimal"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">PnL (USD)</span>
+                  <input
+                    className={`mt-1.5 ${terminalUi.formInput}`}
+                    value={form.pnlUsd}
+                    onChange={(ev) => setForm((f) => ({ ...f, pnlUsd: ev.target.value }))}
+                    inputMode="decimal"
+                  />
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">PnL (%)</span>
+                  <input
+                    className={`mt-1.5 max-w-xs ${terminalUi.formInput}`}
+                    value={form.pnlPct}
+                    onChange={(ev) => setForm((f) => ({ ...f, pnlPct: ev.target.value }))}
+                    inputMode="decimal"
+                  />
+                </label>
+              </div>
+
               <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Entry price (USD)</span>
-                <input
-                  className={`mt-1 ${terminalUi.formInput}`}
-                  value={form.entryPriceUsd}
-                  onChange={(ev) => setForm((f) => ({ ...f, entryPriceUsd: ev.target.value }))}
-                  inputMode="decimal"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Exit price (USD)</span>
-                <input
-                  className={`mt-1 ${terminalUi.formInput}`}
-                  value={form.exitPriceUsd}
-                  onChange={(ev) => setForm((f) => ({ ...f, exitPriceUsd: ev.target.value }))}
-                  inputMode="decimal"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Size (USD)</span>
-                <input
-                  className={`mt-1 ${terminalUi.formInput}`}
-                  value={form.sizeUsd}
-                  onChange={(ev) => setForm((f) => ({ ...f, sizeUsd: ev.target.value }))}
-                  inputMode="decimal"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">PnL (USD)</span>
-                <input
-                  className={`mt-1 ${terminalUi.formInput}`}
-                  value={form.pnlUsd}
-                  onChange={(ev) => setForm((f) => ({ ...f, pnlUsd: ev.target.value }))}
-                  inputMode="decimal"
-                />
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">PnL (%)</span>
-                <input
-                  className={`mt-1 max-w-xs ${terminalUi.formInput}`}
-                  value={form.pnlPct}
-                  onChange={(ev) => setForm((f) => ({ ...f, pnlPct: ev.target.value }))}
-                  inputMode="decimal"
-                />
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Notes</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Notes</span>
                 <textarea
-                  className={`mt-1 min-h-[100px] ${terminalUi.formInput}`}
+                  className={`mt-1.5 min-h-[100px] ${terminalUi.formInput} leading-relaxed`}
                   value={form.notes}
                   onChange={(ev) => setForm((f) => ({ ...f, notes: ev.target.value }))}
                 />
               </label>
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  Reference links (one per line, https only)
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  Reference links (one per line)
                 </span>
                 <textarea
-                  className={`mt-1 min-h-[64px] font-mono text-xs ${terminalUi.formInput}`}
+                  className={`mt-1.5 min-h-[64px] font-mono text-xs ${terminalUi.formInput}`}
                   value={form.referenceLinksText}
                   onChange={(ev) => setForm((f) => ({ ...f, referenceLinksText: ev.target.value }))}
-                  placeholder={"https://…"}
+                  placeholder="https://…"
                 />
               </label>
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  Source tx signature (optional)
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  Source tx (optional)
                 </span>
                 <input
-                  className={`mt-1 font-mono text-xs ${terminalUi.formInput}`}
+                  className={`mt-1.5 font-mono text-xs ${terminalUi.formInput}`}
                   value={form.sourceTxSignature}
                   onChange={(ev) => setForm((f) => ({ ...f, sourceTxSignature: ev.target.value }))}
                 />
               </label>
             </div>
 
-            <div className="mt-6 flex flex-wrap justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2 border-t border-zinc-800/90 bg-zinc-950/50 px-5 py-4 sm:px-6">
               <button
                 type="button"
                 onClick={closeModal}
                 disabled={saving}
-                className="rounded-xl border border-zinc-700/90 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-zinc-900/40"
+                className="rounded-xl border border-zinc-700/90 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-zinc-900/50"
               >
                 Cancel
               </button>
@@ -720,9 +1077,9 @@ export default function TradeJournalPage() {
                 type="button"
                 onClick={() => void submit()}
                 disabled={saving}
-                className="rounded-xl bg-[color:var(--accent)] px-4 py-2 text-sm font-semibold text-black shadow-lg shadow-black/30 disabled:opacity-50"
+                className="rounded-xl bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-black shadow-lg shadow-black/35 transition hover:bg-green-400 disabled:opacity-50"
               >
-                {saving ? "Saving…" : "Save"}
+                {saving ? "Saving…" : "Save entry"}
               </button>
             </div>
           </div>

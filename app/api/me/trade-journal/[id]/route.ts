@@ -63,11 +63,28 @@ function optNum(raw: unknown): number | null | undefined {
 
 function optIso(raw: unknown): string | null | undefined {
   if (raw === undefined) return undefined;
-  const s = clampStr(raw, 40);
+  if (raw == null) return null;
+  if (typeof raw !== "string") return null;
+  const s = raw.trim();
   if (!s) return null;
   const t = Date.parse(s);
   if (!Number.isFinite(t)) return null;
   return new Date(t).toISOString();
+}
+
+function normalizeHttpUrl(raw: unknown, max: number): string | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw == null) return null;
+  if (typeof raw !== "string") return null;
+  const s = raw.trim().slice(0, max);
+  if (!s) return null;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    return u.toString().slice(0, max);
+  } catch {
+    return null;
+  }
 }
 
 function normalizeStatus(raw: unknown): "open" | "closed" | undefined {
@@ -100,6 +117,7 @@ function rowToApi(o: Record<string, unknown>) {
       : [],
     sourceTxSignature:
       typeof o.source_tx_signature === "string" ? o.source_tx_signature : null,
+    tokenImageUrl: typeof o.token_image_url === "string" ? o.token_image_url : null,
     createdAt: typeof o.created_at === "string" ? o.created_at : null,
     updatedAt: typeof o.updated_at === "string" ? o.updated_at : null,
   };
@@ -181,6 +199,9 @@ export async function PATCH(request: Request, context: Ctx) {
         o.sourceTxSignature ?? o.source_tx_signature,
         128
       );
+    }
+    if ("tokenImageUrl" in o || "token_image_url" in o) {
+      patch.token_image_url = normalizeHttpUrl(o.tokenImageUrl ?? o.token_image_url, 800);
     }
 
     patch.updated_at = new Date().toISOString();
