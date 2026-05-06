@@ -15,7 +15,7 @@ import { PanelCard, CARD_HOVER } from "./components/PanelCard";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
-import DailyLeaderboardPanel from "@/components/DailyLeaderboardPanel";
+import WalletPnlPanel from "./components/WalletPnlPanel";
 import PerformanceChart from "@/components/dashboard/PerformanceChart";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
@@ -4053,6 +4053,10 @@ export default function Home() {
             </PanelCard>
           )}
 
+          <div data-tutorial="dashboard.walletPnl">
+            {widgetEnabled(widgets, "live_tracked_calls") && <WalletPnlPanel />}
+          </div>
+
           <PanelCard title="Watchlist" titleClassName="normal-case" data-tutorial="dashboard.homeWatchlist">
             <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
               <span className="tabular-nums">
@@ -4137,10 +4141,6 @@ export default function Home() {
               <ModQueueHomePanel />
             </div>
           )}
-
-          <div data-tutorial="dashboard.dailyLeaderboard">
-          {widgetEnabled(widgets, "live_tracked_calls") && <DailyLeaderboardPanel />}
-          </div>
 
           <div data-tutorial="dashboard.homeRecentCalls">
           {widgetEnabled(widgets, "recent_calls") ? (

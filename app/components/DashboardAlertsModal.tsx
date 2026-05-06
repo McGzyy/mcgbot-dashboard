@@ -2,7 +2,6 @@
 
 import type { DashboardNotification } from "@/app/contexts/NotificationsContext";
 import type {
-  DashboardAlertGeneral,
   DashboardAlertPrefs,
   DashboardAlertRule,
   DashboardAlertRuleKind,
@@ -22,33 +21,6 @@ type Props = {
   addNotification: (n: DashboardNotification) => void;
 };
 
-function CheckboxRow({
-  checked,
-  onChange,
-  label,
-  description,
-}: {
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  label: string;
-  description: string;
-}) {
-  return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-800/90 bg-zinc-950/40 px-3 py-2.5 transition hover:border-zinc-700/80 hover:bg-zinc-900/25">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="mt-1 h-4 w-4 shrink-0 rounded border-zinc-700 bg-zinc-950 accent-[color:var(--accent)] focus:ring-[color:var(--accent)]/35"
-      />
-      <span className="min-w-0">
-        <span className="block text-sm font-medium text-zinc-100">{label}</span>
-        <span className="mt-0.5 block text-xs leading-snug text-zinc-500">{description}</span>
-      </span>
-    </label>
-  );
-}
-
 export function DashboardAlertsModal({ open, onClose, addNotification }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -58,15 +30,14 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
   }));
 
   const [draftMint, setDraftMint] = useState("");
-  const [draftKind, setDraftKind] = useState<DashboardAlertRuleKind>("pct_move");
-  const [draftThreshold, setDraftThreshold] = useState<string>("10");
-
-  const patchGeneral = useCallback((patch: Partial<DashboardAlertGeneral>) => {
-    setPrefs((p) => ({
-      ...p,
-      general: { ...p.general, ...patch },
-    }));
-  }, []);
+  const [draftKind, setDraftKind] = useState<DashboardAlertRuleKind>("price_cross");
+  const [draftThreshold, setDraftThreshold] = useState<string>("1");
+  const [draftBands, setDraftBands] = useState<string>("1000000,5000000,10000000");
+  const [draftCaller, setDraftCaller] = useState<string>("");
+  const [callerSearchResults, setCallerSearchResults] = useState<
+    { discord_id: string; discord_display_name: string | null; discord_avatar_url: string | null }[]
+  >([]);
+  const [callerSearching, setCallerSearching] = useState(false);
 
   const loadPrefs = useCallback(async () => {
     setLoading(true);
@@ -135,58 +106,203 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
     }
   }, [prefs, addNotification]);
 
+  const runCallerSearch = useCallback(async (q: string) => {
+    const query = q.trim();
+    if (query.length < 2) {
+      setCallerSearchResults([]);
+      return;
+    }
+    setCallerSearching(true);
+    try {
+      const res = await fetch(`/api/me/user-search?q=${encodeURIComponent(query)}`, {
+        credentials: "same-origin",
+      });
+      const j = (await res.json().catch(() => null)) as
+        | { items?: unknown }
+        | null;
+      if (!res.ok || !j || !Array.isArray(j.items)) {
+        setCallerSearchResults([]);
+        return;
+      }
+      const items: {
+        discord_id: string;
+        discord_display_name: string | null;
+        discord_avatar_url: string | null;
+      }[] = [];
+      for (const row of j.items) {
+        if (!row || typeof row !== "object") continue;
+        const o = row as Record<string, unknown>;
+        const id = typeof o.discord_id === "string" ? o.discord_id.trim() : "";
+        if (!id) continue;
+        items.push({
+          discord_id: id,
+          discord_display_name:
+            typeof o.discord_display_name === "string" && o.discord_display_name.trim()
+              ? o.discord_display_name.trim()
+              : null,
+          discord_avatar_url:
+            typeof o.discord_avatar_url === "string" && o.discord_avatar_url.trim()
+              ? o.discord_avatar_url.trim()
+              : null,
+        });
+        if (items.length >= 8) break;
+      }
+      setCallerSearchResults(items);
+    } catch {
+      setCallerSearchResults([]);
+    } finally {
+      setCallerSearching(false);
+    }
+  }, []);
+
   const addRule = useCallback(() => {
-    const mint = draftMint.trim();
-    if (!isLikelySolanaMint(mint)) {
-      addNotification({
-        id: crypto.randomUUID(),
-        text: "Enter a valid Solana mint.",
-        type: "call",
-        createdAt: Date.now(),
-        priority: "low",
-      });
-      return;
-    }
-    const tNum = Number(draftThreshold);
-    if (!Number.isFinite(tNum)) {
-      addNotification({
-        id: crypto.randomUUID(),
-        text: "Enter a numeric threshold.",
-        type: "call",
-        createdAt: Date.now(),
-        priority: "low",
-      });
-      return;
-    }
     setPrefs((prev) => {
       if (prev.rules.length >= DASHBOARD_ALERT_RULES_CAP) return prev;
-      let threshold = tNum;
-      if (draftKind === "pct_move") threshold = Math.round(Math.min(100, Math.max(1, tNum)));
-      else threshold = Math.round(Math.min(10_000_000_000_000, Math.max(1000, tNum)));
+
+      const now = Date.now();
+      const id = crypto.randomUUID();
+
+      const needsMint =
+        draftKind === "pct_move" ||
+        draftKind === "mc_cross" ||
+        draftKind === "price_cross" ||
+        draftKind === "ath_since_added" ||
+        draftKind === "reminder" ||
+        draftKind === "mc_bands";
+
+      const mint = draftMint.trim();
+      if (needsMint && !isLikelySolanaMint(mint)) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Enter a valid Solana mint.",
+          type: "call",
+          createdAt: now,
+          priority: "low",
+        });
+        return prev;
+      }
+
+      if (draftKind === "caller_post") {
+        const caller_discord_id = draftCaller.trim();
+        if (!caller_discord_id) {
+          addNotification({
+            id: crypto.randomUUID(),
+            text: "Pick a caller (search by display name or paste their Discord ID).",
+            type: "call",
+            createdAt: now,
+            priority: "low",
+          });
+          return prev;
+        }
+        const rule: DashboardAlertRule = { id, kind: "caller_post", caller_discord_id };
+        return { ...prev, rules: [...prev.rules, rule] };
+      }
+
+      if (draftKind === "ath_since_added") {
+        const rule: DashboardAlertRule = {
+          id,
+          kind: "ath_since_added",
+          mint,
+          createdAtMs: now,
+          baselineAthUsd: null,
+        };
+        return { ...prev, rules: [...prev.rules, rule] };
+      }
+
+      if (draftKind === "mc_bands") {
+        const parts = draftBands
+          .split(/[, ]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const bands: number[] = [];
+        for (const p of parts) {
+          const n = Number(p);
+          if (!Number.isFinite(n)) continue;
+          const v = Math.min(10_000_000_000_000, Math.max(1_000, Math.round(n)));
+          if (!bands.includes(v)) bands.push(v);
+          if (bands.length >= 8) break;
+        }
+        if (bands.length === 0) {
+          addNotification({
+            id: crypto.randomUUID(),
+            text: "Enter one or more market-cap bands (comma-separated).",
+            type: "call",
+            createdAt: now,
+            priority: "low",
+          });
+          return prev;
+        }
+        bands.sort((a, b) => a - b);
+        const rule: DashboardAlertRule = { id, kind: "mc_bands", mint, bands };
+        return { ...prev, rules: [...prev.rules, rule] };
+      }
+
+      const tNum = Number(draftThreshold);
+      if (!Number.isFinite(tNum)) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Enter a numeric threshold.",
+          type: "call",
+          createdAt: now,
+          priority: "low",
+        });
+        return prev;
+      }
+
+      if (draftKind === "reminder") {
+        const minutes = [15, 30, 60].includes(Math.round(tNum)) ? Math.round(tNum) : 30;
+        const rule: DashboardAlertRule = {
+          id,
+          kind: "reminder",
+          mint,
+          threshold: minutes,
+          createdAtMs: now,
+        };
+        return { ...prev, rules: [...prev.rules, rule] };
+      }
+
+      if (draftKind === "pct_move") {
+        const rule: DashboardAlertRule = {
+          id,
+          kind: "pct_move",
+          mint,
+          threshold: Math.round(Math.min(100, Math.max(1, tNum))),
+        };
+        return { ...prev, rules: [...prev.rules, rule] };
+      }
+
+      if (draftKind === "mc_cross") {
+        const rule: DashboardAlertRule = {
+          id,
+          kind: "mc_cross",
+          mint,
+          threshold: Math.round(Math.min(10_000_000_000_000, Math.max(1_000, tNum))),
+        };
+        return { ...prev, rules: [...prev.rules, rule] };
+      }
+
+      // price_cross
       const rule: DashboardAlertRule = {
-        id: crypto.randomUUID(),
+        id,
+        kind: "price_cross",
         mint,
-        kind: draftKind,
-        threshold,
-        enabled: true,
+        threshold: Math.min(1_000_000, Math.max(0.00000001, tNum)),
       };
       return { ...prev, rules: [...prev.rules, rule] };
     });
     setDraftMint("");
-    setDraftThreshold(draftKind === "pct_move" ? "10" : "1000000");
-  }, [draftMint, draftKind, draftThreshold, addNotification]);
+    setDraftCaller("");
+    setCallerSearchResults([]);
+    if (draftKind === "pct_move") setDraftThreshold("10");
+    else if (draftKind === "mc_cross") setDraftThreshold("1000000");
+    else if (draftKind === "price_cross") setDraftThreshold("1");
+    else if (draftKind === "reminder") setDraftThreshold("30");
+  }, [draftMint, draftKind, draftThreshold, draftBands, draftCaller, addNotification]);
 
   const removeRule = useCallback((id: string) => {
     setPrefs((p) => ({
       ...p,
       rules: p.rules.filter((r) => r.id !== id),
-    }));
-  }, []);
-
-  const toggleRule = useCallback((id: string, enabled: boolean) => {
-    setPrefs((p) => ({
-      ...p,
-      rules: p.rules.map((r) => (r.id === id ? { ...r, enabled } : r)),
     }));
   }, []);
 
@@ -209,8 +325,8 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
           <div>
             <h3 className="text-sm font-semibold text-zinc-100">Dashboard alerts</h3>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              Choose what you want to hear about in-dashboard. Token rules are saved with your
-              account; live evaluation will follow in a later update.
+              Create dashboard-only alerts. These rules are saved with your account; live evaluation
+              will follow in a later update.
             </p>
           </div>
           <button
@@ -245,94 +361,179 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
         ) : (
           <div className="mt-5 space-y-6">
             <section>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                General
-              </p>
-              <div className="mt-2 space-y-2">
-                <CheckboxRow
-                  label="Followed callers"
-                  description="When enabled, we’ll prioritize call-style updates from people you follow (once wired to the activity feed)."
-                  checked={prefs.general.followed_callers}
-                  onChange={(v) => patchGeneral({ followed_callers: v })}
-                />
-                <CheckboxRow
-                  label="Trusted Pro only"
-                  description="Further limit caller alerts to Trusted Pro members (works with the toggle above)."
-                  checked={prefs.general.trusted_only}
-                  onChange={(v) => patchGeneral({ trusted_only: v })}
-                />
-                <CheckboxRow
-                  label="Hot / trending"
-                  description="Highlights aligned with the Hot Right Now / trending panels when we connect them."
-                  checked={prefs.general.hot_trending}
-                  onChange={(v) => patchGeneral({ hot_trending: v })}
-                />
-                <CheckboxRow
-                  label="Product announcements"
-                  description="Major McGBot dashboard or subscription notices (respects your existing notification sound)."
-                  checked={prefs.general.announcements}
-                  onChange={(v) => patchGeneral({ announcements: v })}
-                />
-              </div>
-            </section>
-
-            <section>
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                  Token alerts
+                  Create alert
                 </p>
                 <p className="text-[10px] tabular-nums text-zinc-600">
                   {prefs.rules.length}/{DASHBOARD_ALERT_RULES_CAP}
                 </p>
               </div>
               <p className="mt-1 text-xs text-zinc-500">
-                Mint + move or market-cap condition. Same rules will power toasts here first; no
-                Discord DMs.
+                Token alerts and caller alerts. Same rules will power toasts here first; no Discord
+                DMs.
               </p>
 
               <div className="mt-3 space-y-2 rounded-lg border border-zinc-800/80 bg-zinc-950/30 p-3">
                 <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                  Mint
-                  <input
-                    type="text"
-                    value={draftMint}
-                    onChange={(e) => setDraftMint(e.target.value)}
-                    placeholder="Solana contract…"
+                  Type
+                  <select
+                    value={draftKind}
+                    onChange={(e) => {
+                      const k = e.target.value as DashboardAlertRuleKind;
+                      setDraftKind(k);
+                      if (k === "pct_move") setDraftThreshold("10");
+                      else if (k === "mc_cross") setDraftThreshold("1000000");
+                      else if (k === "price_cross") setDraftThreshold("1");
+                      else if (k === "reminder") setDraftThreshold("30");
+                    }}
                     disabled={prefs.rules.length >= DASHBOARD_ALERT_RULES_CAP || saving}
                     className={`mt-1 ${terminalUi.formInput}`}
-                  />
+                  >
+                    <option value="price_cross">Token: price crosses $X</option>
+                    <option value="ath_since_added">Token: new ATH since I added</option>
+                    <option value="reminder">Token: reminder in 15/30/60 min</option>
+                    <option value="mc_bands">Token: MC crosses multiple bands</option>
+                    <option value="mc_cross">Token: MC crosses $X</option>
+                    <option value="pct_move">Token: price moves ±%</option>
+                    <option value="caller_post">Caller: posts a call</option>
+                  </select>
                 </label>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                    When
-                    <select
-                      value={draftKind}
-                      onChange={(e) => {
-                        const k = e.target.value as DashboardAlertRuleKind;
-                        setDraftKind(k);
-                        setDraftThreshold(k === "pct_move" ? "10" : "1000000");
-                      }}
-                      disabled={prefs.rules.length >= DASHBOARD_ALERT_RULES_CAP || saving}
-                      className={`mt-1 ${terminalUi.formInput}`}
-                    >
-                      <option value="pct_move">Price moves ±% (snapshot)</option>
-                      <option value="mc_cross">Market cap crosses $ (USD)</option>
-                    </select>
-                  </label>
-                  <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                    Threshold
-                    <input
-                      type="number"
-                      min={draftKind === "pct_move" ? 1 : 1000}
-                      max={draftKind === "pct_move" ? 100 : undefined}
-                      step={draftKind === "pct_move" ? 1 : 1000}
-                      value={draftThreshold}
-                      onChange={(e) => setDraftThreshold(e.target.value)}
-                      disabled={prefs.rules.length >= DASHBOARD_ALERT_RULES_CAP || saving}
-                      className={`mt-1 ${terminalUi.formInput}`}
-                    />
-                  </label>
-                </div>
+
+                {draftKind === "caller_post" ? (
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                      Caller (search display name or paste Discord ID)
+                      <input
+                        type="text"
+                        value={draftCaller}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setDraftCaller(v);
+                          void runCallerSearch(v);
+                        }}
+                        placeholder="e.g. McGZyy or 123456789012345678"
+                        disabled={prefs.rules.length >= DASHBOARD_ALERT_RULES_CAP || saving}
+                        className={`mt-1 ${terminalUi.formInput}`}
+                      />
+                    </label>
+
+                    {callerSearching ? (
+                      <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/20 px-3 py-2 text-xs text-zinc-500">
+                        Searching…
+                      </div>
+                    ) : callerSearchResults.length > 0 ? (
+                      <ul className="max-h-40 overflow-y-auto rounded-lg border border-zinc-800/80 bg-zinc-950/20">
+                        {callerSearchResults.map((u) => (
+                          <li
+                            key={u.discord_id}
+                            className="border-b border-zinc-800/70 last:border-b-0"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDraftCaller(u.discord_id);
+                                setCallerSearchResults([]);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-zinc-200 transition hover:bg-zinc-900/30"
+                            >
+                              {u.discord_avatar_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={u.discord_avatar_url}
+                                  alt=""
+                                  className="h-5 w-5 rounded-full border border-zinc-700/50 object-cover"
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <span className="h-5 w-5 rounded-full border border-zinc-800/80 bg-zinc-900/40" />
+                              )}
+                              <span className="min-w-0 flex-1 truncate">
+                                {u.discord_display_name ?? u.discord_id}
+                                <span className="ml-2 font-mono text-[10px] text-zinc-500">
+                                  {u.discord_id}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ) : (
+                  <>
+                    <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                      Mint
+                      <input
+                        type="text"
+                        value={draftMint}
+                        onChange={(e) => setDraftMint(e.target.value)}
+                        placeholder="Solana contract…"
+                        disabled={prefs.rules.length >= DASHBOARD_ALERT_RULES_CAP || saving}
+                        className={`mt-1 ${terminalUi.formInput}`}
+                      />
+                    </label>
+
+                    {draftKind === "mc_bands" ? (
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                        Bands (USD, comma-separated)
+                        <input
+                          type="text"
+                          value={draftBands}
+                          onChange={(e) => setDraftBands(e.target.value)}
+                          placeholder="1000000,5000000,10000000"
+                          disabled={prefs.rules.length >= DASHBOARD_ALERT_RULES_CAP || saving}
+                          className={`mt-1 ${terminalUi.formInput}`}
+                        />
+                      </label>
+                    ) : draftKind === "ath_since_added" ? null : draftKind === "reminder" ? (
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                        Reminder in (minutes)
+                        <select
+                          value={draftThreshold}
+                          onChange={(e) => setDraftThreshold(e.target.value)}
+                          disabled={prefs.rules.length >= DASHBOARD_ALERT_RULES_CAP || saving}
+                          className={`mt-1 ${terminalUi.formInput}`}
+                        >
+                          <option value="15">15</option>
+                          <option value="30">30</option>
+                          <option value="60">60</option>
+                        </select>
+                      </label>
+                    ) : (
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                        {draftKind === "pct_move"
+                          ? "Percent"
+                          : draftKind === "price_cross"
+                            ? "Price (USD)"
+                            : "Threshold (USD)"}
+                        <input
+                          type="number"
+                          min={
+                            draftKind === "pct_move"
+                              ? 1
+                              : draftKind === "price_cross"
+                                ? 0
+                                : 1000
+                          }
+                          max={draftKind === "pct_move" ? 100 : undefined}
+                          step={
+                            draftKind === "price_cross"
+                              ? 0.00000001
+                              : draftKind === "pct_move"
+                                ? 1
+                                : 1000
+                          }
+                          value={draftThreshold}
+                          onChange={(e) => setDraftThreshold(e.target.value)}
+                          disabled={prefs.rules.length >= DASHBOARD_ALERT_RULES_CAP || saving}
+                          className={`mt-1 ${terminalUi.formInput}`}
+                        />
+                      </label>
+                    )}
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={addRule}
@@ -350,26 +551,37 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
                       key={r.id}
                       className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs sm:flex-nowrap sm:justify-between"
                     >
-                      <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={r.enabled}
-                          onChange={(e) => toggleRule(r.id, e.target.checked)}
-                          className="h-3.5 w-3.5 shrink-0 rounded border-zinc-700 bg-zinc-950 accent-[color:var(--accent)]"
-                        />
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
                         <span className="min-w-0 font-mono text-[11px] text-zinc-300">
-                          <span className="truncate" title={r.mint}>
-                            {r.mint.length > 14
-                              ? `${r.mint.slice(0, 6)}…${r.mint.slice(-6)}`
-                              : r.mint}
+                          <span
+                            className="truncate"
+                            title={r.mint ?? r.caller_discord_id ?? undefined}
+                          >
+                            {r.kind === "caller_post"
+                              ? r.caller_discord_id
+                              : (r.mint ?? "").length > 14
+                                ? `${(r.mint ?? "").slice(0, 6)}…${(r.mint ?? "").slice(-6)}`
+                                : r.mint}
                           </span>
                           <span className="block text-[10px] text-zinc-500 sm:inline sm:before:content-['—_']">
-                            {r.kind === "pct_move"
-                              ? ` ±${r.threshold}% (move)`
-                              : ` MC ≥ $${r.threshold.toLocaleString("en-US")}`}
+                            {r.kind === "price_cross"
+                              ? ` Price ≥ $${Number(r.threshold ?? 0).toLocaleString("en-US")}`
+                              : r.kind === "ath_since_added"
+                                ? " New ATH since added"
+                                : r.kind === "reminder"
+                                  ? ` Reminder in ${r.threshold} min`
+                                  : r.kind === "mc_bands"
+                                    ? ` MC bands: ${(r.bands ?? [])
+                                        .map((b) => `$${b.toLocaleString("en-US")}`)
+                                        .join(", ")}`
+                                    : r.kind === "pct_move"
+                                      ? ` ±${r.threshold}% (move)`
+                                      : r.kind === "mc_cross"
+                                        ? ` MC ≥ $${Number(r.threshold ?? 0).toLocaleString("en-US")}`
+                                        : " Caller posts a call"}
                           </span>
                         </span>
-                      </label>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeRule(r.id)}

@@ -1,4 +1,11 @@
-export type DashboardAlertRuleKind = "pct_move" | "mc_cross";
+export type DashboardAlertRuleKind =
+  | "pct_move"
+  | "mc_cross"
+  | "price_cross"
+  | "ath_since_added"
+  | "reminder"
+  | "mc_bands"
+  | "caller_post";
 
 export type DashboardAlertGeneral = {
   /** Toast when callers you follow post a call (dashboard listeners will use this flag). */
@@ -13,11 +20,28 @@ export type DashboardAlertGeneral = {
 
 export type DashboardAlertRule = {
   id: string;
-  mint: string;
   kind: DashboardAlertRuleKind;
-  /** `pct_move`: percent 1–100; `mc_cross`: USD market-cap floor to notify at/above */
-  threshold: number;
-  enabled: boolean;
+  /**
+   * Token-based alerts.
+   * - `pct_move`, `mc_cross`, `price_cross`, `ath_since_added`, `reminder`, `mc_bands`
+   */
+  mint?: string;
+  /**
+   * Numeric parameter for single-threshold rules:
+   * - `pct_move`: percent 1–100
+   * - `mc_cross`: USD market-cap floor
+   * - `price_cross`: USD price
+   * - `reminder`: minutes after creation (15/30/60)
+   */
+  threshold?: number;
+  /** `mc_bands`: list of USD market-cap floors (e.g. [1000000, 5000000]). */
+  bands?: number[];
+  /** `caller_post`: Discord id of the caller. */
+  caller_discord_id?: string;
+  /** Creation timestamp (ms since epoch) for reminder/ATH baselines. */
+  createdAtMs?: number;
+  /** `ath_since_added`: baseline ATH value when the alert was created (optional). */
+  baselineAthUsd?: number | null;
 };
 
 export type DashboardAlertPrefs = {
@@ -41,6 +65,10 @@ const SOLANA_MINTISH = /^[1-9A-HJ-NP-Za-km-z]{32,48}$/;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function asTrimmedString(x: unknown): string {
+  return typeof x === "string" ? x.trim() : "";
+}
+
 function normalizeGeneral(raw: unknown): DashboardAlertGeneral {
   const d = DEFAULT_DASHBOARD_ALERT_PREFS.general;
   if (!raw || typeof raw !== "object") return { ...d };
@@ -60,22 +88,92 @@ function normalizeRule(raw: unknown): DashboardAlertRule | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const id = typeof o.id === "string" && UUID_RE.test(o.id) ? o.id : "";
-  const mintRaw = typeof o.mint === "string" ? o.mint.trim() : "";
-  if (!id || !mintRaw || !SOLANA_MINTISH.test(mintRaw)) return null;
-  const kind = o.kind === "pct_move" || o.kind === "mc_cross" ? o.kind : null;
-  if (!kind) return null;
-  const tn = typeof o.threshold === "number" ? o.threshold : NaN;
-  if (!Number.isFinite(tn)) return null;
+  if (!id) return null;
 
-  let threshold = tn;
+  const kind: DashboardAlertRuleKind | null =
+    o.kind === "pct_move" ||
+    o.kind === "mc_cross" ||
+    o.kind === "price_cross" ||
+    o.kind === "ath_since_added" ||
+    o.kind === "reminder" ||
+    o.kind === "mc_bands" ||
+    o.kind === "caller_post"
+      ? o.kind
+      : null;
+  if (!kind) return null;
+
+  const mintRaw = asTrimmedString(o.mint);
+  const callerId = asTrimmedString(o.caller_discord_id);
+
+  const needsMint =
+    kind === "pct_move" ||
+    kind === "mc_cross" ||
+    kind === "price_cross" ||
+    kind === "ath_since_added" ||
+    kind === "reminder" ||
+    kind === "mc_bands";
+  if (needsMint && (!mintRaw || !SOLANA_MINTISH.test(mintRaw))) return null;
+  if (kind === "caller_post" && !callerId) return null;
+
+  const createdAtMsRaw = typeof o.createdAtMs === "number" ? o.createdAtMs : NaN;
+  const createdAtMs = Number.isFinite(createdAtMsRaw) ? Math.round(createdAtMsRaw) : undefined;
+
+  const tn = typeof o.threshold === "number" ? o.threshold : NaN;
+  const thresholdIn = Number.isFinite(tn) ? tn : undefined;
+
+  let threshold: number | undefined = thresholdIn;
   if (kind === "pct_move") {
+    if (threshold == null) return null;
     threshold = Math.min(100, Math.max(1, Math.round(threshold)));
-  } else {
+  } else if (kind === "mc_cross") {
+    if (threshold == null) return null;
     threshold = Math.min(10_000_000_000_000, Math.max(1_000, Math.round(threshold)));
+  } else if (kind === "price_cross") {
+    if (threshold == null) return null;
+    threshold = Math.min(1_000_000, Math.max(0.00000001, Number(threshold)));
+  } else if (kind === "reminder") {
+    if (threshold == null) return null;
+    threshold = [15, 30, 60].includes(Math.round(threshold)) ? Math.round(threshold) : 30;
+  } else if (kind === "caller_post") {
+    threshold = undefined;
+  } else if (kind === "ath_since_added") {
+    threshold = undefined;
+  } else if (kind === "mc_bands") {
+    threshold = undefined;
   }
 
-  const enabled = typeof o.enabled === "boolean" ? o.enabled : true;
-  return { id, mint: mintRaw, kind, threshold, enabled };
+  let bands: number[] | undefined;
+  if (kind === "mc_bands") {
+    const rawBands = Array.isArray(o.bands) ? o.bands : [];
+    const parsed: number[] = [];
+    for (const b of rawBands) {
+      const n = typeof b === "number" ? b : NaN;
+      if (!Number.isFinite(n)) continue;
+      const v = Math.min(10_000_000_000_000, Math.max(1_000, Math.round(n)));
+      if (!parsed.includes(v)) parsed.push(v);
+      if (parsed.length >= 8) break;
+    }
+    if (parsed.length === 0) return null;
+    parsed.sort((a, b) => a - b);
+    bands = parsed;
+  }
+
+  const baselineAthRaw = typeof o.baselineAthUsd === "number" ? o.baselineAthUsd : null;
+  const baselineAthUsd =
+    baselineAthRaw == null || !Number.isFinite(baselineAthRaw)
+      ? null
+      : Math.max(0, Number(baselineAthRaw));
+
+  return {
+    id,
+    kind,
+    ...(needsMint ? { mint: mintRaw } : {}),
+    ...(kind === "caller_post" ? { caller_discord_id: callerId } : {}),
+    ...(threshold == null ? {} : { threshold }),
+    ...(bands ? { bands } : {}),
+    ...(createdAtMs != null ? { createdAtMs } : {}),
+    ...(kind === "ath_since_added" ? { baselineAthUsd } : {}),
+  };
 }
 
 /** Merge API / DB payloads into a safe prefs object (caps rule count). */

@@ -1,9 +1,10 @@
-import { PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import bs58 from "bs58";
 import { getServerSession } from "next-auth";
 import nacl from "tweetnacl";
 import { authOptions } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { solanaRpcUrlServer } from "@/lib/solanaEnv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +13,13 @@ function parseNonceFromMessage(message: string): string | null {
   const m = message.match(/^Nonce:\s*(.+)$/m);
   const raw = m?.[1]?.trim();
   return raw && raw.length > 0 ? raw : null;
+}
+
+function yyyyMmDdUtc(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export async function POST(req: Request) {
@@ -105,6 +113,53 @@ export async function POST(req: Request) {
     if (upErr) {
       console.error("[me/wallet/verify] insert:", upErr);
       return Response.json({ error: "Could not save wallet" }, { status: 500 });
+    }
+
+    // Backfill: seed the last 7 days of snapshots with the starting balance at link-time.
+    // Only fills missing days (does not overwrite existing rows).
+    try {
+      const conn = new Connection(solanaRpcUrlServer(), "confirmed");
+      const lamports = await conn.getBalance(pk, "confirmed");
+      const solBalance = lamports / 1_000_000_000;
+
+      const days: string[] = [];
+      for (let i = 6; i >= 0; i--) {
+        days.push(yyyyMmDdUtc(new Date(Date.now() - i * 24 * 60 * 60 * 1000)));
+      }
+
+      const { data: existing, error: exErr } = await db
+        .from("dashboard_wallet_balance_snapshots")
+        .select("day")
+        .eq("discord_id", discordId)
+        .gte("day", days[0]!)
+        .order("day", { ascending: true })
+        .limit(16);
+
+      if (!exErr) {
+        const have = new Set<string>(
+          (existing ?? [])
+            .map((r) => (r as any)?.day)
+            .filter((v) => typeof v === "string" && v.trim())
+        );
+
+        const toInsert = days
+          .filter((day) => !have.has(day))
+          .map((day) => ({
+            discord_id: discordId,
+            wallet_pubkey: pk.toBase58(),
+            day,
+            sol_balance: solBalance,
+          }));
+
+        if (toInsert.length > 0) {
+          const { error: insErr } = await db.from("dashboard_wallet_balance_snapshots").insert(toInsert);
+          if (insErr) console.error("[me/wallet/verify] snapshot backfill insert:", insErr);
+        }
+      } else {
+        console.error("[me/wallet/verify] snapshot backfill select:", exErr);
+      }
+    } catch (e) {
+      console.error("[me/wallet/verify] snapshot backfill:", e);
     }
 
     await db.from("wallet_link_challenges").delete().eq("discord_id", discordId);
