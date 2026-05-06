@@ -49,6 +49,53 @@ type LabPayload = {
   error?: string;
 };
 
+const CHART_MARGIN_COMPOSED = { top: 10, right: 10, left: 4, bottom: 6 } as const;
+const CHART_MARGIN_DIST = { top: 8, right: 14, left: 6, bottom: 8 } as const;
+
+function ChartSkeleton() {
+  return (
+    <div className="flex h-full flex-col justify-center gap-3 px-4 py-4" aria-busy>
+      <div className="h-3 w-40 animate-pulse rounded bg-zinc-800/70" />
+      <div className="h-32 w-full animate-pulse rounded-lg bg-zinc-800/40" />
+      <div className="flex justify-between gap-2">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-2 flex-1 animate-pulse rounded bg-zinc-800/50" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ChartEmptyState({
+  title,
+  body,
+  ctaHref,
+  ctaLabel,
+}: {
+  title: string;
+  body: string;
+  ctaHref?: string;
+  ctaLabel?: string;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center px-5 py-8 text-center">
+      <span className="text-2xl opacity-25" aria-hidden>
+        📊
+      </span>
+      <p className="mt-3 text-sm font-medium text-zinc-400">{title}</p>
+      <p className="mx-auto mt-1.5 max-w-[22rem] text-xs leading-relaxed text-zinc-600">{body}</p>
+      {ctaHref && ctaLabel ? (
+        <Link
+          href={ctaHref}
+          className="mt-4 text-xs font-semibold text-emerald-300/90 underline-offset-2 hover:underline"
+        >
+          {ctaLabel}
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
 function StatCard({
   label,
   value,
@@ -60,11 +107,11 @@ function StatCard({
 }) {
   return (
     <div
-      className={`rounded-2xl p-4 ${terminalSurface.panelCardElevated} ${terminalSurface.insetEdge}`}
+      className={`rounded-2xl p-3 sm:p-3.5 ${terminalSurface.panelCardElevated} ${terminalSurface.insetEdge}`}
     >
       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-white">{value}</p>
-      {hint ? <p className="mt-1 text-[11px] text-zinc-500">{hint}</p> : null}
+      <p className="mt-1.5 text-[22px] font-bold tabular-nums tracking-tight text-white">{value}</p>
+      {hint ? <p className="mt-1 text-[10px] leading-snug text-zinc-500">{hint}</p> : null}
     </div>
   );
 }
@@ -162,7 +209,7 @@ export default function PerformanceLabPage() {
         <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">{err}</div>
       ) : null}
 
-      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-tutorial="performance.summary">
+      <div className="mt-7 grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4" data-tutorial="performance.summary">
         <StatCard
           label="Avg × (all)"
           value={loading ? "…" : s ? s.avgX.toFixed(2) + "×" : "—"}
@@ -197,7 +244,7 @@ export default function PerformanceLabPage() {
         />
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-3 grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
         <StatCard label="Total calls" value={loading ? "…" : s ? String(s.totalCalls) : "—"} />
         <StatCard label="Calls (24h)" value={loading ? "…" : s ? String(s.callsToday) : "—"} hint="Rolling day" />
         <StatCard
@@ -216,18 +263,25 @@ export default function PerformanceLabPage() {
         />
       </div>
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-5">
+      <div className="mt-9 grid gap-6 lg:grid-cols-5">
         <section className="lg:col-span-3" data-tutorial="performance.activity">
           <h2 className="text-base font-semibold tracking-tight text-white">Last 14 days · activity</h2>
           <p className="mt-1 text-xs text-zinc-500">
             Bars = call count per UTC day · line = average ATH multiple that day.
           </p>
-          <div className="mt-4 h-64 rounded-2xl border border-emerald-500/15 bg-gradient-to-b from-emerald-950/20 to-black/40 p-3 pl-0 ring-1 ring-emerald-500/10">
-            {series.length === 0 && !loading ? (
-              <div className="flex h-full items-center justify-center text-sm text-zinc-500">No calls in range yet.</div>
+          <div className="mt-3 h-64 rounded-2xl border border-emerald-500/15 bg-gradient-to-b from-emerald-950/20 to-black/40 p-3 pl-0 ring-1 ring-emerald-500/10">
+            {loading && series.length === 0 ? (
+              <ChartSkeleton />
+            ) : series.length === 0 ? (
+              <ChartEmptyState
+                title="No activity in this window"
+                body="Once you log calls on the dashboard, you’ll see daily bars plus the average multiple line for each UTC day here."
+                ctaHref="/calls"
+                ctaLabel="Open call log →"
+              />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={series}>
+                <ComposedChart data={series} margin={CHART_MARGIN_COMPOSED}>
                   <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                   <YAxis
@@ -254,7 +308,12 @@ export default function PerformanceLabPage() {
                     }}
                     labelStyle={{ color: "#a1a1aa" }}
                   />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Legend
+                    verticalAlign="top"
+                    align="right"
+                    height={22}
+                    wrapperStyle={{ fontSize: 11, paddingBottom: 2 }}
+                  />
                   <Bar yAxisId="left" dataKey="calls" name="Calls" fill="rgba(16,185,129,0.35)" radius={[4, 4, 0, 0]} />
                   <Line
                     yAxisId="right"
@@ -277,15 +336,22 @@ export default function PerformanceLabPage() {
           <p className="mt-1 text-xs text-zinc-500">
             Buckets use ATH multiple since each call (peak ÷ entry MC).
           </p>
-          <div className="mt-4 h-64 rounded-2xl border border-zinc-800/90 bg-zinc-950/50 p-3 ring-1 ring-zinc-700/20">
-            {distChart.length === 0 || dist?.total === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-zinc-500">No distribution yet.</div>
+          <div className="mt-3 h-64 rounded-2xl border border-zinc-800/90 bg-zinc-950/50 p-3 ring-1 ring-zinc-700/20">
+            {loading && distChart.length === 0 ? (
+              <ChartSkeleton />
+            ) : distChart.length === 0 || !dist || dist.total === 0 ? (
+              <ChartEmptyState
+                title="No multiple mix yet"
+                body="This chart needs a few logged calls so we can bucket how often you land under 2×, between 2–5×, or 5×+ (ATH vs entry MC)."
+                ctaHref="/calls"
+                ctaLabel="Log a call →"
+              />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={distChart} layout="vertical" margin={{ left: 8, right: 16 }}>
+                <BarChart data={distChart} layout="vertical" margin={CHART_MARGIN_DIST}>
                   <CartesianGrid stroke="#27272a" strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" stroke="#71717a" tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" stroke="#71717a" tick={{ fontSize: 11 }} width={48} />
+                  <YAxis type="category" dataKey="name" stroke="#71717a" tick={{ fontSize: 11 }} width={52} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#18181b",
