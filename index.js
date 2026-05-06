@@ -315,6 +315,22 @@ async function replyText(message, content) {
   });
 }
 
+async function replyTextBestEffort(message, content) {
+  try {
+    await replyText(message, content);
+  } catch (err) {
+    console.error('[replyTextBestEffort] reply failed:', err?.message || err);
+    try {
+      await message.channel.send({
+        content,
+        allowedMentions: { repliedUser: false }
+      });
+    } catch (err2) {
+      console.error('[replyTextBestEffort] channel.send failed:', err2?.message || err2);
+    }
+  }
+}
+
 function splitDiscordMessage(content, limit = 1900) {
   const text = String(content ?? '');
   if (!text) return [''];
@@ -497,9 +513,17 @@ function memberCanManageGuild(member) {
 }
 
 function isBotOwner(user) {
-  const expected = String(process.env.BOT_OWNER_ID ?? '').trim();
+  const expected = String(process.env.BOT_OWNER_ID ?? '')
+    .trim()
+    .replace(/^['"]+|['"]+$/g, '');
   if (!expected) return false;
   return String(user?.id) === expected;
+}
+
+function resolveBotOwnerSnowflake() {
+  return String(process.env.BOT_OWNER_ID ?? '')
+    .trim()
+    .replace(/^['"]+|['"]+$/g, '');
 }
 
 function getBotCallsChannel(guild) {
@@ -2620,6 +2644,36 @@ client.on('messageCreate', async (message) => {
     if (handledSession) return;
 
     if (content.startsWith('!')) {
+      const cmd = lowerContent.split(/\s+/)[0];
+      if (cmd === '!dadminreport' || cmd === '!wadminreport' || cmd === '!madminreport') {
+        if (!isBotOwner(message.author)) {
+          await replyTextBestEffort(message, '❌ Bot owner only (`BOT_OWNER_ID`).');
+          return;
+        }
+        const ownerSnowflake = resolveBotOwnerSnowflake();
+        if (!ownerSnowflake) {
+          await replyTextBestEffort(message, '❌ `BOT_OWNER_ID` is not set in the bot environment.');
+          return;
+        }
+        const kind =
+          cmd === '!dadminreport' ? 'daily' : cmd === '!wadminreport' ? 'weekly' : 'monthly';
+        console.log(
+          `[AdminReports] manual ${kind} — requested by ${message.author.tag} (${message.author.id}) in #${channelName || '?'}`
+        );
+        await replyTextBestEffort(message, `📨 Sending **${kind}** admin report (calendar-to-now)…`);
+        try {
+          await sendAdminReport(client, ownerSnowflake, /** @type {'daily'|'weekly'|'monthly'} */ (kind));
+          await replyTextBestEffort(message, `✅ Sent **${kind}** admin report DM.`);
+        } catch (e) {
+          console.error('[AdminReports] manual command failed:', e?.message || e);
+          await replyTextBestEffort(
+            message,
+            `❌ Failed to send **${kind}** report: ${e instanceof Error ? e.message : String(e)}`
+          );
+        }
+        return;
+      }
+
       if (lowerContent === '!scanner') {
   if (!message.member?.permissions?.has('ManageGuild')) {
     await replyText(message, '❌ Mods/admins only.');
@@ -2671,8 +2725,9 @@ if (lowerContent === '!scanner off') {
   return;
 }
       if (lowerContent === '!testx') {
-        if (message.author.id !== process.env.BOT_OWNER_ID) {
-          return message.reply('❌ You do not have permission to use this command.');
+        if (!isBotOwner(message.author)) {
+          await replyTextBestEffort(message, '❌ You do not have permission to use this command.');
+          return;
         }
 
         const result = await createPost('Test post from McGBot 🚀', null, null, {
@@ -2685,27 +2740,6 @@ if (lowerContent === '!scanner off') {
           await replyText(message, `❌ Failed to post to X\n${JSON.stringify(result.error, null, 2)}`);
         }
 
-        return;
-      }
-
-      if (lowerContent === '!dadminreport' || lowerContent === '!wadminreport' || lowerContent === '!madminreport') {
-        if (message.author.id !== process.env.BOT_OWNER_ID) {
-          return message.reply('❌ You do not have permission to use this command.');
-        }
-        const kind =
-          lowerContent === '!dadminreport'
-            ? 'daily'
-            : lowerContent === '!wadminreport'
-              ? 'weekly'
-              : 'monthly';
-        await replyText(message, `📨 Sending **${kind}** admin report (calendar-to-now)…`);
-        try {
-          await sendAdminReport(client, String(process.env.BOT_OWNER_ID || ''), /** @type {'daily'|'weekly'|'monthly'} */ (kind));
-          await replyText(message, `✅ Sent **${kind}** admin report DM.`);
-        } catch (e) {
-          console.error('[AdminReports] manual command failed:', e?.message || e);
-          await replyText(message, `❌ Failed to send **${kind}** report. Check logs.`);
-        }
         return;
       }
 
