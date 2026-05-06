@@ -8,6 +8,7 @@ import {
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { ActivityPopup, type ActivityPopupItem } from "./components/ActivityPopup";
 import { AddToWatchlistModal } from "./components/AddToWatchlistModal";
+import { DashboardAlertsModal } from "./components/DashboardAlertsModal";
 import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
 import { DashboardChatPanel } from "./components/DashboardChatPanel";
 import { PanelCard, CARD_HOVER } from "./components/PanelCard";
@@ -2936,6 +2937,7 @@ export default function Home() {
   const [widgets, setWidgets] = useState<WidgetsEnabled | null>(null);
   const [submitCallOpen, setSubmitCallOpen] = useState(false);
   const [addWatchlistOpen, setAddWatchlistOpen] = useState(false);
+  const [alertsModalOpen, setAlertsModalOpen] = useState(false);
   const [watchlistPrivate, setWatchlistPrivate] = useState<string[]>([]);
   const [watchlistPublic, setWatchlistPublic] = useState<string[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(true);
@@ -3582,20 +3584,6 @@ export default function Home() {
     []
   );
 
-  const notifyComingSoon = useCallback(
-    (label: string) => {
-      addNotification({
-        id: crypto.randomUUID(),
-        text: `${label} is coming soon`,
-        type: "call",
-        createdAt: Date.now(),
-        priority: "low",
-      });
-    },
-    [addNotification]
-  );
-
-
   const handleCopy = useCallback(async () => {
     if (!referralUrl) return;
     try {
@@ -4038,7 +4026,8 @@ export default function Home() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => notifyComingSoon("Create Alert")}
+                    onClick={() => setAlertsModalOpen(true)}
+                    data-tutorial="dashboard.quickActions.createAlert"
                     className="rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
                   >
                     Create Alert
@@ -4261,6 +4250,12 @@ export default function Home() {
       <AddToWatchlistModal
         open={addWatchlistOpen}
         onClose={() => setAddWatchlistOpen(false)}
+      />
+
+      <DashboardAlertsModal
+        open={alertsModalOpen}
+        onClose={() => setAlertsModalOpen(false)}
+        addNotification={addNotification}
       />
 
       {submitCallOpen ? (
