@@ -1,4 +1,3 @@
-const path = require('path');
 const { generateRealScan } = require('./scannerEngine');
 const {
   getAllTrackedCalls,
@@ -6,7 +5,8 @@ const {
   getTrackedCall,
   clearApprovalRequest,
   setApprovalStatus,
-  setXPostState
+  setXPostState,
+  applyUserCallAutoXApproval
 } = require('./trackedCallsService');
 const {
   getApprovalTriggerX,
@@ -19,12 +19,10 @@ const {
 } = require('./alertEmbeds');
 const { enqueueAlert } = require('./alertQueue');
 const { createPost } = require('./xPoster');
+const { buildXPostText } = require('./buildXPostText');
 const { AttachmentBuilder } = require('discord.js');
-const {
-  buildOhlcvCandlestickBuffer,
-  buildOhlcvCandlestickBufferForTrackedCall,
-  resolveOhlcvPairAddress
-} = require('./ohlcvCandlestickBuffer');
+const { buildOhlcvCandlestickBuffer, resolveOhlcvPairAddress } = require('./ohlcvCandlestickBuffer');
+const { buildMilestoneHeroPng } = require('./milestoneHeroImage');
 const { getCandlestickOverlayProps } = require('./candlestickOverlayFromTracked');
 const { persistChartMarkerEvents } = require('./chartEventPersistence');
 const { buildOhlcvTimeframeRows } = require('./ohlcvChartControls');
@@ -38,6 +36,10 @@ const {
 let monitoringIntervalUser = null;
 let monitoringIntervalBot = null;
 let isRunning = false;
+
+/** When the main scanner is off, still push live MC / spot_multiple to Supabase for the dashboard. */
+let performanceMirrorInterval = null;
+let isPerformanceMirrorRunning = false;
 
 /**
  * =========================
@@ -192,50 +194,6 @@ function getPublicCallerLabel(trackedCall, fallback = 'Unknown') {
   });
 }
 
-/**
- * =========================
- * X POST HELPERS
- * =========================
- */
-
-function buildXPostText(trackedCall) {
-  const ticker = trackedCall.ticker || 'UNKNOWN';
-  const ca = trackedCall.contractAddress || '';
-  const firstCalledMc = Number(trackedCall.firstCalledMarketCap || 0);
-  const latestMc = Number(
-    trackedCall.latestMarketCap ||
-    trackedCall.firstCalledMarketCap ||
-    0
-  );
-  const displayX =
-    firstCalledMc > 0 ? Number((latestMc / firstCalledMc).toFixed(2)) : 0;
-
-  const initialMcStr = formatUsd(firstCalledMc);
-  const athMcStr = formatUsd(
-    trackedCall.ath ||
-    trackedCall.athMc ||
-    trackedCall.athMarketCap ||
-    trackedCall.latestMarketCap ||
-    trackedCall.firstCalledMarketCap ||
-    0
-  );
-
-  return [
-    `🚀 $${ticker} — ${displayX.toFixed(2)}x from call`,
-    ``,
-    `Called by: @McGBot`,
-    ``,
-    `Initial MC: ${initialMcStr}`,
-    `ATH MC: ${athMcStr}`,
-    ``,
-    `CA:`,
-    `\`${ca}\``,
-    ``,
-    `📊 DexScreener: https://dexscreener.com/solana/${ca}`,
-    `📊 GMGN: https://gmgn.ai/sol/token/${ca}`
-  ].join('\n');
-}
-
 async function maybePublishApprovedMilestoneToX(trackedCall, latestScan = null) {
   try {
     if (!trackedCall || !trackedCall.xApproved) {
@@ -270,21 +228,36 @@ async function maybePublishApprovedMilestoneToX(trackedCall, latestScan = null) 
 
     const hasOriginal = !!trackedCall.xOriginalPostId;
 
-    const postText = buildXPostText(trackedCall);
+    const postText = await buildXPostText(trackedCall, {
+      milestoneX,
+      isReply: hasOriginal
+    });
 
     let chartBuf = null;
     if (!hasOriginal) {
-      chartBuf = await buildOhlcvCandlestickBufferForTrackedCall(
-        trackedCall,
-        latestScan
-      );
+      try {
+        chartBuf = await buildMilestoneHeroPng({
+          milestoneX,
+          seedKey: trackedCall.contractAddress || trackedCall.ticker || '',
+          callSourceType: trackedCall.callSourceType,
+          ticker: trackedCall.ticker
+        });
+      } catch (_e) {
+        chartBuf = null;
+      }
     }
 
-    const result = await createPost(
-      postText,
-      hasOriginal ? trackedCall.xOriginalPostId : null,
-      chartBuf || undefined
-    );
+    const srcForAudit = String(trackedCall.callSourceType || 'user_call').toLowerCase();
+    const milestoneAuditCat =
+      srcForAudit === 'bot_call'
+        ? 'milestone_bot'
+        : srcForAudit === 'watch_only'
+          ? 'milestone_watch'
+          : 'milestone_user';
+
+    const result = await createPost(postText, hasOriginal ? trackedCall.xOriginalPostId : null, chartBuf || undefined, {
+      audit: { category: milestoneAuditCat, callSourceType: trackedCall.callSourceType || null }
+    });
 
     if (!result.success || !result.id) {
       return {
@@ -700,6 +673,7 @@ function buildReplyOptions(coin, channel) {
 const MILESTONE_CHART_TIMEOUT_MS = 15_000;
 
 /**
+ * Never block the alert queue on OHLCV/chart work (slow providers / canvas hangs).
  * @param {object} params same shape as `buildOhlcvCandlestickBuffer` options
  * @returns {Promise<Buffer|null>}
  */
@@ -761,6 +735,22 @@ function queueDump(channel, coin, scan, key, drawdown) {
   });
 }
 
+/** Prefer the pool we first tracked so DexScreener "best pair" hops do not spike ATH MC. */
+function lockedPairScanOpts(coin) {
+  const live = getTrackedCall(coin.contractAddress) || coin;
+  const p = String(live.pairAddress || '').trim();
+  return p ? { lockedPairAddress: p } : null;
+}
+
+/** Persist pair id once (from first successful token scan) for stable monitoring reads. */
+function pairAddressPatchFromScan(coin, scan) {
+  const basis = getTrackedCall(coin.contractAddress) || coin;
+  const prev = String(basis.pairAddress || '').trim();
+  if (prev) return {};
+  const next = scan && typeof scan === 'object' ? String(scan.pairAddress || '').trim() : '';
+  return next ? { pairAddress: next } : {};
+}
+
 /**
  * Successful monitor tick requires a real scan object with finite marketCap > 0.
  * Null scan, missing/invalid marketCap, NaN, and mc <= 0 all count as failed scans.
@@ -810,7 +800,14 @@ async function checkTrackedCoins(channel, sourceBucket = 'all') {
         continue;
       }
 
-      const scan = await generateRealScan(coin.contractAddress);
+      const scan = await generateRealScan(coin.contractAddress, null, lockedPairScanOpts(coin));
+
+      if (scan && typeof scan === 'object' && scan.__monitorProviderSkip === true) {
+        console.log(
+          `[Monitor] ${coin.tokenName || coin.contractAddress} -> quote provider unavailable (not counting toward failed scans)`
+        );
+        continue;
+      }
 
       if (!isSuccessfulMarketScan(scan)) {
         const failedScans = Number(coin.failedScans || 0) + 1;
@@ -869,8 +866,16 @@ if (lifecycleStatus === 'archived') {
     athMc,
     lastUpdatedAt: new Date().toISOString(),
     lifecycleStatus: 'archived',
-    isActive: false
+    isActive: false,
+    ...pairAddressPatchFromScan(coin, scan)
   });
+
+  try {
+    const { queueUpdateUserCallPerformanceAth } = require('./callPerformanceSync');
+    queueUpdateUserCallPerformanceAth(coin.contractAddress);
+  } catch (_) {
+    /* optional sync */
+  }
 
   console.log(
     `[Monitor] Archived ${coin.tokenName || coin.contractAddress} -> ${forceArchiveReason || 'Lifecycle archived'}`
@@ -928,7 +933,20 @@ if (lifecycleStatus === 'archived') {
       const approvalCheck = shouldCreateApprovalRequest(refreshedTrackedCall, athX);
 
       if (approvalCheck.shouldSend) {
-        queueApprovalReview(channel, refreshedTrackedCall, scan, approvalCheck.triggerX);
+        const src = String(refreshedTrackedCall.callSourceType || '');
+        const envAuto = String(process.env.X_AUTO_APPROVE_USER_CALLS || '')
+          .trim()
+          .toLowerCase();
+        const autoUserX = envAuto === '1' || envAuto === 'true' || envAuto === 'yes';
+
+        if (autoUserX && src === 'user_call') {
+          applyUserCallAutoXApproval(
+            refreshedTrackedCall.contractAddress,
+            approvalCheck.triggerX
+          );
+        } else {
+          queueApprovalReview(channel, refreshedTrackedCall, scan, approvalCheck.triggerX);
+        }
       }
 
       /**
@@ -988,17 +1006,12 @@ if (lifecycleStatus === 'archived') {
         milestonesHit,
         dumpAlertsHit: dumpHits,
         lastPostedX: lastPostedXOut,
-        priceHistory
+        priceHistory,
+        ...pairAddressPatchFromScan(coin, scan)
       });
 
       try {
-        const { queueUpdateUserCallPerformanceAth } = require(path.join(
-          __dirname,
-          '..',
-          '..',
-          'utils',
-          'callPerformanceSync'
-        ));
+        const { queueUpdateUserCallPerformanceAth } = require('./callPerformanceSync');
         queueUpdateUserCallPerformanceAth(coin.contractAddress);
       } catch (_) {
         /* optional sync */
@@ -1019,13 +1032,40 @@ if (lifecycleStatus === 'archived') {
  */
 
 /**
- * @param {import('discord.js').TextChannel} channel
+ * @param {import('discord.js').TextChannel | { userChannel: import('discord.js').TextChannel, botChannel?: import('discord.js').TextChannel | null }} channelsOrChannel
+ *        Pass `{ userChannel, botChannel }` so user/watch milestones & dumps go to #user-calls (or
+ *        equivalent) while bot_call alerts stay on #bot-calls. Legacy: one channel = both buckets
+ *        (not recommended — user alerts would post in the bot channel).
  * @param {number | { userIntervalMs?: number; botIntervalMs?: number }} [intervalOrOpts]
+ *        Legacy: single number = both buckets use same interval (old behavior).
  */
-function startMonitoring(channel, intervalOrOpts = {}) {
+function startMonitoring(channelsOrChannel, intervalOrOpts = {}) {
   if (isRunning) return;
 
+  stopUserPerformanceSupabaseMirror();
+
   isRunning = true;
+
+  let userChannel;
+  let botChannel;
+  if (
+    channelsOrChannel &&
+    typeof channelsOrChannel === 'object' &&
+    'userChannel' in channelsOrChannel &&
+    channelsOrChannel.userChannel
+  ) {
+    userChannel = channelsOrChannel.userChannel;
+    botChannel = channelsOrChannel.botChannel || channelsOrChannel.userChannel;
+  } else {
+    userChannel = channelsOrChannel;
+    botChannel = channelsOrChannel;
+  }
+
+  if (!userChannel || !botChannel) {
+    console.error('[Monitor] startMonitoring: missing userChannel and/or botChannel');
+    isRunning = false;
+    return;
+  }
 
   let userMs = 30000;
   let botMs = 60000;
@@ -1040,19 +1080,21 @@ function startMonitoring(channel, intervalOrOpts = {}) {
     if (Number.isFinite(b) && b >= 5000) botMs = b;
   }
 
+  const userName = userChannel && userChannel.name ? `#${userChannel.name}` : '(user channel)';
+  const botName = botChannel && botChannel.name ? `#${botChannel.name}` : '(bot channel)';
   console.log(
-    `[Monitor] User/watch bucket every ${userMs / 1000}s, bot bucket every ${botMs / 1000}s`
+    `[Monitor] User/watch → ${userName} every ${userMs / 1000}s; bot → ${botName} every ${botMs / 1000}s`
   );
 
-  void checkTrackedCoins(channel, 'user');
-  void checkTrackedCoins(channel, 'bot');
+  void checkTrackedCoins(userChannel, 'user');
+  void checkTrackedCoins(botChannel, 'bot');
 
   monitoringIntervalUser = setInterval(() => {
-    void checkTrackedCoins(channel, 'user');
+    void checkTrackedCoins(userChannel, 'user');
   }, userMs);
 
   monitoringIntervalBot = setInterval(() => {
-    void checkTrackedCoins(channel, 'bot');
+    void checkTrackedCoins(botChannel, 'bot');
   }, botMs);
 }
 
@@ -1067,10 +1109,101 @@ function stopMonitoring() {
   }
 
   isRunning = false;
+  stopUserPerformanceSupabaseMirror();
+}
+
+/**
+ * Lightweight loop: refresh MC for active **user_call** rows that have a `call_performance` id,
+ * then mirror to Supabase. No Discord milestones / dumps.
+ * Use when `SCANNER_ENABLED` is false so dashboard live X still updates.
+ *
+ * @param {{ intervalMs?: number }} [opts]
+ */
+function startUserPerformanceSupabaseMirror(opts = {}) {
+  if (isPerformanceMirrorRunning) return;
+  const ms = Number(opts.intervalMs);
+  const intervalMs = Number.isFinite(ms) && ms >= 10_000 ? ms : 30_000;
+
+  isPerformanceMirrorRunning = true;
+  console.log(
+    `[PerformanceMirror] Starting Supabase stats mirror every ${intervalMs / 1000}s (scanner alerts may be off)`
+  );
+
+  const tick = async () => {
+    const tracked = getAllTrackedCalls();
+    const coins = tracked.filter(coin => {
+      if (!coin) return false;
+      if (coin.lifecycleStatus === 'archived' || coin.isActive === false) return false;
+      const ct = String(coin.callSourceType || 'user_call');
+      if (ct !== 'user_call' && ct !== 'bot_call') return false;
+      if (String(coin.approvalStatus || '').toLowerCase() === 'denied') return false;
+      if (!String(coin.callPerformanceId || '').trim()) return false;
+      return true;
+    });
+
+    if (coins.length === 0) return;
+
+    let ok = 0;
+    for (const coin of coins) {
+      try {
+        const scan = await generateRealScan(coin.contractAddress, null, lockedPairScanOpts(coin));
+        if (!isSuccessfulMarketScan(scan)) continue;
+
+        const currentMc = Number(scan.marketCap);
+        const firstMc = coin.firstCalledMarketCap || currentMc;
+        const athMc = Math.max(coin.athMc || firstMc, currentMc);
+
+        const persisted = getTrackedCall(coin.contractAddress) || coin;
+        let priceHistory = Array.isArray(persisted?.priceHistory) ? [...persisted.priceHistory] : [];
+        priceHistory.push({ t: Date.now(), price: currentMc });
+        if (priceHistory.length > 500) {
+          priceHistory = priceHistory.slice(-500);
+        }
+
+        updateTrackedCallData(coin.contractAddress, {
+          latestMarketCap: currentMc,
+          athMc,
+          failedScans: 0,
+          lastUpdatedAt: new Date().toISOString(),
+          priceHistory,
+          ...pairAddressPatchFromScan(coin, scan)
+        });
+
+        const { queueUpdateUserCallPerformanceAth } = require('./callPerformanceSync');
+        queueUpdateUserCallPerformanceAth(coin.contractAddress);
+        ok += 1;
+      } catch (err) {
+        console.error(
+          '[PerformanceMirror]',
+          coin.contractAddress,
+          err && err.message ? err.message : err
+        );
+      }
+    }
+
+    if (ok > 0) {
+      console.log(`[PerformanceMirror] Updated ${ok}/${coins.length} mirrored call(s) → Supabase`);
+    }
+  };
+
+  void tick();
+  performanceMirrorInterval = setInterval(() => {
+    void tick();
+  }, intervalMs);
+}
+
+function stopUserPerformanceSupabaseMirror() {
+  if (performanceMirrorInterval) {
+    clearInterval(performanceMirrorInterval);
+    performanceMirrorInterval = null;
+  }
+  isPerformanceMirrorRunning = false;
 }
 
 module.exports = {
   startMonitoring,
   stopMonitoring,
-  checkTrackedCoins
+  checkTrackedCoins,
+  startUserPerformanceSupabaseMirror,
+  stopUserPerformanceSupabaseMirror
 };

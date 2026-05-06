@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const axios = require('axios');
+const { appendXPostAuditEvent, shortenError } = require('./xPostAudit');
 
 const X_API_BASE = 'https://api.x.com/2';
 
@@ -57,31 +58,253 @@ function buildOAuthHeader(method, url, extraParams = {}) {
   return authHeader;
 }
 
+/**
+ * OAuth 1.0a signed GET (query params must appear in both URL and signature).
+ * @param {string} baseUrlNoQuery e.g. https://api.x.com/2/dm_events
+ * @param {Record<string, string>} queryParams
+ */
+async function oauth1aGet(baseUrlNoQuery, queryParams = {}) {
+  const authHeader = buildOAuthHeader('GET', baseUrlNoQuery, queryParams);
+  const qs = Object.keys(queryParams)
+    .sort()
+    .map(key => `${percentEncode(key)}=${percentEncode(String(queryParams[key]))}`)
+    .join('&');
+
+  const url = qs ? `${baseUrlNoQuery}?${qs}` : baseUrlNoQuery;
+
+  return axios.get(url, {
+    headers: {
+      Authorization: authHeader
+    }
+  });
+}
+
+/**
+ * Recent DM MessageCreate events for the authenticated X user (McGBot inbox).
+ * Requires X app + access token with Direct Message read permission.
+ * @returns {Promise<{ ok: boolean, events: Array<{ id: string, text: string, senderId: string }>, usersById: Map<string, { id: string, username?: string }>, nextToken?: string, error?: unknown, httpStatus?: number }>}
+ */
+async function listDmMessageCreates({ maxResults = 50, paginationToken = null } = {}) {
+  const baseUrl = `${X_API_BASE}/dm_events`;
+  const query = {
+    max_results: String(Math.min(100, Math.max(1, Number(maxResults) || 50))),
+    event_types: 'MessageCreate',
+    'dm_event.fields': 'id,event_type,text,created_at,sender_id',
+    expansions: 'sender_id',
+    'user.fields': 'username'
+  };
+
+  if (paginationToken) {
+    query.pagination_token = String(paginationToken);
+  }
+
+  try {
+    const response = await oauth1aGet(baseUrl, query);
+    const payload = response?.data || {};
+    const rows = Array.isArray(payload.data) ? payload.data : [];
+    const usersById = new Map();
+
+    for (const u of payload.includes?.users || []) {
+      if (u && u.id) {
+        usersById.set(String(u.id), { id: String(u.id), username: u.username });
+      }
+    }
+
+    const events = [];
+
+    for (const row of rows) {
+      const id = row.id != null ? String(row.id) : '';
+      const senderId = row.sender_id != null ? String(row.sender_id) : '';
+      const text = row.text != null ? String(row.text) : '';
+
+      if (!id || !senderId) {
+        continue;
+      }
+
+      events.push({ id, text, senderId, createdAt: row.created_at || null });
+    }
+
+    return {
+      ok: true,
+      events,
+      usersById,
+      nextToken: payload.meta?.next_token || null
+    };
+  } catch (error) {
+    const httpStatus = error?.response?.status;
+    return {
+      ok: false,
+      events: [],
+      usersById: new Map(),
+      error: error?.response?.data || error.message,
+      httpStatus
+    };
+  }
+}
+
+/**
+ * @param {string[]} userIds
+ * @returns {Promise<Map<string, string>>} user id -> username (as returned by the API)
+ */
+async function lookupXUsernamesByIds(userIds) {
+  const unique = [...new Set((userIds || []).map(String).filter(Boolean))].slice(0, 100);
+  const out = new Map();
+
+  if (!unique.length) {
+    return out;
+  }
+
+  const baseUrl = `${X_API_BASE}/users`;
+  const query = {
+    ids: unique.join(','),
+    'user.fields': 'username'
+  };
+
+  try {
+    const response = await oauth1aGet(baseUrl, query);
+    const users = response?.data?.data;
+    if (!Array.isArray(users)) {
+      return out;
+    }
+
+    for (const u of users) {
+      if (u?.id && u.username) {
+        out.set(String(u.id), String(u.username));
+      }
+    }
+  } catch (error) {
+    console.error('[XPoster] users lookup failed:', error?.response?.data || error.message);
+  }
+
+  return out;
+}
+
+/**
+ * Authenticated X user (the account tied to X_ACCESS_TOKEN).
+ * @returns {Promise<{ id: string, username: string } | null>}
+ */
+async function fetchXAuthenticatedUser() {
+  const baseUrl = `${X_API_BASE}/users/me`;
+  const query = { 'user.fields': 'id,username' };
+
+  try {
+    const response = await oauth1aGet(baseUrl, query);
+    const u = response?.data?.data;
+    if (!u?.id) {
+      return null;
+    }
+
+    return { id: String(u.id), username: String(u.username || '') };
+  } catch (error) {
+    console.error('[XPoster] users/me failed:', error?.response?.data || error.message);
+    return null;
+  }
+}
+
+/**
+ * chartjs-node-canvas / canvas may return Buffer or Uint8Array; X upload expects a real Buffer + PNG signature.
+ * @param {unknown} raw
+ * @returns {Buffer | null}
+ */
+function normalizePngUploadBuffer(raw) {
+  if (raw == null) return null;
+  let buf;
+  try {
+    // Always copy when `raw` is already a Buffer: chart/canvas code may return
+    // views into pooled native memory; reusing the same reference across async
+    // upload can corrupt bytes before the request is sent.
+    buf = Buffer.isBuffer(raw)
+      ? Buffer.from(raw)
+      : Buffer.from(/** @type {Uint8Array} */ (raw));
+  } catch {
+    return null;
+  }
+  if (!buf.length || buf.length < 68) return null;
+  if (buf[0] !== 0x89 || buf[1] !== 0x50 || buf[2] !== 0x4e || buf[3] !== 0x47) {
+    console.error('[XPoster] normalizePngUploadBuffer: not a PNG (bad signature)');
+    return null;
+  }
+  return buf;
+}
+
+/**
+ * Simple image upload: multipart `media` (binary) + optional `media_category`.
+ * Do not use urlencoded `media_data` here — OAuth 1.0a must sign x-www-form-urlencoded
+ * body parameters (except oauth_*), and signing multi‑MB base64 is error-prone; X
+ * expects multipart for this flow (OAuth signs oauth params only).
+ */
 async function uploadMediaPng(buffer) {
-  if (!buffer || !Buffer.isBuffer(buffer) || buffer.length < 100) return null;
+  const buf = normalizePngUploadBuffer(buffer);
+  if (!buf) return null;
 
   const uploadUrl = 'https://upload.twitter.com/1.1/media/upload.json';
   const authHeader = buildOAuthHeader('POST', uploadUrl);
 
-  const params = new URLSearchParams();
-  params.set('media_data', buffer.toString('base64'));
+  const boundary = `----McGBotPng${crypto.randomBytes(16).toString('hex')}`;
+  const crlf = '\r\n';
+  const head =
+    `--${boundary}${crlf}` +
+    `Content-Disposition: form-data; name="media"; filename="chart.png"${crlf}` +
+    `Content-Type: image/png${crlf}${crlf}`;
+  const tail =
+    `${crlf}--${boundary}${crlf}` +
+    `Content-Disposition: form-data; name="media_category"${crlf}${crlf}` +
+    `tweet_image${crlf}` +
+    `--${boundary}--${crlf}`;
+  const body = Buffer.concat([Buffer.from(head, 'utf8'), buf, Buffer.from(tail, 'utf8')]);
 
   try {
-    const response = await axios.post(uploadUrl, params.toString(), {
+    const response = await axios.post(uploadUrl, body, {
       headers: {
         Authorization: authHeader,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
+        'Content-Type': `multipart/form-data; boundary=${boundary}`
+      },
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity
     });
 
-    return response?.data?.media_id_string || null;
+    const d = response?.data;
+    if (d?.errors?.length) {
+      console.error('[XPoster] Media upload response contained errors:', JSON.stringify(d.errors));
+      return null;
+    }
+    // Never use numeric `media_id` — large snowflakes lose precision in JS; v2 needs exact string id.
+    const id = d?.media_id_string;
+    if (id != null && id !== '') {
+      return String(id);
+    }
+    console.error('[XPoster] Media upload: missing media_id_string in response keys=', d ? Object.keys(d) : []);
+    return null;
   } catch (error) {
     console.error('[XPoster] Media upload failed:', error?.response?.data || error.message);
     return null;
   }
 }
 
-async function createPost(text, replyToId = null, mediaPngBuffer = null) {
+/**
+ * @param {string} text
+ * @param {string | null} [replyToId]
+ * @param {Buffer | Uint8Array | null} [mediaPngBuffer] uploaded when set (unless `options.preUploadedMediaId` is set)
+ * @param {{ preUploadedMediaId?: string, audit?: { category: string, callSourceType?: string|null } } | null} [options] pass `preUploadedMediaId` when the caller already called `uploadMediaPng`
+ */
+async function createPost(text, replyToId = null, mediaPngBuffer = null, options = null) {
+  const audit =
+    options && typeof options === 'object' && options.audit && typeof options.audit === 'object'
+      ? options.audit
+      : null;
+
+  const finalizeAudit = (success, mediaAttached, resultForErr) => {
+    if (!audit || !audit.category) return;
+    void appendXPostAuditEvent({
+      success,
+      category: String(audit.category),
+      reply: Boolean(replyToId),
+      media: Boolean(mediaAttached),
+      callSourceType: audit.callSourceType != null ? String(audit.callSourceType) : null,
+      errorSnippet: success ? null : shortenError(resultForErr?.error ?? resultForErr)
+    });
+  };
+
   const url = `${X_API_BASE}/tweets`;
 
   const body = {
@@ -94,16 +317,28 @@ async function createPost(text, replyToId = null, mediaPngBuffer = null) {
     };
   }
 
-  let mediaId = null;
-  if (mediaPngBuffer && !replyToId) {
+  const preUploadedMediaId =
+    options && typeof options === 'object' && options.preUploadedMediaId != null
+      ? String(options.preUploadedMediaId).trim()
+      : '';
+
+  let mediaId = preUploadedMediaId || null;
+  if (!mediaId && mediaPngBuffer && !replyToId) {
     try {
       mediaId = await uploadMediaPng(mediaPngBuffer);
-    } catch (_) {
+      if (!mediaId) {
+        const n = normalizePngUploadBuffer(mediaPngBuffer)?.length ?? 0;
+        console.error(
+          `[XPoster] Media upload skipped or failed (png bytes=${n}). Tweet will be text-only.`
+        );
+      }
+    } catch (e) {
       mediaId = null;
+      console.error('[XPoster] Media upload exception:', e?.message || e);
     }
-    if (mediaId) {
-      body.media = { media_ids: [mediaId] };
-    }
+  }
+  if (mediaId && !replyToId) {
+    body.media = { media_ids: [String(mediaId)] };
   }
 
   const authHeader = buildOAuthHeader('POST', url);
@@ -116,22 +351,30 @@ async function createPost(text, replyToId = null, mediaPngBuffer = null) {
       }
     });
 
-    const postId = response?.data?.data?.id || null;
-    const postText = response?.data?.data?.text || null;
+    const payload = response?.data?.data || {};
+    const postId = payload.id || null;
+    const postText = payload.text || null;
+    if (body.media?.media_ids?.length) {
+      console.log('[XPoster] Tweet created with media_ids=', body.media.media_ids, 'id=', postId);
+    }
 
-    return {
+    const ok = {
       success: true,
       id: postId,
       text: postText,
       raw: response.data
     };
+    finalizeAudit(true, Boolean(mediaId && body.media?.media_ids?.length), ok);
+    return ok;
   } catch (error) {
     console.error('[XPoster] Post failed:', error?.response?.data || error.message);
 
-    return {
+    const fail = {
       success: false,
       error: error?.response?.data || error.message
     };
+    finalizeAudit(false, false, fail);
+    return fail;
   }
 }
 
@@ -146,5 +389,11 @@ function getXBotUsernameForCopy() {
 module.exports = {
   createPost,
   uploadMediaPng,
+  normalizePngUploadBuffer,
+  buildOAuthHeader,
+  oauth1aGet,
+  listDmMessageCreates,
+  lookupXUsernamesByIds,
+  fetchXAuthenticatedUser,
   getXBotUsernameForCopy
 };
