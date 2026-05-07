@@ -230,6 +230,13 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
     if (gate === "not_in_guild") {
+      // Already on paywall / join flow — do not redirect to self (ERR_TOO_MANY_REDIRECTS).
+      if (
+        pathname.startsWith("/membership") ||
+        pathname.startsWith("/subscribe")
+      ) {
+        return NextResponse.next();
+      }
       const url = req.nextUrl.clone();
       url.pathname = "/membership";
       url.search = "";
