@@ -61,12 +61,10 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user }) {
       try {
-        // Hard gate: if DISCORD_GUILD_ID + bot token are configured, only allow sign-in for current members.
-        // (Unverified users are allowed to sign in, but will be routed to the verify-required screen.)
-        const inGuild = await isDiscordGuildMember(user.id);
-        if (inGuild === false) {
-          return false;
-        }
+        // Do not reject OAuth here when the user is not in the guild: NextAuth maps that to
+        // `AccessDenied` and looks like a Discord cancel. Guild membership is enforced in the
+        // JWT callback + middleware (redirect to /membership, APIs 401) so rejoining members can
+        // complete Discord login and then refresh after the bot sees them in the server.
 
         const supabaseUrl = process.env.SUPABASE_URL?.trim();
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -237,11 +235,12 @@ export const authOptions: NextAuthOptions = {
 
           if (inGuild === false) {
             await syncGuildMembershipToUsers(discordId, false);
-            // User was kicked/banned (or never joined). Kill the session immediately.
+            (token as any).discordInGuild = false;
             (token as any).discordNeedsVerification = false;
             (token as any).discordBlockedReason = "not_in_guild";
             (token as any).discordGuildRefreshAt = Date.now();
-            return { ...token, exp: Math.floor(Date.now() / 1000) - 120 };
+            // Keep the session cookie so they can land on /membership, join, then session refetch
+            // picks up membership without going through OAuth again.
           }
 
           // If we can't confirm membership (null), don't deny — keep last-known values.
