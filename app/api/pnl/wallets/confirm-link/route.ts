@@ -75,6 +75,23 @@ export async function POST(req: Request) {
     return Response.json({ success: false, error: "Failed to link wallet" }, { status: 500 });
   }
 
+  // Also link this wallet for dashboard features (Wallet PnL, token activity, etc.).
+  try {
+    const nowIso = new Date().toISOString();
+    await db.from("dashboard_linked_wallets").delete().eq("wallet_pubkey", pk.toBase58());
+    await db.from("dashboard_linked_wallets").delete().eq("discord_id", gate.discordId);
+    const { error: dashErr } = await db.from("dashboard_linked_wallets").insert({
+      discord_id: gate.discordId,
+      chain: "solana",
+      wallet_pubkey: pk.toBase58(),
+      verified_at: nowIso,
+      updated_at: nowIso,
+    });
+    if (dashErr) console.error("[pnl/wallets/confirm-link] dashboard_linked_wallets insert:", dashErr);
+  } catch (e) {
+    console.error("[pnl/wallets/confirm-link] dashboard link:", e);
+  }
+
   return Response.json({ success: true });
 }
 

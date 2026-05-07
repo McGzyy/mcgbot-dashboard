@@ -1452,9 +1452,12 @@ function TrendingPanel() {
             ? "Loading…"
             : apiHealth
               ? Object.entries(apiHealth)
-                  .map(([k, v]) =>
-                    v.ok ? `${k} ✓${v.count ? ` (${v.count})` : ""}` : `${k} blocked`
-                  )
+                  .map(([k, v]) => {
+                    if (v.ok) return `${k} ✓ (${v.count})`;
+                    const msg = String(v.error ?? "unavailable").replace(/^Error:\s*/i, "");
+                    const short = msg.length > 48 ? `${msg.slice(0, 46)}…` : msg;
+                    return `${k}: ${short}`;
+                  })
                   .join(" • ")
               : "Live • feed wired"}
         </div>

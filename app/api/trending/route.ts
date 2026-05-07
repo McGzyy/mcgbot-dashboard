@@ -1,5 +1,7 @@
+export const runtime = "nodejs";
+
 const CACHE_TTL_MS = 25_000;
-const FETCH_TIMEOUT_MS = 8_000;
+const FETCH_TIMEOUT_MS = 14_000;
 
 type Timeframe = "5m" | "1h" | "24h";
 type Source = "All" | "Dexscreener" | "Gecko" | "Axiom" | "GMGN";
@@ -78,6 +80,144 @@ async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
   }
 }
 
+/** Dex endpoints vary: bare arrays vs `{ value }` vs `{ pairs }`. */
+function extractDexArray(json: unknown): unknown[] {
+  if (Array.isArray(json)) return json;
+  if (!json || typeof json !== "object") return [];
+  const o = json as Record<string, unknown>;
+  for (const key of ["value", "pairs", "data", "items", "results"]) {
+    const v = o[key];
+    if (Array.isArray(v)) return v;
+  }
+  return [];
+}
+
+function pairsFromLatestDexTokens(json: unknown): Record<string, unknown>[] {
+  if (!json || typeof json !== "object") return [];
+  const pairs = (json as Record<string, unknown>).pairs;
+  return Array.isArray(pairs) ? (pairs as Record<string, unknown>[]) : [];
+}
+
+function chunkStrings<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+async function fetchLatestDexPairsForMints(mints: string[], dbg?: DebugInfo): Promise<Record<string, unknown>[]> {
+  const uniq = Array.from(new Set(mints.map((m) => m.trim()).filter(Boolean)));
+  const merged: Record<string, unknown>[] = [];
+
+  for (const group of chunkStrings(uniq, 20)) {
+    try {
+      if (dbg) dbg.dexscreener.tokenPairsFetched += 1;
+      const url = `https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(group.join(","))}`;
+      const json = await fetchJson(url);
+      const pairs = pairsFromLatestDexTokens(json);
+      if (pairs.length > 0) {
+        merged.push(...pairs);
+        continue;
+      }
+    } catch {
+      /* fall through to per-mint */
+    }
+
+    for (const m of group) {
+      try {
+        if (dbg) dbg.dexscreener.tokenPairsFetched += 1;
+        const json = await fetchJson(
+          `https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(m)}`
+        );
+        merged.push(...pairsFromLatestDexTokens(json));
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  return merged;
+}
+
+function pickBestPairForMint(
+  mint: string,
+  pairs: Record<string, unknown>[],
+  timeKey: "m5" | "h1" | "h24",
+  opts?: { minLiqUsd?: number; minVolUsd?: number; minTxns?: number }
+): Record<string, unknown> | null {
+  let best: Record<string, unknown> | null = null;
+  let bestScore = -1;
+  const focus = mint.trim();
+  if (!focus) return null;
+
+  for (const p of pairs) {
+    if (!p || typeof p !== "object") continue;
+    const o = p as Record<string, unknown>;
+    if (String(o.chainId ?? "").toLowerCase() !== "solana") continue;
+
+    const base = (o.baseToken as Record<string, unknown>) ?? {};
+    const quote = (o.quoteToken as Record<string, unknown>) ?? {};
+    const bA = typeof base.address === "string" ? base.address.trim() : "";
+    const qA = typeof quote.address === "string" ? quote.address.trim() : "";
+    if (bA !== focus && qA !== focus) continue;
+
+    const liqUsd = asNum((o.liquidity as { usd?: unknown })?.usd);
+    const volTf = asNum((o.volume as Record<string, unknown> | undefined)?.[timeKey]);
+    const txBucket =
+      o.txns && typeof o.txns === "object"
+        ? ((o.txns as Record<string, unknown>)[timeKey] as Record<string, unknown> | undefined)
+        : undefined;
+    const txnsTf =
+      txBucket && typeof txBucket === "object"
+        ? asNum(txBucket.buys) + asNum(txBucket.sells)
+        : 0;
+
+    if (opts?.minLiqUsd != null && liqUsd < opts.minLiqUsd) continue;
+    if (opts?.minVolUsd != null && volTf < opts.minVolUsd) continue;
+    if (opts?.minTxns != null && txnsTf < opts.minTxns) continue;
+
+    const score = liqUsd * 4 + volTf + txnsTf * 650;
+    if (score > bestScore) {
+      bestScore = score;
+      best = o;
+    }
+  }
+
+  return best;
+}
+
+function trendingRowFromPair(
+  pair: Record<string, unknown>,
+  mintFocus: string,
+  tf: Timeframe
+): TrendingTokenRow | null {
+  const timeKey = pickTimeKey(tf);
+  const focus = mintFocus.trim();
+  const base = (pair.baseToken as Record<string, unknown>) ?? {};
+  const quote = (pair.quoteToken as Record<string, unknown>) ?? {};
+  const bA = typeof base.address === "string" ? base.address.trim() : "";
+  const qA = typeof quote.address === "string" ? quote.address.trim() : "";
+
+  let symbol = "";
+  if (bA === focus) symbol = typeof base.symbol === "string" ? base.symbol.trim() : "";
+  else if (qA === focus) symbol = typeof quote.symbol === "string" ? quote.symbol.trim() : "";
+  if (!symbol) symbol = focus.slice(0, 6) || "?";
+
+  const mint = focus;
+  if (!mint) return null;
+
+  return {
+    symbol,
+    mint,
+    priceUsd: asNum(pair.priceUsd),
+    changePct: asNum((pair.priceChange as Record<string, unknown> | undefined)?.[timeKey]),
+    liquidityUsd: asNum((pair.liquidity as { usd?: unknown })?.usd),
+    volumeUsd: asNum((pair.volume as Record<string, unknown> | undefined)?.[timeKey]),
+    holders: 0,
+    source: "Dexscreener",
+    timeframe: tf,
+  };
+}
+
 async function loadDexscreenerHeuristic(
   tf: Timeframe,
   limit: number,
@@ -97,11 +237,7 @@ async function loadDexscreenerHeuristic(
   for (const url of sources) {
     try {
       const json = (await fetchJson(url)) as any;
-      const arr = Array.isArray(json)
-        ? (json as unknown[])
-        : Array.isArray(json?.value)
-          ? (json.value as unknown[])
-          : [];
+      const arr = extractDexArray(json);
       for (const item of arr) {
         if (!item || typeof item !== "object") continue;
         const o = item as Record<string, unknown>;
@@ -122,67 +258,22 @@ async function loadDexscreenerHeuristic(
   if (uniq.length === 0) return [];
 
   const out: TrendingTokenRow[] = [];
-  const concurrency = 6;
-  let i = 0;
+  const mints = uniq.map((c) => c.tokenAddress);
+  const allPairs = await fetchLatestDexPairsForMints(mints, dbg);
 
-  async function worker() {
-    while (i < uniq.length && out.length < limit) {
-      const idx = i++;
-      const tokenAddress = uniq[idx]!.tokenAddress;
-      try {
-        if (dbg) dbg.dexscreener.tokenPairsFetched += 1;
-        const json = (await fetchJson(
-          `https://api.dexscreener.com/token-pairs/v1/solana/${encodeURIComponent(tokenAddress)}`
-        )) as { value?: unknown };
-        const pairsRaw = Array.isArray(json?.value) ? (json.value as unknown[]) : [];
-        if (pairsRaw.length === 0) continue;
-
-        let best: Record<string, unknown> | null = null;
-        let bestScore = -1;
-        for (const p of pairsRaw) {
-          if (!p || typeof p !== "object") continue;
-          const o = p as Record<string, unknown>;
-          const liqUsd = asNum((o.liquidity as any)?.usd);
-          const volTf = asNum((o.volume as any)?.[timeKey]);
-          const txnsTf = asNum((o.txns as any)?.[timeKey]?.buys) + asNum((o.txns as any)?.[timeKey]?.sells);
-          // “Trending-like” heuristic: require some liquidity and activity.
-          if (liqUsd < minLiqUsd) continue;
-          if (volTf < minVolUsd) continue;
-          if (txnsTf < minTxns) continue;
-          // Score leans into volume+txns, but still prefers liquid pairs.
-          const score = liqUsd * 4 + volTf + txnsTf * 650;
-          if (score > bestScore) {
-            bestScore = score;
-            best = o;
-          }
-        }
-        if (!best) continue;
-
-          if (dbg) dbg.dexscreener.tokenPairsMatched += 1;
-
-        const base = (best.baseToken as any) ?? {};
-        const symbol = String(base.symbol ?? "").trim();
-        const mint = String(base.address ?? "").trim();
-        if (!symbol || !mint) continue;
-
-        out.push({
-          symbol,
-          mint,
-          priceUsd: asNum(best.priceUsd),
-          changePct: asNum((best.priceChange as any)?.[timeKey]),
-          liquidityUsd: asNum((best.liquidity as any)?.usd),
-          volumeUsd: asNum((best.volume as any)?.[timeKey]),
-          holders: 0,
-          source: "Dexscreener",
-          timeframe: tf,
-        });
-      } catch {
-        // ignore per-token failures
-      }
-    }
+  for (const c of uniq) {
+    if (out.length >= limit) break;
+    const best = pickBestPairForMint(c.tokenAddress, allPairs, timeKey, {
+      minLiqUsd,
+      minVolUsd,
+      minTxns,
+    });
+    if (!best) continue;
+    if (dbg) dbg.dexscreener.tokenPairsMatched += 1;
+    const row = trendingRowFromPair(best, c.tokenAddress, tf);
+    if (row) out.push(row);
   }
 
-  await Promise.all(Array.from({ length: concurrency }, () => worker()));
   return out;
 }
 
@@ -191,10 +282,10 @@ async function loadDexscreener(
   limit: number,
   dbg?: DebugInfo
 ): Promise<TrendingTokenRow[]> {
-  const top = (await fetchJson(
-    `https://api.dexscreener.com/token-boosts/top/v1?limit=${encodeURIComponent(String(limit))}`
-  )) as { value?: unknown };
-  const rowsRaw = Array.isArray(top?.value) ? (top.value as unknown[]) : [];
+  const top = await fetchJson(
+    `https://api.dexscreener.com/token-boosts/top/v1?limit=${encodeURIComponent(String(Math.max(limit, 40)))}`
+  );
+  const rowsRaw = extractDexArray(top);
   if (dbg) dbg.dexscreener.boostsSeen += rowsRaw.length;
   const addrs: string[] = [];
   for (const r of rowsRaw) {
@@ -204,68 +295,22 @@ async function loadDexscreener(
     const addr = String(o.tokenAddress ?? "").trim();
     if (addr) addrs.push(addr);
   }
-  const uniq = Array.from(new Set(addrs)).slice(0, limit);
+  const uniq = Array.from(new Set(addrs)).slice(0, Math.max(limit, 24));
   if (uniq.length === 0) return await loadDexscreenerHeuristic(tf, limit, dbg);
 
   const timeKey = pickTimeKey(tf);
   const out: TrendingTokenRow[] = [];
+  const allPairs = await fetchLatestDexPairsForMints(uniq, dbg);
 
-  // Keep concurrency modest to avoid public API throttling.
-  const concurrency = 6;
-  let i = 0;
-  async function worker() {
-    while (i < uniq.length) {
-      const idx = i++;
-      const tokenAddress = uniq[idx]!;
-      try {
-        if (dbg) dbg.dexscreener.tokenPairsFetched += 1;
-        const json = (await fetchJson(
-          `https://api.dexscreener.com/token-pairs/v1/solana/${encodeURIComponent(tokenAddress)}`
-        )) as { value?: unknown };
-        const pairsRaw = Array.isArray(json?.value) ? (json.value as unknown[]) : [];
-        if (pairsRaw.length === 0) continue;
-
-        // Pick most relevant pair: highest liquidity.usd then highest volume in timeframe.
-        let best: Record<string, unknown> | null = null;
-        let bestScore = -1;
-        for (const p of pairsRaw) {
-          if (!p || typeof p !== "object") continue;
-          const o = p as Record<string, unknown>;
-          const liqUsd = asNum((o.liquidity as any)?.usd);
-          const volTf = asNum((o.volume as any)?.[timeKey]);
-          const score = liqUsd * 1_000_000 + volTf;
-          if (score > bestScore) {
-            bestScore = score;
-            best = o;
-          }
-        }
-        if (!best) continue;
-
-        if (dbg) dbg.dexscreener.tokenPairsMatched += 1;
-
-        const base = (best.baseToken as any) ?? {};
-        const symbol = String(base.symbol ?? "").trim();
-        const mint = String(base.address ?? "").trim();
-        if (!symbol || !mint) continue;
-
-        out.push({
-          symbol,
-          mint,
-          priceUsd: asNum(best.priceUsd),
-          changePct: asNum((best.priceChange as any)?.[timeKey]),
-          liquidityUsd: asNum((best.liquidity as any)?.usd),
-          volumeUsd: asNum((best.volume as any)?.[timeKey]),
-          holders: 0,
-          source: "Dexscreener",
-          timeframe: tf,
-        });
-      } catch {
-        // Ignore per-token failures.
-      }
-    }
+  for (const mint of uniq) {
+    if (out.length >= limit) break;
+    const best = pickBestPairForMint(mint, allPairs, timeKey);
+    if (!best) continue;
+    if (dbg) dbg.dexscreener.tokenPairsMatched += 1;
+    const row = trendingRowFromPair(best, mint, tf);
+    if (row) out.push(row);
   }
 
-  await Promise.all(Array.from({ length: concurrency }, () => worker()));
   if (out.length === 0) {
     return await loadDexscreenerHeuristic(tf, limit, dbg);
   }
@@ -351,10 +396,7 @@ export async function GET(req: Request) {
     const s = settled[i]!;
     if (s.status === "fulfilled") {
       merged.push(...s.value);
-      health[name] =
-        s.value.length > 0
-          ? { ok: true, count: s.value.length }
-          : { ok: false, count: 0, error: "empty" };
+      health[name] = { ok: true, count: s.value.length };
     } else {
       health[name] = { ok: false, count: 0, error: String(s.reason?.message ?? s.reason ?? "failed") };
     }
