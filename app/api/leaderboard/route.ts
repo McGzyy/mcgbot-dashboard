@@ -14,6 +14,7 @@ import {
   displayNameForDiscordId,
   fetchDiscordLeaderExtras,
 } from "@/lib/leaderboardDisplayNames";
+import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
 
 // WEEKLY LEADER = resets every Monday 00:00 UTC → GET /api/leaderboard/weekly-leader
 // MONTHLY LEADER = resets first day of month 00:00 UTC → GET /api/leaderboard/monthly-leader
@@ -56,9 +57,10 @@ export async function GET(request: Request) {
 
     const supabase = createClient(url, key);
 
-    const [{ rows, error }, cutoverMs] = await Promise.all([
+    const [{ rows, error }, cutoverMs, excludedDiscordIds] = await Promise.all([
       fetchCallPerformanceForSource(supabase, type),
       getStatsCutoverUtcMs(),
+      fetchDiscordIdsExcludedFromLeaderboards(),
     ]);
 
     if (error) {
@@ -81,7 +83,7 @@ export async function GET(request: Request) {
         (r as any).hidden_from_dashboard !== true
     );
 
-    const aggregated = aggregateCallPerformanceRows(eligible);
+    const aggregated = aggregateCallPerformanceRows(eligible, excludedDiscordIds);
     const ranked = rankTopN(aggregated, 10);
     const ids = ranked.map((r) => r.discordId);
     const { displayNames, avatarUrls } = await fetchDiscordLeaderExtras(supabase, ids);

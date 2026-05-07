@@ -7,6 +7,7 @@ import {
 } from "@/lib/callPerformanceLeaderboard";
 import { closedTrophyWindowUtcMs } from "@/lib/leaderboardTimeWindows";
 import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
+import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
 import { TOP_CALLER_BADGE_KEY } from "@/lib/topCallerBadgeDisplay";
 
 export type AwardMonthlyTopCallerResult = {
@@ -42,9 +43,10 @@ export async function awardMonthlyTopCallerBadge(
   }
   const { periodStartMs, endMsExclusive } = window;
 
-  const [{ rows, error: fetchErr }, cutoverMs] = await Promise.all([
+  const [{ rows, error: fetchErr }, cutoverMs, excludedDiscordIds] = await Promise.all([
     fetchCallPerformanceForSource(supabase, source),
     getStatsCutoverUtcMs(),
+    fetchDiscordIdsExcludedFromLeaderboards(),
   ]);
   if (fetchErr) {
     return {
@@ -58,7 +60,7 @@ export async function awardMonthlyTopCallerBadge(
 
   const minMs = mergeStatsCutoverIntoMin(periodStartMs, cutoverMs);
   const filtered = filterRowsByCallTimeWindow(rows, minMs, endMsExclusive);
-  const aggregated = aggregateCallPerformanceRows(filtered);
+  const aggregated = aggregateCallPerformanceRows(filtered, excludedDiscordIds);
   const top1 = rankTopN(aggregated, 1);
   const winnerId = top1[0]?.discordId?.trim() || null;
 

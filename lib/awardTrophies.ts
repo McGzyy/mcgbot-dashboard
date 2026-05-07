@@ -5,6 +5,7 @@ import {
   filterRowsByCallTimeWindow,
   rankTopN,
 } from "@/lib/callPerformanceLeaderboard";
+import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
 import { closedTrophyWindowUtcMs } from "@/lib/leaderboardTimeWindows";
 import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
 
@@ -51,9 +52,10 @@ export async function awardTrophies(
   }
   const { periodStartMs, endMsExclusive } = window;
 
-  const [{ rows, error: fetchErr }, cutoverMs] = await Promise.all([
+  const [{ rows, error: fetchErr }, cutoverMs, excludedDiscordIds] = await Promise.all([
     fetchCallPerformanceForSource(supabase, source),
     getStatsCutoverUtcMs(),
+    fetchDiscordIdsExcludedFromLeaderboards(),
   ]);
   if (fetchErr) {
     return {
@@ -66,7 +68,7 @@ export async function awardTrophies(
 
   const minMs = mergeStatsCutoverIntoMin(periodStartMs, cutoverMs);
   const filtered = filterRowsByCallTimeWindow(rows, minMs, endMsExclusive);
-  const aggregated = aggregateCallPerformanceRows(filtered);
+  const aggregated = aggregateCallPerformanceRows(filtered, excludedDiscordIds);
   const top3 = rankTopN(aggregated, 3);
 
   const leaders: AwardTrophiesLeader[] = top3.map((u) => ({

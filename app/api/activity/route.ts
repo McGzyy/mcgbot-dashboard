@@ -17,6 +17,7 @@ import {
 } from "@/lib/callPerformanceDashboardVisibility";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
+import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
 
 export async function GET(request: Request) {
   try {
@@ -92,7 +93,7 @@ export async function GET(request: Request) {
       followingIds = ids;
     }
 
-    const [{ data, error }, cutoverMs] = await Promise.all([
+    const [{ data, error }, cutoverMs, excludedDiscordIds] = await Promise.all([
       selectCallPerformanceWithSnapshotFallback({
         columnsWithSnapshot: CP_ACTIVITY_WITH_SNAPSHOT,
         columnsLegacy: CP_ACTIVITY_LEGACY,
@@ -108,6 +109,7 @@ export async function GET(request: Request) {
         },
       }),
       getStatsCutoverUtcMs(),
+      fetchDiscordIdsExcludedFromLeaderboards(),
     ]);
 
     if (error) {
@@ -119,7 +121,18 @@ export async function GET(request: Request) {
     }
 
     const rawRows = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
-    const rows = filterCallRowsForStats(rawRows, cutoverMs).slice(0, 20);
+    const rows = filterCallRowsForStats(rawRows, cutoverMs)
+      .filter((row) => {
+        const raw = (row as Record<string, unknown>).discord_id;
+        const id =
+          typeof raw === "string"
+            ? raw.trim()
+            : raw != null
+              ? String(raw).trim()
+              : "";
+        return !id || !excludedDiscordIds.has(id);
+      })
+      .slice(0, 20);
 
     type DraftEvent = {
       type: "win" | "call";

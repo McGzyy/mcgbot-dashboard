@@ -1,9 +1,14 @@
-import { createClient } from "@supabase/supabase-js";
 import {
   CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
   CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
 } from "@/lib/callPerformanceDashboardVisibility";
+import {
+  looksLikeDiscordSnowflake,
+  resolveDiscordIdFromProfileRouteParam,
+} from "@/lib/discordIdentity";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
+import { isPublicProfileHiddenFromViewer } from "@/lib/profileGuildVisibility";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function GET(
   _request: Request,
@@ -11,36 +16,39 @@ export async function GET(
 ) {
   try {
     const { id: rawId } = await context.params;
-    const profileUserId = decodeURIComponent(String(rawId ?? "")).trim();
-    if (!profileUserId || profileUserId.length > 64) {
+    const routeParam = decodeURIComponent(String(rawId ?? "")).trim();
+    if (!routeParam || routeParam.length > 200) {
       return Response.json({ error: "Invalid user id" }, { status: 400 });
     }
 
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
-    if (!url || !key) {
-      console.error("[pinned-call API] Missing Supabase env vars");
-      return Response.json(
-        { error: "Supabase not configured" },
-        { status: 500 }
-      );
+    const db = getSupabaseAdmin();
+    if (!db) {
+      return Response.json({ error: "Supabase not configured" }, { status: 500 });
     }
 
-    const supabase = createClient(url, key);
+    const discordId = looksLikeDiscordSnowflake(routeParam)
+      ? routeParam.trim()
+      : await resolveDiscordIdFromProfileRouteParam(db, routeParam);
 
-    const { data: user, error: userErr } = await supabase
+    if (!discordId) {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (await isPublicProfileHiddenFromViewer(discordId)) {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const { data: user, error: userErr } = await db
       .from("users")
       .select("pinned_call_id")
-      .eq("discord_id", profileUserId)
+      .eq("discord_id", discordId)
       .maybeSingle();
-
-    console.log("PINNED CALL USER RESULT:", user, userErr);
 
     if (userErr) {
       return Response.json({ error: userErr.message }, { status: 500 });
     }
 
-    const pinnedIdRaw = (user as any)?.pinned_call_id;
+    const pinnedIdRaw = (user as { pinned_call_id?: unknown })?.pinned_call_id;
     const pinnedCallId =
       typeof pinnedIdRaw === "string"
         ? pinnedIdRaw.trim()
@@ -52,16 +60,14 @@ export async function GET(
       return Response.json({ pinnedCall: null });
     }
 
-    const { data: call, error: callErr } = await supabase
+    const { data: call, error: callErr } = await db
       .from("call_performance")
       .select("id, call_ca, ath_multiple, spot_multiple, call_time")
       .eq("id", pinnedCallId)
-      .eq("discord_id", profileUserId)
+      .eq("discord_id", discordId)
       .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
       .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR)
       .maybeSingle();
-
-    console.log("PINNED CALL RESULT:", call, callErr);
 
     if (callErr) {
       return Response.json({ error: callErr.message }, { status: 500 });
@@ -74,10 +80,10 @@ export async function GET(
     const callRow = call as Record<string, unknown>;
     return Response.json({
       pinnedCall: {
-        id: String((call as any).id ?? ""),
-        token: (call as any).call_ca ?? "Unknown",
+        id: String((call as { id?: unknown }).id ?? ""),
+        token: (call as { call_ca?: unknown }).call_ca ?? "Unknown",
         multiple: rowAthMultiple(callRow),
-        time: (call as any).call_time,
+        time: (call as { call_time?: unknown }).call_time,
       },
     });
   } catch (e) {
@@ -88,4 +94,3 @@ export async function GET(
     );
   }
 }
-

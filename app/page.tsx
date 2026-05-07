@@ -68,6 +68,7 @@ type TrendingTokenRow = {
   symbol: string;
   mint: string;
   priceUsd: number;
+  marketCapUsd: number;
   changePct: number;
   liquidityUsd: number;
   volumeUsd: number;
@@ -81,6 +82,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "WIF",
     mint: "EKpQGSJtjMFqKZ9q8i7vNQkWQwGJcD3u3wqBzQk9sYtX",
     priceUsd: 2.41,
+    marketCapUsd: 890_000_000,
     changePct: 8.2,
     liquidityUsd: 12_400_000,
     volumeUsd: 18_900_000,
@@ -92,6 +94,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "JUP",
     mint: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
     priceUsd: 1.13,
+    marketCapUsd: 1_400_000_000,
     changePct: -1.4,
     liquidityUsd: 31_800_000,
     volumeUsd: 9_400_000,
@@ -103,6 +106,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "BONK",
     mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
     priceUsd: 0.000028,
+    marketCapUsd: 980_000_000,
     changePct: 3.0,
     liquidityUsd: 9_200_000,
     volumeUsd: 7_600_000,
@@ -114,6 +118,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "PYTH",
     mint: "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
     priceUsd: 0.49,
+    marketCapUsd: 520_000_000,
     changePct: 0.9,
     liquidityUsd: 6_700_000,
     volumeUsd: 3_200_000,
@@ -125,6 +130,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "BOME",
     mint: "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82",
     priceUsd: 0.0142,
+    marketCapUsd: 410_000_000,
     changePct: 5.6,
     liquidityUsd: 4_900_000,
     volumeUsd: 8_100_000,
@@ -136,6 +142,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "MEW",
     mint: "MEW1gQWJ3nEXg2qZrJ2Jc8Gd8oZ2e2u9X1pQGqVJ9uQ",
     priceUsd: 0.0068,
+    marketCapUsd: 420_000_000,
     changePct: 12.4,
     liquidityUsd: 2_700_000,
     volumeUsd: 5_900_000,
@@ -147,6 +154,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "POPCAT",
     mint: "7GCihgDB8Y1sZp8V7H9rYw1d3oY5eHc8GQyYqZQKQp5",
     priceUsd: 0.86,
+    marketCapUsd: 870_000_000,
     changePct: -3.8,
     liquidityUsd: 3_300_000,
     volumeUsd: 2_500_000,
@@ -158,6 +166,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "JTO",
     mint: "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6YVqT7b",
     priceUsd: 2.94,
+    marketCapUsd: 490_000_000,
     changePct: 2.1,
     liquidityUsd: 11_100_000,
     volumeUsd: 4_400_000,
@@ -169,6 +178,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "RAY",
     mint: "4k3Dyjzvzp8eMZWK5oAi6n3yJqfY1c7VQ9TzJpJpW6t",
     priceUsd: 1.92,
+    marketCapUsd: 760_000_000,
     changePct: 4.7,
     liquidityUsd: 14_600_000,
     volumeUsd: 6_200_000,
@@ -180,6 +190,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "ORCA",
     mint: "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
     priceUsd: 3.19,
+    marketCapUsd: 310_000_000,
     changePct: -0.6,
     liquidityUsd: 8_900_000,
     volumeUsd: 1_900_000,
@@ -191,6 +202,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "DRIFT",
     mint: "DRiFt11111111111111111111111111111111111111",
     priceUsd: 1.07,
+    marketCapUsd: 380_000_000,
     changePct: 6.9,
     liquidityUsd: 5_800_000,
     volumeUsd: 3_600_000,
@@ -202,6 +214,7 @@ const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
     symbol: "KMNO",
     mint: "KMNo111111111111111111111111111111111111111",
     priceUsd: 0.092,
+    marketCapUsd: 250_000_000,
     changePct: 9.8,
     liquidityUsd: 1_600_000,
     volumeUsd: 2_200_000,
@@ -1358,6 +1371,7 @@ function TrendingPanel() {
             symbol,
             mint,
             priceUsd: Number(o.priceUsd ?? 0) || 0,
+            marketCapUsd: Number(o.marketCapUsd ?? 0) || 0,
             changePct: Number(o.changePct ?? 0) || 0,
             liquidityUsd: Number(o.liquidityUsd ?? 0) || 0,
             volumeUsd: Number(o.volumeUsd ?? 0) || 0,
@@ -1469,7 +1483,7 @@ function TrendingPanel() {
         <div className="px-2 pb-2 text-[11px] uppercase tracking-wider text-zinc-600">
           <div className="grid grid-cols-[minmax(0,1.2fr)_auto_auto] items-center gap-3">
             <span>Token</span>
-            <span className="text-right">Price / Chg</span>
+            <span className="text-right">MC / Chg</span>
             <span className="text-right">Liq / Vol</span>
           </div>
         </div>
@@ -1538,7 +1552,9 @@ function TrendingPanel() {
 
                       <div className="shrink-0 text-right">
                         <div className="text-sm font-semibold tabular-nums text-zinc-100">
-                          {formatPriceUsd(row.priceUsd)}
+                          {row.marketCapUsd > 0
+                            ? formatCompactUsd(row.marketCapUsd)
+                            : "—"}
                         </div>
                         <div
                           className={`mt-0.5 text-xs font-semibold tabular-nums ${

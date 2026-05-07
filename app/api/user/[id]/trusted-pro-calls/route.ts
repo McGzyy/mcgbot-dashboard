@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveDiscordIdFromProfileRouteParam } from "@/lib/discordIdentity";
+import { isPublicProfileHiddenFromViewer } from "@/lib/profileGuildVisibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
     const discordId = await resolveDiscordIdFromProfileRouteParam(db as any, routeParam);
     if (!discordId) {
+      return Response.json({ success: false, error: "User not found" }, { status: 404 });
+    }
+
+    if (await isPublicProfileHiddenFromViewer(discordId)) {
       return Response.json({ success: false, error: "User not found" }, { status: 404 });
     }
 

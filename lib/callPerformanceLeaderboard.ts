@@ -69,7 +69,8 @@ export function filterRowsByCallTimeWindow(
 }
 
 export function aggregateCallPerformanceRows(
-  rows: Record<string, unknown>[]
+  rows: Record<string, unknown>[],
+  excludeDiscordIds?: ReadonlySet<string>
 ): AggregatedLeader[] {
   const sorted = [...rows].sort(
     (a, b) => rowCallTimeUtcMs(a) - rowCallTimeUtcMs(b)
@@ -85,6 +86,7 @@ export function aggregateCallPerformanceRows(
         ? row.discord_id.trim()
         : String(row.discord_id ?? "").trim();
     if (!discordId) continue;
+    if (excludeDiscordIds?.has(discordId)) continue;
 
     const mult = rowAthMultiple(row);
     if (!Number.isFinite(mult) || mult <= 0) continue;
@@ -179,11 +181,12 @@ export async function fetchCallPerformanceForSource(
 export async function getTopLeaderSince(
   supabase: SupabaseClient,
   source: string,
-  minCallTimeMs: number
+  minCallTimeMs: number,
+  excludeDiscordIds?: ReadonlySet<string>
 ): Promise<AggregatedLeader | null> {
   const { rows, error } = await fetchCallPerformanceForSource(supabase, source);
   if (error) throw error;
   const filtered = filterRowsByMinCallTimeUtc(rows, minCallTimeMs);
-  const agg = aggregateCallPerformanceRows(filtered);
+  const agg = aggregateCallPerformanceRows(filtered, excludeDiscordIds);
   return agg[0] ?? null;
 }

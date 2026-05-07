@@ -12,6 +12,7 @@ import {
   getStatsCutoverUtcMs,
   mergeStatsCutoverIntoMin,
 } from "@/lib/statsCutover";
+import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
 
 // RANKINGS = rolling window (last 7 days), UTC — same window as default /api/leaderboard rankings
 
@@ -36,9 +37,10 @@ export async function GET() {
 
     const supabase = createClient(url, key);
 
-    const [{ rows, error }, cutoverMs] = await Promise.all([
+    const [{ rows, error }, cutoverMs, excludedDiscordIds] = await Promise.all([
       fetchCallPerformanceForSource(supabase, "user"),
       getStatsCutoverUtcMs(),
+      fetchDiscordIdsExcludedFromLeaderboards(),
     ]);
 
     if (error) {
@@ -57,7 +59,7 @@ export async function GET() {
     );
     const filtered = filterRowsByMinCallTimeUtc(eligible, minCallTimeMs);
 
-    const results = aggregateCallPerformanceRows(filtered);
+    const results = aggregateCallPerformanceRows(filtered, excludedDiscordIds);
 
     const idx = results.findIndex((r) => r.discordId === selfId);
     const rank = idx === -1 ? null : idx + 1;

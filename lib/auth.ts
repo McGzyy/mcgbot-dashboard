@@ -5,7 +5,10 @@ import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
 import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
+import { isDiscordGuildMember } from "@/lib/discordGuildMember";
+import { discordVerificationGateFromRoleIds } from "@/lib/discordVerificationGate";
 import { getSessionInvalidationEpochCached } from "@/lib/sessionInvalidationEpoch";
+import { syncGuildMembershipToUsers } from "@/lib/guildMembershipSync";
 
 /** Discord CDN avatar; custom avatar or default embed sprite from snowflake. */
 function discordAvatarUrlFromDiscordProfile(p: {
@@ -58,6 +61,13 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user }) {
       try {
+        // Hard gate: if DISCORD_GUILD_ID + bot token are configured, only allow sign-in for current members.
+        // (Unverified users are allowed to sign in, but will be routed to the verify-required screen.)
+        const inGuild = await isDiscordGuildMember(user.id);
+        if (inGuild === false) {
+          return false;
+        }
+
         const supabaseUrl = process.env.SUPABASE_URL?.trim();
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
         if (!supabaseUrl || !serviceKey) {
@@ -176,6 +186,20 @@ export const authOptions: NextAuthOptions = {
         (trigger === "update" && refreshSubscriptionFlag) ||
         subscriptionGateStale;
 
+      // Discord guild membership + verification gate (checked frequently so kicked/banned users lose access fast).
+      const GUILD_REFRESH_MS = 55 * 1000;
+      const guildLastRefresh =
+        typeof (token as any).discordGuildRefreshAt === "number"
+          ? (token as any).discordGuildRefreshAt
+          : 0;
+      const guildGateMissing =
+        Boolean(discordId) &&
+        (typeof (token as any).discordInGuild !== "boolean" ||
+          typeof (token as any).discordNeedsVerification !== "boolean");
+      const guildGateStale =
+        Boolean(discordId) && Date.now() - guildLastRefresh > GUILD_REFRESH_MS;
+      const shouldRefreshGuildGate = Boolean(discordId) && (guildGateMissing || guildGateStale || Boolean(user));
+
       if (discordId && shouldRefreshAccess) {
         try {
           const [end, exempt, helpTier] = await Promise.all([
@@ -204,6 +228,45 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
+      if (discordId && shouldRefreshGuildGate) {
+        try {
+          const inGuild = await isDiscordGuildMember(discordId);
+          if (typeof inGuild === "boolean") {
+            (token as any).discordInGuild = inGuild;
+          }
+
+          if (inGuild === false) {
+            await syncGuildMembershipToUsers(discordId, false);
+            // User was kicked/banned (or never joined). Kill the session immediately.
+            (token as any).discordNeedsVerification = false;
+            (token as any).discordBlockedReason = "not_in_guild";
+            (token as any).discordGuildRefreshAt = Date.now();
+            return { ...token, exp: Math.floor(Date.now() / 1000) - 120 };
+          }
+
+          // If we can't confirm membership (null), don't deny — keep last-known values.
+          if (inGuild === true) {
+            await syncGuildMembershipToUsers(discordId, true);
+            const roleIds = await getDiscordGuildMemberRoleIds(discordId);
+            if (Array.isArray(roleIds)) {
+              (token as any).discordGuildRoleIds = roleIds;
+              const gate = discordVerificationGateFromRoleIds(roleIds);
+              if (gate && !gate.ok) {
+                (token as any).discordNeedsVerification = true;
+                (token as any).discordBlockedReason = gate.reason;
+              } else {
+                (token as any).discordNeedsVerification = false;
+                (token as any).discordBlockedReason = null;
+              }
+            }
+          }
+          (token as any).discordGuildRefreshAt = Date.now();
+        } catch (e) {
+          console.warn("[auth] guild gate refresh:", e);
+          // keep previous gate fields on transient failure
+        }
+      }
+
       return token;
     },
 
@@ -225,12 +288,27 @@ export const authOptions: NextAuthOptions = {
       session.user.subscriptionExempt = exempt;
       session.user.hasActiveSubscription =
         end != null && end.length > 0 && new Date(end).getTime() > Date.now();
+      const tierEarly = token.helpTier;
+      const helpTierOk =
+        tierEarly === "admin" || tierEarly === "mod" || tierEarly === "user" ? tierEarly : "user";
+      const staffVerificationBypass = helpTierOk === "admin" || helpTierOk === "mod";
+      const rawNeedsVerification = (token as any).discordNeedsVerification === true;
+      const effectiveNeedsVerification = rawNeedsVerification && !staffVerificationBypass;
       session.user.hasDashboardAccess =
-        exempt || session.user.hasActiveSubscription;
+        (exempt || session.user.hasActiveSubscription) &&
+        (token as any).discordInGuild !== false &&
+        !effectiveNeedsVerification;
       const tier = token.helpTier;
       session.user.helpTier =
         tier === "admin" || tier === "mod" || tier === "user" ? tier : "user";
       session.user.canModerate = token.canModerate === true;
+
+      // Expose Discord gate status to the client for UX.
+      (session.user as any).discordInGuild =
+        typeof (token as any).discordInGuild === "boolean" ? (token as any).discordInGuild : null;
+      (session.user as any).discordNeedsVerification = effectiveNeedsVerification;
+      (session.user as any).discordBlockedReason =
+        typeof (token as any).discordBlockedReason === "string" ? (token as any).discordBlockedReason : null;
       return session;
     },
   },

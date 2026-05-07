@@ -15,6 +15,7 @@ function isStaticPath(pathname: string): boolean {
 function isPublicForAnonymous(pathname: string): boolean {
   if (pathname === "/") return true;
   if (pathname === "/join") return true;
+  if (pathname.startsWith("/join/verify")) return true;
   if (pathname.startsWith("/auth")) return true;
   if (pathname.startsWith("/subscribe")) return true;
   if (pathname.startsWith("/membership")) return true;
@@ -37,6 +38,7 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (pathname.startsWith("/auth")) return true;
   if (pathname === "/maintenance") return true;
   if (pathname === "/join") return true;
+  if (pathname.startsWith("/join/verify")) return true;
   if (pathname === "/api/public/site-flags" && method === "GET") return true;
   if (pathname === "/api/subscription/plans" && method === "GET") return true;
   if (pathname === "/api/subscription/stripe/webhook" && method === "POST") return true;
@@ -69,6 +71,17 @@ function hasDashboardAccess(token: Record<string, unknown> | null): boolean {
   return subscriptionActive(token);
 }
 
+function discordGateStatus(token: Record<string, unknown>): "ok" | "needs_verification" | "not_in_guild" {
+  const inGuild = (token as Record<string, unknown> & { discordInGuild?: unknown }).discordInGuild;
+  if (inGuild === false) return "not_in_guild";
+  const tier = token.helpTier;
+  const staffBypass = tier === "admin" || tier === "mod";
+  const needsVerification = (token as Record<string, unknown> & { discordNeedsVerification?: unknown })
+    .discordNeedsVerification === true;
+  if (needsVerification && !staffBypass) return "needs_verification";
+  return "ok";
+}
+
 function discordIdFromToken(token: Record<string, unknown> | null): string {
   const pick = (v: unknown): string => {
     if (typeof v === "string" && v.trim()) return v.trim();
@@ -85,6 +98,9 @@ function discordIdFromToken(token: Record<string, unknown> | null): string {
 async function hasDashboardAccessResolved(
   token: Record<string, unknown> | null
 ): Promise<boolean> {
+  if (!token) return false;
+  const gate = discordGateStatus(token);
+  if (gate === "not_in_guild" || gate === "needs_verification") return false;
   if (hasDashboardAccess(token)) return true;
   const id = discordIdFromToken(token);
   if (!id) return false;
@@ -164,11 +180,23 @@ export async function middleware(req: NextRequest) {
       if (!token) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
+      const gate = discordGateStatus(token);
+      if (gate === "not_in_guild") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (gate === "needs_verification") {
+        return NextResponse.json({ error: "Verification required" }, { status: 403 });
+      }
       return NextResponse.next();
     }
 
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    {
+      const gate = discordGateStatus(token);
+      if (gate === "not_in_guild") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (gate === "needs_verification") {
+        return NextResponse.json({ error: "Verification required" }, { status: 403 });
+      }
     }
     if (!(await hasDashboardAccessResolved(token))) {
       return NextResponse.json({ error: "Subscription required" }, { status: 402 });
@@ -188,6 +216,25 @@ export async function middleware(req: NextRequest) {
 
   if (pathname.startsWith("/auth")) {
     return NextResponse.next();
+  }
+
+  {
+    const gate = discordGateStatus(token);
+    if (gate === "needs_verification") {
+      if (!pathname.startsWith("/join/verify")) {
+        const url = req.nextUrl.clone();
+        url.pathname = "/join/verify";
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
+      return NextResponse.next();
+    }
+    if (gate === "not_in_guild") {
+      const url = req.nextUrl.clone();
+      url.pathname = "/membership";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   if (pathname.startsWith("/subscribe") || pathname.startsWith("/membership")) {

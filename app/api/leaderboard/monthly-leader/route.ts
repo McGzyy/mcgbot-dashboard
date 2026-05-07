@@ -9,6 +9,7 @@ import {
   displayNameForDiscordId,
   fetchDiscordLeaderExtras,
 } from "@/lib/leaderboardDisplayNames";
+import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
 
 // MONTHLY LEADER = resets first day of month 00:00 UTC
 
@@ -40,10 +41,13 @@ export async function GET(request: Request) {
 
     const supabase = createClient(url, key);
     const now = Date.now();
-    const cutoverMs = await getStatsCutoverUtcMs();
+    const [cutoverMs, excludedDiscordIds] = await Promise.all([
+      getStatsCutoverUtcMs(),
+      fetchDiscordIdsExcludedFromLeaderboards(),
+    ]);
     const minMs = mergeStatsCutoverIntoMin(startOfCalendarMonthUtcMs(now), cutoverMs);
 
-    let leader = await getTopLeaderSince(supabase, type, minMs);
+    let leader = await getTopLeaderSince(supabase, type, minMs, excludedDiscordIds);
     if (leader?.discordId) {
       const { displayNames, avatarUrls } = await fetchDiscordLeaderExtras(supabase, [
         leader.discordId,

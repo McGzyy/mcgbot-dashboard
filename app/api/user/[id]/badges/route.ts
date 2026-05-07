@@ -1,4 +1,9 @@
+import {
+  looksLikeDiscordSnowflake,
+  resolveDiscordIdFromProfileRouteParam,
+} from "@/lib/discordIdentity";
 import { topCallerBadgeToken } from "@/lib/topCallerBadgeDisplay";
+import { isPublicProfileHiddenFromViewer } from "@/lib/profileGuildVisibility";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -10,8 +15,8 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> }
 ) {
   const { id: rawId } = await ctx.params;
-  const userId = String(rawId ?? "").trim();
-  if (!userId) {
+  const routeParam = decodeURIComponent(String(rawId ?? "")).trim();
+  if (!routeParam || routeParam.length > 200) {
     return Response.json([]);
   }
 
@@ -20,10 +25,22 @@ export async function GET(
     return Response.json([]);
   }
 
+  const discordId = looksLikeDiscordSnowflake(routeParam)
+    ? routeParam.trim()
+    : await resolveDiscordIdFromProfileRouteParam(sb, routeParam);
+
+  if (!discordId) {
+    return Response.json([]);
+  }
+
+  if (await isPublicProfileHiddenFromViewer(discordId)) {
+    return Response.json([], { status: 404 });
+  }
+
   const { data, error } = await sb
     .from("user_badges")
     .select("badge, times_awarded")
-    .eq("user_id", userId);
+    .eq("user_id", discordId);
 
   if (error) {
     console.error("[api/user/.../badges]", error);

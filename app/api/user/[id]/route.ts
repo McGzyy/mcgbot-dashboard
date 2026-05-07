@@ -22,6 +22,7 @@ import {
 } from "@/lib/callPerformanceDashboardVisibility";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
+import { isPublicProfileHiddenFromViewer } from "@/lib/profileGuildVisibility";
 
 const PROFILE_RECENT_CALLS_LIMIT = 15;
 
@@ -166,6 +167,10 @@ export async function GET(
       routeParam
     );
     if (!discordId) {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (await isPublicProfileHiddenFromViewer(discordId)) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 

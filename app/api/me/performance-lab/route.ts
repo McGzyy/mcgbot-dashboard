@@ -22,6 +22,7 @@ import {
 import { buildDailyCallBuckets, computeMultipleDistribution } from "@/lib/performanceSeries";
 import { rollingSevenDaysStartUtcMs } from "@/lib/leaderboardTimeWindows";
 import { filterCallRowsForStats, getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
+import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
 
 const DAY = 86_400_000;
 const ROLLING_30D_MS = 30 * DAY;
@@ -44,7 +45,7 @@ export async function GET() {
     const supabase = createClient(url, key);
     const now = Date.now();
 
-    const [{ data, error }, cutoverMs] = await Promise.all([
+    const [{ data, error }, cutoverMs, excludedDiscordIds] = await Promise.all([
       supabase
         .from("call_performance")
         .select("ath_multiple, spot_multiple, call_time, call_ca, excluded_from_stats")
@@ -52,6 +53,7 @@ export async function GET() {
         .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
         .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR),
       getStatsCutoverUtcMs(),
+      fetchDiscordIdsExcludedFromLeaderboards(),
     ]);
 
     if (error) {
@@ -87,7 +89,7 @@ export async function GET() {
           (r as any).excluded_from_stats !== true &&
           (r as any).hidden_from_dashboard !== true
       );
-      const ranked = aggregateCallPerformanceRows(filtered);
+      const ranked = aggregateCallPerformanceRows(filtered, excludedDiscordIds);
       totalRanked7d = ranked.length;
       const idx = ranked.findIndex((r) => r.discordId === discordId);
       rank7d = idx === -1 ? null : idx + 1;

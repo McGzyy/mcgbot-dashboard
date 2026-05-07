@@ -1,4 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+import {
+  looksLikeDiscordSnowflake,
+  resolveDiscordIdFromProfileRouteParam,
+} from "@/lib/discordIdentity";
+import { isPublicProfileHiddenFromViewer } from "@/lib/profileGuildVisibility";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 /** Max trophies shown per timeframe (between 10–20). */
 const TROPHY_DISPLAY_LIMIT = 15;
@@ -12,36 +17,46 @@ type TrophyRowDto = {
   createdAt: string | null;
 };
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id: rawId } = await context.params;
-    const profileUserId = decodeURIComponent(String(rawId ?? "")).trim();
-    if (!profileUserId || profileUserId.length > 64) {
+    const routeParam = decodeURIComponent(String(rawId ?? "")).trim();
+    if (!routeParam || routeParam.length > 200) {
       return Response.json({ error: "Invalid user id" }, { status: 400 });
     }
 
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
-
-    if (!url || !key) {
-      console.error("Missing Supabase env vars");
+    const db = getSupabaseAdmin();
+    if (!db) {
       return Response.json(
         { error: "Supabase not configured" },
         { status: 500 }
       );
     }
 
-    const supabase = createClient(url, key);
+    const discordId = looksLikeDiscordSnowflake(routeParam)
+      ? routeParam.trim()
+      : await resolveDiscordIdFromProfileRouteParam(db, routeParam);
+
+    if (!discordId) {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (await isPublicProfileHiddenFromViewer(discordId)) {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
 
     const results = await Promise.all(
       TIMEFRAMES.map(async (timeframe) => {
-        const { data, error } = await supabase
+        const { data, error } = await db
           .from("user_trophies")
           .select("*")
-          .eq("user_id", profileUserId)
+          .eq("user_id", discordId)
           .eq("timeframe", timeframe)
           .order("created_at", { ascending: false })
           .limit(TROPHY_DISPLAY_LIMIT);
