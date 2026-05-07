@@ -64,6 +64,17 @@ function billingCadenceLabel(durationDays: number): string {
   return "Recurring in Stripe";
 }
 
+type GuildGateState =
+  | { status: "idle" | "loading" }
+  | {
+      status: "ready";
+      guildMembershipKnown: boolean;
+      inGuild: boolean | null;
+      verificationKnown: boolean;
+      needsVerification: boolean | null;
+      verificationReason: string | null;
+    };
+
 export default function MembershipPage() {
   const { data: session, status, update } = useSession();
   const searchParams = useSearchParams();
@@ -82,7 +93,8 @@ export default function MembershipPage() {
   const [redeemBusy, setRedeemBusy] = useState(false);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [siteFlags, setSiteFlags] = useState<SiteFlags | null>(null);
-  const [guildStatus, setGuildStatus] = useState<boolean | null>(null);
+  const [guildGate, setGuildGate] = useState<GuildGateState>({ status: "idle" });
+  const [guildGateRetry, setGuildGateRetry] = useState(0);
 
   const active = Boolean(session?.user?.hasActiveSubscription);
   const hasAccess = Boolean(session?.user?.hasDashboardAccess);
@@ -210,29 +222,71 @@ export default function MembershipPage() {
   }, []);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (status !== "authenticated") {
+      setGuildGate({ status: "idle" });
+      return;
+    }
     let cancelled = false;
+    setGuildGate({ status: "loading" });
     void (async () => {
       try {
         const res = await fetch("/api/subscription/guild-status");
         const json = (await res.json().catch(() => ({}))) as {
           success?: boolean;
+          guildMembershipKnown?: boolean;
           inGuild?: boolean | null;
+          verificationKnown?: boolean;
+          needsVerification?: boolean | null;
+          verificationReason?: string | null;
         };
         if (cancelled) return;
         if (!res.ok || json.success !== true) {
-          setGuildStatus(null);
+          setGuildGate({
+            status: "ready",
+            guildMembershipKnown: false,
+            inGuild: null,
+            verificationKnown: false,
+            needsVerification: null,
+            verificationReason: null,
+          });
           return;
         }
-        setGuildStatus(typeof json.inGuild === "boolean" ? json.inGuild : null);
+        const membershipKnown = json.guildMembershipKnown === true;
+        const inGuild = typeof json.inGuild === "boolean" ? json.inGuild : null;
+        const verificationKnown = json.verificationKnown === true;
+        const needsVerification =
+          json.needsVerification === true
+            ? true
+            : json.needsVerification === false
+              ? false
+              : null;
+        const verificationReason =
+          typeof json.verificationReason === "string" ? json.verificationReason : null;
+        setGuildGate({
+          status: "ready",
+          guildMembershipKnown: membershipKnown,
+          inGuild,
+          verificationKnown,
+          needsVerification,
+          verificationReason,
+        });
       } catch {
-        if (!cancelled) setGuildStatus(null);
+        if (!cancelled) {
+          setGuildGate({
+            status: "ready",
+            guildMembershipKnown: false,
+            inGuild: null,
+            verificationKnown: false,
+            needsVerification: null,
+            verificationReason: null,
+          });
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [status, guildGateRetry]);
 
   useEffect(() => {
     if (status !== "authenticated" || !session?.user?.id?.trim()) return;
@@ -549,13 +603,28 @@ export default function MembershipPage() {
   }
 
   const isLoggedIn = Boolean(status === "authenticated" && session?.user?.id);
-  const guildLoading = isLoggedIn && guildStatus === null;
-  const guildLocked = isLoggedIn && guildStatus === false;
+  const guildGateReady = guildGate.status === "ready";
+  const guildGateLoading = isLoggedIn && guildGate.status === "loading";
+
+  const verificationBlocksCheckout =
+    guildGateReady &&
+    guildGate.guildMembershipKnown &&
+    guildGate.inGuild === true &&
+    (!guildGate.verificationKnown || guildGate.needsVerification === true);
+
+  const guildBlocksCheckout =
+    guildGateReady &&
+    (!guildGate.guildMembershipKnown || guildGate.inGuild === false);
+
   const anonPreview = !isLoggedIn;
-  const planCardsVisuallyLocked = anonPreview || guildLocked;
+  const planCardsVisuallyLocked =
+    anonPreview || guildGateLoading || guildBlocksCheckout || verificationBlocksCheckout;
   const checkoutAllowed =
     isLoggedIn &&
-    guildStatus === true &&
+    guildGateReady &&
+    guildGate.guildMembershipKnown &&
+    guildGate.inGuild === true &&
+    !verificationBlocksCheckout &&
     !(Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin) &&
     !(Boolean(siteFlags?.maintenance_enabled) && !isDashboardAdmin);
 
@@ -650,11 +719,15 @@ export default function MembershipPage() {
               Server:{" "}
               {!isLoggedIn
                 ? "—"
-                : guildLoading
+                : guildGateLoading
                   ? "Checking…"
-                  : guildStatus
-                    ? "Member"
-                    : "Not joined"}
+                  : guildGateReady && !guildGate.guildMembershipKnown
+                    ? "Could not verify"
+                    : guildGateReady && guildGate.inGuild
+                      ? "Member"
+                      : guildGateReady
+                        ? "Not joined"
+                        : "—"}
             </span>
             <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-3 py-1.5 text-zinc-200">
               Access:{" "}
@@ -698,21 +771,87 @@ export default function MembershipPage() {
           </div>
         ) : null}
 
-        {isLoggedIn && guildLocked ? (
-          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 sm:p-6">
-            <p className="text-sm font-semibold text-amber-50">Join the Discord server to unlock checkout</p>
-            <p className="mt-2 text-sm leading-relaxed text-amber-100/85">
-              Your Discord account is linked, but you are not detected in the server yet. After you join, refresh this
-              page if buttons stay disabled.
+        {isLoggedIn && guildGateReady && !guildGate.guildMembershipKnown ? (
+          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-zinc-600/50 bg-zinc-900/45 p-5 sm:p-6">
+            <p className="text-sm font-semibold text-zinc-50">We couldn&apos;t verify Discord server membership</p>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+              Checkout stays disabled until the server can confirm you&apos;re in the McGBot Discord (usually missing{" "}
+              <span className="font-medium text-zinc-200">DISCORD_GUILD_ID</span> / bot token on the host, or a temporary
+              Discord API issue).
             </p>
-            <a
-              href={resolveDiscordInviteUrl(siteFlags)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-amber-400 px-5 text-sm font-bold text-zinc-950 transition hover:bg-amber-300"
-            >
-              Join Discord server
-            </a>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <button
+                type="button"
+                onClick={() => setGuildGateRetry((n) => n + 1)}
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-100 px-5 text-sm font-bold text-zinc-950 transition hover:bg-white"
+              >
+                Retry check
+              </button>
+              <a
+                href={resolveDiscordInviteUrl(siteFlags)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-zinc-600/70 bg-zinc-950/40 px-5 text-sm font-semibold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-900/60"
+              >
+                Open Discord invite
+              </a>
+            </div>
+          </div>
+        ) : null}
+
+        {isLoggedIn && guildGateReady && guildGate.guildMembershipKnown && guildGate.inGuild === false ? (
+          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 sm:p-6">
+            <p className="text-sm font-semibold text-amber-50">Join the Discord server first</p>
+            <p className="mt-2 text-sm leading-relaxed text-amber-100/85">
+              Your Discord account is linked, but you are not in the server yet. After you join, use{" "}
+              <span className="font-medium text-amber-50">Retry check</span> below or refresh this page.
+            </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <a
+                href={resolveDiscordInviteUrl(siteFlags)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-amber-400 px-5 text-sm font-bold text-zinc-950 transition hover:bg-amber-300"
+              >
+                Join Discord server
+              </a>
+              <button
+                type="button"
+                onClick={() => setGuildGateRetry((n) => n + 1)}
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-amber-300/40 bg-amber-500/5 px-5 text-sm font-semibold text-amber-50 transition hover:bg-amber-500/15"
+              >
+                Retry check
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {isLoggedIn && verificationBlocksCheckout ? (
+          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-violet-500/35 bg-violet-500/10 p-5 sm:p-6">
+            <p className="text-sm font-semibold text-violet-50">Finish Discord verification to unlock checkout</p>
+            <p className="mt-2 text-sm leading-relaxed text-violet-100/85">
+              {guildGateReady && guildGate.verificationReason === "unverified_role"
+                ? "Your account still has the unverified role in Discord."
+                : guildGateReady && guildGate.verificationReason === "missing_required_role"
+                  ? "Complete server onboarding so you receive the member role."
+                  : "The server couldn&apos;t confirm your verified roles yet."}{" "}
+              After verification updates in Discord, retry the membership check.
+            </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <Link
+                href="/join/verify"
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-violet-400 px-5 text-sm font-bold text-violet-950 transition hover:bg-violet-300"
+              >
+                Open verification steps
+              </Link>
+              <button
+                type="button"
+                onClick={() => setGuildGateRetry((n) => n + 1)}
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-violet-300/35 bg-violet-500/10 px-5 text-sm font-semibold text-violet-50 transition hover:bg-violet-500/20"
+              >
+                Retry check
+              </button>
+            </div>
           </div>
         ) : null}
 
@@ -856,7 +995,7 @@ export default function MembershipPage() {
                 />
               </div>
 
-              {isLoggedIn && guildLoading ? (
+              {isLoggedIn && guildGateLoading ? (
                 <p className="text-center text-xs text-amber-200/85" role="status">
                   Checking Discord server membership… pay buttons unlock when we confirm you are in the server.
                 </p>

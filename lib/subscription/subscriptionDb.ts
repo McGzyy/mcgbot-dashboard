@@ -368,6 +368,32 @@ export async function expireStaleInvoices(): Promise<void> {
     .lt("quote_expires_at", now);
 }
 
+/**
+ * Discord ids whose subscription row ended recently (`current_period_end` in (now−pastHours, now)).
+ * Rolling window avoids scanning the full churn history on every cron tick.
+ */
+export async function listDiscordIdsWithRecentlyEndedSubscriptions(input: {
+  pastHours: number;
+}): Promise<string[]> {
+  const db = getSupabaseAdmin();
+  if (!db) return [];
+  const hours = Math.max(1, Math.floor(Number(input.pastHours)));
+  const nowIso = new Date().toISOString();
+  const sinceIso = new Date(Date.now() - hours * 3600000).toISOString();
+  const { data, error } = await db
+    .from("subscriptions")
+    .select("discord_id")
+    .lt("current_period_end", nowIso)
+    .gte("current_period_end", sinceIso);
+  if (error || !data) return [];
+  const ids = new Set<string>();
+  for (const row of data) {
+    const id = typeof row.discord_id === "string" ? row.discord_id.trim() : "";
+    if (id) ids.add(id);
+  }
+  return [...ids];
+}
+
 export type MembershipEventType =
   | "sol_invoice_paid"
   | "stripe_checkout_one_time"

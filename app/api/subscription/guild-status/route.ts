@@ -1,7 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { isDiscordGuildMember } from "@/lib/discordGuildMember";
-import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
+import { getDiscordGuildMemberRoleIds, isDiscordGuildMember } from "@/lib/discordGuildMember";
 import { discordVerificationGateFromRoleIds } from "@/lib/discordVerificationGate";
 
 export const runtime = "nodejs";
@@ -15,15 +14,18 @@ export async function GET() {
   }
 
   const inGuild = await isDiscordGuildMember(discordId);
+  const guildMembershipKnown = inGuild !== null;
+
+  let verificationKnown = false;
   let needsVerification: boolean | null = null;
   let verificationReason: string | null = null;
+
   if (inGuild === true) {
     const roles = await getDiscordGuildMemberRoleIds(discordId);
     if (Array.isArray(roles)) {
+      verificationKnown = true;
       const gate = discordVerificationGateFromRoleIds(roles);
-      if (gate === null) {
-        needsVerification = null;
-      } else if (gate.ok) {
+      if (gate === null || gate.ok) {
         needsVerification = false;
       } else {
         needsVerification = true;
@@ -31,6 +33,14 @@ export async function GET() {
       }
     }
   }
-  return Response.json({ success: true, inGuild, needsVerification, verificationReason });
-}
 
+  return Response.json({
+    success: true,
+    guildMembershipKnown,
+    /** `null` when membership could not be checked (missing env / Discord error). */
+    inGuild: guildMembershipKnown ? inGuild : null,
+    verificationKnown,
+    needsVerification,
+    verificationReason,
+  });
+}

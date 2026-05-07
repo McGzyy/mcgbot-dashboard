@@ -180,6 +180,10 @@ export async function middleware(req: NextRequest) {
       if (!token) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
+      /** Lets `/membership` resolve guild + verification state while JWT still says `not_in_guild`. */
+      if (pathname === "/api/subscription/guild-status") {
+        return NextResponse.next();
+      }
       const gate = discordGateStatus(token);
       if (gate === "not_in_guild") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       if (gate === "needs_verification") {

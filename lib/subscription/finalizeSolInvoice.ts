@@ -14,6 +14,7 @@ import {
   lamportsToSolAmount,
   verifyNativeSolTransferRelaxed,
 } from "@/lib/subscription/solTransferVerifyRelaxed";
+import { syncPremiumDiscordRoleAfterSubscriptionChange } from "@/lib/discordPremiumRole";
 
 function lamportsToSolBigNumber(lamports: number): BigNumber {
   return lamportsToSolAmount(lamports);
@@ -121,6 +122,8 @@ export async function finalizeInvoiceFromTxSignature(input: {
     txSignature: signature,
   });
 
+  await syncPremiumDiscordRoleAfterSubscriptionChange(invoice.discord_id);
+
   return { ok: true };
 }
 
@@ -207,6 +210,8 @@ export async function finalizeInvoiceFromReferenceIfPaid(input: {
     solQuoteUsd: typeof invoice.sol_usd === "number" && Number.isFinite(invoice.sol_usd) ? invoice.sol_usd : null,
     txSignature: signature,
   });
+
+  await syncPremiumDiscordRoleAfterSubscriptionChange(invoice.discord_id);
 
   return { ok: true, signature };
 }

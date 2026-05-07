@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 
 import { invalidateLiveDashboardAccessCache } from "@/lib/dashboardGate";
+import { syncPremiumDiscordRoleAfterSubscriptionChange } from "@/lib/discordPremiumRole";
 import {
   getPlanIdByStripeSubscriptionId,
   upsertSubscriptionFromStripe,
@@ -119,6 +120,7 @@ export async function syncDiscordSubscriptionFromStripeSubscription(params: {
   }
 
   invalidateLiveDashboardAccessCache(discordId);
+  await syncPremiumDiscordRoleAfterSubscriptionChange(discordId);
   return { ok: true };
 }
 

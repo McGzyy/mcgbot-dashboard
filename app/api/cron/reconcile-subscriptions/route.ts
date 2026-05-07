@@ -2,10 +2,12 @@ import { PublicKey } from "@solana/web3.js";
 import {
   expireStaleInvoices,
   getPlanDurationDays,
+  listDiscordIdsWithRecentlyEndedSubscriptions,
   listPendingInvoices,
   markInvoicePaid,
   upsertSubscriptionAfterPayment,
 } from "@/lib/subscription/subscriptionDb";
+import { syncPremiumDiscordRoleAfterSubscriptionChange } from "@/lib/discordPremiumRole";
 import {
   getSolanaConnection,
   lamportsFromNumber,
@@ -124,6 +126,7 @@ async function runReconcile(): Promise<Response> {
             planId: inv.plan_id,
             durationDays: days,
           });
+          await syncPremiumDiscordRoleAfterSubscriptionChange(inv.discord_id);
           await recordPendingReferralEventForPaidInvoice({
             referredUserId: inv.discord_id,
             invoiceId: inv.id,
@@ -139,7 +142,24 @@ async function runReconcile(): Promise<Response> {
     }
   }
 
-  return Response.json({ success: true, matched, pending: pending.length });
+  let premiumRolesSynced = 0;
+  try {
+    /** SOL expiry + missed Stripe hooks — bounded window so each cron run stays small. */
+    const expiredIds = await listDiscordIdsWithRecentlyEndedSubscriptions({ pastHours: 168 });
+    for (const discordId of expiredIds) {
+      await syncPremiumDiscordRoleAfterSubscriptionChange(discordId);
+      premiumRolesSynced += 1;
+    }
+  } catch (e) {
+    console.error("[reconcile-subscriptions] premium discord role sweep", e);
+  }
+
+  return Response.json({
+    success: true,
+    matched,
+    pending: pending.length,
+    premium_roles_recent_window_synced: premiumRolesSynced,
+  });
 }
 
 export async function POST(request: Request) {

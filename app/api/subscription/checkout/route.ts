@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
 import { getPlanBySlug, insertMembershipEvent, upsertSubscriptionAfterPayment } from "@/lib/subscription/subscriptionDb";
+import { syncPremiumDiscordRoleAfterSubscriptionChange } from "@/lib/discordPremiumRole";
 import { consumeVoucherForPlan, peekVoucherForPlan } from "@/lib/subscription/vouchers";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
@@ -145,6 +146,7 @@ export async function POST(request: Request) {
         via: "voucher",
       },
     });
+    await syncPremiumDiscordRoleAfterSubscriptionChange(discordId);
   }
 
   return Response.json({

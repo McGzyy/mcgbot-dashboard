@@ -8,6 +8,7 @@ import {
   insertStripeCheckoutAppliedIfNew,
   syncDiscordSubscriptionFromStripeSubscription,
 } from "@/lib/subscription/stripeSubscriptionSync";
+import { syncPremiumDiscordRoleAfterSubscriptionChange } from "@/lib/discordPremiumRole";
 
 export type StripeApplyResult = { ok: true } | { ok: false; error: string };
 
@@ -86,6 +87,8 @@ export async function applyPaidStripeCheckoutSession(session: Stripe.Checkout.Se
     stripeCheckoutSessionId: session.id,
     amountCents: session.amount_total ?? null,
   });
+
+  await syncPremiumDiscordRoleAfterSubscriptionChange(discordId);
 
   return { ok: true };
 }
