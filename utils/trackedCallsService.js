@@ -894,10 +894,8 @@ function setTrackedCallDashboardHidden(contractAddress, hidden, meta = {}) {
   saveTrackedCalls(calls);
 
   try {
-    const { queueUpdateUserCallPerformanceAth } = require(path.join(
-      __dirname,
-      '../../utils/callPerformanceSync'
-    ));
+    // IMPORTANT (Next/Turbopack): use relative import from this file, not "server relative imports".
+    const { queueUpdateUserCallPerformanceAth } = require('./callPerformanceSync');
     queueUpdateUserCallPerformanceAth(ca);
   } catch (_) {
     /* optional: main bot host sync */

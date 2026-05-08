@@ -463,7 +463,8 @@ function startXVerification(discordUserId, handle, verificationCode = '') {
   });
 
   try {
-    const { queueUserXRowSyncToSupabase } = require(path.join(__dirname, '..', '..', 'utils', 'dashboardProfileSync'));
+    // IMPORTANT (Next/Turbopack): use relative import from this file, not "server relative imports".
+    const { queueUserXRowSyncToSupabase } = require('./dashboardProfileSync');
     queueUserXRowSyncToSupabase(discordUserId, {
       xHandle: normalizedHandle,
       xVerified: false
@@ -494,7 +495,8 @@ function completeXVerification(discordUserId, handle) {
   });
 
   try {
-    const { queueUserXRowSyncToSupabase } = require(path.join(__dirname, '..', '..', 'utils', 'dashboardProfileSync'));
+    // IMPORTANT (Next/Turbopack): use relative import from this file, not "server relative imports".
+    const { queueUserXRowSyncToSupabase } = require('./dashboardProfileSync');
     queueUserXRowSyncToSupabase(discordUserId, {
       xHandle: normalizedHandle,
       xVerified: true
@@ -537,7 +539,8 @@ function denyXVerification(discordUserId, handle, reason = '') {
   });
 
   try {
-    const { queueUserXRowSyncToSupabase } = require(path.join(__dirname, '..', '..', 'utils', 'dashboardProfileSync'));
+    // IMPORTANT (Next/Turbopack): use relative import from this file, not "server relative imports".
+    const { queueUserXRowSyncToSupabase } = require('./dashboardProfileSync');
     queueUserXRowSyncToSupabase(discordUserId, {
       xHandle: '',
       xVerified: false
