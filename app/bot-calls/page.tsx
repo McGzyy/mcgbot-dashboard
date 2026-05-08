@@ -2,7 +2,7 @@
 
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { formatCalledSnapshotLine } from "@/lib/callDisplayFormat";
-import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
+import { formatRelativeTime } from "@/lib/modUiUtils";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -10,6 +10,7 @@ import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
+import { createPortal } from "react-dom";
 
 type TapeRow = {
   id: string;
@@ -33,6 +34,181 @@ const WINDOWS = [
   { id: "7d", label: "7 days" },
   { id: "all", label: "All time" },
 ] as const;
+
+type TerminalTarget = {
+  id: "photon" | "bullx" | "axiom" | "gmgn" | "dexscreener" | "solscan";
+  label: string;
+  sublabel: string;
+  href: (ca: string) => string | null;
+  tone:
+    | { border: string; bg: string; text: string; iconBg: string }
+    | { border: string; bg: string; text: string; iconBg: string };
+  icon: (props: { className?: string }) => JSX.Element;
+};
+
+function isSolanaMint(ca: string): boolean {
+  const s = ca.trim();
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+}
+
+function dexscreenerSolUrl(ca: string): string | null {
+  const s = ca.trim();
+  if (!isSolanaMint(s)) return null;
+  return `https://dexscreener.com/solana/${encodeURIComponent(s)}`;
+}
+
+function solscanTokenUrl(ca: string): string | null {
+  const s = ca.trim();
+  if (!isSolanaMint(s)) return null;
+  return `https://solscan.io/token/${encodeURIComponent(s)}`;
+}
+
+function photonSolUrl(ca: string): string | null {
+  const s = ca.trim();
+  if (!isSolanaMint(s)) return null;
+  return `https://photon-sol.tinyastro.io/en/lp/${encodeURIComponent(s)}`;
+}
+
+function bullxSolUrl(ca: string): string | null {
+  const s = ca.trim();
+  if (!isSolanaMint(s)) return null;
+  return `https://bullx.io/terminal?chain=solana&address=${encodeURIComponent(s)}`;
+}
+
+function axiomSolUrl(ca: string): string | null {
+  const s = ca.trim();
+  if (!isSolanaMint(s)) return null;
+  return `https://axiom.trade/token/${encodeURIComponent(s)}`;
+}
+
+function gmgnSolUrl(ca: string): string | null {
+  const s = ca.trim();
+  if (!isSolanaMint(s)) return null;
+  return `https://gmgn.ai/sol/token/${encodeURIComponent(s)}`;
+}
+
+const TERMINALS: TerminalTarget[] = [
+  {
+    id: "photon",
+    label: "Photon",
+    sublabel: "Fast SOL terminal",
+    href: photonSolUrl,
+    tone: {
+      border: "border-yellow-400/25",
+      bg: "bg-yellow-500/10",
+      text: "text-yellow-100",
+      iconBg: "bg-yellow-500/15",
+    },
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path
+          fill="currentColor"
+          d="M12 2c.6 0 1.1.4 1.2 1l.8 4.2 4.2.8c.6.1 1 .6 1 1.2s-.4 1.1-1 1.2l-4.2.8-.8 4.2c-.1.6-.6 1-1.2 1s-1.1-.4-1.2-1l-.8-4.2-4.2-.8c-.6-.1-1-.6-1-1.2s.4-1.1 1-1.2l4.2-.8.8-4.2c.1-.6.6-1 1.2-1Z"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: "bullx",
+    label: "BullX",
+    sublabel: "Terminal + feed",
+    href: bullxSolUrl,
+    tone: {
+      border: "border-sky-400/25",
+      bg: "bg-sky-500/10",
+      text: "text-sky-100",
+      iconBg: "bg-sky-500/15",
+    },
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path
+          fill="currentColor"
+          d="M4 18V6h2v9.2l4.2-4.2 3 3 4.8-5.6 1.5 1.3-6.3 7.3-3-3L6 18H4Z"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: "axiom",
+    label: "Axiom",
+    sublabel: "Pro charts",
+    href: axiomSolUrl,
+    tone: {
+      border: "border-fuchsia-400/25",
+      bg: "bg-fuchsia-500/10",
+      text: "text-fuchsia-100",
+      iconBg: "bg-fuchsia-500/15",
+    },
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path
+          fill="currentColor"
+          d="M12 3 2.7 20h18.6L12 3Zm0 4.4 5.4 10H6.6L12 7.4Z"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: "gmgn",
+    label: "GMGN",
+    sublabel: "On-chain scanner",
+    href: gmgnSolUrl,
+    tone: {
+      border: "border-emerald-400/25",
+      bg: "bg-emerald-500/10",
+      text: "text-emerald-100",
+      iconBg: "bg-emerald-500/15",
+    },
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path
+          fill="currentColor"
+          d="M4 13c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8c-1.8 0-3.4-.5-4.8-1.4L4 21v-3.2C4.6 16.4 4 14.8 4 13Zm8-5.2a5.2 5.2 0 1 0 0 10.4A5.2 5.2 0 0 0 12 7.8Z"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: "dexscreener",
+    label: "Dexscreener",
+    sublabel: "Pairs & liquidity",
+    href: dexscreenerSolUrl,
+    tone: {
+      border: "border-cyan-400/25",
+      bg: "bg-cyan-500/10",
+      text: "text-cyan-100",
+      iconBg: "bg-cyan-500/15",
+    },
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path
+          fill="currentColor"
+          d="M4 18V6h2v12H4Zm7 0V10h2v8h-2Zm7 0V8h2v10h-2Z"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: "solscan",
+    label: "Solscan",
+    sublabel: "Token page",
+    href: solscanTokenUrl,
+    tone: {
+      border: "border-zinc-400/20",
+      bg: "bg-zinc-500/10",
+      text: "text-zinc-100",
+      iconBg: "bg-zinc-500/15",
+    },
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path
+          fill="currentColor"
+          d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 4a6 6 0 0 1 5.9 5H12V6Zm0 12a6 6 0 0 1-5.9-5H12v5Z"
+        />
+      </svg>
+    ),
+  },
+];
 
 function tapeThumbSymbol(r: TapeRow): string {
   const t = r.tokenTicker?.trim();
@@ -78,6 +254,8 @@ export default function BotCallsPage() {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [canHideCalls, setCanHideCalls] = useState(false);
   const [hidingCallCa, setHidingCallCa] = useState<string | null>(null);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [terminalCall, setTerminalCall] = useState<TapeRow | null>(null);
 
   const submitCallReport = useCallback(async () => {
     if (!reportCall?.id) return;
@@ -262,6 +440,37 @@ export default function BotCallsPage() {
     [addNotification, hidingCallCa, load]
   );
 
+  const openTerminalModal = useCallback((row: TapeRow) => {
+    setTerminalCall(row);
+    setTerminalOpen(true);
+  }, []);
+
+  const copyContractAddress = useCallback(
+    async (ca: string) => {
+      const s = ca.trim();
+      if (!s) return;
+      try {
+        await navigator.clipboard.writeText(s);
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Contract address copied.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      } catch {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Could not copy contract address.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      }
+    },
+    [addNotification]
+  );
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -417,7 +626,6 @@ export default function BotCallsPage() {
             <ul className="divide-y divide-zinc-800/60">
               {rows.map((r) => {
                 const iso = callTimeIso(r.callTime);
-                const dex = r.callCa ? dexscreenerTokenUrl("solana", r.callCa) : null;
                 const k = String(r.id || r.callCa + String(r.callTime));
                 const flash = flashKeys.has(k);
                 return (
@@ -429,8 +637,13 @@ export default function BotCallsPage() {
                         : "hover:bg-zinc-900/40"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 flex-1 items-start gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openTerminalModal(r)}
+                      className="w-full text-left"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 flex-1 items-start gap-3">
                         <div className="mt-0.5 shrink-0 scale-[0.89]">
                           <TokenCallThumb
                             symbol={tapeThumbSymbol(r)}
@@ -440,7 +653,7 @@ export default function BotCallsPage() {
                           />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-zinc-100">
+                          <p className="text-sm font-semibold text-zinc-100">
                             {formatCalledSnapshotLine({
                               tokenName: r.tokenName,
                               tokenTicker: r.tokenTicker,
@@ -448,9 +661,13 @@ export default function BotCallsPage() {
                               callCa: r.callCa,
                             })}
                           </p>
-                          <p className="mt-1 text-[11px] text-zinc-500">
-                            {iso ? formatRelativeTime(iso) : "—"}
-                          </p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+                            <span className="tabular-nums">{iso ? formatRelativeTime(iso) : "—"}</span>
+                            <span className="text-zinc-700" aria-hidden>
+                              •
+                            </span>
+                            <span className="font-mono text-zinc-600">{r.callCa ? `${r.callCa.slice(0, 4)}…${r.callCa.slice(-4)}` : "—"}</span>
+                          </div>
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
@@ -464,91 +681,26 @@ export default function BotCallsPage() {
                             : "—"}
                         </div>
                       </div>
-                    </div>
+                      </div>
 
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
-                      <span className="rounded-md border border-fuchsia-500/20 bg-fuchsia-500/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-fuchsia-100/85">
-                        Bot
-                      </span>
-                      {r.excludedFromStats ? (
-                        <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-red-200">
-                          Excluded
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+                        <span className="rounded-md border border-fuchsia-500/20 bg-fuchsia-500/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-fuchsia-100/85">
+                          Bot
                         </span>
-                      ) : (
-                        <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-emerald-200/90">
-                          Counted
+                        {r.excludedFromStats ? (
+                          <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-red-200">
+                            Excluded
+                          </span>
+                        ) : (
+                          <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-emerald-200/90">
+                            Counted
+                          </span>
+                        )}
+                        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+                          Open terminal →
                         </span>
-                      )}
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-semibold">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReportCall(r);
-                          setReportReason("scam");
-                          setReportDetails("");
-                          setReportEvidence("");
-                          setReportOpen(true);
-                        }}
-                        className="text-rose-300/90 hover:text-rose-200"
-                        title="Report this call"
-                      >
-                        Report
-                      </button>
-                      {r.callCa ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openTokenChart({
-                              chain: "solana",
-                              contractAddress: r.callCa,
-                              tokenTicker: r.tokenTicker,
-                              tokenName: r.tokenName,
-                              tokenImageUrl:
-                                resolveTokenAvatarUrl({
-                                  tokenImageUrl: r.tokenImageUrl,
-                                  mint: r.callCa,
-                                }) ?? null,
-                            })
-                          }
-                          className="text-emerald-300/95 hover:text-emerald-200"
-                          title="Live chart (TradingView)"
-                        >
-                          Chart
-                        </button>
-                      ) : null}
-                      {dex ? (
-                        <a
-                          href={dex}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-cyan-400/90 hover:text-cyan-300"
-                        >
-                          Dex
-                        </a>
-                      ) : null}
-                      {canHideCalls && r.callCa ? (
-                        <button
-                          type="button"
-                          disabled={hidingCallCa === r.callCa}
-                          onClick={() => void hideBotCall(r.callCa)}
-                          className="text-rose-300/90 hover:text-rose-200 disabled:opacity-50"
-                          title="Hide from dashboard and stats (same as !hidecall)"
-                        >
-                          {hidingCallCa === r.callCa ? "Hiding…" : "Hide"}
-                        </button>
-                      ) : r.messageUrl ? (
-                        <a
-                          href={r.messageUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-zinc-400 hover:text-zinc-200"
-                        >
-                          Post
-                        </a>
-                      ) : null}
-                    </div>
+                      </div>
+                    </button>
                   </li>
                 );
               })}
@@ -566,7 +718,7 @@ export default function BotCallsPage() {
                 <th className="px-4 py-3 text-right">Live ×</th>
                 <th className="px-4 py-3 text-right">ATH ×</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Links</th>
+                <th className="px-4 py-3 text-right">Terminal</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
@@ -585,7 +737,6 @@ export default function BotCallsPage() {
               ) : (
                 rows.map((r) => {
                   const iso = callTimeIso(r.callTime);
-                  const dex = r.callCa ? dexscreenerTokenUrl("solana", r.callCa) : null;
                   const k = String(r.id || r.callCa + String(r.callTime));
                   const flash = flashKeys.has(k);
                   return (
@@ -596,6 +747,15 @@ export default function BotCallsPage() {
                           ? "bg-fuchsia-500/10 shadow-[inset_0_0_0_1px_rgba(217,70,239,0.35)]"
                           : ""
                       }`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openTerminalModal(r)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openTerminalModal(r);
+                        }
+                      }}
                     >
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-zinc-400">
                         {iso ? formatRelativeTime(iso) : "—"}
@@ -628,6 +788,14 @@ export default function BotCallsPage() {
                                   Excluded
                                 </span>
                               ) : null}
+                              {r.callCa ? (
+                                <>
+                                  <span className="text-zinc-700" aria-hidden>
+                                    •
+                                  </span>
+                                  <span className="font-mono text-zinc-600">{`${r.callCa.slice(0, 4)}…${r.callCa.slice(-4)}`}</span>
+                                </>
+                              ) : null}
                             </div>
                           </div>
                         </div>
@@ -652,74 +820,9 @@ export default function BotCallsPage() {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReportCall(r);
-                              setReportReason("scam");
-                              setReportDetails("");
-                              setReportEvidence("");
-                              setReportOpen(true);
-                            }}
-                            className="text-xs font-semibold text-rose-300/90 hover:text-rose-200"
-                            title="Report this call"
-                          >
-                            Report
-                          </button>
-                          {r.callCa ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openTokenChart({
-                                  chain: "solana",
-                                  contractAddress: r.callCa,
-                                  tokenTicker: r.tokenTicker,
-                                  tokenName: r.tokenName,
-                                  tokenImageUrl:
-                                    resolveTokenAvatarUrl({
-                                      tokenImageUrl: r.tokenImageUrl,
-                                      mint: r.callCa,
-                                    }) ?? null,
-                                })
-                              }
-                              className="text-xs font-semibold text-emerald-300/95 hover:text-emerald-200"
-                              title="Live chart (TradingView)"
-                            >
-                              Chart
-                            </button>
-                          ) : null}
-                          {dex ? (
-                            <a
-                              href={dex}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs font-semibold text-cyan-400/90 hover:text-cyan-300"
-                            >
-                              Dex
-                            </a>
-                          ) : null}
-                          {canHideCalls && r.callCa ? (
-                            <button
-                              type="button"
-                              disabled={hidingCallCa === r.callCa}
-                              onClick={() => void hideBotCall(r.callCa)}
-                              className="text-xs font-semibold text-rose-300/90 hover:text-rose-200 disabled:opacity-50"
-                              title="Hide from dashboard and stats (same as !hidecall)"
-                            >
-                              {hidingCallCa === r.callCa ? "Hiding…" : "Hide"}
-                            </button>
-                          ) : r.messageUrl ? (
-                            <a
-                              href={r.messageUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs font-semibold text-zinc-400 hover:text-zinc-200"
-                            >
-                              Post
-                            </a>
-                          ) : null}
-                        </div>
+                        <span className="inline-flex items-center gap-1 rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-200">
+                          Open →
+                        </span>
                       </td>
                     </tr>
                   );
@@ -860,6 +963,128 @@ export default function BotCallsPage() {
           </div>
         </div>
       ) : null}
+
+      {terminalOpen && terminalCall
+        ? createPortal(
+            <div
+              className={terminalUi.modalBackdropZ100}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Open terminal"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setTerminalOpen(false);
+              }}
+            >
+              <div className={terminalUi.modalPanelXl}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-100">Open terminal</h3>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Jump straight to the tools you use most for this contract.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTerminalOpen(false)}
+                    className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/25"
+                    aria-label="Close"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                      aria-hidden
+                    >
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-zinc-800/70 bg-black/30 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-zinc-100">
+                        {formatCalledSnapshotLine({
+                          tokenName: terminalCall.tokenName,
+                          tokenTicker: terminalCall.tokenTicker,
+                          callMarketCapUsd: terminalCall.callMarketCapUsd ?? null,
+                          callCa: terminalCall.callCa,
+                        })}
+                      </p>
+                      <p className="mt-1 font-mono text-[12px] text-zinc-500">
+                        {terminalCall.callCa || "—"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void copyContractAddress(terminalCall.callCa)}
+                      className="shrink-0 rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-3 py-2 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55"
+                    >
+                      Copy contract
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {TERMINALS.map((t) => {
+                    const href = t.href(terminalCall.callCa);
+                    const disabled = !href;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => {
+                          if (!href) return;
+                          window.open(href, "_blank", "noopener,noreferrer");
+                        }}
+                        className={`group flex items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left transition ${
+                          disabled
+                            ? "border-zinc-800 bg-zinc-950/20 opacity-50"
+                            : `${t.tone.border} ${t.tone.bg} hover:brightness-110`
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/5 ${t.tone.iconBg}`}
+                            aria-hidden
+                          >
+                            {t.icon({ className: `h-5 w-5 ${disabled ? "text-zinc-500" : t.tone.text}` })}
+                          </span>
+                          <div className="min-w-0">
+                            <div className={`text-sm font-semibold ${disabled ? "text-zinc-400" : t.tone.text}`}>
+                              {t.label}
+                            </div>
+                            <div className="mt-0.5 text-[11px] text-zinc-500">{t.sublabel}</div>
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-xs font-semibold text-zinc-400 group-hover:text-zinc-200">
+                          ↗
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 border-t border-zinc-800/70 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => void copyContractAddress(terminalCall.callCa)}
+                    className="w-full rounded-xl border border-zinc-700/70 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-950/55"
+                  >
+                    Copy Contract Address
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

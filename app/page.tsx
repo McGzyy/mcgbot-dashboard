@@ -2996,7 +2996,7 @@ export default function Home() {
   const { followingIds, setFollowing } = useFollowingIds();
   const [feedMode, setFeedMode] = useState<
     "all" | "me" | "milestones" | "calls" | "following"
-  >("calls");
+  >("all");
   const [topPerformersToday, setTopPerformersToday] = useState<
     TopPerformerTodayRow[]
   >([]);
