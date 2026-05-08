@@ -260,7 +260,9 @@ export default function BotCallsPage() {
   const [reportEvidence, setReportEvidence] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [canHideCalls, setCanHideCalls] = useState(false);
+  const [canExcludeCalls, setCanExcludeCalls] = useState(false);
   const [hidingCallCa, setHidingCallCa] = useState<string | null>(null);
+  const [excludingCallCa, setExcludingCallCa] = useState<string | null>(null);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalCall, setTerminalCall] = useState<TapeRow | null>(null);
 
@@ -447,6 +449,61 @@ export default function BotCallsPage() {
     [addNotification, hidingCallCa, load]
   );
 
+  const excludeBotCall = useCallback(
+    async (callCa: string, excluded: boolean) => {
+      const ca = callCa.trim();
+      if (!ca || excludingCallCa) return;
+      setExcludingCallCa(ca);
+      try {
+        const res = await fetch("/api/bot/call-exclude", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            callCa: ca,
+            excluded,
+            reason: "dashboard_bot_calls",
+          }),
+        });
+        const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+        if (!res.ok || json.success !== true) {
+          addNotification({
+            id: crypto.randomUUID(),
+            text:
+              typeof json.error === "string"
+                ? json.error
+                : res.status === 403
+                  ? "You don’t have permission to exclude calls (moderators only)."
+                  : `Exclude failed (${res.status}).`,
+            type: "call",
+            createdAt: Date.now(),
+            priority: "low",
+          });
+          return;
+        }
+        addNotification({
+          id: crypto.randomUUID(),
+          text: excluded ? "Call excluded from stats." : "Call restored (counted again).",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "medium",
+        });
+        await load();
+      } catch {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Could not reach the bot to update this call.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      } finally {
+        setExcludingCallCa(null);
+      }
+    },
+    [addNotification, excludingCallCa, load]
+  );
+
   const openTerminalModal = useCallback((row: TapeRow) => {
     setTerminalCall(row);
     setTerminalOpen(true);
@@ -485,6 +542,7 @@ export default function BotCallsPage() {
   useEffect(() => {
     if (status !== "authenticated") {
       setCanHideCalls(false);
+      setCanExcludeCalls(false);
       return;
     }
     let cancelled = false;
@@ -500,6 +558,33 @@ export default function BotCallsPage() {
         }
       } catch {
         if (!cancelled) setCanHideCalls(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setCanExcludeCalls(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/bot/exclude-capability", {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; canExclude?: boolean };
+        if (!cancelled && res.ok && json.ok === true && json.canExclude === true) {
+          setCanExcludeCalls(true);
+        } else if (!cancelled) {
+          setCanExcludeCalls(false);
+        }
+      } catch {
+        if (!cancelled) setCanExcludeCalls(false);
       }
     })();
     return () => {
@@ -644,12 +729,13 @@ export default function BotCallsPage() {
                         : "hover:bg-zinc-900/40"
                     }`}
                   >
-                    <button
-                      type="button"
-                      onClick={() => openTerminalModal(r)}
-                      className="w-full text-left"
-                    >
-                      <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => openTerminalModal(r)}
+                        className="w-full text-left"
+                      >
+                        <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
                         <div className="mt-0.5 shrink-0 scale-[0.89]">
                           <TokenCallThumb
@@ -703,11 +789,32 @@ export default function BotCallsPage() {
                             Counted
                           </span>
                         )}
-                        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
-                          Open terminal →
-                        </span>
+                        {canExcludeCalls && r.callCa ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              void excludeBotCall(r.callCa, !r.excludedFromStats);
+                            }}
+                            disabled={loading || excludingCallCa === r.callCa}
+                            className={`ml-auto rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-60 ${
+                              r.excludedFromStats
+                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
+                                : "border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/15"
+                            }`}
+                            title={r.excludedFromStats ? "Restore call (count it again)" : "Exclude call from stats"}
+                          >
+                            {excludingCallCa === r.callCa ? "…" : r.excludedFromStats ? "Restore" : "Exclude"}
+                          </button>
+                        ) : (
+                          <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+                            Open terminal →
+                          </span>
+                        )}
                       </div>
-                    </button>
+                      </button>
+                    </div>
                   </li>
                 );
               })}
@@ -816,15 +923,36 @@ export default function BotCallsPage() {
                           : "—"}
                       </td>
                       <td className="px-4 py-3">
-                        {r.excludedFromStats ? (
-                          <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
-                            Excluded
-                          </span>
-                        ) : (
-                          <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200/90">
-                            Counted
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {r.excludedFromStats ? (
+                            <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+                              Excluded
+                            </span>
+                          ) : (
+                            <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200/90">
+                              Counted
+                            </span>
+                          )}
+                          {canExcludeCalls && r.callCa ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                void excludeBotCall(r.callCa, !r.excludedFromStats);
+                              }}
+                              disabled={loading || excludingCallCa === r.callCa}
+                              className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-60 ${
+                                r.excludedFromStats
+                                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
+                                  : "border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/15"
+                              }`}
+                              title={r.excludedFromStats ? "Restore call (count it again)" : "Exclude call from stats"}
+                            >
+                              {excludingCallCa === r.callCa ? "…" : r.excludedFromStats ? "Restore" : "Exclude"}
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
                         <span className="inline-flex items-center gap-1 rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-200">
