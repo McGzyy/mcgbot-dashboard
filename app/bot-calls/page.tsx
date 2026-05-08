@@ -37,7 +37,7 @@ const WINDOWS = [
 ] as const;
 
 type TerminalTarget = {
-  id: "photon" | "bullx" | "axiom" | "gmgn" | "dexscreener" | "solscan";
+  id: "photon" | "padre" | "axiom" | "gmgn" | "dexscreener" | "solscan";
   label: string;
   sublabel: string;
   href: (ca: string) => string | null;
@@ -76,10 +76,16 @@ function bullxSolUrl(ca: string): string | null {
   return `https://bullx.io/terminal?chain=solana&address=${encodeURIComponent(s)}`;
 }
 
+function padreTradeUrl(ca: string): string | null {
+  const s = ca.trim();
+  if (!isSolanaMint(s)) return null;
+  return `https://trade.padre.gg/solana/${encodeURIComponent(s)}`;
+}
+
 function axiomSolUrl(ca: string): string | null {
   const s = ca.trim();
   if (!isSolanaMint(s)) return null;
-  return `https://axiom.trade/token/${encodeURIComponent(s)}`;
+  return `https://axiom.trade/meme/${encodeURIComponent(s)}?chain=sol`;
 }
 
 function gmgnSolUrl(ca: string): string | null {
@@ -90,45 +96,6 @@ function gmgnSolUrl(ca: string): string | null {
 
 const TERMINALS: TerminalTarget[] = [
   {
-    id: "photon",
-    label: "Photon",
-    sublabel: "Fast SOL terminal",
-    href: photonSolUrl,
-    tone: {
-      border: "border-yellow-400/25",
-      bg: "bg-yellow-500/10",
-      text: "text-yellow-100",
-      iconBg: "bg-yellow-500/15",
-    },
-    icon: ({ className }) => (
-      <svg viewBox="0 0 24 24" className={className} aria-hidden>
-        <path
-          fill="currentColor"
-          d="M12 2c.6 0 1.1.4 1.2 1l.8 4.2 4.2.8c.6.1 1 .6 1 1.2s-.4 1.1-1 1.2l-4.2.8-.8 4.2c-.1.6-.6 1-1.2 1s-1.1-.4-1.2-1l-.8-4.2-4.2-.8c-.6-.1-1-.6-1-1.2s.4-1.1 1-1.2l4.2-.8.8-4.2c.1-.6.6-1 1.2-1Z"
-        />
-      </svg>
-    ),
-  },
-  {
-    id: "bullx",
-    label: "BullX",
-    sublabel: "Terminal + feed",
-    href: bullxSolUrl,
-    tone: {
-      border: "border-sky-400/25",
-      bg: "bg-sky-500/10",
-      text: "text-sky-100",
-      iconBg: "bg-sky-500/15",
-    },
-    icon: ({ className }) => (
-      <svg viewBox="0 0 24 24" className={className} aria-hidden>
-        <path
-          fill="currentColor"
-          d="M4 18V6h2v9.2l4.2-4.2 3 3 4.8-5.6 1.5 1.3-6.3 7.3-3-3L6 18H4Z"
-        />
-      </svg>
-    ),
-  },
   {
     id: "axiom",
     label: "Axiom",
@@ -145,6 +112,26 @@ const TERMINALS: TerminalTarget[] = [
         <path
           fill="currentColor"
           d="M12 3 2.7 20h18.6L12 3Zm0 4.4 5.4 10H6.6L12 7.4Z"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: "padre",
+    label: "Padre",
+    sublabel: "trade.padre.gg",
+    href: padreTradeUrl,
+    tone: {
+      border: "border-indigo-400/25",
+      bg: "bg-indigo-500/10",
+      text: "text-indigo-100",
+      iconBg: "bg-indigo-500/15",
+    },
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path
+          fill="currentColor"
+          d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm0 4.5a1.25 1.25 0 0 1 1.25 1.25v3.55l2.7 1.55a1.25 1.25 0 1 1-1.25 2.16l-3.35-1.93A1.25 1.25 0 0 1 10.75 12V7.75A1.25 1.25 0 0 1 12 6.5Z"
         />
       </svg>
     ),
@@ -205,6 +192,26 @@ const TERMINALS: TerminalTarget[] = [
         <path
           fill="currentColor"
           d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 4a6 6 0 0 1 5.9 5H12V6Zm0 12a6 6 0 0 1-5.9-5H12v5Z"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: "photon",
+    label: "Photon",
+    sublabel: "Fast SOL terminal",
+    href: photonSolUrl,
+    tone: {
+      border: "border-yellow-400/25",
+      bg: "bg-yellow-500/10",
+      text: "text-yellow-100",
+      iconBg: "bg-yellow-500/15",
+    },
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden>
+        <path
+          fill="currentColor"
+          d="M12 2c.6 0 1.1.4 1.2 1l.8 4.2 4.2.8c.6.1 1 .6 1 1.2s-.4 1.1-1 1.2l-4.2.8-.8 4.2c-.1.6-.6 1-1.2 1s-1.1-.4-1.2-1l-.8-4.2-4.2-.8c-.6-.1-1-.6-1-1.2s.4-1.1 1-1.2l4.2-.8.8-4.2c.1-.6.6-1 1.2-1Z"
         />
       </svg>
     ),
