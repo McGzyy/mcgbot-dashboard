@@ -11,6 +11,7 @@ import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesig
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
 import { createPortal } from "react-dom";
+import type { ReactNode } from "react";
 
 type TapeRow = {
   id: string;
@@ -43,7 +44,7 @@ type TerminalTarget = {
   tone:
     | { border: string; bg: string; text: string; iconBg: string }
     | { border: string; bg: string; text: string; iconBg: string };
-  icon: (props: { className?: string }) => JSX.Element;
+  icon: (props: { className?: string }) => ReactNode;
 };
 
 function isSolanaMint(ca: string): boolean {
