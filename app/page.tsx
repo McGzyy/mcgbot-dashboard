@@ -1552,15 +1552,6 @@ function TrendingPanel() {
                         </div>
                         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
                           <span className="tabular-nums">
-                            Holders{" "}
-                            <span className="font-semibold text-zinc-300">
-                              {row.holders > 0 ? row.holders.toLocaleString() : "—"}
-                            </span>
-                          </span>
-                          <span className="text-zinc-700" aria-hidden>
-                            •
-                          </span>
-                          <span className="tabular-nums">
                             CA{" "}
                             <span className="font-mono text-zinc-400">
                               {shortenCa(row.mint)}
@@ -2157,6 +2148,7 @@ function SocialsFeedPanel() {
   const [sourceHandle, setSourceHandle] = useState("");
   const [sourceDisplayName, setSourceDisplayName] = useState("");
   const [sourceBusy, setSourceBusy] = useState(false);
+  const [removeBusyId, setRemoveBusyId] = useState<string | null>(null);
   const [sourceOk, setSourceOk] = useState<string | null>(null);
   const [sourceErr, setSourceErr] = useState<string | null>(null);
 
@@ -2543,6 +2535,46 @@ function SocialsFeedPanel() {
                                     <span className="ml-2 text-xs text-zinc-500">{s.displayName}</span>
                                   ) : null}
                                 </span>
+                                {isAdmin ? (
+                                  <button
+                                    type="button"
+                                    disabled={sourceBusy || sourcesLoading || removeBusyId === s.id}
+                                    onClick={() => {
+                                      void (async () => {
+                                        if (removeBusyId === s.id) return;
+                                        setRemoveBusyId(s.id);
+                                        setSourceErr(null);
+                                        setSourceOk(null);
+                                        try {
+                                          const res = await fetch("/api/social-sources", {
+                                            method: "DELETE",
+                                            credentials: "same-origin",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ id: s.id }),
+                                          });
+                                          const json = (await res.json().catch(() => null)) as any;
+                                          if (!res.ok || !json || json.success !== true) {
+                                            setSourceErr(
+                                              typeof json?.error === "string" ? json.error : "Request failed."
+                                            );
+                                            return;
+                                          }
+                                          setSourceOk("Source removed.");
+                                          await loadSources();
+                                        } catch {
+                                          setSourceErr("Request failed.");
+                                        } finally {
+                                          setRemoveBusyId(null);
+                                        }
+                                      })();
+                                    }}
+                                    className="ml-3 shrink-0 rounded-md border border-zinc-700/70 bg-zinc-950/40 px-2 py-1 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55 disabled:opacity-50"
+                                    aria-label={`Remove ${s.handle}`}
+                                    title="Remove from live feed"
+                                  >
+                                    {removeBusyId === s.id ? "Removing…" : "Remove"}
+                                  </button>
+                                ) : null}
                               </li>
                             ))}
                           </ul>

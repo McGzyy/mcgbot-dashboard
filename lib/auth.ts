@@ -293,8 +293,9 @@ export const authOptions: NextAuthOptions = {
       const staffVerificationBypass = helpTierOk === "admin" || helpTierOk === "mod";
       const rawNeedsVerification = (token as any).discordNeedsVerification === true;
       const effectiveNeedsVerification = rawNeedsVerification && !staffVerificationBypass;
+      const staffSubscriptionBypass = helpTierOk === "admin" || helpTierOk === "mod";
       session.user.hasDashboardAccess =
-        (exempt || session.user.hasActiveSubscription) &&
+        (staffSubscriptionBypass || exempt || session.user.hasActiveSubscription) &&
         (token as any).discordInGuild !== false &&
         !effectiveNeedsVerification;
       const tier = token.helpTier;

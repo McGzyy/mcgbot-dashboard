@@ -169,3 +169,43 @@ export async function POST(request: Request) {
   return Response.json({ success: true, mode: "submitted" as const });
 }
 
+/** Admin-only: remove from live sources (soft-disable). */
+export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id?.trim() ?? "";
+  if (!userId) {
+    return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  const tier = await resolveHelpTierAsync(userId);
+  if (tier !== "admin") {
+    return Response.json({ success: false, error: "Forbidden" }, { status: 403 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+  }
+  const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const id = typeof o.id === "string" ? o.id.trim() : "";
+  if (!id) {
+    return Response.json({ success: false, error: "Missing id" }, { status: 400 });
+  }
+
+  const db = dbOr503();
+  if (db instanceof Response) return db;
+
+  const { error } = await db.from("social_feed_sources").update({ active: false }).eq("id", id);
+  if (error) {
+    console.error("[social-sources] DELETE:", error);
+    return Response.json(
+      { success: false, error: "Failed to remove source" },
+      { status: 500 }
+    );
+  }
+
+  return Response.json({ success: true });
+}
+

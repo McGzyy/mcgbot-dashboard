@@ -95,7 +95,16 @@ async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
         ...(init?.headers ?? {}),
       },
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      let msg = "";
+      try {
+        msg = (await res.text()).slice(0, 260);
+      } catch {
+        // ignore
+      }
+      const suffix = msg ? `: ${msg}` : "";
+      throw new Error(`HTTP ${res.status}${suffix}`);
+    }
     return await res.json();
   } finally {
     clearTimeout(t);
@@ -109,13 +118,35 @@ function solscanKey(): string {
 function solscanAuthHeaders(key: string): Record<string, string> {
   const k = key.trim();
   if (!k) return {};
-  // Some accounts provide a raw token; others prefer Bearer.
-  const auth = /^bearer\s+/i.test(k) ? k : `Bearer ${k}`;
   return {
-    authorization: auth,
-    // Common alt header some gateways accept
+    // Solscan Pro commonly expects `token: <apiKey>`.
     token: k,
+    // Some gateways accept `Authorization: Bearer <apiKey>`.
+    ...( /^bearer\s+/i.test(k) ? { authorization: k } : {} ),
   };
+}
+
+function pickSolscanHolderCountFromMeta(json: unknown): number | null {
+  if (!json || typeof json !== "object") return null;
+  const o = json as any;
+  const candidates = [
+    o?.data?.holder,
+    o?.data?.holders,
+    o?.data?.holderCount,
+    o?.data?.holder_count,
+    o?.data?.holders_count,
+    o?.data?.totalHolders,
+    o?.data?.total_holders,
+    o?.holder,
+    o?.holders,
+    o?.holderCount,
+    o?.holder_count,
+  ];
+  for (const v of candidates) {
+    const n = typeof v === "number" ? v : Number(v ?? NaN);
+    if (Number.isFinite(n) && n >= 0) return Math.floor(n);
+  }
+  return null;
 }
 
 function pickSolscanTotalHolders(json: unknown): number | null {
@@ -132,6 +163,15 @@ function pickSolscanTotalHolders(json: unknown): number | null {
     o?.totalCount,
     o?.total_count,
     o?.count,
+    o?.metadata?.total,
+    o?.metadata?.totalCount,
+    o?.metadata?.total_count,
+    o?.pagination?.total,
+    o?.pagination?.totalCount,
+    o?.pagination?.total_count,
+    o?.data?.pagination?.total,
+    o?.data?.pagination?.totalCount,
+    o?.data?.pagination?.total_count,
   ];
   for (const v of candidates) {
     const n = typeof v === "number" ? v : Number(v ?? NaN);
@@ -141,18 +181,21 @@ function pickSolscanTotalHolders(json: unknown): number | null {
   return null;
 }
 
-async function fetchSolscanHolderCounts(mints: string[]): Promise<Map<string, number>> {
+async function fetchSolscanHolderCounts(
+  mints: string[]
+): Promise<{ map: Map<string, number>; error?: string }> {
   const key = solscanKey();
-  if (!key) return new Map();
+  if (!key) return { map: new Map() };
 
   const uniq = Array.from(new Set(mints.map((m) => m.trim()).filter(Boolean))).slice(0, 28);
-  if (uniq.length === 0) return new Map();
+  if (uniq.length === 0) return { map: new Map() };
 
   const cacheKey = `k:${key.slice(0, 6)}:${uniq.join(",")}`;
   const hit = solscanHolderCache.get(cacheKey);
-  if (hit && Date.now() - hit.at < 120_000) return hit.map;
+  if (hit && Date.now() - hit.at < 120_000) return { map: hit.map };
 
   const out = new Map<string, number>();
+  let lastError: string | undefined;
   // Bounded parallel to avoid rate bursts.
   const concurrency = 6;
   let idx = 0;
@@ -160,13 +203,33 @@ async function fetchSolscanHolderCounts(mints: string[]): Promise<Map<string, nu
   const worker = async () => {
     while (idx < uniq.length) {
       const mint = uniq[idx++]!;
-      const url = `https://pro-api.solscan.io/v2.0/token/holders?address=${encodeURIComponent(mint)}&page=1&page_size=10`;
       try {
-        const json = await fetchJson(url, { headers: solscanAuthHeaders(key) });
+        const headers = solscanAuthHeaders(key);
+
+        // Prefer meta endpoint if it exposes holder count directly (cheaper than paged holders list).
+        try {
+          const metaJson = await fetchJson(
+            `https://pro-api.solscan.io/v2.0/token/meta?address=${encodeURIComponent(mint)}`,
+            { headers }
+          );
+          const metaHolders = pickSolscanHolderCountFromMeta(metaJson);
+          if (metaHolders != null) {
+            out.set(mint, metaHolders);
+            continue;
+          }
+        } catch (e) {
+          lastError = String((e as any)?.message ?? e ?? "");
+          // fall through to holders endpoint
+        }
+
+        const json = await fetchJson(
+          `https://pro-api.solscan.io/v2.0/token/holders?address=${encodeURIComponent(mint)}&page=1&page_size=10`,
+          { headers }
+        );
         const total = pickSolscanTotalHolders(json);
         if (total != null) out.set(mint, total);
-      } catch {
-        // ignore
+      } catch (e) {
+        lastError = String((e as any)?.message ?? e ?? "");
       }
     }
   };
@@ -174,7 +237,7 @@ async function fetchSolscanHolderCounts(mints: string[]): Promise<Map<string, nu
   await Promise.all(Array.from({ length: Math.min(concurrency, uniq.length) }, () => worker()));
 
   solscanHolderCache.set(cacheKey, { at: Date.now(), map: out });
-  return out;
+  return { map: out, ...(lastError ? { error: lastError } : {}) };
 }
 
 function dexTokenPngUrl(mint: string): string | null {
@@ -633,15 +696,11 @@ export async function GET(req: Request) {
     .slice(0, limit);
 
   // Birdeye is intentionally not used (credits burn too fast). Use DexScreener CDN for avatars.
-  const solscanHolders = await fetchSolscanHolderCounts(finalRows.map((r) => r.mint));
-  const enriched = finalRows.map((r) => {
-    const holders = solscanHolders.get(r.mint);
-    return {
-      ...r,
-      imageUrl: dexTokenPngUrl(r.mint),
-      holders: typeof holders === "number" && holders > 0 ? holders : r.holders,
-    };
-  });
+  // Holder counts are omitted (Solscan Pro requires an upgraded tier).
+  const enriched = finalRows.map((r) => ({
+    ...r,
+    imageUrl: dexTokenPngUrl(r.mint),
+  }));
 
   const payload = wantDebug ? { rows: enriched, health, debug: dbg } : { rows: enriched, health };
   cache.set(cacheKey, { at: Date.now(), payload });

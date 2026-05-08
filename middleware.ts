@@ -67,6 +67,8 @@ function subscriptionActive(token: Record<string, unknown> | null): boolean {
 
 function hasDashboardAccess(token: Record<string, unknown> | null): boolean {
   if (!token) return false;
+  // Staff should never be paywalled by subscription checks.
+  if (token.helpTier === "admin" || token.helpTier === "mod") return true;
   if (token.subscriptionExempt === true) return true;
   return subscriptionActive(token);
 }
