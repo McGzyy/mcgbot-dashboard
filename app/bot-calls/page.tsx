@@ -96,7 +96,6 @@ function gmgnSolUrl(ca: string): string | null {
 
 const TERMINALS: TerminalTarget[] = [
   {
-  {
     id: "axiom",
     label: "Axiom",
     sublabel: "Pro charts",
