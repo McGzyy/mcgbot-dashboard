@@ -263,6 +263,10 @@ export default function BotCallsPage() {
   const [canExcludeCalls, setCanExcludeCalls] = useState(false);
   const [hidingCallCa, setHidingCallCa] = useState<string | null>(null);
   const [excludingCallCa, setExcludingCallCa] = useState<string | null>(null);
+  const [excludeConfirm, setExcludeConfirm] = useState<{
+    ca: string;
+    excludedNext: boolean;
+  } | null>(null);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalCall, setTerminalCall] = useState<TapeRow | null>(null);
 
@@ -939,7 +943,7 @@ export default function BotCallsPage() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                void excludeBotCall(r.callCa, !r.excludedFromStats);
+                                setExcludeConfirm({ ca: r.callCa, excludedNext: !r.excludedFromStats });
                               }}
                               disabled={loading || excludingCallCa === r.callCa}
                               className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-60 ${
@@ -1094,6 +1098,76 @@ export default function BotCallsPage() {
                   {reportSubmitting ? "Submitting…" : "Submit report"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {excludeConfirm ? (
+        <div
+          className={terminalUi.modalBackdropZ100}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm exclude bot call"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setExcludeConfirm(null);
+          }}
+        >
+          <div className={terminalUi.modalPanelXl}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">
+                  {excludeConfirm.excludedNext ? "Exclude bot call" : "Restore bot call"}
+                </h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {excludeConfirm.excludedNext
+                    ? "This will exclude the call from public stats and leaderboards (it stays tracked)."
+                    : "This will include the call in public stats and leaderboards again."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExcludeConfirm(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/25"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-xs text-zinc-300">
+              <span className="font-semibold text-zinc-100">Contract:</span>{" "}
+              <span className="font-mono text-zinc-200">{excludeConfirm.ca}</span>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setExcludeConfirm(null)}
+                disabled={excludingCallCa === excludeConfirm.ca}
+                className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const ca = excludeConfirm.ca;
+                  const next = excludeConfirm.excludedNext;
+                  setExcludeConfirm(null);
+                  await excludeBotCall(ca, next);
+                }}
+                disabled={excludingCallCa === excludeConfirm.ca}
+                className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
+                  excludeConfirm.excludedNext
+                    ? "border-red-500/40 bg-red-500/15 text-red-100 hover:bg-red-500/20"
+                    : "border-emerald-500/40 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/20"
+                }`}
+              >
+                {excludingCallCa === excludeConfirm.ca ? "Working…" : excludeConfirm.excludedNext ? "Exclude" : "Restore"}
+              </button>
             </div>
           </div>
         </div>
