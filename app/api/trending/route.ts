@@ -9,6 +9,7 @@ type Source = "All" | "Dexscreener" | "Gecko" | "Axiom" | "GMGN";
 type TrendingTokenRow = {
   symbol: string;
   mint: string;
+  imageUrl?: string | null;
   /** Spot price (still returned for charts/links; UI prefers MC). */
   priceUsd: number;
   /** Best-effort market cap for the chosen pair (Dex `marketCap`, else `fdv`). */
@@ -23,6 +24,9 @@ type TrendingTokenRow = {
 
 type CacheEntry = { at: number; payload: { rows: TrendingTokenRow[] } };
 const cache = new Map<string, CacheEntry>();
+
+type SolscanHolderCacheEntry = { at: number; map: Map<string, number> };
+const solscanHolderCache = new Map<string, SolscanHolderCacheEntry>();
 
 type DebugInfo = {
   timeframe: Timeframe;
@@ -96,6 +100,87 @@ async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
   } finally {
     clearTimeout(t);
   }
+}
+
+function solscanKey(): string {
+  return (process.env.SOLSCAN_PRO_API_KEY ?? process.env.SOLSCAN_API_KEY ?? "").trim();
+}
+
+function solscanAuthHeaders(key: string): Record<string, string> {
+  const k = key.trim();
+  if (!k) return {};
+  // Some accounts provide a raw token; others prefer Bearer.
+  const auth = /^bearer\s+/i.test(k) ? k : `Bearer ${k}`;
+  return {
+    authorization: auth,
+    // Common alt header some gateways accept
+    token: k,
+  };
+}
+
+function pickSolscanTotalHolders(json: unknown): number | null {
+  if (!json || typeof json !== "object") return null;
+  const o = json as any;
+  const candidates = [
+    o?.data?.total,
+    o?.data?.totalCount,
+    o?.data?.total_count,
+    o?.data?.total_items,
+    o?.data?.totalItems,
+    o?.data?.count,
+    o?.total,
+    o?.totalCount,
+    o?.total_count,
+    o?.count,
+  ];
+  for (const v of candidates) {
+    const n = typeof v === "number" ? v : Number(v ?? NaN);
+    if (Number.isFinite(n) && n >= 0) return Math.floor(n);
+  }
+  // Some endpoints return `{ data: [...] }` without total. In that case, we cannot know.
+  return null;
+}
+
+async function fetchSolscanHolderCounts(mints: string[]): Promise<Map<string, number>> {
+  const key = solscanKey();
+  if (!key) return new Map();
+
+  const uniq = Array.from(new Set(mints.map((m) => m.trim()).filter(Boolean))).slice(0, 28);
+  if (uniq.length === 0) return new Map();
+
+  const cacheKey = `k:${key.slice(0, 6)}:${uniq.join(",")}`;
+  const hit = solscanHolderCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < 120_000) return hit.map;
+
+  const out = new Map<string, number>();
+  // Bounded parallel to avoid rate bursts.
+  const concurrency = 6;
+  let idx = 0;
+
+  const worker = async () => {
+    while (idx < uniq.length) {
+      const mint = uniq[idx++]!;
+      const url = `https://pro-api.solscan.io/v2.0/token/holders?address=${encodeURIComponent(mint)}&page=1&page_size=10`;
+      try {
+        const json = await fetchJson(url, { headers: solscanAuthHeaders(key) });
+        const total = pickSolscanTotalHolders(json);
+        if (total != null) out.set(mint, total);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, uniq.length) }, () => worker()));
+
+  solscanHolderCache.set(cacheKey, { at: Date.now(), map: out });
+  return out;
+}
+
+function dexTokenPngUrl(mint: string): string | null {
+  const m = mint.trim();
+  if (!m) return null;
+  return `https://dd.dexscreener.com/ds-data/tokens/solana/${m}.png`;
 }
 
 /** Dex endpoints vary: bare arrays vs `{ value }` vs `{ pairs }`. */
@@ -547,7 +632,18 @@ export async function GET(req: Request) {
     .sort((a, b) => b.volumeUsd - a.volumeUsd || b.marketCapUsd - a.marketCapUsd)
     .slice(0, limit);
 
-  const payload = wantDebug ? { rows: finalRows, health, debug: dbg } : { rows: finalRows, health };
+  // Birdeye is intentionally not used (credits burn too fast). Use DexScreener CDN for avatars.
+  const solscanHolders = await fetchSolscanHolderCounts(finalRows.map((r) => r.mint));
+  const enriched = finalRows.map((r) => {
+    const holders = solscanHolders.get(r.mint);
+    return {
+      ...r,
+      imageUrl: dexTokenPngUrl(r.mint),
+      holders: typeof holders === "number" && holders > 0 ? holders : r.holders,
+    };
+  });
+
+  const payload = wantDebug ? { rows: enriched, health, debug: dbg } : { rows: enriched, health };
   cache.set(cacheKey, { at: Date.now(), payload });
 
   return Response.json(payload, {

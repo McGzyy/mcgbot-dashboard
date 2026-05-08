@@ -67,6 +67,7 @@ const TRENDING_TOKENS_MOCK = [
 type TrendingTokenRow = {
   symbol: string;
   mint: string;
+  imageUrl?: string | null;
   priceUsd: number;
   marketCapUsd: number;
   changePct: number;
@@ -1367,9 +1368,15 @@ function TrendingPanel() {
           const symbol = typeof o.symbol === "string" ? o.symbol.trim() : "";
           const mint = typeof o.mint === "string" ? o.mint.trim() : "";
           if (!symbol || !mint) continue;
+          const imageUrl =
+            typeof (o as { imageUrl?: unknown }).imageUrl === "string" &&
+            String((o as { imageUrl?: unknown }).imageUrl).startsWith("http")
+              ? String((o as { imageUrl?: unknown }).imageUrl)
+              : null;
           parsed.push({
             symbol,
             mint,
+            imageUrl,
             priceUsd: Number(o.priceUsd ?? 0) || 0,
             marketCapUsd: Number(o.marketCapUsd ?? 0) || 0,
             changePct: Number(o.changePct ?? 0) || 0,
@@ -1521,9 +1528,21 @@ function TrendingPanel() {
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-800/70 bg-zinc-950 text-xs font-semibold text-zinc-200">
-                            #{i + 1}
-                          </span>
+                          {row.imageUrl ? (
+                            <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md border border-zinc-800/70 bg-zinc-950">
+                              <img
+                                src={row.imageUrl}
+                                alt={row.symbol}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                              />
+                            </span>
+                          ) : (
+                            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-800/70 bg-zinc-950 text-xs font-semibold text-zinc-200">
+                              #{i + 1}
+                            </span>
+                          )}
                           <span className="min-w-0 truncate text-sm font-semibold text-zinc-100">
                             {row.symbol}
                           </span>
@@ -1535,7 +1554,7 @@ function TrendingPanel() {
                           <span className="tabular-nums">
                             Holders{" "}
                             <span className="font-semibold text-zinc-300">
-                              {row.holders.toLocaleString()}
+                              {row.holders > 0 ? row.holders.toLocaleString() : "—"}
                             </span>
                           </span>
                           <span className="text-zinc-700" aria-hidden>
@@ -2945,7 +2964,7 @@ export default function Home() {
   const { followingIds, setFollowing } = useFollowingIds();
   const [feedMode, setFeedMode] = useState<
     "all" | "me" | "milestones" | "calls" | "following"
-  >("all");
+  >("calls");
   const [topPerformersToday, setTopPerformersToday] = useState<
     TopPerformerTodayRow[]
   >([]);

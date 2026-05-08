@@ -89,10 +89,11 @@ export function formatWinActivityLine(
   meta: CallSnapshotMeta
 ): string {
   const who = username.trim() || "Unknown";
-  const body = formatNameAndTickerLine(meta);
-  const mc = formatMarketCapAtCall(meta.callMarketCapUsd ?? null);
+  const tick = snapshotTicker(meta);
+  const callMc = formatMarketCapAtCall(meta.callMarketCapUsd ?? null);
   const x = Number.isFinite(multiple) ? multiple.toFixed(1) : "?";
-  return `${who} hit ${x}x on ${body} @ ${mc}`;
+  // Note: current feed schema doesn't provide *current* MC, only call-time MC.
+  return `$${tick} hit ${x}x (${callMc}) - Called by @${who} at ${callMc}`;
 }
 
 export function multipleClass(multiple: number): string {
