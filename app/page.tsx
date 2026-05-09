@@ -15,7 +15,6 @@ import { PanelCard, CARD_HOVER } from "./components/PanelCard";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
-import { SubscriptionExemptAdminPanel } from "./components/SubscriptionExemptAdminPanel";
 import PerformanceChart from "@/components/dashboard/PerformanceChart";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
@@ -4372,12 +4371,6 @@ export default function Home() {
           {(helpTier === "mod" || helpTier === "admin") && (
             <div data-tutorial="dashboard.modQueue">
               <ModQueueHomePanel />
-            </div>
-          )}
-
-          {helpTier === "admin" && (
-            <div data-tutorial="dashboard.subscriptionExempt">
-              <SubscriptionExemptAdminPanel />
             </div>
           )}
 
