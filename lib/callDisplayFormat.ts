@@ -87,6 +87,47 @@ export function formatNewCallActivityLine(
   return `New Call - ${who} called ${body} @ ${mc}`;
 }
 
+/**
+ * MC at call shown on milestone lines: prefer DB `call_market_cap_usd`, but if that value implies
+ * a **lower** multiple than `ath_multiple` for the same peak MC, the row is internally inconsistent
+ * (e.g. MC field revised after ATH was recorded). Then use peak ÷ ATH multiple so the sentence matches
+ * the printed × and peak. When stored MC implies a **higher** multiple than ATH, keep stored entry
+ * (ATH may be understated / snapshot lag).
+ */
+function displayCallMcUsdForAthWinLine(multiple: number, meta: CallSnapshotMeta): number | null {
+  const callMcN = Number(meta.callMarketCapUsd);
+  const rawHit = meta.hitMarketCapUsd;
+  const hitN = typeof rawHit === "number" ? rawHit : Number(rawHit);
+
+  if (!Number.isFinite(multiple) || multiple <= 0) {
+    return Number.isFinite(callMcN) && callMcN > 0 ? callMcN : null;
+  }
+
+  const hasHit = Number.isFinite(hitN) && hitN > 0;
+  const impliedEntryFromAth = hasHit ? hitN / multiple : NaN;
+
+  if (!Number.isFinite(callMcN) || callMcN <= 0) {
+    return Number.isFinite(impliedEntryFromAth) && impliedEntryFromAth > 0 ? impliedEntryFromAth : null;
+  }
+  if (!hasHit) return callMcN;
+
+  const multImpliedByStoredMc = hitN / callMcN;
+  if (!Number.isFinite(multImpliedByStoredMc) || multImpliedByStoredMc <= 0) return callMcN;
+
+  const athVsStored =
+    multImpliedByStoredMc > multiple
+      ? multImpliedByStoredMc / multiple
+      : multiple / multImpliedByStoredMc;
+
+  if (athVsStored <= 1.15) return callMcN;
+
+  if (multImpliedByStoredMc < multiple && impliedEntryFromAth > 0) {
+    return impliedEntryFromAth;
+  }
+
+  return callMcN;
+}
+
 /** Win / milestone style line (activity feed). */
 export function formatWinActivityLine(
   username: string,
@@ -95,7 +136,8 @@ export function formatWinActivityLine(
 ): string {
   const who = username.trim() || "Unknown";
   const tick = snapshotTicker(meta);
-  const callMc = formatMarketCapAtCall(meta.callMarketCapUsd ?? null);
+  const atMcUsd = displayCallMcUsdForAthWinLine(multiple, meta);
+  const callMc = formatMarketCapAtCall(atMcUsd);
   const x = Number.isFinite(multiple) ? multiple.toFixed(1) : "?";
 
   const rawHit = meta.hitMarketCapUsd;
