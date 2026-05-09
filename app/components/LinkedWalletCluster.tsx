@@ -1,11 +1,15 @@
 "use client";
 
 import { WalletAccountPanel } from "@/app/components/WalletAccountPanel";
+import { WalletBalanceHistoryChart } from "@/app/components/WalletBalanceHistoryChart";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDashboardWallet } from "@/app/contexts/DashboardWalletContext";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
+
+const WALLET_TABS = ["Home", "PnL", "TXs", "Send"] as const;
+type WalletTabId = (typeof WALLET_TABS)[number];
 
 function shortenPk(pk: string): string {
   const t = pk.trim();
@@ -27,6 +31,7 @@ export function LinkedWalletCluster() {
   const { linked, loading: linkLoading } = useDashboardWallet();
   const { publicKey, connected } = useWallet();
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<WalletTabId>("Home");
   const [balances, setBalances] = useState<Balances | null>(null);
   const [balLoading, setBalLoading] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -102,7 +107,13 @@ export function LinkedWalletCluster() {
     <div className="relative shrink-0" ref={wrapRef}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setOpen((o) => {
+            const next = !o;
+            if (next) setTab("Home");
+            return next;
+          });
+        }}
         className={`flex max-w-[11rem] items-center gap-2 rounded-lg border border-zinc-800/70 bg-zinc-950/40 px-2 py-1 text-left transition hover:border-zinc-600 hover:bg-zinc-900/50 sm:max-w-[14rem] sm:px-2.5 ${terminalSurface.insetEdge}`}
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -146,10 +157,51 @@ export function LinkedWalletCluster() {
           role="dialog"
           aria-label="Linked wallet"
         >
-          <WalletAccountPanel
-            onBeforeWalletModal={() => setOpen(false)}
-            onDisconnected={() => setOpen(false)}
-          />
+          <div
+            className={`flex gap-0.5 rounded-lg border border-zinc-800/80 bg-zinc-950/50 p-0.5 ${terminalSurface.insetEdgeSoft}`}
+            role="tablist"
+            aria-label="Wallet sections"
+          >
+            {WALLET_TABS.map((id) => {
+              const active = tab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(id)}
+                  className={`flex-1 rounded-md px-2 py-1.5 text-center text-[11px] font-semibold transition ${
+                    active
+                      ? "bg-zinc-700 text-zinc-50 shadow-sm"
+                      : "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200"
+                  }`}
+                >
+                  {id}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3" role="tabpanel">
+            {tab === "Home" ? (
+              <WalletAccountPanel
+                onBeforeWalletModal={() => setOpen(false)}
+                onDisconnected={() => setOpen(false)}
+              />
+            ) : tab === "PnL" ? (
+              <WalletBalanceHistoryChart chartWidth={260} chartHeight={56} />
+            ) : (
+              <div className="flex min-h-[10rem] flex-col items-center justify-center rounded-xl border border-zinc-800/70 bg-zinc-950/30 px-4 py-8 text-center">
+                <p className="text-sm font-semibold text-zinc-300">Coming soon</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {tab === "TXs"
+                    ? "Transaction history will appear here."
+                    : "Send flows will be available here."}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       ) : null}
     </div>

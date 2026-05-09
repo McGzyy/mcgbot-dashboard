@@ -15,7 +15,6 @@ import { PanelCard, CARD_HOVER } from "./components/PanelCard";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
-import DashboardWalletModule from "./components/DashboardWalletModule";
 import { SubscriptionExemptAdminPanel } from "./components/SubscriptionExemptAdminPanel";
 import PerformanceChart from "@/components/dashboard/PerformanceChart";
 import { useFollowingIds } from "./hooks/useFollowingIds";
@@ -4479,12 +4478,6 @@ export default function Home() {
         </div>
       </div>
       </div>
-
-      {widgetEnabled(widgets, "live_tracked_calls") ? (
-        <div className="hidden xl:block fixed right-4 top-24 z-[40] w-[20rem]">
-          <DashboardWalletModule />
-        </div>
-      ) : null}
 
       <ActivityPopup
         item={activityPopupItem}
