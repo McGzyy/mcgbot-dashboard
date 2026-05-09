@@ -157,6 +157,7 @@ export function TopBar() {
   const [tipOpen, setTipOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const topBarRef = useRef<HTMLElement | null>(null);
   const [inGuild, setInGuild] = useState<boolean | null>(null);
 
   const helpTier = (session?.user as { helpTier?: string } | undefined)?.helpTier;
@@ -198,6 +199,25 @@ export function TopBar() {
   useEffect(() => {
     if (openNotifications) void refreshInbox();
   }, [openNotifications, refreshInbox]);
+
+  /** Lets the announcement bar sit flush under this sticky header while the page scrolls. */
+  useEffect(() => {
+    const el = topBarRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const apply = () => {
+      const h = Math.round(el.getBoundingClientRect().height);
+      document.documentElement.style.setProperty("--dashboard-topbar-height", `${h}px`);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    window.addEventListener("resize", apply);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", apply);
+      document.documentElement.style.removeProperty("--dashboard-topbar-height");
+    };
+  }, []);
 
   const markInboxAllRead = useCallback(async () => {
     try {
@@ -462,7 +482,7 @@ export function TopBar() {
 
   return (
     <>
-      <header className={`sticky top-0 z-50 ${dashboardChrome.topBar}`} role="banner">
+      <header ref={topBarRef} className={`sticky top-0 z-50 ${dashboardChrome.topBar}`} role="banner">
       {/* TOP ROW (existing header content) */}
       <div className="flex items-center justify-between gap-2 px-3 py-1.5 sm:px-6 sm:py-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">

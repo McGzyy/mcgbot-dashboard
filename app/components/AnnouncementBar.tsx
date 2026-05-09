@@ -75,8 +75,8 @@ export function AnnouncementBar({ variant = "inset" }: { variant?: AnnouncementB
 
   const shell =
     variant === "bare"
-      ? "shrink-0 border-b border-sky-500/25 bg-gradient-to-r from-sky-950/90 via-sky-900/35 to-zinc-950 px-4 py-2.5 text-center text-[13px] leading-snug text-sky-100/95 shadow-[inset_0_1px_0_0_rgba(56,189,248,0.12)]"
-      : "relative z-[1] -mt-0.5 mb-3 w-full min-w-0 shrink-0 overflow-hidden rounded-lg border border-red-500/35 bg-gradient-to-r from-red-950/80 via-red-950/40 to-zinc-950/95 py-2.5 pl-3 pr-3 text-[13px] leading-none text-red-50/95 shadow-[inset_0_1px_0_0_rgba(248,113,113,0.2),0_0_32px_-8px_rgba(220,38,38,0.35)] sm:mb-4";
+      ? "sticky top-0 z-40 shrink-0 border-b border-sky-500/25 bg-gradient-to-r from-sky-950/95 via-sky-900/40 to-zinc-950 px-4 py-2.5 text-center text-[13px] leading-snug text-sky-100/95 shadow-[inset_0_1px_0_0_rgba(56,189,248,0.12),0_8px_24px_-12px_rgba(0,0,0,0.45)] backdrop-blur-md"
+      : "sticky top-[var(--dashboard-topbar-height,6rem)] z-[45] -mt-0.5 mb-3 w-full min-w-0 shrink-0 overflow-hidden rounded-lg border border-red-500/35 bg-gradient-to-r from-red-950/90 via-red-950/45 to-zinc-950/95 py-2.5 pl-3 pr-3 text-[13px] leading-none text-red-50/95 shadow-[inset_0_1px_0_0_rgba(248,113,113,0.2),0_0_32px_-8px_rgba(220,38,38,0.35),0_10px_28px_-12px_rgba(0,0,0,0.55)] backdrop-blur-md sm:mb-4";
 
   const dotClass =
     variant === "bare"
