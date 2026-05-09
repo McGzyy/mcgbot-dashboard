@@ -1369,7 +1369,6 @@ function NotesPanel() {
 
 function TrendingPanel() {
   const [timeframe, setTimeframe] = useState<"5m" | "1h" | "24h">("1h");
-  const [source, setSource] = useState<"All" | TrendingTokenRow["source"]>("All");
   const [apiRows, setApiRows] = useState<TrendingTokenRow[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
   const [apiHealth, setApiHealth] = useState<Record<string, { ok: boolean; count: number; error?: string }> | null>(null);
@@ -1377,11 +1376,8 @@ function TrendingPanel() {
   useEffect(() => {
     let cancelled = false;
     setApiLoading(true);
-    const src = source === "All" ? "All" : source;
-    fetch(
-      `/api/trending?timeframe=${encodeURIComponent(timeframe)}&source=${encodeURIComponent(src)}`,
-      { credentials: "same-origin" }
-    )
+    const tf = timeframe;
+    fetch(`/api/trending?timeframe=${encodeURIComponent(tf)}`, { credentials: "same-origin" })
       .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
       .then(({ ok, json }) => {
         if (cancelled) return;
@@ -1416,14 +1412,8 @@ function TrendingPanel() {
             liquidityUsd: Number(o.liquidityUsd ?? 0) || 0,
             volumeUsd: Number(o.volumeUsd ?? 0) || 0,
             holders: Math.max(0, Number(o.holders ?? 0) || 0),
-            source:
-              typeof o.source === "string" && o.source
-                ? (o.source as TrendingTokenRow["source"])
-                : "Dexscreener",
-            timeframe:
-              typeof o.timeframe === "string" && o.timeframe
-                ? (o.timeframe as TrendingTokenRow["timeframe"])
-                : timeframe,
+            source: "Dexscreener",
+            timeframe: tf,
           });
         }
         setApiRows(parsed);
@@ -1440,15 +1430,9 @@ function TrendingPanel() {
     return () => {
       cancelled = true;
     };
-  }, [source, timeframe]);
+  }, [timeframe]);
 
-  const rows = useMemo(() => {
-    return apiRows.filter((r) => {
-      if (r.timeframe !== timeframe) return false;
-      if (source !== "All" && r.source !== source) return false;
-      return true;
-    });
-  }, [apiRows, source, timeframe]);
+  const rows = apiRows;
 
   const chipClass = (active: boolean) =>
     `rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
@@ -1485,20 +1469,9 @@ function TrendingPanel() {
             </button>
           </div>
 
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
-            {(
-              ["All", "Dexscreener", "GMGN"] as const
-            ).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSource(s)}
-                className={chipClass(source === s)}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+          <p className="text-[11px] font-medium text-zinc-500">
+            Dexscreener · boosted Solana
+          </p>
         </div>
 
         <div className="text-[11px] text-zinc-500">
@@ -1536,7 +1509,7 @@ function TrendingPanel() {
                   No matches
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">
-                  Try a different timeframe or source.
+                  Try a different timeframe, or retry in a moment if Dexscreener is rate-limited.
                 </p>
               </div>
             </div>
