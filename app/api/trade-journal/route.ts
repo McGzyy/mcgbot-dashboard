@@ -1,6 +1,10 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { insertTradeJournalEntry, listTradeJournalEntries } from "@/lib/tradeJournalDb";
+import {
+  insertTradeJournalEntry,
+  listTradeJournalEntries,
+  tradeJournalPayloadFromBody,
+} from "@/lib/tradeJournalDb";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,28 +27,15 @@ export async function POST(request: Request) {
     return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await request.json().catch(() => null)) as {
-    title?: string;
-    notes?: string;
-    mint?: string | null;
-    tags?: string[];
-    status?: "open" | "closed";
-    hasEdge?: boolean;
-  } | null;
-
-  const title = typeof body?.title === "string" ? body.title.trim() : "";
-  if (!title) {
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const payload = tradeJournalPayloadFromBody(body);
+  if (!payload) {
     return Response.json({ success: false, error: "Title is required." }, { status: 400 });
   }
 
   const res = await insertTradeJournalEntry({
     discordUserId: id,
-    title,
-    notes: typeof body?.notes === "string" ? body.notes : "",
-    mint: typeof body?.mint === "string" ? body.mint : body?.mint ?? null,
-    tags: Array.isArray(body?.tags) ? body.tags : [],
-    status: body?.status === "closed" ? "closed" : "open",
-    hasEdge: Boolean(body?.hasEdge),
+    ...payload,
   });
 
   if (!res.ok) {

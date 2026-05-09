@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { AdminDashboardShell } from "@/app/admin/_components/AdminDashboardShell";
 import { authOptions } from "@/lib/auth";
-import { resolveHelpTierAsync } from "@/lib/helpRole";
+import { isDashboardAdminUser } from "@/lib/adminGate";
 import { terminalChrome } from "@/lib/terminalDesignTokens";
 
 export const metadata: Metadata = {
@@ -19,7 +19,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   if (!id) {
     redirect("/");
   }
-  if ((await resolveHelpTierAsync(id)) !== "admin") {
+  if (!(await isDashboardAdminUser(session, id))) {
     redirect("/");
   }
 

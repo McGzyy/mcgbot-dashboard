@@ -159,18 +159,18 @@ export function TradeJournalWalletActivity({ onStartDraft }: TradeJournalWalletA
               return (
                 <li
                   key={row.signature}
-                  className="rounded-xl border border-zinc-800/50 bg-zinc-950/35 px-3 py-2.5 transition-colors hover:border-zinc-700/70 hover:bg-zinc-900/40"
+                  className="overflow-hidden rounded-xl border border-zinc-800/40 bg-zinc-950/25 transition-colors hover:border-zinc-700/55 hover:bg-zinc-900/35"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/40 pb-2">
-                    <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <span className="text-[11px] font-semibold tabular-nums text-emerald-400/95">{rel}</span>
-                      <span className="truncate text-[10px] text-zinc-500">{formatBlockLocal(row.blockTime)}</span>
+                  <div className="flex items-center justify-between gap-2 border-b border-zinc-800/30 bg-black/20 px-3 py-1.5">
+                    <div className="flex min-w-0 items-center gap-2 text-[10px] text-zinc-500">
+                      <span className="shrink-0 font-semibold tabular-nums text-emerald-400/90">{rel}</span>
+                      <span className="truncate text-zinc-600">{formatBlockLocal(row.blockTime)}</span>
                     </div>
                     <a
                       href={row.explorerUrl}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-sky-400/95 transition hover:bg-sky-500/10 hover:text-sky-300"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold text-sky-400/95 transition hover:bg-sky-500/10 hover:text-sky-300"
                       onClick={(e) => e.stopPropagation()}
                       aria-label="View transaction on explorer"
                     >
@@ -178,17 +178,17 @@ export function TradeJournalWalletActivity({ onStartDraft }: TradeJournalWalletA
                       <ExternalLinkIcon className="opacity-90" />
                     </a>
                   </div>
-                  <div className="mt-2 flex flex-col gap-1.5">
+                  <ul className="divide-y divide-zinc-800/35">
                     {row.tokens.map((t) => {
                       const label = tokenLabel(t);
                       return (
-                        <div key={t.mint} className="flex items-center gap-2">
+                        <li key={t.mint} className="flex items-stretch gap-0">
                           <button
                             type="button"
                             onClick={() => onStartDraft({ mint: t.mint.trim(), label })}
-                            className={`${terminalPage.denseInsetRowButton} min-w-0 flex-1 items-center gap-2.5 py-2 pl-2 pr-2`}
+                            className={`${terminalPage.denseInsetRowButton} min-w-0 flex-1 items-center gap-2.5 rounded-none border-0 py-2.5 pl-3 pr-2 hover:bg-zinc-900/50`}
                           >
-                            <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-zinc-700/60 bg-zinc-900">
+                            <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md border border-zinc-700/50 bg-zinc-900/80">
                               {t.imageUrl ? (
                                 <img
                                   src={t.imageUrl}
@@ -221,14 +221,14 @@ export function TradeJournalWalletActivity({ onStartDraft }: TradeJournalWalletA
                             type="button"
                             title="Copy mint"
                             onClick={(e) => copyMint(t.mint, e)}
-                            className="shrink-0 rounded-md border border-zinc-700/80 bg-zinc-900/50 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400 transition hover:border-zinc-600 hover:bg-zinc-800/80 hover:text-zinc-200"
+                            className="shrink-0 border-l border-zinc-800/50 bg-zinc-950/40 px-2.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500 transition hover:bg-zinc-900/60 hover:text-zinc-200"
                           >
                             {copiedMint === t.mint ? "OK" : "CA"}
                           </button>
-                        </div>
+                        </li>
                       );
                     })}
-                  </div>
+                  </ul>
                 </li>
               );
             })}

@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { deleteTradeJournalEntry, updateTradeJournalEntry } from "@/lib/tradeJournalDb";
+import { deleteTradeJournalEntry, tradeJournalPatchFromBody, updateTradeJournalEntry } from "@/lib/tradeJournalDb";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,28 +20,20 @@ export async function PATCH(request: Request, ctx: Ctx) {
     return Response.json({ success: false, error: "Missing entry id." }, { status: 400 });
   }
 
-  const body = (await request.json().catch(() => null)) as {
-    title?: string;
-    notes?: string;
-    mint?: string | null;
-    tags?: string[];
-    status?: "open" | "closed";
-    hasEdge?: boolean;
-  } | null;
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const partial = tradeJournalPatchFromBody(body);
+  if (!partial || Object.keys(partial).length === 0) {
+    return Response.json({ success: false, error: "No fields to update." }, { status: 400 });
+  }
 
-  if (body?.title !== undefined && !String(body.title).trim()) {
+  if (partial.title !== undefined && !partial.title.trim()) {
     return Response.json({ success: false, error: "Title cannot be empty." }, { status: 400 });
   }
 
   const res = await updateTradeJournalEntry({
     discordUserId: uid,
     id: eid,
-    title: body?.title,
-    notes: body?.notes,
-    mint: body?.mint,
-    tags: body?.tags,
-    status: body?.status,
-    hasEdge: body?.hasEdge,
+    ...partial,
   });
 
   if (!res.ok) {
