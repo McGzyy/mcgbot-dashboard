@@ -1,4 +1,5 @@
 import { getDashboardAdminSettings } from "@/lib/dashboardAdminSettingsDb";
+import { isAnnouncementWithinSchedule } from "@/lib/announcementSchedule";
 
 export type SiteOperationalState = {
   maintenance_enabled: boolean;
@@ -56,7 +57,16 @@ export async function getSiteOperationalState(): Promise<SiteOperationalState> {
         maintenance_message: row.maintenance_message,
         paywall_subtitle: row.paywall_subtitle,
         public_signups_paused: Boolean(row.public_signups_paused),
-        announcement_enabled: Boolean(row.announcement_enabled),
+        announcement_enabled: (() => {
+          const raw = row.announcement_enabled === true;
+          const msg = typeof row.announcement_message === "string" && row.announcement_message.trim().length > 0;
+          const inWindow = isAnnouncementWithinSchedule(
+            row.announcement_visible_from,
+            row.announcement_visible_until,
+            now
+          );
+          return Boolean(raw && msg && inWindow);
+        })(),
         announcement_message: row.announcement_message,
         announcement_cta_label: (row as any).announcement_cta_label ?? null,
         announcement_cta_url: (row as any).announcement_cta_url ?? null,

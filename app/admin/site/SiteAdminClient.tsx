@@ -25,6 +25,10 @@ type AppSettings = {
   announcement_message: string | null;
   announcement_cta_label: string | null;
   announcement_cta_url: string | null;
+  /** ISO UTC; optional start of visibility window. */
+  announcement_visible_from: string | null;
+  /** ISO UTC; bar hides when server time reaches this instant. */
+  announcement_visible_until: string | null;
   paywall_title: string | null;
   subscribe_button_label: string | null;
   discord_invite_url: string | null;
@@ -45,9 +49,30 @@ type AppSettings = {
   updated_by_discord_id?: string | null;
 };
 
+function isoUtcToDatetimeLocalValue(iso: string | null | undefined): string {
+  if (!iso || !String(iso).trim()) return "";
+  const t = Date.parse(String(iso).trim());
+  if (!Number.isFinite(t)) return "";
+  const d = new Date(t);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function datetimeLocalValueToIsoUtc(value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  const t = new Date(v).getTime();
+  if (!Number.isFinite(t)) return null;
+  return new Date(t).toISOString();
+}
+
 function mergeAppSettingsFromApi(row: AppSettings): AppSettings {
   return {
     ...row,
+    announcement_visible_from:
+      typeof row.announcement_visible_from === "string" ? row.announcement_visible_from : null,
+    announcement_visible_until:
+      typeof row.announcement_visible_until === "string" ? row.announcement_visible_until : null,
     stripe_test_checkout_enabled: Boolean(row.stripe_test_checkout_enabled),
     stripe_test_price_id: typeof row.stripe_test_price_id === "string" ? row.stripe_test_price_id : null,
     stripe_test_plan_id: typeof row.stripe_test_plan_id === "string" ? row.stripe_test_plan_id : null,
@@ -178,6 +203,8 @@ export function SiteAdminClient() {
           announcement_message: settings.announcement_message,
           announcement_cta_label: settings.announcement_cta_label,
           announcement_cta_url: settings.announcement_cta_url,
+          announcement_visible_from: settings.announcement_visible_from,
+          announcement_visible_until: settings.announcement_visible_until,
           paywall_title: settings.paywall_title,
           subscribe_button_label: settings.subscribe_button_label,
           discord_invite_url: settings.discord_invite_url,
@@ -555,7 +582,7 @@ export function SiteAdminClient() {
               <SettingsSection
                 kicker="Banner"
                 title="Global announcement"
-                description="Thin strip at the top of every page (including /membership). Use for deploy notices, mint windows, or Discord events."
+                description="Banner below the top bar on dashboard routes and at the top on bare pages (including /membership). Optional schedule: leave times empty to follow the toggle only."
               >
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
                   <input
@@ -583,6 +610,51 @@ export function SiteAdminClient() {
                     className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   />
                 </label>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                    Show from (optional)
+                    <input
+                      type="datetime-local"
+                      value={isoUtcToDatetimeLocalValue(settings.announcement_visible_from)}
+                      onChange={(e) =>
+                        setSettings((s) =>
+                          s
+                            ? {
+                                ...s,
+                                announcement_visible_from: datetimeLocalValueToIsoUtc(e.target.value),
+                              }
+                            : s
+                        )
+                      }
+                      className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
+                    />
+                    <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-zinc-600">
+                      First instant the bar may appear (your local timezone; stored as UTC).
+                    </span>
+                  </label>
+                  <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                    Hide from (optional)
+                    <input
+                      type="datetime-local"
+                      value={isoUtcToDatetimeLocalValue(settings.announcement_visible_until)}
+                      onChange={(e) =>
+                        setSettings((s) =>
+                          s
+                            ? {
+                                ...s,
+                                announcement_visible_until: datetimeLocalValueToIsoUtc(e.target.value),
+                              }
+                            : s
+                        )
+                      }
+                      className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
+                    />
+                    <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-zinc-600">
+                      Bar turns off at this instant; must be after “Show from” if both are set.
+                    </span>
+                  </label>
+                </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">

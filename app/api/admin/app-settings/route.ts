@@ -6,6 +6,7 @@ import {
 import { invalidateSiteOperationalStateCache } from "@/lib/siteOperationalState";
 import { clearSessionInvalidationEpochCache } from "@/lib/sessionInvalidationEpoch";
 import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
+import { assertAnnouncementScheduleOrder } from "@/lib/announcementSchedule";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -94,6 +95,64 @@ export async function PATCH(req: Request) {
   if ("announcement_cta_url" in o) {
     patch.announcement_cta_url =
       o.announcement_cta_url == null ? null : String(o.announcement_cta_url);
+  }
+  if ("announcement_visible_from" in o) {
+    const raw = o.announcement_visible_from;
+    if (raw == null || raw === "") {
+      patch.announcement_visible_from = null;
+    } else if (typeof raw === "string") {
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        patch.announcement_visible_from = null;
+      } else {
+        const t = Date.parse(trimmed);
+        if (!Number.isFinite(t)) {
+          return Response.json(
+            {
+              success: false,
+              error:
+                "Invalid announcement_visible_from — use ISO-8601 (e.g. 2026-05-10T14:00:00.000Z) or clear the field.",
+            },
+            { status: 400 }
+          );
+        }
+        patch.announcement_visible_from = new Date(t).toISOString();
+      }
+    } else {
+      return Response.json(
+        { success: false, error: "announcement_visible_from must be a string, null, or empty." },
+        { status: 400 }
+      );
+    }
+  }
+  if ("announcement_visible_until" in o) {
+    const raw = o.announcement_visible_until;
+    if (raw == null || raw === "") {
+      patch.announcement_visible_until = null;
+    } else if (typeof raw === "string") {
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        patch.announcement_visible_until = null;
+      } else {
+        const t = Date.parse(trimmed);
+        if (!Number.isFinite(t)) {
+          return Response.json(
+            {
+              success: false,
+              error:
+                "Invalid announcement_visible_until — use ISO-8601 (e.g. 2026-05-11T14:00:00.000Z) or clear the field.",
+            },
+            { status: 400 }
+          );
+        }
+        patch.announcement_visible_until = new Date(t).toISOString();
+      }
+    } else {
+      return Response.json(
+        { success: false, error: "announcement_visible_until must be a string, null, or empty." },
+        { status: 400 }
+      );
+    }
   }
   if ("paywall_title" in o) {
     patch.paywall_title = o.paywall_title == null ? null : String(o.paywall_title);
@@ -197,6 +256,23 @@ export async function PATCH(req: Request) {
   if (typeof o.tutorial_auto_start_enabled === "boolean") {
     patch.tutorial_auto_start_enabled = o.tutorial_auto_start_enabled;
   }
+
+  if ("announcement_visible_from" in patch || "announcement_visible_until" in patch) {
+    const cur = await getDashboardAdminSettings();
+    const effFrom =
+      "announcement_visible_from" in patch
+        ? patch.announcement_visible_from ?? null
+        : cur?.announcement_visible_from ?? null;
+    const effUntil =
+      "announcement_visible_until" in patch
+        ? patch.announcement_visible_until ?? null
+        : cur?.announcement_visible_until ?? null;
+    const scheduleCheck = assertAnnouncementScheduleOrder(effFrom, effUntil);
+    if (!scheduleCheck.ok) {
+      return Response.json({ success: false, error: scheduleCheck.error }, { status: 400 });
+    }
+  }
+
   const row = await patchDashboardAdminSettings(patch);
   if (!row) {
     return Response.json(

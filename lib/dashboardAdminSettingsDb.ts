@@ -10,6 +10,10 @@ export type DashboardAdminSettingsRow = {
   announcement_message: string | null;
   announcement_cta_label: string | null;
   announcement_cta_url: string | null;
+  /** UTC instant: bar hidden until this time (inclusive). Null = no start bound. */
+  announcement_visible_from: string | null;
+  /** UTC instant: bar hidden when now >= this time. Null = no end bound. */
+  announcement_visible_until: string | null;
   paywall_title: string | null;
   subscribe_button_label: string | null;
   discord_invite_url: string | null;
@@ -48,6 +52,8 @@ function defaultRow(): DashboardAdminSettingsRow {
     announcement_message: null,
     announcement_cta_label: null,
     announcement_cta_url: null,
+    announcement_visible_from: null,
+    announcement_visible_until: null,
     paywall_title: null,
     subscribe_button_label: null,
     discord_invite_url: null,
@@ -95,6 +101,14 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
     announcement_cta_url:
       typeof (r as any).announcement_cta_url === "string"
         ? String((r as any).announcement_cta_url)
+        : null,
+    announcement_visible_from:
+      typeof (r as { announcement_visible_from?: unknown }).announcement_visible_from === "string"
+        ? String((r as { announcement_visible_from?: string }).announcement_visible_from).trim() || null
+        : null,
+    announcement_visible_until:
+      typeof (r as { announcement_visible_until?: unknown }).announcement_visible_until === "string"
+        ? String((r as { announcement_visible_until?: string }).announcement_visible_until).trim() || null
         : null,
     paywall_title: typeof r.paywall_title === "string" ? r.paywall_title : null,
     subscribe_button_label: typeof r.subscribe_button_label === "string" ? r.subscribe_button_label : null,
@@ -154,6 +168,8 @@ export async function patchDashboardAdminSettings(input: {
   announcement_message?: string | null;
   announcement_cta_label?: string | null;
   announcement_cta_url?: string | null;
+  announcement_visible_from?: string | null;
+  announcement_visible_until?: string | null;
   paywall_title?: string | null;
   subscribe_button_label?: string | null;
   discord_invite_url?: string | null;
@@ -209,6 +225,14 @@ export async function patchDashboardAdminSettings(input: {
     const raw = input.announcement_cta_url;
     next.announcement_cta_url =
       raw == null || !String(raw).trim() ? null : String(raw).trim().slice(0, 500);
+  }
+  if ("announcement_visible_from" in input) {
+    const v = input.announcement_visible_from;
+    next.announcement_visible_from = v == null || !String(v).trim() ? null : String(v).trim();
+  }
+  if ("announcement_visible_until" in input) {
+    const v = input.announcement_visible_until;
+    next.announcement_visible_until = v == null || !String(v).trim() ? null : String(v).trim();
   }
   if ("paywall_title" in input) {
     const t = input.paywall_title;
@@ -271,6 +295,8 @@ export async function patchDashboardAdminSettings(input: {
         announcement_message: next.announcement_message,
         announcement_cta_label: next.announcement_cta_label,
         announcement_cta_url: next.announcement_cta_url,
+        announcement_visible_from: next.announcement_visible_from,
+        announcement_visible_until: next.announcement_visible_until,
         paywall_title: next.paywall_title,
         subscribe_button_label: next.subscribe_button_label,
         discord_invite_url: next.discord_invite_url,
