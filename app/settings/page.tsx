@@ -98,11 +98,11 @@ const SECONDARY_DASHBOARD_WIDGET_TOGGLES: {
 ];
 
 const SETTINGS_NAV = [
-  { href: "#account", label: "Account & X" },
-  { href: "#referral-link", label: "Referral link" },
   { href: "#notifications", label: "Notifications" },
+  { href: "#account", label: "Account & X" },
   { href: "#public-profile", label: "Public profile" },
-  { href: "#dashboard", label: "Dashboard" },
+  { href: "#dashboard", label: "Home layout" },
+  { href: "#referral-link", label: "Referral link" },
 ] as const;
 
 function parseWidgetsEnabled(raw: unknown): WidgetsEnabled {
@@ -771,14 +771,14 @@ function SettingsPageInner() {
       <div className="lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-x-10 xl:grid-cols-[12.5rem_minmax(0,1fr)] xl:gap-x-12">
         <aside className="mb-6 hidden lg:block">
           <nav
-            className="sticky top-24 space-y-0.5 border-l border-zinc-800/60 pl-3 text-[13px] font-medium"
+            className="sticky top-24 space-y-1 border-l-2 border-zinc-800/80 pl-3 text-[13px] font-medium"
             aria-label="Settings sections"
           >
             {SETTINGS_NAV.map(({ href, label }) => (
               <a
                 key={href}
                 href={href}
-                className="block rounded-md py-1.5 pl-2 text-zinc-500 transition hover:bg-zinc-900/70 hover:text-zinc-100"
+                className="block rounded-md py-2 pl-2.5 text-zinc-400 transition hover:bg-zinc-900/80 hover:text-zinc-50"
               >
                 {label}
               </a>
@@ -796,8 +796,9 @@ function SettingsPageInner() {
                 Settings
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-500">
-                Dashboard panels, alerts, public profile visibility, and how you appear on approved
-                X milestone posts.
+                Alerts and live-activity filters first, then X linking and milestone tags, what
+                appears on your public profile, home dashboard panels (plus the guided tour), and
+                your referral vanity link — one save applies everything stored here.
               </p>
               <nav
                 className="mt-4 flex gap-1.5 overflow-x-auto pb-1 text-[12px] font-medium text-zinc-400 lg:hidden"
@@ -807,7 +808,7 @@ function SettingsPageInner() {
                   <a
                     key={href}
                     href={href}
-                    className="shrink-0 rounded-full border border-zinc-800/80 bg-zinc-900/50 px-3 py-1.5 hover:border-zinc-600 hover:text-zinc-100"
+                    className="shrink-0 rounded-full border border-zinc-700/90 bg-zinc-900/60 px-3 py-1.5 text-zinc-300 hover:border-zinc-500 hover:bg-zinc-800/70 hover:text-white"
                   >
                     {label}
                   </a>
@@ -854,247 +855,12 @@ function SettingsPageInner() {
             ) : null}
           </div>
 
-          <div className="mt-6 rounded-xl border border-zinc-800/60 bg-zinc-950/40 p-4 sm:mt-8">
-            <p className="text-sm font-medium text-zinc-100">Dashboard tour</p>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              Replay the guided walkthrough of the home board, sidebar, and main routes.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                const w = window as unknown as { __mcgbotTutorial?: { start?: () => void } };
-                w.__mcgbotTutorial?.start?.();
-              }}
-              className="mt-3 rounded-lg border border-cyan-500/35 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-100 transition hover:border-cyan-400/50 hover:bg-cyan-500/15"
-            >
-              Replay dashboard tour
-            </button>
-          </div>
-
-          <div className="mt-8 space-y-6 lg:mt-10 lg:space-y-7">
-      <div data-tutorial="settings.account">
-      <SettingsSection
-        id="account"
-        title="Account & X"
-        description="Link X for a verified handle. Milestone posts use these preferences for your calls; bot calls on X always credit McGBot."
-      >
-        <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
-        <div
-          id="connected-accounts"
-          className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5"
-          data-tutorial="settings.connectedX"
-        >
-          <p className="text-sm font-medium text-zinc-100">X (Twitter)</p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Sign in with X to prove your handle. Used for a verified @ on your profile and for
-            optional @mentions on high-multiple milestone posts.
-          </p>
-          {xMessage ? (
-            <p
-              className={`mt-2 text-xs ${
-                /failed|Could not|Network|Invalid|not configured|missing|misconfiguration|unreachable|unauthorized|token_exchange|users_me/i.test(
-                  xMessage
-                )
-                  ? "text-red-400/90"
-                  : "text-emerald-400/90"
-              }`}
-            >
-              {xMessage}
-            </p>
-          ) : null}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {xVerified && xHandle ? (
-              <>
-                <span className="inline-flex items-center gap-2 rounded-md border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-sm text-sky-100">
-                  Linked as @{xHandle.replace(/^@+/, "")}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void unlinkX()}
-                  disabled={xBusy}
-                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
-                >
-                  {xBusy ? "Working…" : "Unlink X"}
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void startXOAuth()}
-                disabled={xBusy}
-                className="rounded-lg bg-[#1d9bf0] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#1a8cd8] disabled:opacity-50"
-              >
-                {xBusy ? "Opening…" : "Connect X"}
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div
-          className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5"
-          data-tutorial="settings.xMilestones"
-        >
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-            X milestone posts
-          </h3>
-          <p className="mt-2 text-xs text-zinc-500">
-            When a call you made hits a milestone and moderators approve an X post, McGBot can
-            @mention you only at or above the multiple you choose. If tagging is off (or the post
-            is below your threshold), the line reads as a generic community credit instead of your
-            @handle — so you are not pinged on every small move.
-          </p>
-          {!xVerified ? (
-            <p className="mt-2 text-xs text-amber-400/90">
-              Connect and verify X above to enable @mentions on posts.
-            </p>
-          ) : null}
-          <div className="mt-3 space-y-3">
-            <ToggleRow
-              id="x-milestone-tag-enabled"
-              label="Allow @mentions on milestone posts"
-              description="When on, posts that reach your minimum multiple may include your @handle. When off, attribution stays generic."
-              checked={xMilestoneTagEnabled}
-              onToggle={() => setXMilestoneTagEnabled((v) => !v)}
-              disabled={settingsLoading || !xVerified}
-            />
-            <div className="rounded-lg border border-zinc-800/85 bg-zinc-950/40 px-3 py-3 sm:px-4">
-              <label htmlFor="x-milestone-min" className="text-sm font-medium text-zinc-100">
-                Minimum multiple to @mention
-              </label>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                Example: set 10 to only be tagged when the post highlights roughly 10× or more from
-                your call.
-              </p>
-              <input
-                id="x-milestone-min"
-                type="number"
-                step="0.5"
-                min={1}
-                max={500}
-                value={xMilestoneTagMinMultiple}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  const n = Number(raw);
-                  setXMilestoneTagMinMultiple(
-                    raw === "" || !Number.isFinite(n)
-                      ? xMilestoneTagMinMultiple
-                      : Math.min(500, Math.max(1, n))
-                  );
-                }}
-                disabled={settingsLoading || !xVerified || !xMilestoneTagEnabled}
-                className="mt-3 w-full max-w-[200px] rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 tabular-nums outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50"
-              />
-            </div>
-          </div>
-        </div>
-        </div>
-      </SettingsSection>
-      </div>
-
-      <div data-tutorial="settings.referralLink">
-        <SettingsSection
-          id="referral-link"
-          title="Referral link"
-          description="Optional short link for mcgbot.xyz/ref/… — your numeric Discord ID link always works as a fallback."
-        >
-          {referralMsg ? (
-            <p
-              className={`mb-3 text-sm ${
-                /error|Could not|taken|cooldown|reserved|not allowed|Network/i.test(
-                  referralMsg
-                )
-                  ? "text-red-400/90"
-                  : "text-emerald-400/90"
-              }`}
-            >
-              {referralMsg}
-            </p>
-          ) : null}
-
-          {!referralCanChange && referralCooldownEnds ? (
-            <p className="mb-3 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
-              You can change this again after{" "}
-              <span className="font-semibold tabular-nums text-amber-50">
-                {new Date(referralCooldownEnds).toLocaleString()}
-              </span>{" "}
-              (30-day cooldown).
-            </p>
-          ) : null}
-
-          <div className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5">
-            <label htmlFor="referral-slug-input" className="text-sm font-medium text-zinc-100">
-              Vanity segment
-            </label>
-            <p className="mt-1 text-xs text-zinc-500">
-              3–32 characters: lowercase letters, numbers, hyphens only. Names that look like site
-              pages or brands are blocked. Old vanity links stop working as soon as you change or
-              remove this.
-            </p>
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
-              <div className="flex min-w-0 flex-1 items-center rounded-lg border border-zinc-700/80 bg-zinc-950/50 font-mono text-sm text-zinc-200">
-                <span className="shrink-0 pl-3 text-zinc-500">mcgbot.xyz/ref/</span>
-                <input
-                  id="referral-slug-input"
-                  type="text"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  value={referralSlugDraft}
-                  onChange={(e) => setReferralSlugDraft(e.target.value.toLowerCase())}
-                  disabled={settingsLoading || referralBusy || !referralCanChange}
-                  placeholder="your-name"
-                  className="min-w-0 flex-1 bg-transparent py-2.5 pr-3 text-zinc-100 outline-none placeholder:text-zinc-600 disabled:opacity-50"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => void saveReferralSlug()}
-                disabled={
-                  settingsLoading ||
-                  referralBusy ||
-                  !referralCanChange ||
-                  referralSlugDraft.trim().toLowerCase() === (referralSlug ?? "")
-                }
-                className="shrink-0 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40"
-              >
-                {referralBusy ? "Saving…" : "Save link"}
-              </button>
-            </div>
-
-            {referralSlugSuggested.length >= 3 ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setReferralSlugDraft(referralSlugSuggested)}
-                  disabled={settingsLoading || referralBusy || !referralCanChange}
-                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-40"
-                >
-                  Use suggested ({referralSlugSuggested})
-                </button>
-              </div>
-            ) : null}
-
-            {referralSlug ? (
-              <div className="mt-4 border-t border-zinc-800/60 pt-4">
-                <button
-                  type="button"
-                  onClick={() => void removeReferralSlug()}
-                  disabled={settingsLoading || referralBusy || !referralCanChange}
-                  className="rounded-lg border border-red-500/35 bg-red-950/20 px-3 py-2 text-xs font-semibold text-red-200/95 transition hover:border-red-400/45 hover:bg-red-950/35 disabled:opacity-40"
-                >
-                  Remove vanity link (ID link only)
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </SettingsSection>
-      </div>
-
+          <div className="mt-6 space-y-6 lg:mt-8 lg:space-y-7">
       <div data-tutorial="settings.notifications">
       <SettingsSection
         id="notifications"
         title="Notifications"
-        description="In-dashboard alerts and sound. Discord-specific controls stay in the server."
+        description="Live activity toasts, sound, and minimum multiple before an item can ping you. Discord-specific controls stay in the server."
       >
         {loadError ? (
           <p className="mb-3 text-sm text-red-400/90">{loadError}</p>
@@ -1241,6 +1007,125 @@ function SettingsPageInner() {
       </SettingsSection>
       </div>
 
+      <div data-tutorial="settings.account">
+      <SettingsSection
+        id="account"
+        title="Account & X"
+        description="Link X for a verified handle. Milestone posts use these preferences for your calls; bot calls on X always credit McGBot."
+      >
+        <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
+        <div
+          id="connected-accounts"
+          className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5"
+          data-tutorial="settings.connectedX"
+        >
+          <p className="text-sm font-medium text-zinc-100">X (Twitter)</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            Sign in with X to prove your handle. Used for a verified @ on your profile and for
+            optional @mentions on high-multiple milestone posts.
+          </p>
+          {xMessage ? (
+            <p
+              className={`mt-2 text-xs ${
+                /failed|Could not|Network|Invalid|not configured|missing|misconfiguration|unreachable|unauthorized|token_exchange|users_me/i.test(
+                  xMessage
+                )
+                  ? "text-red-400/90"
+                  : "text-emerald-400/90"
+              }`}
+            >
+              {xMessage}
+            </p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {xVerified && xHandle ? (
+              <>
+                <span className="inline-flex items-center gap-2 rounded-md border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-sm text-sky-100">
+                  Linked as @{xHandle.replace(/^@+/, "")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void unlinkX()}
+                  disabled={xBusy}
+                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  {xBusy ? "Working…" : "Unlink X"}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void startXOAuth()}
+                disabled={xBusy}
+                className="rounded-lg bg-[#1d9bf0] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#1a8cd8] disabled:opacity-50"
+              >
+                {xBusy ? "Opening…" : "Connect X"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div
+          className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5"
+          data-tutorial="settings.xMilestones"
+        >
+          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            X milestone posts
+          </h3>
+          <p className="mt-2 text-xs text-zinc-500">
+            When a call you made hits a milestone and moderators approve an X post, McGBot can
+            @mention you only at or above the multiple you choose. If tagging is off (or the post
+            is below your threshold), the line reads as a generic community credit instead of your
+            @handle — so you are not pinged on every small move.
+          </p>
+          {!xVerified ? (
+            <p className="mt-2 text-xs text-amber-400/90">
+              Connect and verify X above to enable @mentions on posts.
+            </p>
+          ) : null}
+          <div className="mt-3 space-y-3">
+            <ToggleRow
+              id="x-milestone-tag-enabled"
+              label="Allow @mentions on milestone posts"
+              description="When on, posts that reach your minimum multiple may include your @handle. When off, attribution stays generic."
+              checked={xMilestoneTagEnabled}
+              onToggle={() => setXMilestoneTagEnabled((v) => !v)}
+              disabled={settingsLoading || !xVerified}
+            />
+            <div className="rounded-lg border border-zinc-800/85 bg-zinc-950/40 px-3 py-3 sm:px-4">
+              <label htmlFor="x-milestone-min" className="text-sm font-medium text-zinc-100">
+                Minimum multiple to @mention
+              </label>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                Example: set 10 to only be tagged when the post highlights roughly 10× or more from
+                your call.
+              </p>
+              <input
+                id="x-milestone-min"
+                type="number"
+                step="0.5"
+                min={1}
+                max={500}
+                value={xMilestoneTagMinMultiple}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const n = Number(raw);
+                  setXMilestoneTagMinMultiple(
+                    raw === "" || !Number.isFinite(n)
+                      ? xMilestoneTagMinMultiple
+                      : Math.min(500, Math.max(1, n))
+                  );
+                }}
+                disabled={settingsLoading || !xVerified || !xMilestoneTagEnabled}
+                className="mt-3 w-full max-w-[200px] rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 tabular-nums outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50"
+              />
+            </div>
+          </div>
+        </div>
+        </div>
+      </SettingsSection>
+      </div>
+
       <div data-tutorial="settings.publicProfile">
       <SettingsSection
         id="public-profile"
@@ -1320,9 +1205,25 @@ function SettingsPageInner() {
       <div data-tutorial="settings.dashboardLayout">
       <SettingsSection
         id="dashboard"
-        title="Dashboard layout"
-        description="Which panels appear on your home dashboard (only affects your session)."
+        title="Home layout"
+        description="Dashboard panels and the guided tour — only affects your account on this site."
       >
+        <div className="mb-5 rounded-xl border border-cyan-500/25 bg-cyan-950/20 p-4 sm:p-5">
+          <p className="text-sm font-medium text-cyan-50/95">Guided tour</p>
+          <p className="mt-1 text-xs leading-relaxed text-cyan-100/70">
+            Replay the walkthrough of the home board, sidebar, and main routes whenever you like.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              const w = window as unknown as { __mcgbotTutorial?: { start?: () => void } };
+              w.__mcgbotTutorial?.start?.();
+            }}
+            className="mt-3 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-100 transition hover:border-cyan-400/55 hover:bg-cyan-500/15"
+          >
+            Replay dashboard tour
+          </button>
+        </div>
         <details className="group rounded-xl border border-zinc-800/40 bg-black/20 [&_summary::-webkit-details-marker]:hidden">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-3 py-3 text-sm font-medium text-zinc-200 transition hover:bg-zinc-900/50 sm:px-4">
             <span>All home widgets</span>
@@ -1423,6 +1324,105 @@ function SettingsPageInner() {
           </div>
         </details>
       </SettingsSection>
+      </div>
+
+      <div data-tutorial="settings.referralLink">
+        <SettingsSection
+          id="referral-link"
+          title="Referral link"
+          description="Optional short link for mcgbot.xyz/ref/… — your numeric Discord ID link always works as a fallback."
+        >
+          {referralMsg ? (
+            <p
+              className={`mb-3 text-sm ${
+                /error|Could not|taken|cooldown|reserved|not allowed|Network/i.test(
+                  referralMsg
+                )
+                  ? "text-red-400/90"
+                  : "text-emerald-400/90"
+              }`}
+            >
+              {referralMsg}
+            </p>
+          ) : null}
+
+          {!referralCanChange && referralCooldownEnds ? (
+            <p className="mb-3 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
+              You can change this again after{" "}
+              <span className="font-semibold tabular-nums text-amber-50">
+                {new Date(referralCooldownEnds).toLocaleString()}
+              </span>{" "}
+              (30-day cooldown).
+            </p>
+          ) : null}
+
+          <div className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5">
+            <label htmlFor="referral-slug-input" className="text-sm font-medium text-zinc-100">
+              Vanity segment
+            </label>
+            <p className="mt-1 text-xs text-zinc-500">
+              3–32 characters: lowercase letters, numbers, hyphens only. Names that look like site
+              pages or brands are blocked. Old vanity links stop working as soon as you change or
+              remove this.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+              <div className="flex min-w-0 flex-1 items-center rounded-lg border border-zinc-700/80 bg-zinc-950/50 font-mono text-sm text-zinc-200">
+                <span className="shrink-0 pl-3 text-zinc-500">mcgbot.xyz/ref/</span>
+                <input
+                  id="referral-slug-input"
+                  type="text"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  value={referralSlugDraft}
+                  onChange={(e) => setReferralSlugDraft(e.target.value.toLowerCase())}
+                  disabled={settingsLoading || referralBusy || !referralCanChange}
+                  placeholder="your-name"
+                  className="min-w-0 flex-1 bg-transparent py-2.5 pr-3 text-zinc-100 outline-none placeholder:text-zinc-600 disabled:opacity-50"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => void saveReferralSlug()}
+                disabled={
+                  settingsLoading ||
+                  referralBusy ||
+                  !referralCanChange ||
+                  referralSlugDraft.trim().toLowerCase() === (referralSlug ?? "")
+                }
+                className="shrink-0 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40"
+              >
+                {referralBusy ? "Saving…" : "Save link"}
+              </button>
+            </div>
+
+            {referralSlugSuggested.length >= 3 ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReferralSlugDraft(referralSlugSuggested)}
+                  disabled={settingsLoading || referralBusy || !referralCanChange}
+                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-40"
+                >
+                  Use suggested ({referralSlugSuggested})
+                </button>
+              </div>
+            ) : null}
+
+            {referralSlug ? (
+              <div className="mt-4 border-t border-zinc-800/60 pt-4">
+                <button
+                  type="button"
+                  onClick={() => void removeReferralSlug()}
+                  disabled={settingsLoading || referralBusy || !referralCanChange}
+                  className="rounded-lg border border-red-500/35 bg-red-950/20 px-3 py-2 text-xs font-semibold text-red-200/95 transition hover:border-red-400/45 hover:bg-red-950/35 disabled:opacity-40"
+                >
+                  Remove vanity link (ID link only)
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </SettingsSection>
       </div>
 
           </div>
