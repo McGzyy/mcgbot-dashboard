@@ -11,8 +11,8 @@ import {
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
 import {
-  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
-  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+  CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR,
+  isCallPerformanceRowEligibleForStats,
 } from "@/lib/callPerformanceDashboardVisibility";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 import { abbreviateCa } from "@/lib/callDisplayFormat";
@@ -82,14 +82,14 @@ export async function GET(request: Request) {
           .from("call_performance")
           .select(columns, { count: "exact" })
           .eq("source", type)
-          .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+          .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR)
           .gt("ath_multiple", 0);
 
         if (minMs > 0) {
           q = q.gte("call_time", minMs);
         }
 
-        q = q.or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR).order("ath_multiple", { ascending: false })
+        q = q.order("ath_multiple", { ascending: false })
           .order("call_time", { ascending: false })
           .range(offset, offset + limit - 1);
 
@@ -107,7 +107,7 @@ export async function GET(request: Request) {
     }
 
     const raw = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
-    const eligible = raw.filter((r) => (r as { excluded_from_stats?: boolean }).excluded_from_stats !== true);
+    const eligible = raw.filter((r) => isCallPerformanceRowEligibleForStats(r));
     const discordIds = eligible
       .map((r) => (typeof r.discord_id === "string" ? r.discord_id.trim() : String(r.discord_id ?? "").trim()))
       .filter(Boolean);

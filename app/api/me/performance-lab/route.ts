@@ -2,8 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
-  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
-  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+  CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR,
+  isCallPerformanceRowEligibleForStats,
 } from "@/lib/callPerformanceDashboardVisibility";
 import {
   aggregateCallPerformanceRows,
@@ -50,8 +50,7 @@ export async function GET() {
         .from("call_performance")
         .select("ath_multiple, spot_multiple, call_time, call_ca, excluded_from_stats")
         .eq("discord_id", discordId)
-        .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
-        .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR),
+        .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR),
       getStatsCutoverUtcMs(),
       fetchDiscordIdsExcludedFromLeaderboards(),
     ]);
@@ -84,10 +83,8 @@ export async function GET() {
     let rank7d: number | null = null;
     let totalRanked7d = 0;
     if (!allErr && allUserRows.length) {
-      const filtered = filterRowsByMinCallTimeUtc(allUserRows, minRolling).filter(
-        (r) =>
-          (r as any).excluded_from_stats !== true &&
-          (r as any).hidden_from_dashboard !== true
+      const filtered = filterRowsByMinCallTimeUtc(allUserRows, minRolling).filter((r) =>
+        isCallPerformanceRowEligibleForStats(r as Record<string, unknown>)
       );
       const ranked = aggregateCallPerformanceRows(filtered, excludedDiscordIds);
       totalRanked7d = ranked.length;

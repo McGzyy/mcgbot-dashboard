@@ -965,7 +965,7 @@ export default function ProfilePageClient() {
 
     const url = `/api/user/${encodeURIComponent(profileUserId)}`;
     try {
-      const res = await fetch(url, { signal });
+      const res = await fetch(url, { signal, cache: "no-store" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         const msg =

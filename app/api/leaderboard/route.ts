@@ -14,6 +14,7 @@ import {
   displayNameForDiscordId,
   fetchDiscordLeaderExtras,
 } from "@/lib/leaderboardDisplayNames";
+import { isCallPerformanceRowEligibleForStats } from "@/lib/callPerformanceDashboardVisibility";
 import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
 
 // WEEKLY LEADER = resets every Monday 00:00 UTC → GET /api/leaderboard/weekly-leader
@@ -77,11 +78,7 @@ export async function GET(request: Request) {
       cutoverMs
     );
     const filtered = filterRowsByMinCallTimeUtc(rows, minCallTimeMs);
-    const eligible = filtered.filter(
-      (r) =>
-        (r as any).excluded_from_stats !== true &&
-        (r as any).hidden_from_dashboard !== true
-    );
+    const eligible = filtered.filter((r) => isCallPerformanceRowEligibleForStats(r as Record<string, unknown>));
 
     const aggregated = aggregateCallPerformanceRows(eligible, excludedDiscordIds);
     const ranked = rankTopN(aggregated, 10);

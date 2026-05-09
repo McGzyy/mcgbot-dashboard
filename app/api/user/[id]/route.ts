@@ -16,10 +16,7 @@ import {
 } from "@/lib/callPerformanceUserStats";
 import { resolveDiscordIdFromProfileRouteParam } from "@/lib/discordIdentity";
 import { fetchDiscordIdentity } from "@/lib/discordIdentityFetch";
-import {
-  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
-  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
-} from "@/lib/callPerformanceDashboardVisibility";
+import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 import { isPublicProfileHiddenFromViewer } from "@/lib/profileGuildVisibility";
@@ -182,8 +179,7 @@ export async function GET(
           .from("call_performance")
           .select(columns)
           .eq("discord_id", discordId)
-          .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
-          .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR);
+          .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR);
         return { data: res.data, error: res.error };
       },
     });

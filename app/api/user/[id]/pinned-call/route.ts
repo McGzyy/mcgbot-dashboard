@@ -1,7 +1,4 @@
-import {
-  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
-  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
-} from "@/lib/callPerformanceDashboardVisibility";
+import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
 import {
   looksLikeDiscordSnowflake,
   resolveDiscordIdFromProfileRouteParam,
@@ -65,8 +62,7 @@ export async function GET(
       .select("id, call_ca, ath_multiple, spot_multiple, call_time")
       .eq("id", pinnedCallId)
       .eq("discord_id", discordId)
-      .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
-      .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR)
+      .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR)
       .maybeSingle();
 
     if (callErr) {

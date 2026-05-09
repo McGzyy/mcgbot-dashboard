@@ -1,3 +1,4 @@
+import { isCallPerformanceRowEligibleForStats } from "@/lib/callPerformanceDashboardVisibility";
 import { filterRowsByMinCallTimeUtc } from "@/lib/callPerformanceLeaderboard";
 import { getDashboardAdminSettings } from "@/lib/dashboardAdminSettingsDb";
 
@@ -41,11 +42,7 @@ export function filterCallRowsForStats(
   rows: Record<string, unknown>[],
   cutoverUtcMs: number | null
 ): Record<string, unknown>[] {
-  const keep = rows.filter(
-    (r) =>
-      (r as any).excluded_from_stats !== true &&
-      (r as any).hidden_from_dashboard !== true
-  );
+  const keep = rows.filter((r) => isCallPerformanceRowEligibleForStats(r as Record<string, unknown>));
   if (cutoverUtcMs == null) return keep;
   return filterRowsByMinCallTimeUtc(keep, cutoverUtcMs);
 }

@@ -9,7 +9,7 @@ import {
 } from "@/lib/callPerformanceColumnFallback";
 import { hasAccess } from "@/lib/hasAccess";
 import {
-  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
+  CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR,
   CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
 } from "@/lib/callPerformanceDashboardVisibility";
 import { rowAthMultiple, rowLiveMultiple } from "@/lib/callPerformanceMultiples";
@@ -89,11 +89,10 @@ export async function GET(request: Request) {
           .from("call_performance")
           .select(columns, { count: "exact" })
           .eq("source", "bot")
-          .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
           .gte("call_time", floor);
-        if (!includeExcluded) {
-          q = q.or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR);
-        }
+        q = includeExcluded
+          ? q.or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+          : q.or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR);
         if (minMultiple != null) {
           q = q.gte("ath_multiple", minMultiple);
         }

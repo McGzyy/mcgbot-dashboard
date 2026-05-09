@@ -248,6 +248,10 @@ const TOP_PERFORMER_ROW_INTERACTIVE =
 const PROFILE_LINK_CLASS =
   "text-[color:var(--accent)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/30";
 
+/** Matches `formatWinActivityLine` output so we can link the caller handle. */
+const MILESTONE_ACTIVITY_LINE_RE =
+  /^\$(\S+)\s+hit\s+([\d.]+)x\s+\(([^)]*)\)\s+-\s+Called by @(.+?)\s+at\s+(.+)$/i;
+
 function viewerDisplayName(
   discordId: string,
   apiUsername: string,
@@ -823,6 +827,8 @@ function makeNewSocialPost(forcePlatform?: SocialPlatform): SocialFeedItem {
 type ActivityItem = {
   type: "win" | "call";
   text: string;
+  /** `call_performance.source` — drives row tint (bot vs user calls). */
+  callSource?: string;
   /** Call-log handle (may differ from Discord display name). */
   username: string;
   /** Label used in `text` and profile links (from `users` when available). */
@@ -1081,6 +1087,34 @@ function renderActivityFeedLine(
             {name}
           </Link>
           <UserBadgeIcons badges={badges} className="ml-1" />
+        </>
+      );
+    }
+  }
+
+  if (id && item.type === "win") {
+    const m = item.text.match(MILESTONE_ACTIVITY_LINE_RE);
+    if (m) {
+      const tick = m[1] ?? "";
+      const multStr = m[2] ?? "";
+      const hitMcLabel = m[3] ?? "";
+      const callMcLabel = m[5] ?? "";
+      return (
+        <>
+          ${tick} hit {multStr}x ({hitMcLabel}) - Called by @
+          <Link
+            href={userProfileHref({
+              discordId: id,
+              displayName: name || lineLabel || apiName,
+            })}
+            className={PROFILE_LINK_CLASS}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {lineLabel}
+          </Link>
+          <UserBadgeIcons badges={badges} className="ml-1" />
+          {" "}
+          at {callMcLabel}
         </>
       );
     }
@@ -1917,6 +1951,20 @@ type ActivityFeedPanelProps = {
   viewerName?: string | null;
 };
 
+function activityFeedRowTintClass(item: ActivityItem): string {
+  if (item.type === "win") {
+    return "bg-amber-400/[0.07] ring-1 ring-inset ring-amber-400/[0.11] hover:bg-amber-400/[0.11]";
+  }
+  if (item.type === "call") {
+    const src = (item.callSource ?? "user").toLowerCase();
+    if (src === "bot") {
+      return "bg-violet-500/[0.07] ring-1 ring-inset ring-violet-500/[0.13] hover:bg-violet-500/[0.11]";
+    }
+    return "bg-sky-500/[0.05] ring-1 ring-inset ring-sky-500/[0.11] hover:bg-sky-500/[0.09]";
+  }
+  return "bg-zinc-900/40 hover:bg-zinc-800/60";
+}
+
 function ActivityFeedPanel({
   feedMode,
   setFeedMode,
@@ -1940,6 +1988,70 @@ function ActivityFeedPanel({
     if (feedMode === "calls") return activity.filter((a) => a.type === "call");
     return activity;
   }, [activity, feedMode, viewerId]);
+
+  const { addNotification } = useNotifications();
+  const [watchlistAddingMint, setWatchlistAddingMint] = useState<string | null>(null);
+
+  const addActivityToWatchlist = useCallback(
+    async (item: ActivityItem) => {
+      const mint = resolveActivityMint(item);
+      if (!mint) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "No token address on this activity line.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+        return;
+      }
+      const ticker = parseCallTickerFromActivityText(item.text);
+      const label = ticker ? `$${ticker}` : abbreviateCa(mint, 4, 4);
+      if (!window.confirm(`Add ${label} to your private watchlist?`)) return;
+
+      setWatchlistAddingMint(mint);
+      try {
+        const res = await fetch("/api/me/watchlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ action: "add", scope: "private", mint }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+        if (!res.ok || data.success !== true) {
+          addNotification({
+            id: crypto.randomUUID(),
+            text:
+              typeof data.error === "string" && data.error.trim()
+                ? data.error
+                : "Could not add to your watchlist.",
+            type: "call",
+            createdAt: Date.now(),
+            priority: "low",
+          });
+          return;
+        }
+        addNotification({
+          id: crypto.randomUUID(),
+          text: `Added ${label} to your watchlist.`,
+          type: "call",
+          createdAt: Date.now(),
+          priority: "medium",
+        });
+      } catch {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Could not add to your watchlist.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      } finally {
+        setWatchlistAddingMint(null);
+      }
+    },
+    [addNotification]
+  );
 
   return (
     <PanelCard title="Live Activity">
@@ -1996,7 +2108,9 @@ function ActivityFeedPanel({
           </div>
         ) : (
           <ul className="text-sm">
-            {filteredActivity.map((item, i) => (
+            {filteredActivity.map((item, i) => {
+              const rowMint = (viewerId ?? "").trim() ? resolveActivityMint(item) : null;
+              return (
             <li
               key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
               className="dashboard-feed-item border-b border-zinc-800/90 last:border-b-0"
@@ -2010,8 +2124,10 @@ function ActivityFeedPanel({
                       : "bg-cyan-400/35 opacity-0 group-hover:opacity-80"
                   }`}
                 />
-                <div className="pl-3">
-                  <div className="flex items-start gap-2 rounded-lg bg-zinc-900/40 px-3 py-2 transition-all duration-150 hover:bg-zinc-800/60">
+                  <div className="pl-3">
+                  <div
+                    className={`flex items-start gap-2 rounded-lg px-3 py-2 transition-all duration-150 ${activityFeedRowTintClass(item)}`}
+                  >
                     <FollowButton
                       targetDiscordId={item.discordId}
                       following={followingIds.has(item.discordId)}
@@ -2054,15 +2170,30 @@ function ActivityFeedPanel({
                           (badgesByUser ?? {})[item.discordId.trim()] ?? []
                         )}
                       </span>
-                      <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="flex shrink-0 items-center gap-1">
                         {Number.isFinite(item.multiple) && item.multiple > 0 ? (
                           <span className="font-semibold tabular-nums text-[color:var(--accent)]">
                             {item.multiple.toFixed(1)}x
                           </span>
                         ) : null}
-                        <span className="text-xs tabular-nums text-zinc-500">
-                          {formatJoinedAt(callTimeMs(item.time), nowMs)}
+                        <span className="whitespace-nowrap text-[10px] tabular-nums text-zinc-500">
+                          {formatJoinedAt(callTimeMs(item.time), nowMs, "compact")}
                         </span>
+                        {rowMint ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void addActivityToWatchlist(item);
+                            }}
+                            disabled={watchlistAddingMint === rowMint}
+                            className="-mr-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md text-zinc-500 transition hover:bg-zinc-800 hover:text-sky-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 disabled:opacity-40"
+                            aria-label="Add token to watchlist"
+                            title="Add to watchlist"
+                          >
+                            <span className="text-base font-semibold leading-none">+</span>
+                          </button>
+                        ) : null}
                         <span className="text-xs text-zinc-500" aria-hidden>
                           ↗
                         </span>
@@ -2072,7 +2203,8 @@ function ActivityFeedPanel({
                 </div>
               </div>
             </li>
-            ))}
+            );
+            })}
           </ul>
         )}
       </div>
@@ -3176,9 +3308,15 @@ export default function Home() {
             typeof imgRaw === "string" && imgRaw.trim() !== ""
               ? imgRaw.trim()
               : null;
+          const csRaw = o.callSource ?? o.source;
+          const callSource =
+            typeof csRaw === "string" && csRaw.trim() !== ""
+              ? csRaw.trim().toLowerCase()
+              : undefined;
           parsedAll.push({
             type: o.type,
             text,
+            callSource,
             username,
             displayName,
             userAvatarUrl,

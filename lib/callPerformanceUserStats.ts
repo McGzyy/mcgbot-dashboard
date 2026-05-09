@@ -1,3 +1,4 @@
+import { isCallPerformanceRowEligibleForStats } from "@/lib/callPerformanceDashboardVisibility";
 import { rowCallTimeUtcMs } from "@/lib/callPerformanceLeaderboard";
 import { rowAthMultiple, rowLiveMultiple } from "@/lib/callPerformanceMultiples";
 
@@ -199,11 +200,7 @@ export function recentCallsFromRows(
   rows: Record<string, unknown>[],
   limit: number
 ): RecentCallDto[] {
-  const visible = rows.filter(
-    (r) =>
-      (r as any).hidden_from_dashboard !== true &&
-      (r as any).excluded_from_stats !== true
-  );
+  const visible = rows.filter((r) => isCallPerformanceRowEligibleForStats(r));
   const sorted = [...visible].sort(
     (a, b) => rowCallTimeUtcMs(b) - rowCallTimeUtcMs(a)
   );

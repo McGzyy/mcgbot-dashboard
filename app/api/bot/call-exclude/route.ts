@@ -1,123 +1,70 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
-import { createRequire } from "node:module";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import {
+  applyDashboardBotCallExclude,
+  invalidateStatsAfterBotExcludeBatch,
+} from "@/lib/botDashboardCallExclude";
+import { createModServiceSupabase, requireModOrAdmin } from "@/lib/modStaffAuth";
 
-const require = createRequire(import.meta.url);
+export const runtime = "nodejs";
 
-type TrackedCallsService = {
-  initTrackedCallsStore: () => Promise<void>;
-  setApprovalStatus: (
-    contractAddress: string,
-    status: string,
-    moderation?: {
-      excludedFromStats?: boolean;
-      moderatedById?: string | null;
-      moderatedByUsername?: string | null;
-      moderationTags?: string[];
-      moderationNotes?: string;
+export async function POST(request: Request) {
+  try {
+    const gate = await requireModOrAdmin();
+    if (!gate.ok) return gate.response;
+
+    const session = await getServerSession(authOptions);
+    const moderatedByUsername =
+      typeof session?.user?.name === "string" && session.user.name.trim()
+        ? session.user.name.trim()
+        : null;
+
+    const body = (await request.json().catch(() => null)) as {
+      callCa?: string;
+      excluded?: boolean;
+      reason?: string;
+    } | null;
+
+    const callCa = typeof body?.callCa === "string" ? body.callCa.trim() : "";
+    if (!callCa) {
+      return Response.json({ success: false, error: "callCa is required" }, { status: 400 });
     }
-  ) => unknown;
-};
 
-function discordIdFromToken(token: Record<string, unknown> | null): string {
-  const pick = (v: unknown): string => (typeof v === "string" && v.trim() ? v.trim() : "");
-  return pick(token?.discord_id) || pick(token?.sub) || pick(token?.id);
-}
+    const excluded = Boolean(body?.excluded);
+    const supabase = createModServiceSupabase();
 
-function usernameFromToken(token: Record<string, unknown> | null): string {
-  const pick = (v: unknown): string => (typeof v === "string" && v.trim() ? v.trim() : "");
-  return pick(token?.discord_username) || pick(token?.name) || "";
-}
+    const result = await applyDashboardBotCallExclude({
+      callCa,
+      excluded,
+      moderatedById: gate.staffDiscordId,
+      moderatedByUsername,
+      reason: typeof body?.reason === "string" ? body.reason : undefined,
+      supabase,
+    });
 
-export async function POST(req: NextRequest) {
-  const secret = process.env.NEXTAUTH_SECRET;
-  const token = secret ? ((await getToken({ req, secret })) as Record<string, unknown> | null) : null;
-  if (!token) return NextResponse.json({ success: false, error: "unauthorized" }, { status: 401 });
-
-  const tier = String(token.helpTier || "").toLowerCase();
-  const isStaff = tier === "admin" || tier === "mod";
-  if (!isStaff) return NextResponse.json({ success: false, error: "forbidden" }, { status: 403 });
-
-  const body = (await req.json().catch(() => ({}))) as {
-    callCa?: string;
-    excluded?: boolean;
-    reason?: string;
-  };
-  const ca = String(body.callCa || "").trim();
-  if (!ca) return NextResponse.json({ success: false, error: "missing_contract" }, { status: 400 });
-
-  const excluded = body.excluded === true;
-  const moderatedById = discordIdFromToken(token) || null;
-  const moderatedByUsername = usernameFromToken(token) || null;
-
-  const service = require("../../../../utils/trackedCallsService.js") as TrackedCallsService;
-  await service.initTrackedCallsStore();
-
-  // We encode exclusion as approvalStatus='excluded' which drives excludedFromStats.
-  // Restore uses approvalStatus='none' (keeps call tracked, just counted again).
-  const trackedUpdated = service.setApprovalStatus(ca, excluded ? "excluded" : "none", {
-    excludedFromStats: excluded,
-    moderatedById,
-    moderatedByUsername,
-    moderationTags: excluded ? ["dashboard_exclude"] : [],
-    moderationNotes:
-      typeof body.reason === "string" && body.reason.trim()
-        ? body.reason.trim().slice(0, 500)
-        : excluded
-          ? "Excluded from bot calls page"
-          : "Restored on bot calls page",
-  });
-
-  const nowIso = new Date().toISOString();
-  const db = getSupabaseAdmin();
-  let supabaseRows: number | null = null;
-  if (db) {
-    const patch = excluded
-      ? {
-          excluded_from_stats: true,
-          excluded_reason: "dashboard_bot_exclude",
-          excluded_at: nowIso,
-          excluded_by_discord_id: moderatedById,
-        }
-      : {
-          excluded_from_stats: false,
-          excluded_reason: null,
-          excluded_at: null,
-          excluded_by_discord_id: null,
-        };
-    const { data: rows, error: sbErr } = await db
-      .from("call_performance")
-      .update(patch)
-      .eq("call_ca", ca)
-      .eq("source", "bot")
-      .select("id");
-    if (sbErr) {
-      console.error("[bot/call-exclude] call_performance:", sbErr);
-    } else {
-      supabaseRows = Array.isArray(rows) ? rows.length : 0;
+    if (excluded && supabase && result.callPerformanceRows === 0) {
+      return Response.json(
+        {
+          success: false,
+          error: "no_rows",
+          detail:
+            "No bot `call_performance` row matched this mint yet (sync may still be writing). Try again in a moment.",
+        },
+        { status: 404 }
+      );
     }
-    invalidateStatsCutoverCache();
-  }
 
-  if (trackedUpdated == null && (supabaseRows == null || supabaseRows === 0)) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "no_rows",
-        detail: "No tracked bot call or call_performance row matched this contract.",
-      },
-      { status: 404 }
-    );
-  }
+    invalidateStatsAfterBotExcludeBatch();
 
-  return NextResponse.json({
-    success: true,
-    excluded,
-    trackedCallsUpdated: trackedUpdated != null,
-    callPerformanceRows: supabaseRows,
-  });
+    return Response.json({
+      success: true,
+      callCa: result.callCa,
+      excluded,
+      trackedUpdated: result.trackedUpdated,
+      callPerformanceRows: result.callPerformanceRows,
+    });
+  } catch (e) {
+    console.error("[bot/call-exclude] POST:", e);
+    return Response.json({ success: false, error: "Internal Server Error" }, { status: 500 });
+  }
 }
-

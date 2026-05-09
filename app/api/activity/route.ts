@@ -11,10 +11,7 @@ import {
   CP_ACTIVITY_WITH_SNAPSHOT,
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
-import {
-  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
-  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
-} from "@/lib/callPerformanceDashboardVisibility";
+import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
@@ -49,8 +46,7 @@ export async function GET(request: Request) {
       let q = supabase
         .from("call_performance")
         .select(columns)
-        .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
-        .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR);
+        .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR);
       const t = tier.toLowerCase().trim();
       if (t === "free") {
         q = q.eq("source", "user");
@@ -136,6 +132,7 @@ export async function GET(request: Request) {
 
     type DraftEvent = {
       type: "win" | "call";
+      callSource: string;
       handleUsername: string;
       time: unknown;
       link_chart: string | null;
@@ -147,6 +144,7 @@ export async function GET(request: Request) {
         tokenName: string | null;
         tokenTicker: string | null;
         callMarketCapUsd: number | null;
+        hitMarketCapUsd: number | null;
         callCa: string | null;
       };
     };
@@ -188,6 +186,13 @@ export async function GET(request: Request) {
           ? r.token_ticker.trim()
           : null;
       const mcNum = Number(r.call_market_cap_usd);
+      const liveMcNum = Number(r.live_market_cap_usd);
+      const hitMarketCapUsd =
+        Number.isFinite(liveMcNum) && liveMcNum > 0
+          ? liveMcNum
+          : Number.isFinite(mcNum) && mcNum > 0 && Number.isFinite(multiple) && multiple > 0
+            ? mcNum * multiple
+            : null;
       const imgRaw = r.token_image_url;
       const tokenImageUrl =
         typeof imgRaw === "string" && imgRaw.trim() !== ""
@@ -199,11 +204,19 @@ export async function GET(request: Request) {
         tokenTicker: tt,
         callMarketCapUsd:
           Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
+        hitMarketCapUsd,
         callCa: rawCa,
       };
 
+      const sourceRaw = r.source;
+      const callSource =
+        typeof sourceRaw === "string" && sourceRaw.trim() !== ""
+          ? sourceRaw.trim().toLowerCase()
+          : "user";
+
       return {
         type: multiple >= 2 ? ("win" as const) : ("call" as const),
+        callSource,
         handleUsername,
         time: r.call_time,
         link_chart,
@@ -283,6 +296,7 @@ export async function GET(request: Request) {
       return {
         type: d.type,
         text,
+        callSource: d.callSource,
         /** Call-log / legacy handle (may differ from Discord display name). */
         username: d.handleUsername,
         displayName,

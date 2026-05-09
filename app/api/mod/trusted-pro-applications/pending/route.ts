@@ -1,7 +1,4 @@
-import {
-  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
-  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
-} from "@/lib/callPerformanceDashboardVisibility";
+import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { rowCallTimeUtcMs } from "@/lib/callPerformanceLeaderboard";
 import { createModServiceSupabase, requireModOrAdmin } from "@/lib/modStaffAuth";
 
@@ -65,8 +62,7 @@ export async function GET() {
       .from("call_performance")
       .select("discord_id, username, call_time")
       .in("discord_id", ids)
-      .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
-      .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR);
+      .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR);
 
     if (cpErr) {
       console.error("[mod/trusted-pro-applications/pending] call_performance:", cpErr);

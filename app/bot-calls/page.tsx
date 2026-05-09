@@ -267,6 +267,11 @@ export default function BotCallsPage() {
     ca: string;
     excludedNext: boolean;
   } | null>(null);
+  const [bulkExcludeConfirm, setBulkExcludeConfirm] = useState<{
+    cas: string[];
+    excludedNext: boolean;
+  } | null>(null);
+  const [excludingBulk, setExcludingBulk] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalCall, setTerminalCall] = useState<TapeRow | null>(null);
 
@@ -516,6 +521,70 @@ export default function BotCallsPage() {
     [addNotification, excludingCallCa, load]
   );
 
+  const excludeBotCallsBulk = useCallback(
+    async (cas: string[], excluded: boolean) => {
+      const clean = [...new Set(cas.map((c) => c.trim()).filter(Boolean))];
+      if (clean.length === 0 || excludingBulk) return;
+      setExcludingBulk(true);
+      try {
+        const res = await fetch("/api/bot/call-exclude-bulk", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            callCas: clean,
+            excluded,
+            reason: "dashboard_bot_calls_bulk",
+          }),
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          error?: string;
+          supabaseRowsUpdated?: number;
+          requested?: number;
+        };
+        if (!res.ok || json.success !== true) {
+          addNotification({
+            id: crypto.randomUUID(),
+            text:
+              typeof json.error === "string" && json.error.trim()
+                ? json.error
+                : res.status === 403
+                  ? "You don’t have permission to exclude calls (moderators only)."
+                  : `Bulk exclude failed (${res.status}).`,
+            type: "call",
+            createdAt: Date.now(),
+            priority: "low",
+          });
+          return;
+        }
+        const hits = json.supabaseRowsUpdated ?? 0;
+        const asked = json.requested ?? clean.length;
+        addNotification({
+          id: crypto.randomUUID(),
+          text: excluded
+            ? `Excluded ${hits}/${asked} call(s) from stats (mint stays tracked; rows still syncing may show 0).`
+            : `Restored ${hits}/${asked} call(s) in stats.`,
+          type: "call",
+          createdAt: Date.now(),
+          priority: "medium",
+        });
+        await load();
+      } catch {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: "Could not reach the server for bulk exclude.",
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+      } finally {
+        setExcludingBulk(false);
+      }
+    },
+    [addNotification, excludingBulk, load]
+  );
+
   const openTerminalModal = useCallback((row: TapeRow) => {
     setTerminalCall(row);
     setTerminalOpen(true);
@@ -617,6 +686,15 @@ export default function BotCallsPage() {
     return () => window.clearInterval(id);
   }, [load, status, timeWindow]);
 
+  const pageCasForBulkExclude = useMemo(
+    () => rows.filter((r) => r.callCa.trim() && !r.excludedFromStats).map((r) => r.callCa.trim()),
+    [rows]
+  );
+  const pageCasForBulkRestore = useMemo(
+    () => rows.filter((r) => r.callCa.trim() && r.excludedFromStats).map((r) => r.callCa.trim()),
+    [rows]
+  );
+
   if (status === "loading") {
     return (
       <div className="mx-auto max-w-6xl animate-pulse space-y-4 px-4 py-10">
@@ -702,6 +780,32 @@ export default function BotCallsPage() {
           >
             {showExcluded ? "Showing excluded" : "Hide excluded"}
           </button>
+          {canExcludeCalls && pageCasForBulkExclude.length > 0 ? (
+            <button
+              type="button"
+              onClick={() =>
+                setBulkExcludeConfirm({ cas: pageCasForBulkExclude, excludedNext: true })
+              }
+              disabled={excludingBulk || loading}
+              className="rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-100 transition hover:border-red-400/50 hover:bg-red-500/15 disabled:opacity-50"
+              title="Exclude every call on this page from public stats"
+            >
+              Exclude all on page
+            </button>
+          ) : null}
+          {canExcludeCalls && pageCasForBulkRestore.length > 0 ? (
+            <button
+              type="button"
+              onClick={() =>
+                setBulkExcludeConfirm({ cas: pageCasForBulkRestore, excludedNext: false })
+              }
+              disabled={excludingBulk || loading}
+              className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition hover:border-emerald-400/50 hover:bg-emerald-500/15 disabled:opacity-50"
+              title="Restore every excluded call on this page for stats"
+            >
+              Restore all on page
+            </button>
+          ) : null}
         </div>
         <p className="text-xs tabular-nums text-zinc-500">
           {loading ? "…" : `${total} call${total === 1 ? "" : "s"}`} in window
@@ -1175,6 +1279,77 @@ export default function BotCallsPage() {
                 }`}
               >
                 {excludingCallCa === excludeConfirm.ca ? "Working…" : excludeConfirm.excludedNext ? "Exclude" : "Restore"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {bulkExcludeConfirm ? (
+        <div
+          className={terminalUi.modalBackdropZ100}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm bulk exclude bot calls"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setBulkExcludeConfirm(null);
+          }}
+        >
+          <div className={terminalUi.modalPanelXl}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">
+                  {bulkExcludeConfirm.excludedNext
+                    ? `Exclude ${bulkExcludeConfirm.cas.length} call(s) on this page`
+                    : `Restore ${bulkExcludeConfirm.cas.length} call(s) on this page`}
+                </h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {bulkExcludeConfirm.excludedNext
+                    ? "Each call is removed from public stats and leaderboards (mints stay tracked on the bot)."
+                    : "Each call will count toward public stats and leaderboards again."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBulkExcludeConfirm(null)}
+                disabled={excludingBulk}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/25 disabled:opacity-50"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setBulkExcludeConfirm(null)}
+                disabled={excludingBulk}
+                className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { cas, excludedNext } = bulkExcludeConfirm;
+                  setBulkExcludeConfirm(null);
+                  await excludeBotCallsBulk(cas, excludedNext);
+                }}
+                disabled={excludingBulk}
+                className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
+                  bulkExcludeConfirm.excludedNext
+                    ? "border-red-500/40 bg-red-500/15 text-red-100 hover:bg-red-500/20"
+                    : "border-emerald-500/40 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/20"
+                }`}
+              >
+                {excludingBulk
+                  ? "Working…"
+                  : bulkExcludeConfirm.excludedNext
+                    ? "Exclude all"
+                    : "Restore all"}
               </button>
             </div>
           </div>

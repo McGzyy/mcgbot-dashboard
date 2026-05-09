@@ -8,8 +8,8 @@ import {
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
 import {
-  CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR,
-  CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR,
+  CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR,
+  isCallPerformanceRowEligibleForStats,
 } from "@/lib/callPerformanceDashboardVisibility";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 import { rowCallTimeUtcMs } from "@/lib/callPerformanceLeaderboard";
@@ -43,9 +43,7 @@ function milestoneTag(ath: number): "2x" | "3x" | "5x" | "10x" {
 }
 
 function isEligibleStatsRow(r: Record<string, unknown>): boolean {
-  if ((r as { excluded_from_stats?: boolean }).excluded_from_stats === true) return false;
-  if ((r as { hidden_from_dashboard?: boolean }).hidden_from_dashboard === true) return false;
-  return true;
+  return isCallPerformanceRowEligibleForStats(r);
 }
 
 export async function GET() {
@@ -92,9 +90,8 @@ export async function GET() {
             .from("call_performance")
             .select(columns)
             .eq("source", "bot")
-            .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+            .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR)
             .gte("call_time", floor)
-            .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR)
             .order("call_time", { ascending: false })
             .limit(LIVE_LIMIT);
           return { data: res.data, error: res.error, count: res.count };
@@ -107,9 +104,8 @@ export async function GET() {
             .from("call_performance")
             .select(columns)
             .eq("source", "bot")
-            .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
+            .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR)
             .gte("call_time", floor)
-            .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR)
             .gte("ath_multiple", MILESTONE_MIN_ATH)
             .order("call_time", { ascending: false })
             .limit(MILESTONE_LIMIT);

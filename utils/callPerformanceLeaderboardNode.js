@@ -2,10 +2,8 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-const CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR =
-  'hidden_from_dashboard.is.null,hidden_from_dashboard.eq.false';
-const CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR =
-  'excluded_from_stats.is.null,excluded_from_stats.eq.false';
+const CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR =
+  'and(or(hidden_from_dashboard.is.null,hidden_from_dashboard.eq.false),or(excluded_from_stats.is.null,excluded_from_stats.eq.false))';
 
 function getSupabaseServiceRole() {
   const url = String(process.env.SUPABASE_URL || '').trim();
@@ -112,8 +110,7 @@ async function fetchCallPerformanceForSource(sb, source) {
     .from('call_performance')
     .select('*')
     .eq('source', source)
-    .or(CALL_PERFORMANCE_VISIBLE_ON_DASHBOARD_OR)
-    .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR);
+    .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR);
 
   if (error) {
     return { rows: [], error: new Error(error.message) };

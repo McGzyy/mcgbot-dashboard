@@ -1,6 +1,9 @@
+import { CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
+import { invalidateLiveDashboardAccessCache } from "@/lib/dashboardGate";
 import { requireDashboardAdmin } from "@/lib/adminGate";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
+import { rowCallTimeUtcMs } from "@/lib/callPerformanceLeaderboard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,8 +55,8 @@ export async function POST(
       })
       .eq("discord_id", discordId)
       .lt("call_time", cutoverMs)
-      // Treat NULL like “not excluded” so legacy rows still get cutover-applied.
-      .neq("excluded_from_stats", true);
+      // NULL = not excluded in DB; `neq(true)` omits NULL rows in SQL — use explicit OR.
+      .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR);
 
     if (exErr) {
       console.error("[admin/users/reset-stats] cutover exclude:", exErr);
@@ -84,6 +87,33 @@ export async function POST(
     }
 
     invalidateStatsCutoverCache();
+    invalidateLiveDashboardAccessCache(discordId);
+
+    try {
+      const { data: uPin } = await db
+        .from("users")
+        .select("pinned_call_id")
+        .eq("discord_id", discordId)
+        .maybeSingle();
+      const pinRaw = (uPin as { pinned_call_id?: unknown } | null)?.pinned_call_id;
+      const pinId = typeof pinRaw === "string" ? pinRaw.trim() : pinRaw != null ? String(pinRaw).trim() : "";
+      if (pinId) {
+        const { data: cpPin } = await db
+          .from("call_performance")
+          .select("call_time")
+          .eq("id", pinId)
+          .eq("discord_id", discordId)
+          .maybeSingle();
+        const cpRow = cpPin as Record<string, unknown> | null;
+        const tMs = cpRow ? rowCallTimeUtcMs(cpRow) : 0;
+        if (tMs > 0 && tMs < cutoverMs) {
+          await db.from("users").update({ pinned_call_id: null }).eq("discord_id", discordId);
+        }
+      }
+    } catch {
+      /* non-fatal */
+    }
+
     return Response.json({ success: true, mode: "cutover", statsFromUtc: statsFromUtcRaw });
   }
 
@@ -96,8 +126,8 @@ export async function POST(
       excluded_by_discord_id: gate.discordId,
     })
     .eq("discord_id", discordId)
-    // `eq(false)` misses NULL — many rows use default null for “not excluded”.
-    .neq("excluded_from_stats", true)
+    // NULL = not excluded; `neq(true)` skips those rows in Postgres.
+    .or(CALL_PERFORMANCE_NOT_EXCLUDED_FROM_STATS_OR)
     .select("id");
 
   if (error) {
@@ -137,8 +167,14 @@ export async function POST(
   } catch {
     /* optional column / row */
   }
+  try {
+    await db.from("users").update({ pinned_call_id: null }).eq("discord_id", discordId);
+  } catch {
+    /* optional pinned_call_id column */
+  }
 
   invalidateStatsCutoverCache();
+  invalidateLiveDashboardAccessCache(discordId);
   return Response.json({
     success: true,
     mode: "full",

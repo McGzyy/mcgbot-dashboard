@@ -40,6 +40,11 @@ export type CallSnapshotMeta = {
   tokenName?: string | null;
   tokenTicker?: string | null;
   callMarketCapUsd?: number | string | null;
+  /**
+   * MC at the milestone (from bot `live_market_cap_usd`, or call MC × multiple when missing).
+   * Shown in parentheses after the multiple in activity feed wins.
+   */
+  hitMarketCapUsd?: number | string | null;
   /** Internal only (e.g. Dex links); never shown in dashboard “update” copy. */
   callCa?: string | null;
 };
@@ -92,8 +97,25 @@ export function formatWinActivityLine(
   const tick = snapshotTicker(meta);
   const callMc = formatMarketCapAtCall(meta.callMarketCapUsd ?? null);
   const x = Number.isFinite(multiple) ? multiple.toFixed(1) : "?";
-  // Note: current feed schema doesn't provide *current* MC, only call-time MC.
-  return `$${tick} hit ${x}x (${callMc}) - Called by @${who} at ${callMc}`;
+
+  const rawHit = meta.hitMarketCapUsd;
+  const hitN = typeof rawHit === "number" ? rawHit : Number(rawHit);
+  const callMcN = Number(meta.callMarketCapUsd);
+  let hitMcLabel: string;
+  if (Number.isFinite(hitN) && hitN > 0) {
+    hitMcLabel = formatMarketCapAtCall(hitN);
+  } else if (
+    Number.isFinite(callMcN) &&
+    callMcN > 0 &&
+    Number.isFinite(multiple) &&
+    multiple > 0
+  ) {
+    hitMcLabel = formatMarketCapAtCall(callMcN * multiple);
+  } else {
+    hitMcLabel = "—";
+  }
+
+  return `$${tick} hit ${x}x (${hitMcLabel}) - Called by @${who} at ${callMc}`;
 }
 
 export function multipleClass(multiple: number): string {
@@ -102,12 +124,26 @@ export function multipleClass(multiple: number): string {
   return "text-zinc-200";
 }
 
-export function formatJoinedAt(joinedAt: number, nowMs: number): string {
+export function formatJoinedAt(
+  joinedAt: number,
+  nowMs: number,
+  style: "default" | "compact" = "default"
+): string {
   if (!Number.isFinite(joinedAt) || joinedAt <= 0) return "—";
   const diff = nowMs - joinedAt;
   const sec = Math.floor(diff / 1000);
   const min = Math.floor(sec / 60);
   const hr = Math.floor(min / 60);
+  if (style === "compact") {
+    if (sec < 60) return "now";
+    if (min < 60) return `${min}m`;
+    if (hr < 24) return `${hr}h`;
+    const date = new Date(joinedAt);
+    const nowDate = new Date(nowMs);
+    const sameYear = date.getFullYear() === nowDate.getFullYear();
+    const md = date.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+    return sameYear ? md : `${md}/${String(date.getFullYear()).slice(-2)}`;
+  }
   if (sec < 60) return "just now";
   if (min < 60) return min === 1 ? "1 min ago" : `${min} min ago`;
   if (hr < 24) return hr === 1 ? "1 hour ago" : `${hr} hours ago`;
