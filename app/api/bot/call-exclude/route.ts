@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { createRequire } from "node:module";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
 
 const require = createRequire(import.meta.url);
 
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
 
   // We encode exclusion as approvalStatus='excluded' which drives excludedFromStats.
   // Restore uses approvalStatus='none' (keeps call tracked, just counted again).
-  service.setApprovalStatus(ca, excluded ? "excluded" : "none", {
+  const trackedUpdated = service.setApprovalStatus(ca, excluded ? "excluded" : "none", {
     excludedFromStats: excluded,
     moderatedById,
     moderatedByUsername,
@@ -69,6 +71,53 @@ export async function POST(req: NextRequest) {
           : "Restored on bot calls page",
   });
 
-  return NextResponse.json({ success: true, excluded });
+  const nowIso = new Date().toISOString();
+  const db = getSupabaseAdmin();
+  let supabaseRows: number | null = null;
+  if (db) {
+    const patch = excluded
+      ? {
+          excluded_from_stats: true,
+          excluded_reason: "dashboard_bot_exclude",
+          excluded_at: nowIso,
+          excluded_by_discord_id: moderatedById,
+        }
+      : {
+          excluded_from_stats: false,
+          excluded_reason: null,
+          excluded_at: null,
+          excluded_by_discord_id: null,
+        };
+    const { data: rows, error: sbErr } = await db
+      .from("call_performance")
+      .update(patch)
+      .eq("call_ca", ca)
+      .eq("source", "bot")
+      .select("id");
+    if (sbErr) {
+      console.error("[bot/call-exclude] call_performance:", sbErr);
+    } else {
+      supabaseRows = Array.isArray(rows) ? rows.length : 0;
+    }
+    invalidateStatsCutoverCache();
+  }
+
+  if (trackedUpdated == null && (supabaseRows == null || supabaseRows === 0)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "no_rows",
+        detail: "No tracked bot call or call_performance row matched this contract.",
+      },
+      { status: 404 }
+    );
+  }
+
+  return NextResponse.json({
+    success: true,
+    excluded,
+    trackedCallsUpdated: trackedUpdated != null,
+    callPerformanceRows: supabaseRows,
+  });
 }
 

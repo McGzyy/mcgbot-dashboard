@@ -69,6 +69,7 @@ function hasDashboardAccess(token: Record<string, unknown> | null): boolean {
   if (!token) return false;
   // Staff should never be paywalled by subscription checks.
   if (token.helpTier === "admin" || token.helpTier === "mod") return true;
+  if (token.canModerate === true) return true;
   if (token.subscriptionExempt === true) return true;
   return subscriptionActive(token);
 }
@@ -108,8 +109,14 @@ async function hasDashboardAccessResolved(
   if (!id) return false;
   try {
     return await liveDashboardAccessForDiscordId(id);
-  } catch {
-    return false;
+  } catch (e) {
+    console.warn("[middleware] liveDashboardAccessForDiscordId failed, retry once:", e);
+    try {
+      await new Promise((r) => setTimeout(r, 150));
+      return await liveDashboardAccessForDiscordId(id);
+    } catch {
+      return false;
+    }
   }
 }
 

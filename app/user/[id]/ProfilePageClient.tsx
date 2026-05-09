@@ -1070,7 +1070,7 @@ export default function ProfilePageClient() {
     }
     let body: Record<string, string> = {};
     let confirmMsg =
-      "Reset this user’s stats?\n\nThis excludes ALL of their existing calls from leaderboards and performance stats (history is retained).";
+      "Reset this user’s stats?\n\nThis excludes ALL of their existing calls from leaderboards and performance stats (history is retained).\n\nFull reset also clears leaderboard trophies and milestone “clubs” for this account.";
     if (statsResetMode === "cutover") {
       if (!statsCutoverLocal.trim()) {
         window.alert("Choose a date and time first — only calls at or after that instant will count toward stats.");
@@ -1100,6 +1100,8 @@ export default function ProfilePageClient() {
         excluded?: number | null;
         mode?: string;
         error?: string;
+        trophiesDeleted?: number | null;
+        milestoneTrophiesDeleted?: number | null;
       };
       if (!res.ok || json.success !== true) {
         setError(
@@ -1111,9 +1113,17 @@ export default function ProfilePageClient() {
         setAdminOk("Cutover applied. Stats now use calls on or after the chosen time.");
       } else {
         const n = typeof json.excluded === "number" ? json.excluded : null;
-        setAdminOk(
-          n == null ? "Reset complete." : `Reset complete. Excluded ${n} calls.`
-        );
+        const t = typeof json.trophiesDeleted === "number" ? json.trophiesDeleted : null;
+        const m =
+          typeof json.milestoneTrophiesDeleted === "number"
+            ? json.milestoneTrophiesDeleted
+            : null;
+        const bits = [
+          n == null ? "Reset complete." : `Excluded ${n} call row(s) from stats.`,
+          t != null ? `Leaderboard trophies removed: ${t}.` : null,
+          m != null ? `Milestone clubs cleared: ${m}.` : null,
+        ].filter(Boolean);
+        setAdminOk(bits.join(" "));
       }
       void fetchProfile();
     } catch {
@@ -1151,6 +1161,7 @@ export default function ProfilePageClient() {
       const json = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         deleted?: number | null;
+        milestoneTrophiesDeleted?: number | null;
         error?: string;
       };
       if (!res.ok || json.success !== true) {
@@ -1160,9 +1171,15 @@ export default function ProfilePageClient() {
         return;
       }
       const d = json.deleted;
+      const m =
+        typeof json.milestoneTrophiesDeleted === "number"
+          ? json.milestoneTrophiesDeleted
+          : null;
       setAdminOk(
         typeof d === "number"
-          ? `Removed ${d} trophy row${d === 1 ? "" : "s"}.`
+          ? `Removed ${d} trophy row${d === 1 ? "" : "s"}${
+              m != null ? `; ${m} milestone club${m === 1 ? "" : "s"} cleared.` : "."
+            }`
           : "Trophies cleared."
       );
       void fetchProfile();
@@ -2474,7 +2491,11 @@ export default function ProfilePageClient() {
               <PanelCard title="Admin tools">
                 <p className="mt-2 text-xs leading-relaxed text-zinc-500">
                   Exclude suspicious rows from the Recent Calls list, or reset aggregates. History is
-                  never deleted; exclusions only change what counts in stats and boards.
+                  never deleted; exclusions only change what counts in stats and boards.{" "}
+                  <span className="text-zinc-400">
+                    Full stats reset also clears leaderboard trophies and milestone clubs (same as a clean slate
+                    before go-live).
+                  </span>
                 </p>
 
                 <div className="mt-3 space-y-2 rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-3">
@@ -2528,7 +2549,7 @@ export default function ProfilePageClient() {
                   disabled={adminBusy}
                   className="mt-3 w-full rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-400/45 hover:bg-amber-500/15 disabled:opacity-60"
                 >
-                  Reset trophies
+                  Reset trophies and milestone clubs only
                 </button>
 
                 {(profile?.x_handle?.trim() || profile?.x_verified) ? (

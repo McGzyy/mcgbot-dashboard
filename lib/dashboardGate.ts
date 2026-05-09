@@ -1,3 +1,4 @@
+import { resolveHelpTierAsync } from "@/lib/helpRole";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
 
@@ -12,9 +13,58 @@ function subscriptionActiveUntil(end: string | null): boolean {
   return Number.isFinite(t) && t > Date.now();
 }
 
+async function resolveHelpTierWithRetry(discordId: string): Promise<{ tier: string; failed: boolean }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const tier = await resolveHelpTierAsync(discordId);
+      return { tier, failed: false };
+    } catch (e) {
+      console.warn(`[dashboardGate] resolveHelpTierAsync (attempt ${attempt + 1}):`, e);
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 120));
+      }
+    }
+  }
+  return { tier: "user", failed: true };
+}
+
+async function computeExemptWithRetry(discordId: string): Promise<{ exempt: boolean; failed: boolean }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const exempt = await computeSubscriptionExempt(discordId);
+      return { exempt, failed: false };
+    } catch (e) {
+      console.warn(`[dashboardGate] computeSubscriptionExempt (attempt ${attempt + 1}):`, e);
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 120));
+      }
+    }
+  }
+  return { exempt: false, failed: true };
+}
+
+async function getSubscriptionEndWithRetry(
+  discordId: string
+): Promise<{ end: string | null; failed: boolean }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const end = await getSubscriptionEnd(discordId);
+      return { end, failed: false };
+    } catch (e) {
+      console.warn(`[dashboardGate] getSubscriptionEnd (attempt ${attempt + 1}):`, e);
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 120));
+      }
+    }
+  }
+  return { end: null, failed: true };
+}
+
 /**
  * Live check (Discord staff + Supabase subscription). Used when JWT cookie is stale.
  * Cached briefly to avoid hammering Discord/Supabase on every navigation.
+ *
+ * Does not cache a **deny** when upstream calls failed (avoids locking paying users out for CACHE_MS).
  */
 export async function liveDashboardAccessForDiscordId(discordId: string): Promise<boolean> {
   const id = discordId.trim();
@@ -26,25 +76,25 @@ export async function liveDashboardAccessForDiscordId(discordId: string): Promis
     return hit.ok;
   }
 
-  let exempt = false;
-  try {
-    exempt = await computeSubscriptionExempt(id);
-  } catch (e) {
-    console.warn("[dashboardGate] computeSubscriptionExempt:", e);
+  const { tier, failed: tierFailed } = await resolveHelpTierWithRetry(id);
+  if (!tierFailed && (tier === "admin" || tier === "mod")) {
+    accessCache.set(id, { ok: true, exp: now + CACHE_MS });
+    return true;
   }
+
+  const { exempt, failed: exemptFailed } = await computeExemptWithRetry(id);
   if (exempt === true) {
     accessCache.set(id, { ok: true, exp: now + CACHE_MS });
     return true;
   }
 
-  let end: string | null = null;
-  try {
-    end = await getSubscriptionEnd(id);
-  } catch (e) {
-    console.warn("[dashboardGate] getSubscriptionEnd:", e);
-  }
+  const { end, failed: subFailed } = await getSubscriptionEndWithRetry(id);
   const ok = subscriptionActiveUntil(end);
-  accessCache.set(id, { ok, exp: now + CACHE_MS });
+
+  const uncertainDeny = !ok && (tierFailed || exemptFailed || subFailed);
+  if (!uncertainDeny) {
+    accessCache.set(id, { ok, exp: now + CACHE_MS });
+  }
   return ok;
 }
 

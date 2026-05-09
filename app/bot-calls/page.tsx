@@ -469,12 +469,20 @@ export default function BotCallsPage() {
             reason: "dashboard_bot_calls",
           }),
         });
-        const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          error?: string;
+          detail?: string;
+        };
         if (!res.ok || json.success !== true) {
+          const noRow = res.status === 404 && json.error === "no_rows";
           addNotification({
             id: crypto.randomUUID(),
-            text:
-              typeof json.error === "string"
+            text: noRow
+              ? typeof json.detail === "string" && json.detail.trim()
+                ? json.detail
+                : "No dashboard row matched this CA yet (sync may still be writing). Try again in a moment."
+              : typeof json.error === "string"
                 ? json.error
                 : res.status === 403
                   ? "You don’t have permission to exclude calls (moderators only)."

@@ -199,6 +199,10 @@ export const authOptions: NextAuthOptions = {
       const shouldRefreshGuildGate = Boolean(discordId) && (guildGateMissing || guildGateStale || Boolean(user));
 
       if (discordId && shouldRefreshAccess) {
+        const prevTier =
+          token.helpTier === "admin" || token.helpTier === "mod" || token.helpTier === "user"
+            ? token.helpTier
+            : "";
         try {
           const [end, exempt, helpTier] = await Promise.all([
             getSubscriptionEnd(discordId),
@@ -215,13 +219,21 @@ export const authOptions: NextAuthOptions = {
           token.subscriptionRefreshAt = Date.now();
         } catch (e) {
           console.error("[auth] subscription/staff refresh:", e);
-          try {
-            const helpTier = await resolveHelpTierAsync(discordId).catch(() => "user" as const);
-            token.helpTier = helpTier;
-            token.canModerate = meetsModerationMinTier(helpTier);
-          } catch {
-            token.helpTier = "user";
-            token.canModerate = false;
+          // Do not demote staff or wipe subscription fields on transient DB/network errors.
+          if (prevTier === "admin" || prevTier === "mod") {
+            token.helpTier = prevTier;
+            token.canModerate = meetsModerationMinTier(prevTier);
+          } else {
+            try {
+              const helpTier = await resolveHelpTierAsync(discordId).catch(() => null);
+              if (helpTier === "admin" || helpTier === "mod" || helpTier === "user") {
+                token.helpTier = helpTier;
+                token.canModerate = meetsModerationMinTier(helpTier);
+              }
+            } catch {
+              token.helpTier = "user";
+              token.canModerate = false;
+            }
           }
         }
       }

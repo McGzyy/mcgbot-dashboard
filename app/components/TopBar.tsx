@@ -159,7 +159,14 @@ export function TopBar() {
   const notifRef = useRef<HTMLDivElement>(null);
   const [inGuild, setInGuild] = useState<boolean | null>(null);
 
-  const hasAccess = Boolean(session?.user?.hasDashboardAccess || session?.user?.subscriptionExempt);
+  const helpTier = (session?.user as { helpTier?: string } | undefined)?.helpTier;
+  const staffSessionBypass =
+    helpTier === "admin" || helpTier === "mod" || session?.user?.canModerate === true;
+  const hasAccess = Boolean(
+    session?.user?.hasDashboardAccess ||
+      session?.user?.subscriptionExempt ||
+      staffSessionBypass
+  );
 
   const refreshInbox = useCallback(async () => {
     if (status !== "authenticated") {

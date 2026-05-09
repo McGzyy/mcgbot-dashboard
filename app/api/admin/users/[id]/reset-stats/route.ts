@@ -51,7 +51,9 @@ export async function POST(
         excluded_by_discord_id: gate.discordId,
       })
       .eq("discord_id", discordId)
-      .lt("call_time", cutoverMs);
+      .lt("call_time", cutoverMs)
+      // Treat NULL like “not excluded” so legacy rows still get cutover-applied.
+      .neq("excluded_from_stats", true);
 
     if (exErr) {
       console.error("[admin/users/reset-stats] cutover exclude:", exErr);
@@ -94,7 +96,8 @@ export async function POST(
       excluded_by_discord_id: gate.discordId,
     })
     .eq("discord_id", discordId)
-    .eq("excluded_from_stats", false)
+    // `eq(false)` misses NULL — many rows use default null for “not excluded”.
+    .neq("excluded_from_stats", true)
     .select("id");
 
   if (error) {
@@ -102,10 +105,45 @@ export async function POST(
     return Response.json({ success: false, error: "Failed to reset user stats" }, { status: 500 });
   }
 
+  const excludedCount = Array.isArray(data) ? data.length : 0;
+
+  let trophiesDeleted: number | null = null;
+  let milestoneTrophiesDeleted: number | null = null;
+  try {
+    const { data: tData, error: tErr } = await db
+      .from("user_trophies")
+      .delete()
+      .eq("user_id", discordId)
+      .select("id");
+    if (!tErr) trophiesDeleted = Array.isArray(tData) ? tData.length : 0;
+    else console.error("[admin/users/reset-stats] user_trophies:", tErr);
+  } catch (e) {
+    console.error("[admin/users/reset-stats] user_trophies:", e);
+  }
+  try {
+    const { data: mData, error: mErr } = await db
+      .from("user_milestone_trophies")
+      .delete()
+      .eq("user_id", discordId)
+      .select("id");
+    if (!mErr) milestoneTrophiesDeleted = Array.isArray(mData) ? mData.length : 0;
+    else console.error("[admin/users/reset-stats] user_milestone_trophies:", mErr);
+  } catch (e) {
+    console.error("[admin/users/reset-stats] user_milestone_trophies:", e);
+  }
+
+  try {
+    await db.from("users").update({ is_top_caller: false }).eq("discord_id", discordId);
+  } catch {
+    /* optional column / row */
+  }
+
   invalidateStatsCutoverCache();
   return Response.json({
     success: true,
     mode: "full",
-    excluded: Array.isArray(data) ? data.length : null,
+    excluded: excludedCount,
+    trophiesDeleted,
+    milestoneTrophiesDeleted,
   });
 }
