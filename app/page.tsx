@@ -15,7 +15,7 @@ import { PanelCard, CARD_HOVER } from "./components/PanelCard";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
-import WalletPnlPanel from "./components/WalletPnlPanel";
+import DashboardWalletModule from "./components/DashboardWalletModule";
 import PerformanceChart from "@/components/dashboard/PerformanceChart";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
@@ -1953,16 +1953,16 @@ type ActivityFeedPanelProps = {
 
 function activityFeedRowTintClass(item: ActivityItem): string {
   if (item.type === "win") {
-    return "bg-amber-400/[0.07] ring-1 ring-inset ring-amber-400/[0.11] hover:bg-amber-400/[0.11]";
+    return "bg-amber-400/[0.11] ring-1 ring-inset ring-amber-400/[0.17] hover:bg-amber-400/[0.15]";
   }
   if (item.type === "call") {
     const src = (item.callSource ?? "user").toLowerCase();
     if (src === "bot") {
-      return "bg-violet-500/[0.07] ring-1 ring-inset ring-violet-500/[0.13] hover:bg-violet-500/[0.11]";
+      return "bg-violet-500/[0.11] ring-1 ring-inset ring-violet-500/[0.19] hover:bg-violet-500/[0.15]";
     }
-    return "bg-sky-500/[0.05] ring-1 ring-inset ring-sky-500/[0.11] hover:bg-sky-500/[0.09]";
+    return "bg-sky-500/[0.09] ring-1 ring-inset ring-sky-500/[0.15] hover:bg-sky-500/[0.13]";
   }
-  return "bg-zinc-900/40 hover:bg-zinc-800/60";
+  return "bg-zinc-900/35 hover:bg-zinc-800/55";
 }
 
 function ActivityFeedPanel({
@@ -2207,6 +2207,32 @@ function ActivityFeedPanel({
             })}
           </ul>
         )}
+      </div>
+
+      <div
+        className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-zinc-800/60 pt-2.5 text-[10px] text-zinc-500"
+        aria-label="Activity row colors"
+      >
+        <span className="font-semibold uppercase tracking-wide text-zinc-600">Key</span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="h-2 w-2 shrink-0 rounded-sm bg-amber-400/85 ring-1 ring-amber-400/35"
+            aria-hidden
+          />
+          Milestone
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 shrink-0 rounded-sm bg-sky-400/80 ring-1 ring-sky-400/35" aria-hidden />
+          User call
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 shrink-0 rounded-sm bg-violet-400/85 ring-1 ring-violet-400/35" aria-hidden />
+          Bot call
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 shrink-0 rounded-sm bg-zinc-600/90 ring-1 ring-zinc-500/30" aria-hidden />
+          Other
+        </span>
       </div>
     </PanelCard>
   );
@@ -4150,8 +4176,8 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 flex flex-col gap-3">
+      <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-3">
           <div data-tutorial="dashboard.activityFeed">
           {widgetEnabled(widgets, "activity") && (
             <div className="min-h-[420px]">
@@ -4197,7 +4223,10 @@ export default function Home() {
           {showTrendingWidget ? <TrendingPanel /> : null}
         </div>
 
-        <div className="flex flex-col gap-4" data-tutorial="dashboard.quickActions">
+        <div
+          className="flex flex-col gap-4 lg:sticky lg:top-24 lg:z-10 lg:self-start"
+          data-tutorial="dashboard.quickActions"
+        >
           {widgetEnabled(widgets, "quick_actions") && (
             <PanelCard title="Quick Actions">
               <div className="mt-3 space-y-3">
@@ -4261,8 +4290,8 @@ export default function Home() {
             </PanelCard>
           )}
 
-          <div data-tutorial="dashboard.walletPnl">
-            {widgetEnabled(widgets, "live_tracked_calls") && <WalletPnlPanel />}
+          <div data-tutorial="dashboard.walletModule">
+            {widgetEnabled(widgets, "live_tracked_calls") && <DashboardWalletModule />}
           </div>
 
           <PanelCard title="Watchlist" titleClassName="normal-case" data-tutorial="dashboard.homeWatchlist">
