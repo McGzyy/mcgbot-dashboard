@@ -1,6 +1,7 @@
 "use client";
 
 import { AnnouncementBar } from "@/app/components/AnnouncementBar";
+import { FixItTicketLauncher } from "@/app/components/FixItTicketLauncher";
 import { MainShell } from "@/app/components/MainShell";
 import { Sidebar } from "@/app/components/Sidebar";
 import { TutorialProvider } from "@/app/components/TutorialProvider";
@@ -42,6 +43,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
             <TutorialProvider>
               <MainShell>{children}</MainShell>
             </TutorialProvider>
+            <FixItTicketLauncher />
           </div>
         </MobileSidebarProvider>
       )}

@@ -100,6 +100,12 @@ export default function AdminOverviewPage() {
           data-tutorial="admin.card.features"
         />
         <OverviewCard
+          href="/admin/fix-it-tickets"
+          title="Fix-it tickets (beta)"
+          subtitle="Temporary tester inbox for UI/UX notes, ideas, and preferences from the floating button."
+          hint="Read · Supabase + Storage"
+        />
+        <OverviewCard
           href="/admin/voice-moderation-audit"
           title="Voice moderation audit"
           subtitle="Read-only table of successful LiveKit mute and kick actions (Discord actor + target)."
