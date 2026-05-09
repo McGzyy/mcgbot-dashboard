@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { resolveHelpTierAsync } from "@/lib/helpRole";
+import { meetsModerationMinTier, moderationStaffForbiddenPayload, resolveHelpTierAsync } from "@/lib/helpRole";
 
 export function createModServiceSupabase() {
   const url = process.env.SUPABASE_URL?.trim();
@@ -24,10 +24,10 @@ export async function requireModOrAdmin(): Promise<
     };
   }
   const tier = await resolveHelpTierAsync(staffDiscordId);
-  if (tier !== "mod" && tier !== "admin") {
+  if (!meetsModerationMinTier(tier)) {
     return {
       ok: false,
-      response: Response.json({ success: false, error: "Forbidden" }, { status: 403 }),
+      response: Response.json({ success: false, ...moderationStaffForbiddenPayload() }, { status: 403 }),
     };
   }
   return { ok: true, staffDiscordId };

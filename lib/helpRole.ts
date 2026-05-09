@@ -125,3 +125,13 @@ export function meetsModerationMinTier(tier: HelpTier): boolean {
   if (min === "admin") return tier === "admin";
   return tier === "mod" || tier === "admin";
 }
+
+/** JSON body for HTTP 403 when a route is gated by {@link meetsModerationMinTier}. */
+export function moderationStaffForbiddenPayload(): { error: string; code: string; hint: string } {
+  const min = (process.env.MODERATION_MIN_TIER ?? "mod").trim().toLowerCase();
+  const hint =
+    min === "admin"
+      ? "This deployment requires an admin for dashboard staff APIs (MODERATION_MIN_TIER=admin). Ask an owner to promote you or lower the gate."
+      : "You need the Discord staff role or be listed in DISCORD_MOD_IDS / DISCORD_ADMIN_IDS on the server.";
+  return { error: "Forbidden", code: "STAFF_TIER_REQUIRED", hint };
+}

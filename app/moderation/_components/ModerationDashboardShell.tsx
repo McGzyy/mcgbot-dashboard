@@ -73,7 +73,7 @@ const NAV: {
 
 function navClass(active: boolean) {
   return [
-    "group relative flex gap-3 rounded-xl border px-3 py-2.5 text-left transition-all duration-200",
+    "group relative flex gap-3 rounded-xl border px-3 py-3.5 text-left transition-all duration-200",
     active
       ? modChrome.navActive
       : "border-transparent bg-zinc-900/30 text-zinc-400 hover:border-zinc-700/80 hover:bg-zinc-900/50 hover:text-zinc-100",
@@ -93,11 +93,11 @@ export function ModerationDashboardShell({ children }: { children: ReactNode }) 
   }, []);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-10 lg:flex-row lg:gap-12">
-      <aside className="shrink-0 lg:w-60" aria-label="Moderation sections">
-        <div className="rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-black/60 p-2 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.3)]">
-          <p className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">Review queue</p>
-          <nav className="flex flex-col gap-0.5">
+    <div className="flex min-h-0 flex-1 flex-col gap-12 lg:flex-row lg:gap-16">
+      <aside className="shrink-0 lg:w-64" aria-label="Moderation sections">
+        <div className="rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-black/60 p-3 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.3)]">
+          <p className="px-2 pb-3 pt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">Review queue</p>
+          <nav className="flex flex-col gap-1.5">
             {NAV.map((item) => {
               const active = hash === item.id;
               return (

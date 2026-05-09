@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { botApiBaseUrl } from "@/lib/botInternal";
 import { botUnreachableChecklist, describeBotApiFetchError } from "@/lib/botUpstreamFetchError";
-import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
+import { meetsModerationMinTier, moderationStaffForbiddenPayload, resolveHelpTierAsync } from "@/lib/helpRole";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
     const tier = await resolveHelpTierAsync(userId);
     if (!meetsModerationMinTier(tier)) {
-      return Response.json({ error: "Forbidden" }, { status: 403 });
+      return Response.json(moderationStaffForbiddenPayload(), { status: 403 });
     }
 
     const botUrl = botApiBaseUrl();

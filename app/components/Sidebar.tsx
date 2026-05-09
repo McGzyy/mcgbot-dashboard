@@ -28,8 +28,8 @@ function isActive(pathname: string, href: string) {
 function sessionStaffNav(session: ReturnType<typeof useSession>["data"]): boolean {
   const u = session?.user;
   if (!u) return false;
-  if (u.canModerate === true) return true;
-  return u.helpTier === "admin" || u.helpTier === "mod";
+  /** Must match server `meetsModerationMinTier` (e.g. `MODERATION_MIN_TIER=admin` → mods must not see broken desks). */
+  return u.canModerate === true;
 }
 
 function sessionAdminNav(session: ReturnType<typeof useSession>["data"]): boolean {

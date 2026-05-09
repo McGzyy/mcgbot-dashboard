@@ -71,9 +71,17 @@ function evidenceLinks(evidence: unknown): string[] {
   return evidence.map((u) => String(u).trim()).filter(Boolean).slice(0, 6);
 }
 
+function readApiError(json: unknown): { error: string; hint: string | null } {
+  const o = json && typeof json === "object" ? (json as Record<string, unknown>) : {};
+  const error = typeof o.error === "string" && o.error.trim() ? o.error.trim() : "Request failed";
+  const hint = typeof o.hint === "string" && o.hint.trim() ? o.hint.trim() : null;
+  return { error, hint };
+}
+
 export function ModerationStaffQueues() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [errHint, setErrHint] = useState<string | null>(null);
   const [callReports, setCallReports] = useState<CallReportRow[]>([]);
   const [profileReports, setProfileReports] = useState<ProfileReportRow[]>([]);
   const [tpApps, setTpApps] = useState<TpApplicationRow[]>([]);
@@ -83,6 +91,7 @@ export function ModerationStaffQueues() {
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
+    setErrHint(null);
     try {
       const [crRes, prRes, appRes, callRes] = await Promise.all([
         fetch("/api/mod/reports/call?status=open&limit=50", { credentials: "same-origin" }),
@@ -91,42 +100,58 @@ export function ModerationStaffQueues() {
         fetch("/api/mod/trusted-pro-calls/pending", { credentials: "same-origin" }),
       ]);
 
-      const crJson = (await crRes.json().catch(() => ({}))) as { success?: boolean; rows?: unknown; error?: string };
-      const prJson = (await prRes.json().catch(() => ({}))) as { success?: boolean; rows?: unknown; error?: string };
-      const appJson = (await appRes.json().catch(() => ({}))) as { success?: boolean; rows?: unknown; error?: string };
-      const callJson = (await callRes.json().catch(() => ({}))) as { success?: boolean; calls?: unknown; error?: string };
+      const crJson = await crRes.json().catch(() => ({}));
+      const prJson = await prRes.json().catch(() => ({}));
+      const appJson = await appRes.json().catch(() => ({}));
+      const callJson = await callRes.json().catch(() => ({}));
 
       const problems: string[] = [];
+      const hints = new Set<string>();
 
       if (!crRes.ok) {
-        problems.push(crJson.error || `Call reports HTTP ${crRes.status}`);
+        const { error, hint } = readApiError(crJson);
+        problems.push(`Call reports: ${error}`);
+        if (hint) hints.add(hint);
         setCallReports([]);
       } else {
-        setCallReports(Array.isArray(crJson.rows) ? (crJson.rows as CallReportRow[]) : []);
+        const j = crJson as { success?: boolean; rows?: unknown };
+        setCallReports(Array.isArray(j.rows) ? (j.rows as CallReportRow[]) : []);
       }
 
       if (!prRes.ok) {
-        problems.push(prJson.error || `Profile reports HTTP ${prRes.status}`);
+        const { error, hint } = readApiError(prJson);
+        problems.push(`Profile reports: ${error}`);
+        if (hint) hints.add(hint);
         setProfileReports([]);
       } else {
-        setProfileReports(Array.isArray(prJson.rows) ? (prJson.rows as ProfileReportRow[]) : []);
+        const j = prJson as { success?: boolean; rows?: unknown };
+        setProfileReports(Array.isArray(j.rows) ? (j.rows as ProfileReportRow[]) : []);
       }
 
       if (!appRes.ok) {
-        problems.push(appJson.error || `Trusted Pro apps HTTP ${appRes.status}`);
+        const { error, hint } = readApiError(appJson);
+        problems.push(`Trusted Pro apps: ${error}`);
+        if (hint) hints.add(hint);
         setTpApps([]);
       } else {
-        setTpApps(Array.isArray(appJson.rows) ? (appJson.rows as TpApplicationRow[]) : []);
+        const j = appJson as { success?: boolean; rows?: unknown };
+        setTpApps(Array.isArray(j.rows) ? (j.rows as TpApplicationRow[]) : []);
       }
 
       if (!callRes.ok) {
-        problems.push(callJson.error || `Trusted Pro calls HTTP ${callRes.status}`);
+        const { error, hint } = readApiError(callJson);
+        problems.push(`Trusted Pro posts: ${error}`);
+        if (hint) hints.add(hint);
         setTpCalls([]);
       } else {
-        setTpCalls(Array.isArray(callJson.calls) ? (callJson.calls as TpCallRow[]) : []);
+        const j = callJson as { success?: boolean; calls?: unknown };
+        setTpCalls(Array.isArray(j.calls) ? (j.calls as TpCallRow[]) : []);
       }
 
-      if (problems.length) setErr(problems.join(" · "));
+      if (problems.length) {
+        setErr([...new Set(problems)].join("\n"));
+        setErrHint(hints.size ? [...hints].join("\n\n") : null);
+      }
     } catch {
       setErr("Could not load staff desks.");
     } finally {
@@ -228,11 +253,11 @@ export function ModerationStaffQueues() {
     callReports.length + profileReports.length + tpApps.length + tpCalls.length;
 
   return (
-    <section className="mt-10 space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section className="mt-6 space-y-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold tracking-tight text-zinc-100">Staff desks (dashboard)</h2>
-          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-zinc-500">
+          <p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-500">
             Call &amp; profile reports, Trusted Pro applications, and Trusted Pro longform posts (first{" "}
             {TRUSTED_PRO_GATED_APPROVALS} approved posts per author are reviewed here; after that, new posts can
             auto-publish per DB policy). These use Supabase + existing mod APIs — separate from the bot&apos;s{" "}
@@ -243,18 +268,21 @@ export function ModerationStaffQueues() {
           type="button"
           disabled={loading}
           onClick={() => void load()}
-          className="rounded-lg border border-zinc-600 bg-zinc-900/70 px-3 py-1.5 text-xs font-semibold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
+          className="rounded-lg border border-zinc-600 bg-zinc-900/70 px-4 py-2 text-xs font-semibold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
         >
           {loading ? "Loading…" : `Refresh (${totalDesk} open)`}
         </button>
       </div>
 
       {err ? (
-        <div className="rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-2 text-sm text-red-200">{err}</div>
+        <div className="space-y-2 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">
+          <p className="whitespace-pre-line leading-relaxed">{err}</p>
+          {errHint ? <p className="text-xs leading-relaxed text-red-200/75">{errHint}</p> : null}
+        </div>
       ) : null}
 
       {loading ? (
-        <div className="animate-pulse space-y-3">
+        <div className="animate-pulse space-y-4">
           <div className="h-24 rounded-xl bg-zinc-800/40" />
           <div className="h-24 rounded-xl bg-zinc-800/30" />
         </div>
@@ -262,7 +290,7 @@ export function ModerationStaffQueues() {
         <>
           <div
             id="mod-reports"
-            className={`rounded-xl border border-rose-500/25 bg-gradient-to-br from-rose-950/25 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}
+            className={`rounded-xl border border-rose-500/25 bg-gradient-to-br from-rose-950/25 via-zinc-950/90 to-zinc-950 p-5 ${terminalSurface.panelCard}`}
           >
             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-200/80">Reported calls</h3>
             {callReports.length === 0 ? (
@@ -361,7 +389,7 @@ export function ModerationStaffQueues() {
 
           <div
             id="mod-reports-profiles"
-            className={`rounded-xl border border-fuchsia-500/25 bg-gradient-to-br from-fuchsia-950/20 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}
+            className={`rounded-xl border border-fuchsia-500/25 bg-gradient-to-br from-fuchsia-950/20 via-zinc-950/90 to-zinc-950 p-5 ${terminalSurface.panelCard}`}
           >
             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-200/80">Reported profiles</h3>
             {profileReports.length === 0 ? (
@@ -440,7 +468,7 @@ export function ModerationStaffQueues() {
 
           <div
             id="mod-tp-apps"
-            className={`rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/25 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}
+            className={`rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/25 via-zinc-950/90 to-zinc-950 p-5 ${terminalSurface.panelCard}`}
           >
             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-200/80">Trusted Pro applications</h3>
             {tpApps.length === 0 ? (
@@ -521,7 +549,7 @@ export function ModerationStaffQueues() {
 
           <div
             id="mod-tp-submissions"
-            className={`rounded-xl border border-teal-500/25 bg-gradient-to-br from-teal-950/25 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}
+            className={`rounded-xl border border-teal-500/25 bg-gradient-to-br from-teal-950/25 via-zinc-950/90 to-zinc-950 p-5 ${terminalSurface.panelCard}`}
           >
             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-200/80">Trusted Pro calls (pending)</h3>
             {tpCalls.length === 0 ? (

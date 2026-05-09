@@ -77,6 +77,7 @@ export function StaffStatsRail() {
   const [data, setData] = useState<ModStatsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [errHint, setErrHint] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -126,8 +127,8 @@ export function StaffStatsRail() {
 
   return (
     <aside className="lg:sticky lg:top-20 lg:self-start">
-      <AdminPanel className="p-5 sm:p-6">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-zinc-800/70 pb-4">
+      <AdminPanel className="p-6 sm:p-7">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-zinc-800/70 pb-5">
           <div className="min-w-0">
             <h2 className="text-base font-semibold tracking-tight text-white">Action ledger</h2>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
@@ -147,15 +148,16 @@ export function StaffStatsRail() {
         </div>
 
         {err ? (
-          <p
-            className="mb-4 rounded-xl border border-amber-500/25 bg-amber-950/20 px-3 py-2 text-xs leading-relaxed text-amber-100/90"
+          <div
+            className="mb-5 space-y-2 rounded-xl border border-amber-500/25 bg-amber-950/20 px-4 py-3 text-xs leading-relaxed text-amber-100/90"
             role="alert"
           >
-            {err}
-          </p>
+            <p className="font-semibold text-amber-50/95">{err}</p>
+            {errHint ? <p className="text-amber-100/80">{errHint}</p> : null}
+          </div>
         ) : null}
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           <LedgerStatCard
             title="All staff"
             rangeLabel="Last 30 days"

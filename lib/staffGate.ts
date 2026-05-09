@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
+import { meetsModerationMinTier, moderationStaffForbiddenPayload, resolveHelpTierAsync } from "@/lib/helpRole";
 
 type Fail = { ok: false; response: Response };
 type Ok = { ok: true; discordId: string; tier: "mod" | "admin" };
@@ -14,7 +14,10 @@ export async function requireDashboardStaff(): Promise<Ok | Fail> {
   }
   const tier = await resolveHelpTierAsync(id);
   if (!meetsModerationMinTier(tier)) {
-    return { ok: false, response: Response.json({ error: "Forbidden" }, { status: 403 }) };
+    return {
+      ok: false,
+      response: Response.json(moderationStaffForbiddenPayload(), { status: 403 }),
+    };
   }
   return { ok: true, discordId: id, tier: tier === "admin" ? "admin" : "mod" };
 }
