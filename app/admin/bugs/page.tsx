@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { adminChrome } from "@/lib/roleTierStyles";
 import { useEffect, useMemo, useState } from "react";
 
@@ -119,30 +120,28 @@ export default function AdminBugsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Bug reports</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Closing a bug sends the reporter a bell inbox notification.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {(["open", "triaged", "closed", "all"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setStatus(s)}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                status === s
-                  ? "border-amber-500/35 bg-amber-500/10 text-amber-100 shadow-[0_0_14px_-6px_rgba(245,158,11,0.25)]"
-                  : "border-zinc-800 bg-zinc-950/30 text-zinc-300 hover:border-zinc-700"
-              }`}
-            >
-              {s === "all" ? "All" : s[0].toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-        </div>
-      </header>
+      <AdminPageHeader
+        title="Bug reports"
+        description="Closing a bug sends the reporter a bell inbox notification."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {(["open", "triaged", "closed", "all"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatus(s)}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                  status === s
+                    ? "border-amber-500/35 bg-amber-500/10 text-amber-100 shadow-[0_0_14px_-6px_rgba(245,158,11,0.25)]"
+                    : "border-zinc-800 bg-zinc-950/30 text-zinc-300 hover:border-zinc-700"
+                }`}
+              >
+                {s === "all" ? "All" : s[0].toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {err ? (
         <div className="rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">

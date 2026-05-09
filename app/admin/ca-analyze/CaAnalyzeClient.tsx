@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { adminChrome } from "@/lib/roleTierStyles";
 
 type Evaluation = {
@@ -62,14 +63,16 @@ export function CaAnalyzeClient() {
 
   return (
     <div className="space-y-8" data-tutorial="admin.ca-analyze">
-      <div>
-        <h2 className="text-lg font-semibold text-white">CA analyzer</h2>
-        <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-          Runs a live DexScreener-backed scan on the bot host and applies the same auto-call filter stages
-          (sanity → naming → profile → global → momentum) for the selected profile. Does not post to Discord
-          and ignores dedupe / hourly caps — use it to see why a mint would pass or fail <em>right now</em>.
-        </p>
-      </div>
+      <AdminPageHeader
+        title="CA analyzer"
+        description={
+          <>
+            Runs a live DexScreener-backed scan on the bot host and applies the same auto-call filter stages (sanity →
+            naming → profile → global → momentum) for the selected profile. Does not post to Discord and ignores dedupe /
+            hourly caps — use it to see why a mint would pass or fail <em>right now</em>.
+          </>
+        }
+      />
 
       <AdminPanel className="p-6">
         <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">

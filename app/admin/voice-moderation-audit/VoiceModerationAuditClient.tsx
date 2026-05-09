@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 
 type AuditRow = {
   id: string;
@@ -48,21 +49,20 @@ export function VoiceModerationAuditClient() {
 
   return (
     <div className="space-y-6" data-tutorial="admin.voiceModerationAudit">
-      <div>
-        <h2 className="text-lg font-semibold text-white">Voice moderation audit</h2>
-        <p className="mt-1 text-sm text-zinc-400">
-          Read-only log of successful mute and kick actions from LiveKit room service (mods and
-          admins). Rows are written when the action succeeds; failures appear only in server logs.
-        </p>
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="mt-3 rounded-lg border border-zinc-600/70 bg-zinc-900/80 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
-        >
-          {loading ? "Refreshing…" : "Refresh"}
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Voice moderation audit"
+        description="Read-only log of successful mute and kick actions from LiveKit room service. Rows write only on success; failures appear in server logs."
+        actions={
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="rounded-lg border border-zinc-600/70 bg-zinc-900/80 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
+          >
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        }
+      />
 
       {error ? (
         <p className="rounded-lg border border-red-500/30 bg-red-950/25 px-3 py-2 text-sm text-red-200/95">

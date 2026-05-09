@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AdminPanel, AdminMetric } from "@/app/admin/_components/adminUi";
+import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { adminChrome } from "@/lib/roleTierStyles";
 
 type HealthBody = {
@@ -385,33 +386,36 @@ export function BotAdminClient() {
 
   return (
     <div className="space-y-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <p className={`text-[10px] font-bold uppercase tracking-[0.22em] ${adminChrome.kicker}`}>Discord host</p>
-            <AdminBotStatusPill
-              bootLoading={bootLoading}
-              reachable={reachable}
-              error={error}
-              scanErr={scanErr}
-              thrErr={thrErr}
-            />
-          </div>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Bot controls</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
-            Same process as the McGBot Discord client: health is a public <code className="rounded bg-black/50 px-1 py-0.5 font-mono text-[11px] text-zinc-400">GET /health</code> check.
-            Scanner on/off mirrors <span className="font-medium text-zinc-300">!scanner on</span> /{" "}
-            <span className="font-medium text-zinc-300">!scanner off</span> (Manage Guild on the bot server, or bot owner).
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void refreshAll()}
-          className={`rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition ${adminChrome.btnGhostHover} hover:text-white`}
-        >
-          Refresh all
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Bot controls"
+        badge={
+          <AdminBotStatusPill
+            bootLoading={bootLoading}
+            reachable={reachable}
+            error={error}
+            scanErr={scanErr}
+            thrErr={thrErr}
+          />
+        }
+        description={
+          <>
+            Same process as the McGBot Discord client: health is a public{" "}
+            <code className="rounded bg-black/50 px-1 py-0.5 font-mono text-[11px] text-zinc-400">GET /health</code>{" "}
+            check. Scanner on/off mirrors <span className="font-medium text-zinc-300">!scanner on</span> /{" "}
+            <span className="font-medium text-zinc-300">!scanner off</span> (Manage Guild on the bot server, or bot
+            owner).
+          </>
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() => void refreshAll()}
+            className={`rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition ${adminChrome.btnGhostHover} hover:text-white`}
+          >
+            Refresh all
+          </button>
+        }
+      />
 
       <AdminSection
         kicker="Status"

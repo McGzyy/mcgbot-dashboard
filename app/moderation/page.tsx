@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { ModQueueHomePanel } from "@/app/components/ModQueueHomePanel";
 import { ModerationStaffQueues } from "@/app/components/ModerationStaffQueues";
+import { ModerationDashboardShell } from "@/app/moderation/_components/ModerationDashboardShell";
+import { StaffStatsRail } from "@/app/moderation/StaffStatsRail";
 import { modChrome } from "@/lib/roleTierStyles";
 import { terminalChrome } from "@/lib/terminalDesignTokens";
 
@@ -63,16 +65,30 @@ export default function ModerationPage() {
           </p>
         </header>
 
-        <ModerationStaffQueues />
+        <ModerationDashboardShell>
+          <div className="grid gap-8 xl:grid-cols-[1fr_22rem]">
+            <div className="min-w-0 space-y-12">
+              <div id="mod-live-queue">
+                <ModerationStaffQueues />
+              </div>
 
-        <div className="mt-12">
-          <h2 className={`text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500 ${terminalChrome.headerRule} pb-3`}>
-            Bot · #mod-approvals mirror
-          </h2>
-          <div className="mt-4">
-            <ModQueueHomePanel mode="full" />
+              <div id="mod-calls">
+                <h2
+                  className={`text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500 ${terminalChrome.headerRule} pb-3`}
+                >
+                  Bot · #mod-approvals mirror
+                </h2>
+                <div className="mt-4">
+                  <ModQueueHomePanel mode="full" />
+                </div>
+              </div>
+            </div>
+
+            <div className="hidden xl:block">
+              <StaffStatsRail />
+            </div>
           </div>
-        </div>
+        </ModerationDashboardShell>
       </div>
     </div>
   );

@@ -260,7 +260,10 @@ export function ModerationStaffQueues() {
         </div>
       ) : (
         <>
-          <div className={`rounded-xl border border-rose-500/25 bg-gradient-to-br from-rose-950/25 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}>
+          <div
+            id="mod-reports"
+            className={`rounded-xl border border-rose-500/25 bg-gradient-to-br from-rose-950/25 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}
+          >
             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-200/80">Reported calls</h3>
             {callReports.length === 0 ? (
               <p className="mt-2 text-sm text-zinc-500">No open call reports.</p>
@@ -356,7 +359,10 @@ export function ModerationStaffQueues() {
             )}
           </div>
 
-          <div className={`rounded-xl border border-fuchsia-500/25 bg-gradient-to-br from-fuchsia-950/20 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}>
+          <div
+            id="mod-reports-profiles"
+            className={`rounded-xl border border-fuchsia-500/25 bg-gradient-to-br from-fuchsia-950/20 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}
+          >
             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-200/80">Reported profiles</h3>
             {profileReports.length === 0 ? (
               <p className="mt-2 text-sm text-zinc-500">No open profile reports.</p>
@@ -432,7 +438,10 @@ export function ModerationStaffQueues() {
             )}
           </div>
 
-          <div className={`rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/25 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}>
+          <div
+            id="mod-tp-apps"
+            className={`rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/25 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}
+          >
             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-200/80">Trusted Pro applications</h3>
             {tpApps.length === 0 ? (
               <p className="mt-2 text-sm text-zinc-500">No pending applications.</p>
@@ -510,7 +519,10 @@ export function ModerationStaffQueues() {
             )}
           </div>
 
-          <div className={`rounded-xl border border-teal-500/25 bg-gradient-to-br from-teal-950/25 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}>
+          <div
+            id="mod-tp-submissions"
+            className={`rounded-xl border border-teal-500/25 bg-gradient-to-br from-teal-950/25 via-zinc-950/90 to-zinc-950 p-4 ${terminalSurface.panelCard}`}
+          >
             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-200/80">Trusted Pro calls (pending)</h3>
             {tpCalls.length === 0 ? (
               <p className="mt-2 text-sm text-zinc-500">No pending Trusted Pro posts.</p>

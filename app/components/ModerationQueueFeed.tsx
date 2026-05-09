@@ -29,6 +29,9 @@ type UnifiedCall = { type: "call"; origin: CallOrigin; call: ModQueueCallApprova
 type UnifiedDev = { type: "dev"; dev: ModQueueDevSubmission };
 type UnifiedItem = UnifiedCall | UnifiedDev;
 
+type QueueFilter = "all" | "calls" | "bot" | "community" | "dev";
+type QueueSort = "urgency" | "newest";
+
 function shortAddr(ca: string) {
   const s = ca.trim();
   if (s.length <= 12) return s;
@@ -96,6 +99,53 @@ function buildUnifiedItems(payload: ModQueuePayload): UnifiedItem[] {
   return merged;
 }
 
+function newestScore(item: UnifiedItem): number {
+  if (item.type === "call") {
+    const t = parseMs(item.call.approvalRequestedAt ?? null);
+    return t ?? 0;
+  }
+  const t = parseMs(item.dev.createdAt ?? null);
+  return t ?? 0;
+}
+
+function filterItem(item: UnifiedItem, filter: QueueFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "calls") return item.type === "call";
+  if (filter === "dev") return item.type === "dev";
+  if (filter === "bot") return item.type === "call" && item.origin === "bot";
+  if (filter === "community") return item.type === "call" && item.origin === "user";
+  return true;
+}
+
+function itemSearchText(item: UnifiedItem): string {
+  if (item.type === "call") {
+    return [
+      item.call.contractAddress,
+      item.call.tokenName ?? "",
+      item.call.ticker ?? "",
+      item.call.firstCallerUsername ?? "",
+      item.call.callSourceType ?? "",
+      item.call.chain ?? "",
+      String(item.call.approvalMessageId ?? ""),
+    ]
+      .join(" ")
+      .toLowerCase();
+  }
+  const tags = parseTagsList(item.dev.tags);
+  return [
+    item.dev.id,
+    item.dev.nickname ?? "",
+    item.dev.submitterUsername ?? "",
+    item.dev.submitterId ?? "",
+    formatListField(item.dev.walletAddresses),
+    formatListField(item.dev.coinAddresses),
+    tags.join(" "),
+    item.dev.notes ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
 function loadActivityLog(): ModActivityLogEntry[] {
   if (typeof window === "undefined") return [];
   try {
@@ -155,6 +205,12 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
   const [activityLog, setActivityLog] = useState<ModActivityLogEntry[]>([]);
   const [actingKey, setActingKey] = useState<string | null>(null);
 
+  const [filter, setFilter] = useState<QueueFilter>("all");
+  const [sort, setSort] = useState<QueueSort>("urgency");
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Record<string, { call: ModQueueCallApproval; origin: CallOrigin }>>({});
+  const [bulkBusy, setBulkBusy] = useState(false);
+
   const limit = mode === "full" ? 100 : 8;
   const maxCards = mode === "full" ? 40 : 4;
 
@@ -212,10 +268,29 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
   const total = data?.counts?.total ?? 0;
   const hasItems = !loading && total > 0;
 
-  const orderedItems = useMemo(() => {
+  const allItems = useMemo(() => {
     if (!data?.success) return [];
-    return buildUnifiedItems(data).slice(0, maxCards);
-  }, [data, maxCards]);
+    return buildUnifiedItems(data);
+  }, [data]);
+
+  const orderedItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = allItems.filter((item) => filterItem(item, filter)).filter((item) => (q ? itemSearchText(item).includes(q) : true));
+    const sorted = sort === "newest" ? filtered.slice().sort((a, b) => newestScore(b) - newestScore(a)) : filtered;
+    return sorted.slice(0, maxCards);
+  }, [allItems, filter, maxCards, query, sort]);
+
+  const filteredCounts = useMemo(() => {
+    if (!data?.success) {
+      return { bot: 0, community: 0, calls: 0, dev: 0, total: 0 };
+    }
+    const bot = (data.callApprovals ?? []).length;
+    const community = (data.callApprovalsUser ?? []).length;
+    const dev = (data.devSubmissions ?? []).length;
+    const calls = bot + community;
+    const total = calls + dev;
+    return { bot, community, calls, dev, total };
+  }, [data]);
 
   const appendLog = useCallback((entry: ModActivityLogEntry) => {
     pushActivityLog(entry);
@@ -276,6 +351,58 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
       }
     },
     [appendLog, load]
+  );
+
+  const toggleSelected = useCallback(
+    (call: ModQueueCallApproval, origin: CallOrigin) => {
+      const key = `${origin}:${call.contractAddress.trim()}`;
+      setSelected((prev) => {
+        const next = { ...prev };
+        if (next[key]) delete next[key];
+        else next[key] = { call, origin };
+        return next;
+      });
+    },
+    []
+  );
+
+  const clearSelected = useCallback(() => setSelected({}), []);
+
+  const selectAllVisibleCalls = useCallback(() => {
+    setSelected((prev) => {
+      const next = { ...prev };
+      for (const item of orderedItems) {
+        if (item.type !== "call") continue;
+        const key = `${item.origin}:${item.call.contractAddress.trim()}`;
+        next[key] = { call: item.call, origin: item.origin };
+      }
+      return next;
+    });
+  }, [orderedItems]);
+
+  const bulkDecide = useCallback(
+    async (decision: "approve" | "deny" | "exclude") => {
+      if (bulkBusy) return;
+      const rows = Object.values(selected);
+      if (rows.length === 0) return;
+
+      const ok = window.confirm(
+        `Confirm bulk ${decision} for ${rows.length} call${rows.length === 1 ? "" : "s"}?`
+      );
+      if (!ok) return;
+
+      setBulkBusy(true);
+      try {
+        for (const row of rows) {
+          // eslint-disable-next-line no-await-in-loop
+          await submitCallDecision(row.call, row.origin, decision);
+        }
+        clearSelected();
+      } finally {
+        setBulkBusy(false);
+      }
+    },
+    [bulkBusy, clearSelected, selected, submitCallDecision]
   );
 
   function callShell(origin: CallOrigin) {
@@ -352,6 +479,127 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
         </div>
       </div>
 
+      {mode === "full" && !err && !loading ? (
+        <div className="mt-4 grid gap-3 border-t border-zinc-800/60 pt-4 lg:grid-cols-[1fr_auto] lg:items-start">
+          <div className="space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="flex-1">
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search CA, ticker, user, tags…"
+                  className="h-10 w-full rounded-lg border border-zinc-800/80 bg-black/30 px-3 text-sm text-zinc-200 outline-none transition focus:border-zinc-700 focus:ring-2 focus:ring-amber-500/10"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  Sort
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as QueueSort)}
+                    className="ml-2 h-10 rounded-lg border border-zinc-800/80 bg-black/30 px-2 text-sm text-zinc-200 outline-none transition focus:border-zinc-700"
+                  >
+                    <option value="urgency">Urgency</option>
+                    <option value="newest">Newest</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {(
+                [
+                  { id: "all", label: `All (${filteredCounts.total})` },
+                  { id: "calls", label: `Calls (${filteredCounts.calls})` },
+                  { id: "bot", label: `Bot (${filteredCounts.bot})` },
+                  { id: "community", label: `Community (${filteredCounts.community})` },
+                  { id: "dev", label: `Dev (${filteredCounts.dev})` },
+                ] as const
+              ).map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFilter(f.id)}
+                  className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition ${
+                    filter === f.id
+                      ? "border-amber-500/35 bg-amber-500/10 text-amber-100"
+                      : "border-zinc-800/80 bg-black/20 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+              {query.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="rounded-full border border-zinc-800/80 bg-black/20 px-3 py-1 text-[11px] font-semibold text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                >
+                  Clear search
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {Object.keys(selected).length > 0 ? (
+            <div className="rounded-xl border border-zinc-800/70 bg-black/20 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-zinc-200">
+                  {Object.keys(selected).length} selected
+                </p>
+                <button
+                  type="button"
+                  onClick={clearSelected}
+                  disabled={bulkBusy}
+                  className="rounded-lg border border-zinc-700/70 bg-zinc-900/60 px-2.5 py-1 text-[11px] font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void bulkDecide("approve")}
+                  disabled={bulkBusy}
+                  className="rounded-lg border border-emerald-500/40 bg-emerald-950/35 px-3 py-1.5 text-[11px] font-bold text-emerald-100 hover:bg-emerald-900/35 disabled:opacity-50"
+                >
+                  Bulk approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void bulkDecide("deny")}
+                  disabled={bulkBusy}
+                  className="rounded-lg border border-zinc-700/70 bg-zinc-900/60 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  Bulk deny
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void bulkDecide("exclude")}
+                  disabled={bulkBusy}
+                  className="rounded-lg border border-amber-600/45 bg-amber-950/25 px-3 py-1.5 text-[11px] font-semibold text-amber-100/90 hover:bg-amber-950/40 disabled:opacity-50"
+                >
+                  Bulk exclude
+                </button>
+              </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-zinc-600">
+                Bulk actions apply to calls only (dev roster still handled in Discord).
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={selectAllVisibleCalls}
+                className="rounded-lg border border-zinc-700/70 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"
+              >
+                Select visible calls
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {err ? (
         <div className="mt-3 space-y-2">
           <p className="text-sm leading-relaxed text-red-400/90">{err}</p>
@@ -377,6 +625,8 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
                 ? c.approvalMilestonesTriggered.map(String).join(", ")
                 : "—";
               const busy = actingKey === c.contractAddress.trim();
+              const selKey = `${origin}:${c.contractAddress.trim()}`;
+              const isSelected = Boolean(selected[selKey]);
               return (
                 <div key={`${origin}-${c.contractAddress}-${c.approvalMessageId ?? ""}`} className={callShell(origin)}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -394,6 +644,18 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
                       {origin === "bot" ? "McGBot call" : "Community call"}
                     </span>
                   </div>
+                  {mode === "full" ? (
+                    <label className="mt-2 inline-flex select-none items-center gap-2 text-[11px] text-zinc-500">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelected(c, origin)}
+                        disabled={bulkBusy || busy}
+                        className="h-4 w-4 rounded border-zinc-700 bg-black/40"
+                      />
+                      Select for bulk actions
+                    </label>
+                  ) : null}
                   {expLabel ? (
                     <p
                       className={`mt-2 text-[11px] font-medium ${
@@ -462,7 +724,7 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
                   <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        disabled={busy}
+                        disabled={busy || bulkBusy}
                         onClick={() => void submitCallDecision(c, origin, "approve")}
                         className="rounded-lg border border-emerald-500/40 bg-emerald-950/40 px-3 py-1.5 text-[11px] font-bold text-emerald-100 transition hover:border-emerald-400/60 hover:bg-emerald-900/35 disabled:opacity-50"
                       >
@@ -470,7 +732,7 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
                       </button>
                       <button
                         type="button"
-                        disabled={busy}
+                        disabled={busy || bulkBusy}
                         onClick={() => void submitCallDecision(c, origin, "deny")}
                         className="rounded-lg border border-zinc-600 bg-zinc-900/70 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
                       >
@@ -478,7 +740,7 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
                       </button>
                       <button
                         type="button"
-                        disabled={busy}
+                        disabled={busy || bulkBusy}
                         onClick={() => void submitCallDecision(c, origin, "exclude")}
                         className="rounded-lg border border-amber-600/45 bg-amber-950/25 px-3 py-1.5 text-[11px] font-semibold text-amber-100/90 transition hover:border-amber-500/55 hover:bg-amber-950/40 disabled:opacity-50"
                       >

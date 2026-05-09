@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { adminChrome } from "@/lib/roleTierStyles";
 
 type SubmissionRow = {
@@ -85,16 +86,10 @@ export function SocialFeedAdminClient() {
 
   return (
     <div className="space-y-6" data-tutorial="admin.socialFeed">
-      <div className={`relative overflow-hidden rounded-2xl border ${adminChrome.borderSoft} bg-gradient-to-br ${adminChrome.heroFrom} ${adminChrome.heroVia} ${adminChrome.heroTo} p-6 ${adminChrome.glow}`}>
-        <div className={`pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full ${adminChrome.blob} blur-2xl`} aria-hidden />
-        <div className="relative flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className={`text-[10px] font-bold uppercase tracking-[0.24em] ${adminChrome.kicker}`}>Social feed</p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Source approvals</h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">
-              Moderators can submit accounts from the Social Feed widget. Approving adds the account to the live monitored sources.
-            </p>
-          </div>
+      <AdminPageHeader
+        title="Source approvals"
+        description="Moderators can submit accounts from the Social Feed widget. Approving adds the account to the live monitored sources."
+        actions={
           <button
             type="button"
             onClick={() => void load()}
@@ -102,8 +97,8 @@ export function SocialFeedAdminClient() {
           >
             Refresh
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {err ? (
         <AdminPanel className="border-red-500/25 bg-red-950/20 p-4">

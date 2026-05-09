@@ -268,7 +268,29 @@ export function AdminDashboardShell({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </aside>
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className="min-w-0 flex-1">
+        <div className="mb-6 flex items-center gap-2 text-[11px] text-zinc-500">
+          <Link href="/admin" className="font-semibold text-zinc-300 hover:text-white">
+            Admin
+          </Link>
+          <span aria-hidden>→</span>
+          <span className="truncate">
+            {(() => {
+              for (const g of NAV_GROUPS) {
+                for (const it of g.items) {
+                  const active =
+                    it.href === "/admin"
+                      ? pathname === "/admin"
+                      : pathname === it.href || pathname.startsWith(`${it.href}/`);
+                  if (active) return it.label;
+                }
+              }
+              return "Overview";
+            })()}
+          </span>
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

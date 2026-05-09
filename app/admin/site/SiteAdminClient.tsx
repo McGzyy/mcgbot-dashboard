@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AdminPanel, AdminMetric } from "@/app/admin/_components/adminUi";
+import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { adminChrome } from "@/lib/roleTierStyles";
 
 type Summary = {
@@ -259,25 +260,18 @@ export function SiteAdminClient() {
 
   return (
     <div className="space-y-8">
-      <div
-        className={`relative overflow-hidden rounded-2xl border ${adminChrome.borderSoft} bg-gradient-to-br ${adminChrome.heroFrom} ${adminChrome.heroVia} ${adminChrome.heroTo} p-6 ${adminChrome.glow}`}
-      >
-        <div className={`pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full ${adminChrome.blob} blur-2xl`} />
-        <div className="relative flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className={`text-[10px] font-bold uppercase tracking-[0.24em] ${adminChrome.kicker}`}>Dashboard app</p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Control &amp; surface copy</h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">
-              Read-only deployment fingerprint below. Editable values live in{" "}
-              <code className={`rounded bg-black/40 px-1.5 py-0.5 font-mono text-xs ${adminChrome.code}`}>
-                dashboard_admin_settings
-              </code>{" "}
-              middleware, the membership page, the global banner, and (when set) the stats cutover for leaderboards. The optional{" "}
-              <span className="font-medium text-zinc-300">$1 Stripe test</span> button is configured in{" "}
-              <strong className="font-medium text-zinc-200">Live settings</strong> below (section &quot;Stripe test
-              checkout&quot;).
-            </p>
-          </div>
+      <AdminPageHeader
+        title="Control & surface copy"
+        description={
+          <>
+            Read-only deployment fingerprint below. Editable values live in{" "}
+            <code className={`rounded bg-black/40 px-1.5 py-0.5 font-mono text-xs ${adminChrome.code}`}>
+              dashboard_admin_settings
+            </code>{" "}
+            middleware, the membership page, the global banner, and (when set) the stats cutover for leaderboards.
+          </>
+        }
+        actions={
           <button
             type="button"
             onClick={() => void refreshAll()}
@@ -285,8 +279,8 @@ export function SiteAdminClient() {
           >
             Refresh all
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {error ? (
         <AdminPanel className="border-red-500/25 bg-red-950/20 p-4">

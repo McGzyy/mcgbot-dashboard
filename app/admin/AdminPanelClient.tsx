@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 
 type Row = {
   discord_id: string;
@@ -211,12 +212,10 @@ export function AdminPanelClient() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight text-white">Subscription access</h2>
-        <p className="mt-1 text-sm text-zinc-400">
-          Bypass list in Supabase. Timed entries expire automatically. Env-based IDs still apply — see below.
-        </p>
-      </div>
+      <AdminPageHeader
+        title="Subscription access"
+        description="Manage database and env-based subscription exemptions. Timed entries expire automatically."
+      />
 
       <AdminPanel className="p-5">
         <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">Add exempt user</h2>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 
 type PlanRow = {
   id: string;
@@ -87,29 +88,35 @@ export function SubscriptionPlansAdminClient() {
 
   return (
     <div className="space-y-6" data-tutorial="admin.subscriptionPlans">
-      <div>
-        <h2 className="text-lg font-semibold text-white">Subscription plans</h2>
-        <p className="mt-1 text-sm text-zinc-400">
-          Edit duration, list price, and built-in discounts. Checkout charges{" "}
-          <span className="font-medium text-zinc-200">list price minus discount</span> (then vouchers, if any).
-        </p>
-        <p className="mt-3 rounded-lg border border-zinc-800/85 bg-zinc-800/35 px-3 py-2 text-xs leading-relaxed text-zinc-400">
-          Optional <span className="font-medium text-zinc-200">$1 Stripe test</span> checkout (second button on{" "}
-          <code className="text-zinc-300">/membership</code>) is not configured here — use{" "}
-          <Link href="/admin/site#stripe-test-checkout" className="font-semibold text-[#949cf7] underline-offset-2 hover:underline">
-            Site &amp; flags → Stripe test checkout
-          </Link>
-          .
-        </p>
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="mt-3 rounded-lg border border-zinc-600/70 bg-zinc-900/80 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
-        >
-          {loading ? "Refreshing…" : "Refresh"}
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Subscription plans"
+        description={
+          <>
+            Edit duration, list price, and built-in discounts. Checkout charges{" "}
+            <span className="font-medium text-zinc-200">list price minus discount</span> (then vouchers, if any).
+            <span className="block pt-2 text-xs text-zinc-500">
+              Optional <span className="font-medium text-zinc-200">$1 Stripe test</span> checkout is configured in{" "}
+              <Link
+                href="/admin/site#stripe-test-checkout"
+                className="font-semibold text-[#949cf7] underline-offset-2 hover:underline"
+              >
+                Site &amp; flags → Stripe test checkout
+              </Link>
+              .
+            </span>
+          </>
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="rounded-lg border border-zinc-600/70 bg-zinc-900/80 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
+          >
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        }
+      />
 
       {error ? (
         <p className="rounded-lg border border-red-500/30 bg-red-950/25 px-3 py-2 text-sm text-red-200/95">

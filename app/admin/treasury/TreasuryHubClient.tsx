@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { adminChrome } from "@/lib/roleTierStyles";
 import { solanaClusterFromEnv } from "@/lib/solanaEnv";
 import type { TreasuryHubSnapshot } from "@/lib/treasuryHubSnapshot";
@@ -90,27 +91,25 @@ export function TreasuryHubClient() {
 
   return (
     <div className="space-y-10" data-tutorial="admin.treasury">
-      <div>
-        <p className={`text-[10px] font-bold uppercase tracking-[0.22em] ${adminChrome.kicker}`}>Payments</p>
-        <h2 className="mt-1 text-lg font-semibold text-white">Treasury hub</h2>
-        <p className="mt-1 max-w-3xl text-sm text-zinc-400">
-          Live Solana balances, membership mix, SOL invoice and tip activity, and Stripe balance snapshots. Mod payouts
-          and non-Stripe rails can be wired in as you add data sources.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => void load()}
-            disabled={loading}
-            className={`rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition ${adminChrome.btnGhostHover} hover:text-white disabled:opacity-40`}
-          >
-            {loading ? "Refreshing…" : "Refresh"}
-          </button>
-          {data?.generatedAt ? (
-            <span className="self-center text-xs text-zinc-500">Updated {fmtTime(data.generatedAt)}</span>
-          ) : null}
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Treasury hub"
+        description="Live Solana balances, membership mix, SOL invoice/tip activity, and Stripe balance snapshots."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void load()}
+              disabled={loading}
+              className={`rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition ${adminChrome.btnGhostHover} hover:text-white disabled:opacity-40`}
+            >
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+            {data?.generatedAt ? (
+              <span className="self-center text-xs text-zinc-500">Updated {fmtTime(data.generatedAt)}</span>
+            ) : null}
+          </div>
+        }
+      />
 
       {err ? (
         <AdminPanel className="border border-red-500/35 bg-red-950/25 p-4 text-sm text-red-100">{err}</AdminPanel>

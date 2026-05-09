@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { abbreviateCa, callTimeMs } from "@/lib/callDisplayFormat";
 import { adminChrome } from "@/lib/roleTierStyles";
 import { terminalChrome } from "@/lib/terminalDesignTokens";
@@ -170,23 +171,26 @@ export function CallVisibilityClient() {
 
   return (
     <div className="space-y-8" data-tutorial="admin.call-visibility">
-      <div>
-        <h2 className="text-lg font-semibold text-white">Call visibility (web)</h2>
-        <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-          Remove a tracked mint from <strong className="font-medium text-zinc-200">profiles, stats, activity, and
-          leaderboards</strong> without touching Discord or deleting data. Same behavior as{" "}
-          <code className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-xs text-zinc-300">!hidecall</code> /{" "}
-          <code className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-xs text-zinc-300">!unhidecall</code> on the
-          bot. The mint must still exist in the bot&apos;s tracked-calls list.
-        </p>
-        <p className="mt-2 text-xs text-zinc-500">
-          Staff with mod (not only admin) can also use{" "}
-          <Link href="/moderation" className="font-medium text-cyan-400/90 underline-offset-2 hover:underline">
-            Moderation → Reports
-          </Link>{" "}
-          for the same tool and per–call-report actions.
-        </p>
-      </div>
+      <AdminPageHeader
+        title="Call visibility (web)"
+        description={
+          <>
+            Remove a tracked mint from{" "}
+            <strong className="font-medium text-zinc-200">profiles, stats, activity, and leaderboards</strong> without
+            touching Discord or deleting data. Same behavior as{" "}
+            <code className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-xs text-zinc-300">!hidecall</code> /{" "}
+            <code className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-xs text-zinc-300">!unhidecall</code> on the
+            bot. The mint must still exist in the bot&apos;s tracked-calls list.
+            <span className="block pt-2 text-xs text-zinc-500">
+              Mods can also use{" "}
+              <Link href="/moderation" className="font-medium text-cyan-400/90 underline-offset-2 hover:underline">
+                Moderation → Reports
+              </Link>{" "}
+              for the same tool and per–call-report actions.
+            </span>
+          </>
+        }
+      />
 
       <AdminPanel className="p-6">
         <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
