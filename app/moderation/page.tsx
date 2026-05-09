@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { ModQueueHomePanel } from "@/app/components/ModQueueHomePanel";
 import { ModerationStaffQueues } from "@/app/components/ModerationStaffQueues";
+import { UserCallSuspensionStaffPanel } from "@/app/components/UserCallSuspensionStaffPanel";
 import { ModerationDashboardShell } from "@/app/moderation/_components/ModerationDashboardShell";
 import { StaffStatsRail } from "@/app/moderation/StaffStatsRail";
 import { modChrome } from "@/lib/roleTierStyles";
@@ -87,6 +88,12 @@ export default function ModerationPage() {
               <div id="mod-live-queue">
                 <ModerationStaffQueues />
               </div>
+
+              {canModerate ? (
+                <div id="mod-call-suspensions">
+                  <UserCallSuspensionStaffPanel mode="list" />
+                </div>
+              ) : null}
 
               <div id="mod-calls">
                 <h2

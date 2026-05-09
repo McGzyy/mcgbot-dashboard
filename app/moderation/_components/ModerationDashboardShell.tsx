@@ -20,6 +20,16 @@ const NAV: {
     ),
   },
   {
+    id: "mod-call-suspensions",
+    label: "Call suspensions",
+    description: "Timed call bans",
+    icon: (a) => (
+      <svg className={`h-4 w-4 ${a ? modChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 00-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+      </svg>
+    ),
+  },
+  {
     id: "mod-calls",
     label: "Call approvals",
     description: "McGBot X gate",

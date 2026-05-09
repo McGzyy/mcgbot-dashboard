@@ -1,6 +1,7 @@
 "use client";
 
 import { FollowButton } from "@/app/components/FollowButton";
+import { UserCallSuspensionStaffPanel } from "@/app/components/UserCallSuspensionStaffPanel";
 import { useFollowingIds } from "@/app/hooks/useFollowingIds";
 import {
   abbreviateCa,
@@ -895,6 +896,7 @@ export default function ProfilePageClient() {
   const { addNotification } = useNotifications();
   const isAdmin =
     (session?.user as { helpTier?: string } | undefined)?.helpTier === "admin";
+  const canModerate = session?.user?.canModerate === true;
 
   const { followingIds, setFollowing } = useFollowingIds();
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
@@ -2487,6 +2489,10 @@ export default function ProfilePageClient() {
 
         <aside className="col-span-12 lg:col-span-4">
           <div className="w-full max-w-sm space-y-5 lg:sticky lg:top-24 lg:z-10 lg:ml-auto lg:self-start">
+            {canModerate && resolvedSnowflake && !isOwnProfile ? (
+              <UserCallSuspensionStaffPanel mode="profile" targetDiscordId={resolvedSnowflake} />
+            ) : null}
+
             {isAdmin ? (
               <PanelCard title="Admin tools">
                 <p className="mt-2 text-xs leading-relaxed text-zinc-500">

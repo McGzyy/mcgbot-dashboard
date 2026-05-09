@@ -1189,6 +1189,23 @@ async function handleDeepScanReply(message, contractAddress, withButtons = false
 }
 
 async function handleCallCommand(message, contractAddress, source = 'command') {
+  const authorId = String(message?.author?.id || '').trim();
+  if (authorId) {
+    try {
+      const { isDiscordUserCallSuspended } = require('../utils/userCallSuspensionDb');
+      if (await isDiscordUserCallSuspended(authorId)) {
+        const msg =
+          '⛔ Your ability to make calls is suspended. Contact a moderator if you think this is a mistake.';
+        if (typeof message.reply === 'function') {
+          await message.reply({ content: msg });
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn('[CallSuspension] check failed (fail-open):', e?.message || e);
+    }
+  }
+
   const realData = await runQuickCa(contractAddress);
   const scan = normalizeRealDataToScan(realData);
 
