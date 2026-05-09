@@ -4,13 +4,15 @@ import type { ModQueueCallApproval, ModQueueDevSubmission, ModQueuePayload } fro
 import { dexscreenerTokenUrl, formatListField, formatRelativeTime, parseTagsList } from "@/lib/modUiUtils";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const CARD_HOVER =
   "transition-[box-shadow,border-color,ring-color] duration-200 ease-out hover:border-zinc-600/70 hover:shadow-lg hover:shadow-black/35 hover:ring-1 hover:ring-zinc-700/20";
 
-const LOG_KEY = "mcgbot-mod-queue-activity-v1";
-const MAX_LOG = 80;
+const LOG_KEY_V1 = "mcgbot-mod-queue-activity-v1";
+const LOG_KEY = "mcgbot-mod-queue-activity-v2";
+const MAX_LOG = 120;
 
 type ModActivityOutcome = "approved" | "denied" | "excluded" | "failed";
 
@@ -21,6 +23,8 @@ type ModActivityLogEntry = {
   kind: "call_bot" | "call_user" | "dev";
   subject: string;
   detail?: string;
+  /** Display name when logged from dashboard (optional for older rows). */
+  moderatorName?: string;
 };
 
 type CallOrigin = "bot" | "user";
@@ -68,6 +72,7 @@ function devUrgencyScore(d: ModQueueDevSubmission): number {
   return Math.min(350_000, Math.floor((Date.now() - t) / 1000));
 }
 
+/** Coin/call approvals first (by urgency), then dev roster — matches mod panel workflow. */
 function buildUnifiedItems(payload: ModQueuePayload): UnifiedItem[] {
   const callsBot = (payload.callApprovals ?? []).map((call) => ({ type: "call" as const, origin: "bot" as const, call }));
   const callsUser = (payload.callApprovalsUser ?? []).map((call) => ({
@@ -80,23 +85,7 @@ function buildUnifiedItems(payload: ModQueuePayload): UnifiedItem[] {
   const calls = [...callsBot, ...callsUser].sort((a, b) => callUrgencyScore(b.call) - callUrgencyScore(a.call));
   const devSorted = [...devs].sort((a, b) => devUrgencyScore(b.dev) - devUrgencyScore(a.dev));
 
-  const merged: UnifiedItem[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < calls.length || j < devSorted.length) {
-    const nextCall = calls[i];
-    const nextDev = devSorted[j];
-    if (nextCall && (!nextDev || callUrgencyScore(nextCall.call) >= devUrgencyScore(nextDev.dev))) {
-      merged.push(nextCall);
-      i += 1;
-    } else if (nextDev) {
-      merged.push(nextDev);
-      j += 1;
-    } else {
-      break;
-    }
-  }
-  return merged;
+  return [...calls, ...devSorted];
 }
 
 function newestScore(item: UnifiedItem): number {
@@ -146,10 +135,24 @@ function itemSearchText(item: UnifiedItem): string {
     .toLowerCase();
 }
 
+function migrateLegacySessionLog(): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (localStorage.getItem(LOG_KEY)) return;
+    const raw = sessionStorage.getItem(LOG_KEY_V1);
+    if (!raw) return;
+    localStorage.setItem(LOG_KEY, raw);
+    sessionStorage.removeItem(LOG_KEY_V1);
+  } catch {
+    /* ignore */
+  }
+}
+
 function loadActivityLog(): ModActivityLogEntry[] {
   if (typeof window === "undefined") return [];
+  migrateLegacySessionLog();
   try {
-    const raw = sessionStorage.getItem(LOG_KEY);
+    const raw = localStorage.getItem(LOG_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -174,9 +177,19 @@ function pushActivityLog(entry: ModActivityLogEntry) {
   try {
     const prev = loadActivityLog();
     const next = [entry, ...prev].slice(0, MAX_LOG);
-    sessionStorage.setItem(LOG_KEY, JSON.stringify(next));
+    localStorage.setItem(LOG_KEY, JSON.stringify(next));
   } catch {
     /* ignore quota */
+  }
+}
+
+function clearActivityLog() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(LOG_KEY);
+    sessionStorage.removeItem(LOG_KEY_V1);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -198,6 +211,7 @@ function callSubject(c: ModQueueCallApproval): string {
 }
 
 export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "full" }) {
+  const { data: session } = useSession();
   const [data, setData] = useState<ModQueuePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -205,7 +219,8 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
   const [activityLog, setActivityLog] = useState<ModActivityLogEntry[]>([]);
   const [actingKey, setActingKey] = useState<string | null>(null);
 
-  const [filter, setFilter] = useState<QueueFilter>("all");
+  /** Full moderation page defaults to coin/call rows first; dev roster is one click away. */
+  const [filter, setFilter] = useState<QueueFilter>(() => (mode === "full" ? "calls" : "all"));
   const [sort, setSort] = useState<QueueSort>("urgency");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Record<string, { call: ModQueueCallApproval; origin: CallOrigin }>>({});
@@ -292,9 +307,30 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
     return { bot, community, calls, dev, total };
   }, [data]);
 
-  const appendLog = useCallback((entry: ModActivityLogEntry) => {
-    pushActivityLog(entry);
-    setActivityLog(loadActivityLog());
+  const moderatorLabel = useMemo(() => {
+    const u = session?.user;
+    const name = u?.name?.trim();
+    if (name) return name;
+    const uname = (u as { username?: string } | undefined)?.username?.trim();
+    if (uname) return uname;
+    return undefined;
+  }, [session?.user]);
+
+  const appendLog = useCallback(
+    (entry: ModActivityLogEntry) => {
+      const withMod: ModActivityLogEntry = {
+        ...entry,
+        moderatorName: entry.moderatorName ?? moderatorLabel,
+      };
+      pushActivityLog(withMod);
+      setActivityLog(loadActivityLog());
+    },
+    [moderatorLabel]
+  );
+
+  const wipeActivityLog = useCallback(() => {
+    clearActivityLog();
+    setActivityLog([]);
   }, []);
 
   const submitCallDecision = useCallback(
@@ -429,17 +465,18 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold tracking-wide text-zinc-400">
-            {mode === "full" ? "Active approvals" : "Mod approvals"}
+            {mode === "full" ? "Coin & call approvals" : "Mod approvals"}
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-zinc-500">
             {mode === "full" ? (
               <>
-                Highest-urgency first (deadline, then milestone height, then age). Use{" "}
-                <span className="font-medium text-zinc-400">Approve</span> /{" "}
-                <span className="font-medium text-zinc-400">Deny</span> /{" "}
-                <span className="font-medium text-zinc-400">Exclude</span> for tracked calls. Dev roster
-                reviews still use{" "}
-                <span className="font-medium text-zinc-400">Discord</span> buttons on the message today.
+                <span className="font-medium text-zinc-300">Coin / tracked-call</span> rows are listed first and
+                clear from this view as soon as they are decided or the window closes — use{" "}
+                <span className="font-medium text-zinc-400">Approve</span>,{" "}
+                <span className="font-medium text-zinc-400">Deny</span>, or{" "}
+                <span className="font-medium text-zinc-400">Exclude</span>. Dev roster items stay below; approve/deny
+                still happens in{" "}
+                <span className="font-medium text-zinc-400">Discord</span> on the message.
               </>
             ) : (
               <>
@@ -509,11 +546,11 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
             <div className="flex flex-wrap items-center gap-2">
               {(
                 [
-                  { id: "all", label: `All (${filteredCounts.total})` },
-                  { id: "calls", label: `Calls (${filteredCounts.calls})` },
+                  { id: "calls", label: `Coin / calls (${filteredCounts.calls})` },
                   { id: "bot", label: `Bot (${filteredCounts.bot})` },
                   { id: "community", label: `Community (${filteredCounts.community})` },
                   { id: "dev", label: `Dev (${filteredCounts.dev})` },
+                  { id: "all", label: `All (${filteredCounts.total})` },
                 ] as const
               ).map((f) => (
                 <button
@@ -610,11 +647,34 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
           <div className="h-24 rounded-lg bg-zinc-800/50" />
           <div className="h-24 rounded-lg bg-zinc-800/40" />
         </div>
-      ) : total === 0 ? (
-        <p className="mt-3 text-sm text-zinc-500">Queue is clear — nothing needs review right now.</p>
       ) : (
-        <div className="mt-4 space-y-3">
-          {orderedItems.map((item) => {
+        <div
+          className={
+            mode === "full"
+              ? "mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] xl:grid-cols-[minmax(0,1fr)_19.5rem] lg:items-start lg:gap-6"
+              : "mt-4"
+          }
+        >
+          <div className="min-w-0 space-y-3">
+            {total === 0 ? (
+              <p className="text-sm text-zinc-500">Queue is clear — nothing needs review right now.</p>
+            ) : orderedItems.length === 0 ? (
+              <div className="rounded-xl border border-zinc-800/65 bg-zinc-950/40 px-4 py-3 text-sm leading-relaxed text-zinc-400">
+                <p>
+                  Nothing in this filter right now. Coin approvals disappear from the list as soon as they are decided
+                  or the approval window closes — switch filters or refresh if you expected a row here.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setFilter("all")}
+                  className="mt-3 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100/95 transition hover:border-amber-400/50 hover:bg-amber-500/15"
+                >
+                  Show all pending
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {orderedItems.map((item) => {
             if (item.type === "call") {
               const c = item.call;
               const origin = item.origin;
@@ -627,6 +687,7 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
               const busy = actingKey === c.contractAddress.trim();
               const selKey = `${origin}:${c.contractAddress.trim()}`;
               const isSelected = Boolean(selected[selKey]);
+              const actionPad = mode === "full" ? "py-2.5 text-xs" : "py-1.5 text-[11px]";
               return (
                 <div key={`${origin}-${c.contractAddress}-${c.approvalMessageId ?? ""}`} className={callShell(origin)}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -643,6 +704,34 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
                     >
                       {origin === "bot" ? "McGBot call" : "Community call"}
                     </span>
+                  </div>
+                  <div
+                    className={`mt-3 flex gap-2 ${mode === "full" ? "w-full flex-col sm:flex-row" : "flex-wrap"}`}
+                  >
+                    <button
+                      type="button"
+                      disabled={busy || bulkBusy}
+                      onClick={() => void submitCallDecision(c, origin, "approve")}
+                      className={`rounded-lg border border-emerald-500/45 bg-emerald-950/45 font-bold text-emerald-100 transition hover:border-emerald-400/65 hover:bg-emerald-900/40 disabled:opacity-50 ${actionPad} ${mode === "full" ? "w-full sm:flex-1" : "px-3"}`}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || bulkBusy}
+                      onClick={() => void submitCallDecision(c, origin, "deny")}
+                      className={`rounded-lg border border-zinc-600 bg-zinc-900/75 font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50 ${actionPad} ${mode === "full" ? "w-full sm:flex-1" : "px-3"}`}
+                    >
+                      Deny
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || bulkBusy}
+                      onClick={() => void submitCallDecision(c, origin, "exclude")}
+                      className={`rounded-lg border border-amber-600/50 bg-amber-950/30 font-semibold text-amber-100/95 transition hover:border-amber-500/60 hover:bg-amber-950/45 disabled:opacity-50 ${actionPad} ${mode === "full" ? "w-full sm:flex-1" : "px-3"}`}
+                    >
+                      Exclude
+                    </button>
                   </div>
                   {mode === "full" ? (
                     <label className="mt-2 inline-flex select-none items-center gap-2 text-[11px] text-zinc-500">
@@ -721,32 +810,6 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
                       Dexscreener
                     </a>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={busy || bulkBusy}
-                        onClick={() => void submitCallDecision(c, origin, "approve")}
-                        className="rounded-lg border border-emerald-500/40 bg-emerald-950/40 px-3 py-1.5 text-[11px] font-bold text-emerald-100 transition hover:border-emerald-400/60 hover:bg-emerald-900/35 disabled:opacity-50"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busy || bulkBusy}
-                        onClick={() => void submitCallDecision(c, origin, "deny")}
-                        className="rounded-lg border border-zinc-600 bg-zinc-900/70 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
-                      >
-                        Deny
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busy || bulkBusy}
-                        onClick={() => void submitCallDecision(c, origin, "exclude")}
-                        className="rounded-lg border border-amber-600/45 bg-amber-950/25 px-3 py-1.5 text-[11px] font-semibold text-amber-100/90 transition hover:border-amber-500/55 hover:bg-amber-950/40 disabled:opacity-50"
-                      >
-                        Exclude
-                      </button>
-                    </div>
                 </div>
               );
             }
@@ -806,46 +869,83 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
                 </div>
               </div>
             );
-          })}
+                })}
+              </div>
+            )}
+          </div>
+
+          {mode === "full" ? (
+            <aside
+              id="mod-action-log"
+              className={`mt-6 shrink-0 lg:mt-0 lg:sticky lg:top-20 ${terminalSurface.panelCard} rounded-xl border px-3 py-3`}
+              aria-label="Moderation action log"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/60 pb-2">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Mod log</h3>
+                <button
+                  type="button"
+                  onClick={wipeActivityLog}
+                  disabled={activityLog.length === 0}
+                  className="rounded-md border border-zinc-700/80 bg-zinc-900/60 px-2 py-1 text-[10px] font-semibold text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-200 disabled:opacity-40"
+                >
+                  Clear log
+                </button>
+              </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-zinc-600">
+                Dashboard approve / deny / exclude from this page. Rows are stored on this browser (local); use Clear
+                when you want a fresh panel. Queue cards vanish after a decision — this log is the paper trail here.
+              </p>
+              {activityLog.length === 0 ? (
+                <p className="mt-3 text-xs text-zinc-500">No actions yet this session.</p>
+              ) : (
+                <ul className="mt-3 max-h-[min(28rem,55vh)] space-y-1.5 overflow-y-auto text-[11px] leading-snug text-zinc-400">
+                  {activityLog.map((row) => {
+                    const tone =
+                      row.outcome === "approved"
+                        ? "text-emerald-300/90"
+                        : row.outcome === "denied"
+                          ? "text-zinc-400"
+                          : row.outcome === "excluded"
+                            ? "text-amber-200/85"
+                            : row.outcome === "failed"
+                              ? "text-red-300/85"
+                              : "text-zinc-400";
+                    const kind =
+                      row.kind === "call_bot"
+                        ? "Bot"
+                        : row.kind === "call_user"
+                          ? "Community"
+                          : row.kind === "dev"
+                            ? "Dev"
+                            : "";
+                    return (
+                      <li key={row.id} className="border-b border-zinc-800/40 pb-2 last:border-0 last:pb-0">
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                          <span className="shrink-0 tabular-nums text-zinc-600">
+                            {new Date(row.ts).toLocaleString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                          <span className={`shrink-0 font-semibold uppercase ${tone}`}>{row.outcome}</span>
+                          <span className="text-zinc-600">{kind}</span>
+                        </div>
+                        <p className="mt-0.5 font-medium text-zinc-300">{row.subject}</p>
+                        {row.moderatorName ? (
+                          <p className="mt-0.5 text-[10px] text-zinc-500">by {row.moderatorName}</p>
+                        ) : null}
+                        {row.detail ? <p className="mt-0.5 text-[10px] text-zinc-500">{row.detail}</p> : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </aside>
+          ) : null}
         </div>
       )}
-
-      {mode === "full" && activityLog.length > 0 ? (
-        <div className="mt-6 border-t border-zinc-800/70 pt-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Recent actions (this browser)</h3>
-          <p className="mt-1 text-[11px] text-zinc-600">
-            Logged when you use buttons here; clearing site data removes history. Expired items that drop off the
-            queue on refresh are not listed unless the server returns an error you confirm.
-          </p>
-          <ul className="mt-2 max-h-52 space-y-1 overflow-y-auto text-[11px] leading-snug text-zinc-400">
-            {activityLog.map((row) => {
-              const tone =
-                row.outcome === "approved"
-                  ? "text-emerald-300/90"
-                  : row.outcome === "denied"
-                    ? "text-zinc-400"
-                    : row.outcome === "excluded"
-                      ? "text-amber-200/85"
-                      : row.outcome === "failed"
-                        ? "text-red-300/85"
-                        : "text-zinc-400";
-              const kind =
-                row.kind === "call_bot" ? "Bot" : row.kind === "call_user" ? "Community" : row.kind === "dev" ? "Dev" : "";
-              return (
-                <li key={row.id} className="flex flex-wrap gap-x-2 border-b border-zinc-800/40 py-1 last:border-0">
-                  <span className="shrink-0 tabular-nums text-zinc-600">
-                    {new Date(row.ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                  <span className={`shrink-0 font-semibold uppercase ${tone}`}>{row.outcome}</span>
-                  <span className="text-zinc-600">{kind}</span>
-                  <span className="min-w-0 text-zinc-300">{row.subject}</span>
-                  {row.detail ? <span className="w-full text-zinc-500">· {row.detail}</span> : null}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
     </div>
   );
 }

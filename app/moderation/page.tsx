@@ -51,10 +51,9 @@ export default function ModerationPage() {
           <p className={`text-[10px] font-semibold uppercase tracking-[0.28em] ${modChrome.kicker}`}>Staff</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Moderation queue</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-            One place for staff: <span className="font-medium text-zinc-200">Supabase-backed desks</span> (reports,
-            Trusted Pro applications, Trusted Pro longform) and the bot&apos;s{" "}
-            <span className="font-medium text-zinc-200">#mod-approvals</span> mirror (tracked-call milestones + dev
-            roster).
+            <span className="font-medium text-zinc-200">Coin &amp; call approvals</span> from{" "}
+            <span className="font-medium text-zinc-200">#mod-approvals</span> are at the top, then Supabase desks
+            (reports, Trusted Pro applications, Trusted Pro longform).
           </p>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-zinc-600">
             Voice moderation audit and bug triage stay under{" "}
@@ -85,8 +84,17 @@ export default function ModerationPage() {
         <ModerationDashboardShell>
           <div className="grid gap-10 xl:grid-cols-[1fr_22rem] xl:gap-14">
             <div className="min-w-0 space-y-14">
-              <div id="mod-live-queue">
-                <ModerationStaffQueues />
+              <div id="mod-calls">
+                <h2
+                  className={`text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500 ${terminalChrome.headerRule} pb-4`}
+                >
+                  Coin &amp; call approvals · #mod-approvals
+                </h2>
+                <p className="mb-6 max-w-2xl text-xs leading-relaxed text-zinc-500">
+                  Work the coin queue first — rows drop off after you decide or when the window expires. Dev roster
+                  cards sit below the call list inside this panel; use Discord buttons there.
+                </p>
+                <ModQueueHomePanel mode="full" />
               </div>
 
               {canModerate ? (
@@ -95,15 +103,8 @@ export default function ModerationPage() {
                 </div>
               ) : null}
 
-              <div id="mod-calls">
-                <h2
-                  className={`text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500 ${terminalChrome.headerRule} pb-4`}
-                >
-                  Bot · #mod-approvals mirror
-                </h2>
-                <div className="mt-6">
-                  <ModQueueHomePanel mode="full" />
-                </div>
+              <div id="mod-live-queue">
+                <ModerationStaffQueues />
               </div>
             </div>
 
