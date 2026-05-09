@@ -1,3 +1,4 @@
+import { clampAthMultipleForStats } from "@/lib/callPerformanceMultiples";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -45,7 +46,7 @@ export async function GET() {
     for (const r of rows) {
       const mc = Number(r.call_market_cap_usd);
       if (Number.isFinite(mc) && mc > 0) mcs.push(mc);
-      const ath = Number(r.ath_multiple);
+      const ath = clampAthMultipleForStats(Number(r.ath_multiple));
       if (Number.isFinite(ath) && ath > 0) {
         aths.push(ath);
         if (bestAth == null || ath > bestAth) bestAth = ath;
