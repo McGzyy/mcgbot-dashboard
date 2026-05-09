@@ -17,6 +17,20 @@ function formatVerifiedAt(iso: string | null): string {
   }).format(t);
 }
 
+function formatSol(n: number | null): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  if (n >= 1000) return `${(n / 1000).toFixed(2)}k`;
+  if (n >= 1) return n.toFixed(3).replace(/\.?0+$/, "");
+  return n.toFixed(4).replace(/\.?0+$/, "");
+}
+
+function formatUsdc(n: number | null): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(2)}k`;
+  return n.toFixed(2);
+}
+
 export type WalletAccountPanelProps = {
   /** Close parent popover before opening the wallet picker modal. */
   onBeforeWalletModal?: () => void;
@@ -24,12 +38,17 @@ export type WalletAccountPanelProps = {
   onDisconnected?: () => void;
   /** Optional heading copy; omit top label when nested in another titled card. */
   showHeading?: boolean;
+  /** Optional balances snapshot to show in the panel (SOL/USDC). */
+  balances?: { sol: number | null; usdc: number | null } | null;
+  balancesLoading?: boolean;
 };
 
 export function WalletAccountPanel({
   onBeforeWalletModal,
   onDisconnected,
   showHeading = true,
+  balances = null,
+  balancesLoading = false,
 }: WalletAccountPanelProps) {
   const { status } = useSession();
   const { linked, refresh } = useDashboardWallet();
@@ -155,6 +174,26 @@ export function WalletAccountPanel({
           Connected wallet differs from your linked address. Switch accounts in your wallet app, disconnect and reconnect,
           or verify a new wallet to replace the link.
         </p>
+      ) : null}
+
+      {linked ? (
+        <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-zinc-800/80 bg-black/25 p-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase text-zinc-500">SOL</p>
+            <p className="text-sm font-semibold tabular-nums text-emerald-200/95">
+              {balancesLoading ? "…" : formatSol(balances?.sol ?? null)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase text-zinc-500">USDC</p>
+            <p className="text-sm font-semibold tabular-nums text-zinc-100">
+              {balancesLoading ? "…" : formatUsdc(balances?.usdc ?? null)}
+            </p>
+          </div>
+          <p className="col-span-2 text-[10px] text-zinc-500">
+            Balances are read from chain and may lag briefly.
+          </p>
+        </div>
       ) : null}
 
       <div className={`flex flex-wrap gap-2 ${showHeading ? "mt-4" : "mt-3"}`}>

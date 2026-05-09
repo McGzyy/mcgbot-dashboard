@@ -24,13 +24,6 @@ function formatSol(n: number | null): string {
   return n.toFixed(4).replace(/\.?0+$/, "");
 }
 
-function formatUsdc(n: number | null): string {
-  if (n == null || !Number.isFinite(n)) return "—";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(2)}k`;
-  return n.toFixed(2);
-}
-
 type Balances = { sol: number | null; usdc: number | null };
 
 export function LinkedWalletCluster() {
@@ -192,31 +185,12 @@ export function LinkedWalletCluster() {
 
           <div className="mt-3" role="tabpanel">
             {tab === "Home" ? (
-              <>
-                <WalletAccountPanel
-                  onBeforeWalletModal={() => setOpen(false)}
-                  onDisconnected={() => setOpen(false)}
-                />
-                {linked ? (
-                  <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-zinc-800/80 bg-black/25 p-3">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase text-zinc-500">SOL</p>
-                      <p className="text-sm font-semibold tabular-nums text-emerald-200/95">
-                        {balLoading ? "…" : formatSol(balances?.sol ?? null)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase text-zinc-500">USDC</p>
-                      <p className="text-sm font-semibold tabular-nums text-zinc-100">
-                        {balLoading ? "…" : formatUsdc(balances?.usdc ?? null)}
-                      </p>
-                    </div>
-                    <p className="col-span-2 text-[10px] text-zinc-500">
-                      Balances are read from chain and may lag briefly.
-                    </p>
-                  </div>
-                ) : null}
-              </>
+              <WalletAccountPanel
+                onBeforeWalletModal={() => setOpen(false)}
+                onDisconnected={() => setOpen(false)}
+                balances={balances}
+                balancesLoading={balLoading}
+              />
             ) : tab === "PnL" ? (
               <WalletBalanceHistoryChart chartWidth={260} chartHeight={56} />
             ) : (
