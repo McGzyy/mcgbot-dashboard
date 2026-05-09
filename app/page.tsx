@@ -3999,7 +3999,7 @@ export default function Home() {
   const showTrendingWidget = widgetEnabled(widgets, "trending");
 
   return (
-    <div className="mx-auto max-w-[1200px] px-1 sm:px-0 xl:pr-[22rem]" data-tutorial="dashboard.tutorialWelcome">
+    <div className="mx-auto max-w-[1200px] px-1 sm:px-0" data-tutorial="dashboard.tutorialWelcome">
       <div className="space-y-8" data-tutorial="dashboard.pageIntro">
       <div className="mb-8" data-tutorial="dashboard.performanceChart">
         <PerformanceChart refreshNonce={homeDataRefreshNonce} />
@@ -4481,7 +4481,7 @@ export default function Home() {
       </div>
 
       {widgetEnabled(widgets, "live_tracked_calls") ? (
-        <div className="hidden xl:block fixed right-4 top-20 z-[40] w-[20rem]">
+        <div className="hidden xl:block fixed right-4 top-24 z-[40] w-[20rem]">
           <DashboardWalletModule />
         </div>
       ) : null}
