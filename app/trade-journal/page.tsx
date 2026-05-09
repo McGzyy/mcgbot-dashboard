@@ -468,7 +468,7 @@ export default function TradeJournalPage() {
 
       {editor.open ? (
         <div
-          className="fixed inset-0 z-[100] flex min-h-[100dvh] items-center justify-center overflow-y-auto bg-black/65 px-4 py-10 sm:py-14"
+          className="fixed inset-0 z-[200] flex min-h-[100dvh] items-center justify-center overflow-y-auto bg-black/65 px-4 pb-10 pt-24 sm:pb-14 sm:pt-28"
           role="dialog"
           aria-modal="true"
           aria-label={editor.mode === "create" ? "New journal entry" : "Edit journal entry"}
