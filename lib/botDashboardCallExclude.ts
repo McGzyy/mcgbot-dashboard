@@ -1,8 +1,10 @@
+import fs from "node:fs";
+import path from "node:path";
 import { createRequire } from "node:module";
 import { createModServiceSupabase } from "@/lib/modStaffAuth";
 import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
 
-const require = createRequire(import.meta.url);
+const pkgRequire = createRequire(path.join(process.cwd(), "package.json"));
 
 type TrackedCallsService = {
   initTrackedCallsStore: () => Promise<void>;
@@ -19,8 +21,36 @@ type TrackedCallsService = {
   ) => boolean | null;
 };
 
-export function getBotTrackedCallsService(): TrackedCallsService {
-  return require("../utils/trackedCallsService.js") as TrackedCallsService;
+/** Monorepo layout: `mcgbot-dashboard/` next to repo root `utils/`. */
+function resolveTrackedCallsServiceAbs(): string | null {
+  const cwd = process.cwd();
+  const candidates = [
+    path.resolve(cwd, "..", "utils", "trackedCallsService.js"),
+    path.resolve(cwd, "utils", "trackedCallsService.js"),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+/**
+ * Load the bot host's tracked-calls module when the dashboard runs in the monorepo.
+ * Returns null on deploys without that file — exclude/restore still updates Supabase.
+ */
+export function getBotTrackedCallsService(): TrackedCallsService | null {
+  const abs = resolveTrackedCallsServiceAbs();
+  if (!abs) return null;
+  try {
+    return pkgRequire(abs) as TrackedCallsService;
+  } catch (e) {
+    console.error("[botDashboardCallExclude] require(trackedCallsService):", e);
+    return null;
+  }
 }
 
 export type DashboardBotCallExcludeResult = {
@@ -40,7 +70,7 @@ export async function applyDashboardBotCallExclude(params: {
   reason?: string | null;
   /** When false, skip touching trackedCallsService (bulk caller already inited). */
   initTrackedStore?: boolean;
-  service?: TrackedCallsService;
+  service?: TrackedCallsService | null;
   /** Reuse service-role client across bulk updates. */
   supabase?: ReturnType<typeof createModServiceSupabase>;
 }): Promise<DashboardBotCallExcludeResult> {
@@ -49,22 +79,23 @@ export async function applyDashboardBotCallExclude(params: {
   const moderatedById = params.moderatedById;
   const moderatedByUsername = params.moderatedByUsername;
   const service = params.service ?? getBotTrackedCallsService();
-  if (params.initTrackedStore !== false) {
-    await service.initTrackedCallsStore();
-  }
 
-  const trackedUpdated = service.setApprovalStatus(ca, excluded ? "excluded" : "none", {
-    excludedFromStats: excluded,
-    moderatedById,
-    moderatedByUsername,
-    moderationTags: excluded ? ["dashboard_exclude"] : [],
-    moderationNotes:
-      typeof params.reason === "string" && params.reason.trim()
-        ? params.reason.trim().slice(0, 500)
-        : excluded
-          ? "Excluded from bot calls page"
-          : "Restored on bot calls page",
-  });
+  let trackedUpdated: boolean | null = null;
+  if (params.initTrackedStore !== false && service) {
+    await service.initTrackedCallsStore();
+    trackedUpdated = service.setApprovalStatus(ca, excluded ? "excluded" : "none", {
+      excludedFromStats: excluded,
+      moderatedById,
+      moderatedByUsername,
+      moderationTags: excluded ? ["dashboard_exclude"] : [],
+      moderationNotes:
+        typeof params.reason === "string" && params.reason.trim()
+          ? params.reason.trim().slice(0, 500)
+          : excluded
+            ? "Excluded from bot calls page"
+            : "Restored on bot calls page",
+    });
+  }
 
   const nowIso = new Date().toISOString();
   const db = params.supabase ?? createModServiceSupabase();

@@ -55,7 +55,9 @@ export async function POST(request: Request) {
     const supabase = createModServiceSupabase();
 
     const service = getBotTrackedCallsService();
-    await service.initTrackedCallsStore();
+    if (service) {
+      await service.initTrackedCallsStore();
+    }
 
     const results: Awaited<ReturnType<typeof applyDashboardBotCallExclude>>[] = [];
     for (const ca of callCas) {
