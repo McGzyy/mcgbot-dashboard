@@ -238,7 +238,8 @@ function callTimeIso(callTime: unknown): string | null {
 }
 
 export default function BotCallsPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const isAdmin = (session?.user as { helpTier?: string } | undefined)?.helpTier === "admin";
   const { addNotification } = useNotifications();
   const { openTokenChart } = useTokenChartModal();
   const [timeWindow, setTimeWindow] = useState<(typeof WINDOWS)[number]["id"]>("24h");
@@ -274,6 +275,8 @@ export default function BotCallsPage() {
   const [excludingBulk, setExcludingBulk] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalCall, setTerminalCall] = useState<TapeRow | null>(null);
+  const [resetCallsConfirmOpen, setResetCallsConfirmOpen] = useState(false);
+  const [resetCallsSubmitting, setResetCallsSubmitting] = useState(false);
 
   const submitCallReport = useCallback(async () => {
     if (!reportCall?.id) return;
@@ -520,6 +523,60 @@ export default function BotCallsPage() {
     },
     [addNotification, excludingCallCa, load]
   );
+
+  const resetAllBotCallsStats = useCallback(async () => {
+    if (resetCallsSubmitting) return;
+    setResetCallsSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/bot-calls/reset-stats", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        rowsUpdated?: number | null;
+      };
+      if (!res.ok || json.success !== true) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text:
+            typeof json.error === "string" && json.error.trim()
+              ? json.error
+              : res.status === 403
+                ? "Admins only."
+                : `Reset failed (${res.status}).`,
+          type: "call",
+          createdAt: Date.now(),
+          priority: "low",
+        });
+        return;
+      }
+      const n = json.rowsUpdated;
+      addNotification({
+        id: crypto.randomUUID(),
+        text:
+          typeof n === "number"
+            ? `Excluded ${n} bot call row(s) from stats (all windows). They will stay out of leaderboards until individually restored.`
+            : "All bot calls were excluded from stats (all windows).",
+        type: "call",
+        createdAt: Date.now(),
+        priority: "medium",
+      });
+      setResetCallsConfirmOpen(false);
+      await load();
+    } catch {
+      addNotification({
+        id: crypto.randomUUID(),
+        text: "Could not reach the server to reset bot calls.",
+        type: "call",
+        createdAt: Date.now(),
+        priority: "low",
+      });
+    } finally {
+      setResetCallsSubmitting(false);
+    }
+  }, [addNotification, load, resetCallsSubmitting]);
 
   const excludeBotCallsBulk = useCallback(
     async (cas: string[], excluded: boolean) => {
@@ -804,6 +861,17 @@ export default function BotCallsPage() {
               title="Restore every excluded call on this page for stats"
             >
               Restore all on page
+            </button>
+          ) : null}
+          {isAdmin ? (
+            <button
+              type="button"
+              onClick={() => setResetCallsConfirmOpen(true)}
+              disabled={resetCallsSubmitting || loading}
+              className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:border-amber-400/55 hover:bg-amber-500/15 disabled:opacity-50"
+              title="Exclude every bot call_performance row from stats (entire history, not just this page)"
+            >
+              Reset calls
             </button>
           ) : null}
         </div>
@@ -1279,6 +1347,62 @@ export default function BotCallsPage() {
                 }`}
               >
                 {excludingCallCa === excludeConfirm.ca ? "Working…" : excludeConfirm.excludedNext ? "Exclude" : "Restore"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {resetCallsConfirmOpen ? (
+        <div
+          className={terminalUi.modalBackdropZ100}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm reset all bot calls for stats"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !resetCallsSubmitting) setResetCallsConfirmOpen(false);
+          }}
+        >
+          <div className={terminalUi.modalPanelXl}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">Reset all bot calls (stats)</h3>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                  This excludes <span className="font-medium text-zinc-300">every</span> bot{" "}
+                  <span className="font-mono text-zinc-400">call_performance</span> row from public stats and
+                  leaderboards—across all time windows, not only the rows on this page. The tape can still show calls;
+                  use “Restore” on a row to count it again. The live bot will not flip these exclusions back on sync.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !resetCallsSubmitting && setResetCallsConfirmOpen(false)}
+                disabled={resetCallsSubmitting}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/25 disabled:opacity-50"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => !resetCallsSubmitting && setResetCallsConfirmOpen(false)}
+                disabled={resetCallsSubmitting}
+                className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void resetAllBotCallsStats()}
+                disabled={resetCallsSubmitting}
+                className="rounded-md border border-amber-500/45 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/25 disabled:opacity-60"
+              >
+                {resetCallsSubmitting ? "Resetting…" : "Reset all bot calls"}
               </button>
             </div>
           </div>
