@@ -16,6 +16,7 @@ import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { FollowButton } from "./components/FollowButton";
 import { UserBadgeIcons } from "./components/UserBadgeIcons";
 import DashboardWalletModule from "./components/DashboardWalletModule";
+import { SubscriptionExemptAdminPanel } from "./components/SubscriptionExemptAdminPanel";
 import PerformanceChart from "@/components/dashboard/PerformanceChart";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
@@ -3998,7 +3999,7 @@ export default function Home() {
   const showTrendingWidget = widgetEnabled(widgets, "trending");
 
   return (
-    <div className="mx-auto max-w-[1200px] px-1 sm:px-0" data-tutorial="dashboard.tutorialWelcome">
+    <div className="mx-auto max-w-[1200px] px-1 sm:px-0 xl:pr-[22rem]" data-tutorial="dashboard.tutorialWelcome">
       <div className="space-y-8" data-tutorial="dashboard.pageIntro">
       <div className="mb-8" data-tutorial="dashboard.performanceChart">
         <PerformanceChart refreshNonce={homeDataRefreshNonce} />
@@ -4290,10 +4291,6 @@ export default function Home() {
             </PanelCard>
           )}
 
-          <div data-tutorial="dashboard.walletModule">
-            {widgetEnabled(widgets, "live_tracked_calls") && <DashboardWalletModule />}
-          </div>
-
           <PanelCard title="Watchlist" titleClassName="normal-case" data-tutorial="dashboard.homeWatchlist">
             <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
               <span className="tabular-nums">
@@ -4376,6 +4373,12 @@ export default function Home() {
           {(helpTier === "mod" || helpTier === "admin") && (
             <div data-tutorial="dashboard.modQueue">
               <ModQueueHomePanel />
+            </div>
+          )}
+
+          {helpTier === "admin" && (
+            <div data-tutorial="dashboard.subscriptionExempt">
+              <SubscriptionExemptAdminPanel />
             </div>
           )}
 
@@ -4476,6 +4479,12 @@ export default function Home() {
         </div>
       </div>
       </div>
+
+      {widgetEnabled(widgets, "live_tracked_calls") ? (
+        <div className="hidden xl:block fixed right-4 top-20 z-[40] w-[20rem]">
+          <DashboardWalletModule />
+        </div>
+      ) : null}
 
       <ActivityPopup
         item={activityPopupItem}
