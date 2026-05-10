@@ -58,16 +58,17 @@ export default function LoungeDiscordChatsPage() {
   }
 
   return (
-    <div className="relative mx-auto flex min-h-[calc(100dvh-6rem)] w-full max-w-5xl flex-col px-3 pb-12 pt-2 sm:px-5">
+    <div className="relative mx-auto flex min-h-[calc(100dvh-6rem)] w-full max-w-[1400px] flex-col px-3 pb-12 pt-2 sm:px-6">
       <div
-        className="pointer-events-none absolute left-1/2 top-0 h-[min(40vh,320px)] w-[min(100%,900px)] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.09),transparent_70%)]"
+        className="pointer-events-none absolute left-1/2 top-0 h-[min(42vh,360px)] w-[min(100%,1100px)] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.07),transparent_72%)]"
         aria-hidden
       />
-      <header className={`relative mb-6 shrink-0 ${terminalChrome.headerRule} pb-5`}>
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--accent)]/80">Community</p>
-        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Discord Chats</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">
-          Read-only view of configured channels — click a display name to open the member&apos;s dashboard profile.
+      <header className={`relative mb-5 shrink-0 sm:mb-6 ${terminalChrome.headerRule} pb-4 sm:pb-5`}>
+        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[color:var(--accent)]/75">Lounge</p>
+        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Discord chats</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+          Mirror of your server channels. Your messages are highlighted; switch channels from the strip on small
+          screens or the preview column on desktop.
         </p>
       </header>
 
