@@ -97,34 +97,23 @@ function SidebarBody({
 
   return (
     <>
-      <div className="border-b border-zinc-800 px-4 py-4">
+      <div className="border-b border-zinc-800 px-4 py-3">
         <Link
           href="/"
           onClick={pick}
           data-tutorial="sidebar.logo"
-          className="group flex items-center gap-3 rounded-xl p-1 transition-colors hover:bg-white/[0.03]"
-          aria-label="Go to dashboard"
+          className="group flex items-center rounded-xl px-1 py-1 transition-colors hover:bg-white/[0.03]"
+          aria-label="McGBot Terminal — go to dashboard"
         >
-          <div className="relative h-14 w-14 bg-transparent">
+          <div className="relative h-9 w-full min-w-0 sm:h-10">
             <Image
-              src="/brand/mcgbot-logo-v2.png"
-              alt="McGBot"
+              src="/brand/mcgbot-terminal-logo.png"
+              alt="McGBot Terminal"
               fill
-              sizes="56px"
+              sizes="(max-width: 1024px) 260px, 280px"
               priority
-              className="object-contain"
+              className="object-contain object-left"
             />
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-zinc-50">
-              McGBot
-            </div>
-            <div className="mt-0.5 flex items-center gap-2">
-              <span className="text-[11px] font-medium uppercase tracking-[0.22em] text-zinc-500">
-                Terminal
-              </span>
-              <span className="h-1 w-1 rounded-full bg-sky-400/75 shadow-[0_0_6px_rgba(56,189,248,0.45)]" aria-hidden />
-            </div>
           </div>
         </Link>
       </div>
