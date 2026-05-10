@@ -1,6 +1,8 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { readCopyTradePagePublicEnabled } from "@/lib/dashboardKv";
 import {
+  copyTradeStaffBypass,
   evaluateCopyTradeAccess,
   fetchUserCopyTradeAccessRow,
 } from "@/lib/copyTrade/copyTradeAccess";
@@ -20,6 +22,13 @@ export async function POST() {
 
     const db = getSupabaseAdmin();
     if (!db) return Response.json({ error: "Database not configured" }, { status: 503 });
+
+    if (!copyTradeStaffBypass(helpTier)) {
+      const pageOpen = await readCopyTradePagePublicEnabled(db);
+      if (!pageOpen) {
+        return Response.json({ error: "Copy trade is not available yet." }, { status: 403 });
+      }
+    }
 
     const row = await fetchUserCopyTradeAccessRow(db, uid);
     const gate = evaluateCopyTradeAccess({ helpTier, user: row });

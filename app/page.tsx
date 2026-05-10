@@ -476,7 +476,7 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
               Elite call tracking, performance, and community boards.
             </h1>
             <p className="mt-4 text-sm leading-relaxed text-zinc-400">
-              Log in with Discord to unlock your Call Log, Performance Lab, Watchlist, and pro-grade leaderboards.
+              Log in with Discord to unlock My Call Log, Performance Lab, Watchlist, and pro-grade leaderboards.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
@@ -4431,7 +4431,7 @@ export default function Home() {
                   href="/calls"
                   className="text-xs font-semibold text-zinc-200 hover:text-white"
                 >
-                  Open call log →
+                  Open My Call Log →
                 </Link>
               </div>
             </PanelCard>

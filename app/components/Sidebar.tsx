@@ -36,6 +36,14 @@ function sessionAdminNav(session: ReturnType<typeof useSession>["data"]): boolea
   return session?.user?.helpTier === "admin";
 }
 
+/** Admin/mod roles only (JWT or `/api/me/help-role`); not the same as `canModerate`. */
+function copyTradeNavStaff(session: ReturnType<typeof useSession>["data"], apiRole: string | null): boolean {
+  const t = session?.user?.helpTier;
+  if (t === "admin" || t === "mod") return true;
+  if (apiRole === "admin" || apiRole === "mod") return true;
+  return false;
+}
+
 type SidebarBodyProps = {
   pathname: string;
   profileId: string;
@@ -50,6 +58,8 @@ type SidebarBodyProps = {
   onDiscordChatsNavClick?: () => void;
   getNavItemClass: (active: boolean) => string;
   onNavigate?: () => void;
+  /** When true, Copy trade nav is non-interactive with a “coming soon” badge (staff never locked). */
+  copyTradeNavLocked: boolean;
 };
 
 function isCallsNavPath(pathname: string): boolean {
@@ -74,6 +84,7 @@ function SidebarBody({
   onDiscordChatsNavClick,
   getNavItemClass,
   onNavigate,
+  copyTradeNavLocked,
 }: SidebarBodyProps) {
   const pick = onNavigate
     ? () => {
@@ -255,7 +266,7 @@ function SidebarBody({
                 isActive(pathname, "/calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
-            <span>Call Log</span>
+            <span>My Call Log</span>
           </Link>
           <Link href="/performance" onClick={pick} data-tutorial="sidebar.nav.performance" className={getNavItemClass(isActive(pathname, "/performance"))}>
             <div
@@ -286,14 +297,30 @@ function SidebarBody({
             />
             <span>Watchlist</span>
           </Link>
-          <Link href="/copy-trade" onClick={pick} data-tutorial="sidebar.nav.copyTrade" className={getNavItemClass(isActive(pathname, "/copy-trade"))}>
+          {copyTradeNavLocked ? (
             <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/copy-trade") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-              }`}
-            />
-            <span>Copy trade</span>
-          </Link>
+              className={`${getNavItemClass(false)} cursor-not-allowed select-none opacity-[0.88]`}
+              data-tutorial="sidebar.nav.copyTrade"
+              aria-disabled="true"
+            >
+              <div className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded opacity-0" />
+              <span className="relative min-w-0 flex-1 pr-[4.5rem]">
+                <span className="block truncate">Copy trade</span>
+                <span className="pointer-events-none absolute right-0 top-1/2 max-w-[4.25rem] -translate-y-1/2 text-right text-[7px] font-extrabold uppercase leading-tight tracking-wide text-red-500 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] sm:text-[8px]">
+                  Coming soon
+                </span>
+              </span>
+            </div>
+          ) : (
+            <Link href="/copy-trade" onClick={pick} data-tutorial="sidebar.nav.copyTrade" className={getNavItemClass(isActive(pathname, "/copy-trade"))}>
+              <div
+                className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                  isActive(pathname, "/copy-trade") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+                }`}
+              />
+              <span>Copy trade</span>
+            </Link>
+          )}
           <Link href="/referrals" onClick={pick} data-tutorial="sidebar.nav.referrals" className={getNavItemClass(isActive(pathname, "/referrals"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
@@ -501,6 +528,10 @@ export function Sidebar() {
   const staffNav = sessionStaffNav(session) || apiStaffNav;
   const adminNav = sessionAdminNav(session) || apiAdminNav;
 
+  const copyTradeStaff = copyTradeNavStaff(session, apiRole);
+  const [copyTradePagePublic, setCopyTradePagePublic] = useState<boolean | null>(null);
+  const copyTradeNavLocked = !copyTradeStaff && copyTradePagePublic !== true;
+
   const sessionTier = (session?.user as { helpTier?: string } | undefined)?.helpTier;
   const viewerTier = normalizeStaffRole(apiRole ?? sessionTier ?? "user");
 
@@ -619,6 +650,31 @@ export function Sidebar() {
   }, [status, staffNav]);
 
   useEffect(() => {
+    if (status !== "authenticated") {
+      setCopyTradePagePublic(null);
+      return;
+    }
+    if (copyTradeStaff) {
+      setCopyTradePagePublic(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/copy-trade-page-public", { credentials: "same-origin" });
+        const j = (await res.json().catch(() => ({}))) as { ok?: boolean; enabled?: boolean };
+        if (cancelled) return;
+        setCopyTradePagePublic(res.ok && j.ok === true ? Boolean(j.enabled) : false);
+      } catch {
+        if (!cancelled) setCopyTradePagePublic(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, copyTradeStaff]);
+
+  useEffect(() => {
     setOpen(false);
   }, [pathname, setOpen]);
 
@@ -660,6 +716,7 @@ export function Sidebar() {
     discordModUnread,
     onDiscordChatsNavClick: markDiscordChatsNav,
     getNavItemClass,
+    copyTradeNavLocked,
   };
 
   return (

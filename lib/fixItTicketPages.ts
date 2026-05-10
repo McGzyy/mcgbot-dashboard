@@ -10,7 +10,7 @@ export const FIX_IT_PAGE_OPTIONS: FixItPageOption[] = [
   { key: "trusted-pro", label: "Trusted Pro", prefix: "/trusted-pro" },
   { key: "leaderboard", label: "Leaderboards", prefix: "/leaderboard" },
   { key: "pnl-showcase", label: "PnL Showcase", prefix: "/pnl-showcase" },
-  { key: "calls", label: "Call Log", prefix: "/calls" },
+  { key: "calls", label: "My Call Log", prefix: "/calls" },
   { key: "performance", label: "Performance Lab", prefix: "/performance" },
   { key: "trade-journal", label: "Trade journal", prefix: "/trade-journal" },
   { key: "watchlist", label: "Watchlist", prefix: "/watchlist" },

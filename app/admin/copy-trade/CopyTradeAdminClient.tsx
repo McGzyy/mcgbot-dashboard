@@ -55,14 +55,17 @@ export function CopyTradeAdminClient() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [memberPageEnabled, setMemberPageEnabled] = useState<boolean | null>(null);
+  const [memberPageSaving, setMemberPageSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
     try {
-      const [ov, pen] = await Promise.all([
+      const [ov, pen, pub] = await Promise.all([
         fetch("/api/admin/copy-trade/overview", { credentials: "same-origin", cache: "no-store" }),
         fetch("/api/admin/copy-trade/access-pending", { credentials: "same-origin", cache: "no-store" }),
+        fetch("/api/admin/copy-trade/page-public", { credentials: "same-origin", cache: "no-store" }),
       ]);
       const j1 = (await ov.json().catch(() => ({}))) as {
         ok?: boolean;
@@ -75,6 +78,12 @@ export function CopyTradeAdminClient() {
         pending?: PendingRow[];
         error?: string;
       };
+      const j3 = (await pub.json().catch(() => ({}))) as { ok?: boolean; enabled?: boolean; error?: string };
+      if (pub.ok && j3.ok === true) {
+        setMemberPageEnabled(Boolean(j3.enabled));
+      } else {
+        setMemberPageEnabled(false);
+      }
       if (!ov.ok || !j1.ok || !j1.counts) {
         setErr(typeof j1.error === "string" ? j1.error : "Could not load overview.");
         setCounts(null);
@@ -129,6 +138,33 @@ export function CopyTradeAdminClient() {
     [load]
   );
 
+  const setMemberPage = useCallback(
+    async (next: boolean) => {
+      if (memberPageSaving) return;
+      setMemberPageSaving(true);
+      setErr(null);
+      try {
+        const res = await fetch("/api/admin/copy-trade/page-public", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: next }),
+        });
+        const j = (await res.json().catch(() => ({}))) as { ok?: boolean; enabled?: boolean; error?: string };
+        if (!res.ok || !j.ok) {
+          setErr(typeof j.error === "string" ? j.error : "Could not update member page setting.");
+          return;
+        }
+        setMemberPageEnabled(Boolean(j.enabled));
+      } catch {
+        setErr("Request failed.");
+      } finally {
+        setMemberPageSaving(false);
+      }
+    },
+    [memberPageSaving]
+  );
+
   const c = counts;
 
   return (
@@ -137,16 +173,44 @@ export function CopyTradeAdminClient() {
         title="Copy trade"
         description="Queue depth, custodial wallets, intent outcomes, failed buys, and manual copy-trade access approvals. Use this to confirm the worker is draining the queue and users are not stuck in silent failures."
         actions={
-          <button
-            type="button"
-            onClick={() => void load()}
-            disabled={loading}
-            className="rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
-          >
-            {loading ? "Refreshing…" : "Refresh"}
-          </button>
+          <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/40 px-3 py-2">
+              <span className="text-[11px] font-medium text-zinc-400">Member /copy-trade page</span>
+              <button
+                type="button"
+                disabled={memberPageSaving || memberPageEnabled === null || memberPageEnabled === true}
+                onClick={() => void setMemberPage(true)}
+                className="rounded-md border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/15 disabled:cursor-default disabled:opacity-40"
+              >
+                Enable
+              </button>
+              <button
+                type="button"
+                disabled={memberPageSaving || memberPageEnabled === null || memberPageEnabled === false}
+                onClick={() => void setMemberPage(false)}
+                className="rounded-md border border-zinc-600 bg-zinc-900/60 px-2.5 py-1 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 disabled:cursor-default disabled:opacity-40"
+              >
+                Disable
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => void load()}
+              disabled={loading}
+              className="rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+            >
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
         }
       />
+
+      {memberPageEnabled === false ? (
+        <p className="text-sm text-zinc-400">
+          The Copy trade sidebar link and page are <span className="font-semibold text-zinc-200">hidden from members</span> (small “Coming soon” badge).
+          Dashboard <span className="text-zinc-200">admin</span> and <span className="text-zinc-200">mod</span> roles can still use the page and APIs.
+        </p>
+      ) : null}
 
       {err ? (
         <p className="rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-200/90">{err}</p>
