@@ -61,7 +61,7 @@ export const terminalUi = {
   accountMenu: `absolute right-0 top-full z-50 mt-2 min-w-[220px] rounded-lg ${raisedSurface} py-1 shadow-lg`,
   menuSectionRule: "my-1 border-t border-zinc-800/90",
   modalPanelXl,
-  /** Alias — same shell as token search dialog. */
+  /** Alias — compact modal shell (legacy name: token search). */
   tokenSearchModalPanel: modalPanelXl,
   modalPanelLg2xl: `mt-10 w-full max-w-lg rounded-2xl ${raisedSurface} p-4 shadow-xl shadow-black/50 backdrop-blur`,
   modalPanel2xlWide: `mt-10 w-full max-w-2xl rounded-2xl ${raisedSurface} p-4 shadow-xl shadow-black/50 backdrop-blur`,

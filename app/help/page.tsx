@@ -142,7 +142,7 @@ function HelpPageContent() {
               <kbd className="rounded-md border border-zinc-600/60 bg-zinc-950/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-300 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.28)]">
                 /
               </kbd>{" "}
-              <span className="text-zinc-500">for token search.</span>
+              <span className="text-zinc-500">for the CA Analyzer.</span>
             </p>
           ) : null}
         </div>

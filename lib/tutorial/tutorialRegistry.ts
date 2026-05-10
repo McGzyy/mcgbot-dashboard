@@ -79,8 +79,9 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       section: "topNav",
       target: sel("nav.tokenSearch"),
       route: "/",
-      title: "Token search",
-      content: "Look up symbols or contracts. Press / when focus isn’t in a field to jump here.",
+      title: "CA Analyzer",
+      content:
+        "Inspect a Solana mint: FaSol-style snapshot plus full dashboard call history. Press / when focus isn’t in a field to open it.",
       placement: "bottom",
       scrollOffset: 88,
     },

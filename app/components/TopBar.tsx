@@ -2,6 +2,7 @@
 
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { useMobileSidebar } from "@/app/contexts/MobileSidebarContext";
+import { CaAnalyzerModal } from "@/app/components/CaAnalyzerModal";
 import { LinkedWalletCluster } from "@/app/components/LinkedWalletCluster";
 import { dashboardChrome } from "@/lib/roleTierStyles";
 import { terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
@@ -149,8 +150,7 @@ export function TopBar() {
   const prevSolPriceRef = useRef<number | null>(null);
   const flashTimerRef = useRef<number | null>(null);
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
-  const [tokenSearchOpen, setTokenSearchOpen] = useState(false);
-  const [tokenSearchQuery, setTokenSearchQuery] = useState("");
+  const [caAnalyzerOpen, setCaAnalyzerOpen] = useState(false);
   const [showMarketWidget, setShowMarketWidget] = useState(true);
   const [open, setOpen] = useState(false);
   const [openNotifications, setOpenNotifications] = useState(false);
@@ -440,20 +440,9 @@ export function TopBar() {
   const marketUpdatedLabel =
     marketUpdatedAtMs == null ? "—" : formatTimeAgo(marketUpdatedAtMs, Date.now());
 
-  const openTokenSearch = useCallback(() => {
-    setTokenSearchOpen(true);
-    setTokenSearchQuery("");
+  const openCaAnalyzer = useCallback(() => {
+    setCaAnalyzerOpen(true);
   }, []);
-
-  const openDexScreenerSearch = useCallback(() => {
-    const q = tokenSearchQuery.trim();
-    if (!q) return;
-    window.open(
-      `https://dexscreener.com/search?q=${encodeURIComponent(q)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  }, [tokenSearchQuery]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -465,7 +454,7 @@ export function TopBar() {
         (t != null && (t as any).isContentEditable);
 
       if (e.key === "Escape") {
-        if (tokenSearchOpen) setTokenSearchOpen(false);
+        if (caAnalyzerOpen) setCaAnalyzerOpen(false);
         return;
       }
 
@@ -473,12 +462,12 @@ export function TopBar() {
 
       if (e.key === "/") {
         e.preventDefault();
-        openTokenSearch();
+        openCaAnalyzer();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [openTokenSearch, tokenSearchOpen]);
+  }, [openCaAnalyzer, caAnalyzerOpen]);
 
   return (
     <>
@@ -499,14 +488,13 @@ export function TopBar() {
           </button>
           <button
             type="button"
-            onClick={openTokenSearch}
+            onClick={openCaAnalyzer}
             data-tutorial="nav.tokenSearchMobile"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-800/70 bg-zinc-900/25 text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900/40 hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 sm:hidden"
-            aria-label="Open token search"
+            aria-label="Open CA Analyzer"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden>
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3-3" strokeLinecap="round" />
+              <path d="M4 19V5M8 19V9M12 19v-6M16 19v-3M20 19V11" strokeLinecap="round" />
             </svg>
           </button>
         </div>
@@ -518,12 +506,12 @@ export function TopBar() {
             <>
               <button
                 type="button"
-                onClick={openTokenSearch}
+                onClick={openCaAnalyzer}
                 data-tutorial="nav.tokenSearch"
                 className="hidden h-9 items-center gap-2 rounded-lg border border-zinc-800/70 bg-zinc-900/25 px-3 text-sm text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900/40 hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 sm:flex"
-                aria-label="Open token search"
+                aria-label="Open CA Analyzer"
               >
-                <span className="text-zinc-400">Search…</span>
+                <span className="text-zinc-400">Analyze CA</span>
                 <span className="rounded-md border border-zinc-800/70 bg-zinc-900/30 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-400">
                   /
                 </span>
@@ -884,13 +872,7 @@ export function TopBar() {
 
       {mounted
         ? createPortal(
-            <TokenSearchModal
-              open={tokenSearchOpen}
-              query={tokenSearchQuery}
-              setQuery={setTokenSearchQuery}
-              onClose={() => setTokenSearchOpen(false)}
-              onSearch={openDexScreenerSearch}
-            />,
+            <CaAnalyzerModal open={caAnalyzerOpen} onClose={() => setCaAnalyzerOpen(false)} />,
             document.body
           )
         : null}
@@ -1297,93 +1279,3 @@ function TipMcgbotModal({ open, onClose }: { open: boolean; onClose: () => void 
   );
 }
 
-function TokenSearchModal({
-  open,
-  query,
-  setQuery,
-  onClose,
-  onSearch,
-}: {
-  open: boolean;
-  query: string;
-  setQuery: (v: string) => void;
-  onClose: () => void;
-  onSearch: () => void;
-}) {
-  if (!open) return null;
-  return (
-    <div
-      className={terminalUi.modalBackdropZ100}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Token search"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className={terminalUi.tokenSearchModalPanel}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-100">Token Search</h3>
-            <p className="mt-1 text-xs text-zinc-500">
-              Paste a contract address, symbol, or pair name.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className={terminalUi.modalCloseIconBtn}
-            aria-label="Close"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-              aria-hidden
-            >
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="mt-4 space-y-3">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="e.g. So111... / SOL / WIF"
-            className={terminalUi.formInput}
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onSearch();
-            }}
-          />
-
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className={terminalUi.secondaryButtonSm}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={onSearch}
-              disabled={query.trim() === ""}
-              className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-medium text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-60"
-            >
-              Search
-            </button>
-          </div>
-
-          <p className="text-xs text-zinc-500">
-            Tip: press <span className="font-semibold text-zinc-300">/</span>{" "}
-            anywhere to open this.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
