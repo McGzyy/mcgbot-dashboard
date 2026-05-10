@@ -52,6 +52,15 @@ type SidebarBodyProps = {
   onNavigate?: () => void;
 };
 
+function isCallsNavPath(pathname: string): boolean {
+  return (
+    isActive(pathname, "/bot-calls") ||
+    isActive(pathname, "/trusted-pro") ||
+    isActive(pathname, "/outside-calls") ||
+    isActive(pathname, "/copy-trade")
+  );
+}
+
 function SidebarBody({
   pathname,
   profileId,
@@ -72,6 +81,20 @@ function SidebarBody({
         onNavigate();
       }
     : undefined;
+
+  const [callsNavOpen, setCallsNavOpen] = useState(() => isCallsNavPath(pathname));
+  useEffect(() => {
+    if (isCallsNavPath(pathname)) setCallsNavOpen(true);
+  }, [pathname]);
+
+  const getSubNavItemClass = (active: boolean) =>
+    `relative flex items-center gap-2 rounded-md py-1.5 pl-3 pr-3 text-[13px] transition-all duration-150 hover:bg-zinc-900/55 ${
+      active
+        ? "bg-zinc-800/90 text-white border border-zinc-700/80 shadow-[0_0_8px_rgba(56,189,248,0.1)]"
+        : "text-zinc-400 hover:text-zinc-100"
+    }`;
+
+  const callsGroupActive = isCallsNavPath(pathname);
 
   return (
     <>
@@ -119,50 +142,98 @@ function SidebarBody({
           </Link>
 
           <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Markets</p>
-          <Link
-            href="/bot-calls"
-            onClick={pick}
-            data-tutorial="sidebar.nav.botCalls"
-            className={getNavItemClass(isActive(pathname, "/bot-calls"))}
-          >
-            <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/bot-calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+          <div className="flex flex-col gap-0.5">
+            <button
+              type="button"
+              id="sidebar-calls-toggle"
+              onClick={() => setCallsNavOpen((o) => !o)}
+              aria-expanded={callsNavOpen}
+              aria-controls="sidebar-calls-submenu"
+              className={`flex w-full items-center justify-between gap-2 rounded-md px-4 py-2 text-left text-sm transition hover:bg-zinc-900/60 ${
+                callsGroupActive
+                  ? "border border-zinc-700/70 bg-zinc-900/50 text-zinc-100"
+                  : "text-zinc-400 hover:text-zinc-100"
               }`}
-              aria-hidden
-            />
-            <span
-              className={
-                isActive(pathname, "/bot-calls")
-                  ? "min-w-0"
-                  : "min-w-0 text-zinc-300 [text-shadow:0_0_14px_rgba(56,189,248,0.55),0_0_30px_rgba(56,189,248,0.38),0_0_52px_rgba(56,189,248,0.22)]"
-              }
             >
-              Bot Calls
-            </span>
-          </Link>
-          <Link href="/trusted-pro" onClick={pick} data-tutorial="sidebar.nav.trustedPro" className={getNavItemClass(isActive(pathname, "/trusted-pro"))}>
-            <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/trusted-pro") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-              }`}
-            />
-            <span>Trusted Pro</span>
-          </Link>
-          <Link
-            href="/outside-calls"
-            onClick={pick}
-            data-tutorial="sidebar.nav.outsideCalls"
-            className={getNavItemClass(isActive(pathname, "/outside-calls"))}
-          >
-            <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/outside-calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-              }`}
-              aria-hidden
-            />
-            <span>Outside Calls</span>
-          </Link>
+              <span className="font-medium">Calls</span>
+              <span className="text-[10px] text-zinc-500 tabular-nums" aria-hidden>
+                {callsNavOpen ? "▾" : "▸"}
+              </span>
+            </button>
+            {callsNavOpen ? (
+              <div
+                id="sidebar-calls-submenu"
+                role="group"
+                aria-label="Call feeds"
+                className="ml-2 flex flex-col gap-0.5 border-l border-zinc-800/70 pl-2"
+              >
+                <Link
+                  href="/bot-calls"
+                  onClick={pick}
+                  data-tutorial="sidebar.nav.botCalls"
+                  className={getSubNavItemClass(isActive(pathname, "/bot-calls"))}
+                >
+                  <div
+                    className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded ${
+                      isActive(pathname, "/bot-calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+                    }`}
+                    aria-hidden
+                  />
+                  <span
+                    className={
+                      isActive(pathname, "/bot-calls")
+                        ? "min-w-0"
+                        : "min-w-0 text-zinc-300 [text-shadow:0_0_12px_rgba(56,189,248,0.45),0_0_24px_rgba(56,189,248,0.28)]"
+                    }
+                  >
+                    Bot Calls
+                  </span>
+                </Link>
+                <Link
+                  href="/trusted-pro"
+                  onClick={pick}
+                  data-tutorial="sidebar.nav.trustedPro"
+                  className={getSubNavItemClass(isActive(pathname, "/trusted-pro"))}
+                >
+                  <div
+                    className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded ${
+                      isActive(pathname, "/trusted-pro") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+                    }`}
+                    aria-hidden
+                  />
+                  <span>Trusted Pro</span>
+                </Link>
+                <Link
+                  href="/outside-calls"
+                  onClick={pick}
+                  data-tutorial="sidebar.nav.outsideCalls"
+                  className={getSubNavItemClass(isActive(pathname, "/outside-calls"))}
+                >
+                  <div
+                    className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded ${
+                      isActive(pathname, "/outside-calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+                    }`}
+                    aria-hidden
+                  />
+                  <span>Outside Calls</span>
+                </Link>
+                <Link
+                  href="/copy-trade"
+                  onClick={pick}
+                  data-tutorial="sidebar.nav.copyTrade"
+                  className={getSubNavItemClass(isActive(pathname, "/copy-trade"))}
+                >
+                  <div
+                    className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded ${
+                      isActive(pathname, "/copy-trade") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+                    }`}
+                    aria-hidden
+                  />
+                  <span>Copy trade</span>
+                </Link>
+              </div>
+            ) : null}
+          </div>
           <Link href="/leaderboard" onClick={pick} data-tutorial="sidebar.nav.leaderboard" className={getNavItemClass(isActive(pathname, "/leaderboard"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
@@ -214,20 +285,6 @@ function SidebarBody({
               }`}
             />
             <span>Trade Journal</span>
-          </Link>
-          <Link
-            href="/copy-trade"
-            onClick={pick}
-            data-tutorial="sidebar.nav.copyTrade"
-            className={getNavItemClass(isActive(pathname, "/copy-trade"))}
-          >
-            <div
-              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                isActive(pathname, "/copy-trade") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-              }`}
-              aria-hidden
-            />
-            <span>Copy trade</span>
           </Link>
           <Link href="/watchlist" onClick={pick} data-tutorial="sidebar.nav.watchlist" className={getNavItemClass(isActive(pathname, "/watchlist"))}>
             <div
