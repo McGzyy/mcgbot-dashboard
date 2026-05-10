@@ -527,11 +527,16 @@ export default function MembershipPage() {
 
         <header className="sticky top-0 z-10 border-b border-zinc-800/80 bg-black/40 px-4 py-4 backdrop-blur sm:px-6">
           <div className="mx-auto flex max-w-5xl items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-              <span className="relative block h-9 w-9">
-                <Image src="/brand/mcgbot-logo-v2.png" alt="McGBot" fill className="object-contain" sizes="36px" />
-              </span>
-              McGBot
+            <Link href="/" className="flex min-w-0 items-center" aria-label="McGBot Terminal — home">
+              <Image
+                src="/brand/mcgbot-terminal-logo.png"
+                alt="McGBot Terminal"
+                width={607}
+                height={153}
+                quality={100}
+                sizes="(max-width: 1024px) 480px, 560px"
+                className="h-12 w-auto max-w-[min(100%,calc(100vw-8rem))] object-contain object-left sm:h-14"
+              />
             </Link>
             <button
               type="button"
@@ -652,17 +657,16 @@ export default function MembershipPage() {
 
       <header className="sticky top-0 z-10 border-b border-zinc-800/80 bg-black/40 px-4 py-4 backdrop-blur sm:px-6">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-            <span className="relative block h-9 w-9">
-              <Image
-                src="/brand/mcgbot-logo-v2.png"
-                alt="McGBot"
-                fill
-                className="object-contain"
-                sizes="36px"
-              />
-            </span>
-            McGBot
+          <Link href="/" className="flex min-w-0 items-center" aria-label="McGBot Terminal — home">
+            <Image
+              src="/brand/mcgbot-terminal-logo.png"
+              alt="McGBot Terminal"
+              width={607}
+              height={153}
+              quality={100}
+              sizes="(max-width: 1024px) 480px, 560px"
+              className="h-12 w-auto max-w-[min(100%,calc(100vw-8rem))] object-contain object-left sm:h-14"
+            />
           </Link>
           {isLoggedIn ? (
             <button

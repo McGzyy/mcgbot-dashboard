@@ -17,11 +17,16 @@ export default async function MaintenancePage() {
   return (
     <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
       <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
-        <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <span className="relative block h-9 w-9">
-            <Image src="/brand/mcgbot-logo-v2.png" alt="McGBot" fill className="object-contain" sizes="36px" />
-          </span>
-          McGBot
+        <Link href="/" className="flex min-w-0 items-center" aria-label="McGBot Terminal — home">
+          <Image
+            src="/brand/mcgbot-terminal-logo.png"
+            alt="McGBot Terminal"
+            width={607}
+            height={153}
+            quality={100}
+            sizes="(max-width: 1024px) 480px, 560px"
+            className="h-12 w-auto max-w-[min(100%,calc(100vw-4rem))] object-contain object-left sm:h-14"
+          />
         </Link>
       </header>
       <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-20">

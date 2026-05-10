@@ -105,16 +105,16 @@ function SidebarBody({
           className="group flex items-center rounded-xl px-1 py-1 transition-colors hover:bg-white/[0.03]"
           aria-label="McGBot Terminal — go to dashboard"
         >
-          <div className="relative h-9 w-full min-w-0 sm:h-10">
-            <Image
-              src="/brand/mcgbot-terminal-logo.png"
-              alt="McGBot Terminal"
-              fill
-              sizes="(max-width: 1024px) 260px, 280px"
-              priority
-              className="object-contain object-left"
-            />
-          </div>
+          <Image
+            src="/brand/mcgbot-terminal-logo.png"
+            alt="McGBot Terminal"
+            width={607}
+            height={153}
+            priority
+            quality={100}
+            sizes="(max-width: 1024px) 480px, 560px"
+            className="h-12 w-auto max-w-full object-contain object-left sm:h-14"
+          />
         </Link>
       </div>
 
