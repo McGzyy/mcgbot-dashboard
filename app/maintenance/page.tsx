@@ -21,8 +21,8 @@ export default async function MaintenancePage() {
           <Image
             src="/brand/mcgbot-terminal-logo.png"
             alt="McGBot Terminal"
-            width={639}
-            height={207}
+            width={472}
+            height={147}
             quality={100}
             sizes="(max-width: 1024px) 480px, 560px"
             className="h-12 w-auto max-w-[min(100%,calc(100vw-4rem))] object-contain object-left sm:h-14"
