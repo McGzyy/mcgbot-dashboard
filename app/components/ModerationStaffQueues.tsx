@@ -68,6 +68,8 @@ type OutsideSourceSubmissionRow = {
   proposed_x_handle?: string;
   proposed_display_name?: string;
   submitter_note?: string | null;
+  track_record?: string | null;
+  extra_context?: string | null;
   approver_1_discord_id?: string | null;
   approver_1_at?: string | null;
   created_at?: string;
@@ -678,10 +680,20 @@ export function ModerationStaffQueues() {
                       className="rounded-lg border border-sky-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
-                        <p className="font-semibold text-sky-100/90">
-                          @{handle}
-                          {dn ? <span className="font-normal text-zinc-400"> · {dn}</span> : null}
-                        </p>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sky-100/90">{dn || `@${handle}`}</p>
+                          <p className="mt-0.5 text-[11px] text-zinc-500">
+                            X{" "}
+                            <a
+                              href={`https://x.com/${encodeURIComponent(handle)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-medium text-cyan-300/85 hover:underline"
+                            >
+                              @{handle}
+                            </a>
+                          </p>
+                        </div>
                         <span className="shrink-0 text-[10px] text-zinc-500">{formatRelativeTime(s.created_at)}</span>
                       </div>
                       <p className="mt-2 text-[11px] text-zinc-500">
@@ -694,6 +706,18 @@ export function ModerationStaffQueues() {
                           "—"
                         )}
                       </p>
+                      {s.track_record ? (
+                        <div className="mt-2 rounded border border-zinc-800/80 bg-zinc-950/40 px-2 py-1.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Track record</p>
+                          <p className="mt-1 whitespace-pre-wrap text-zinc-300">{s.track_record}</p>
+                        </div>
+                      ) : null}
+                      {s.extra_context ? (
+                        <div className="mt-2 rounded border border-zinc-800/80 bg-zinc-950/40 px-2 py-1.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Extra context</p>
+                          <p className="mt-1 whitespace-pre-wrap text-zinc-400">{s.extra_context}</p>
+                        </div>
+                      ) : null}
                       {s.submitter_note ? (
                         <p className="mt-2 whitespace-pre-wrap text-zinc-400">{s.submitter_note}</p>
                       ) : null}

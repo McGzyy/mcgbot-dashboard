@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   const { data, error } = await db
     .from("outside_source_submissions")
     .select(
-      "id,submitter_discord_id,proposed_x_handle,proposed_display_name,submitter_note,status,approver_1_discord_id,approver_1_at,approver_2_discord_id,approver_2_at,resolved_source_id,resolved_at,reject_reason,created_at,updated_at"
+      "id,submitter_discord_id,proposed_x_handle,proposed_display_name,submitter_note,track_record,extra_context,status,approver_1_discord_id,approver_1_at,approver_2_discord_id,approver_2_at,resolved_source_id,resolved_at,reject_reason,created_at,updated_at"
     )
     .eq("status", status)
     .order("created_at", { ascending: false })

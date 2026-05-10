@@ -41,6 +41,8 @@ export async function POST(request: Request) {
   const rawHandle = typeof o.xHandle === "string" ? o.xHandle : typeof o.handle === "string" ? o.handle : "";
   const displayNameIn = typeof o.displayName === "string" ? o.displayName : "";
   const noteIn = typeof o.note === "string" ? o.note : "";
+  const trackIn = typeof o.trackRecord === "string" ? o.trackRecord : typeof o.track_record === "string" ? o.track_record : "";
+  const extraIn = typeof o.extraContext === "string" ? o.extraContext : typeof o.extra_context === "string" ? o.extra_context : "";
 
   const handle = normalizeXHandle(rawHandle);
   if (!isValidXHandleNormalized(handle)) {
@@ -56,6 +58,17 @@ export async function POST(request: Request) {
   }
 
   const submitterNote = noteIn.trim() ? clip(noteIn, 500) : null;
+  const trackRecord = clip(trackIn, 4000).trim();
+  if (trackRecord.length < 25) {
+    return Response.json(
+      {
+        error: "Please add a short track record (at least 25 characters).",
+        hint: "Example: recent tickers, entry context, and highest multiple reached (2×, 5×, etc.).",
+      },
+      { status: 400 }
+    );
+  }
+  const extraContext = extraIn.trim() ? clip(extraIn, 2000) : null;
 
   const tier = await resolveHelpTierAsync(userId);
   const staffOrTrustedPro =
@@ -94,6 +107,8 @@ export async function POST(request: Request) {
       proposed_x_handle: handle,
       proposed_display_name: displayName,
       submitter_note: submitterNote,
+      track_record: trackRecord,
+      extra_context: extraContext,
       status: "pending",
       created_at: nowIso,
       updated_at: nowIso,

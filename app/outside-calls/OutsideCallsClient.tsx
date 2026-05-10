@@ -4,6 +4,7 @@ import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesig
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 type FeedCall = {
   id: string;
@@ -27,16 +28,24 @@ function xProfileUrl(handle: string): string {
 }
 
 export function OutsideCallsClient() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.helpTier === "admin";
+
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [calls, setCalls] = useState<FeedCall[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [xHandle, setXHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [note, setNote] = useState("");
+  const [trackRecord, setTrackRecord] = useState("");
+  const [extraContext, setExtraContext] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [adminBusy, setAdminBusy] = useState(false);
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
+  const [adminErr, setAdminErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,6 +84,8 @@ export function OutsideCallsClient() {
           xHandle,
           displayName,
           note: note.trim() || undefined,
+          trackRecord: trackRecord.trim(),
+          extraContext: extraContext.trim() || undefined,
         }),
       });
       const j = (await res.json().catch(() => ({}))) as {
@@ -95,13 +106,42 @@ export function OutsideCallsClient() {
       setXHandle("");
       setDisplayName("");
       setNote("");
+      setTrackRecord("");
+      setExtraContext("");
       setModalOpen(false);
     } catch {
       setSubmitErr("Submit failed.");
     } finally {
       setSubmitting(false);
     }
-  }, [displayName, note, xHandle]);
+  }, [displayName, extraContext, note, trackRecord, xHandle]);
+
+  const adminAddSource = useCallback(async () => {
+    setAdminBusy(true);
+    setAdminErr(null);
+    try {
+      const res = await fetch("/api/outside-calls/admin-add-source", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ xHandle, displayName }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!res.ok) {
+        setAdminErr(typeof j.error === "string" ? j.error : "Could not add source.");
+        return;
+      }
+      setSubmitMsg(typeof j.message === "string" ? j.message : "Monitor added.");
+      setXHandle("");
+      setDisplayName("");
+      setAdminModalOpen(false);
+      void load();
+    } catch {
+      setAdminErr("Request failed.");
+    } finally {
+      setAdminBusy(false);
+    }
+  }, [displayName, load, xHandle]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-20 pt-4 sm:px-6">
@@ -111,22 +151,41 @@ export function OutsideCallsClient() {
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-300/85">Markets</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Outside Calls</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
-              Live tape of Solana mints called from allow-listed X accounts (v1). Echo rows show when a second source
-              posts the same contract; only the primary row ties into milestone-style tracking. Ingestion runs on the
-              server side once monitors are approved.
+              Live tape of <span className="text-zinc-300">individual CAs</span> detected from allow-listed X monitors
+              (one row per call). Echo rows show when a second source posts the same contract; only the primary row ties
+              into milestone-style tracking. Ingestion runs server-side once a monitor is approved.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setSubmitErr(null);
-              setSubmitMsg(null);
-              setModalOpen(true);
-            }}
-            className="shrink-0 rounded-xl border border-cyan-500/35 bg-cyan-950/30 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-400/50 hover:bg-cyan-900/35"
-          >
-            Submit New Source
-          </button>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSubmitErr(null);
+                setSubmitMsg(null);
+                setModalOpen(true);
+              }}
+              className="rounded-xl border border-cyan-500/35 bg-cyan-950/30 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-400/50 hover:bg-cyan-900/35"
+            >
+              Submit New Source
+            </button>
+            {isAdmin ? (
+              <button
+                type="button"
+                title="Add monitor immediately (skips staff approval)"
+                onClick={() => {
+                  setAdminErr(null);
+                  setSubmitMsg(null);
+                  setXHandle("");
+                  setDisplayName("");
+                  setAdminModalOpen(true);
+                }}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/40 bg-amber-950/35 text-lg font-bold leading-none text-amber-100 transition hover:border-amber-400/55 hover:bg-amber-900/40"
+                aria-label="Add X monitor (admin, no approval queue)"
+              >
+                +
+              </button>
+            ) : null}
+          </div>
         </header>
 
         {submitMsg ? (
@@ -157,8 +216,8 @@ export function OutsideCallsClient() {
             </div>
           ) : calls.length === 0 ? (
             <p className="mt-6 text-sm text-zinc-500">
-              No outside calls yet. Approved monitors will appear here automatically once the ingestion worker is wired
-              to this table.
+              No outside calls in the feed yet. When the bot records a CA from an active monitor, rows show up here
+              automatically (newest first).
             </p>
           ) : (
             <ul className="mt-4 space-y-3">
@@ -172,19 +231,18 @@ export function OutsideCallsClient() {
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-medium text-zinc-100">
+                        <p className="font-medium text-zinc-100">{c.source.displayName || "Monitor"}</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-500">
                           <a
                             href={xProfileUrl(c.source.xHandle)}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-cyan-300/90 hover:underline"
+                            className="text-cyan-400/80 hover:underline"
                           >
                             @{c.source.xHandle}
                           </a>
-                          <span className="text-zinc-500"> · </span>
-                          <span>{c.source.displayName || "—"}</span>
                           {typeof c.source.trustScore === "number" ? (
-                            <span className="text-zinc-500"> · trust {c.source.trustScore}</span>
+                            <span className="text-zinc-600"> · trust {c.source.trustScore}</span>
                           ) : null}
                         </p>
                         <p className="mt-1 font-mono text-xs text-zinc-400">{c.mint}</p>
@@ -267,11 +325,31 @@ export function OutsideCallsClient() {
               />
             </label>
             <label className="mt-3 block text-xs font-semibold text-zinc-400">
+              Recent calls &amp; multiples <span className="text-amber-200/90">(required)</span>
+              <textarea
+                value={trackRecord}
+                onChange={(e) => setTrackRecord(e.target.value)}
+                rows={4}
+                placeholder="e.g. TOKEN1 → 4× same day; TOKEN2 → 2× then stopped; include rough dates if you can."
+                className="mt-1 w-full resize-y rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan-500/30 focus:ring-2"
+              />
+            </label>
+            <label className="mt-3 block text-xs font-semibold text-zinc-400">
+              More about the source (optional)
+              <textarea
+                value={extraContext}
+                onChange={(e) => setExtraContext(e.target.value)}
+                rows={3}
+                placeholder="Style, focus (memes / early / swing), timezone, languages, disclaimers…"
+                className="mt-1 w-full resize-y rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan-500/30 focus:ring-2"
+              />
+            </label>
+            <label className="mt-3 block text-xs font-semibold text-zinc-400">
               Note to staff (optional)
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                rows={3}
+                rows={2}
                 className="mt-1 w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan-500/30 focus:ring-2"
               />
             </label>
@@ -291,6 +369,63 @@ export function OutsideCallsClient() {
                 className="rounded-lg border border-cyan-500/40 bg-cyan-950/40 px-4 py-2 text-sm font-semibold text-cyan-50 hover:bg-cyan-900/45 disabled:opacity-50"
               >
                 {submitting ? "Submitting…" : "Submit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {adminModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center">
+          <div
+            className={`w-full max-w-md p-5 shadow-xl ${terminalUi.dialogPanelCompact}`}
+            role="dialog"
+            aria-modal
+            aria-labelledby="outside-admin-add-title"
+          >
+            <h2 id="outside-admin-add-title" className="text-lg font-semibold text-zinc-50">
+              Add X monitor (admin)
+            </h2>
+            <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+              Creates an active <span className="text-zinc-400">outside_x_sources</span> row immediately—no two-step
+              moderation queue. Same capacity limits as approvals.
+            </p>
+            {adminErr ? <p className="mt-3 text-sm text-red-300/90">{adminErr}</p> : null}
+            <label className="mt-4 block text-xs font-semibold text-zinc-400">
+              X handle
+              <input
+                value={xHandle}
+                onChange={(e) => setXHandle(e.target.value)}
+                placeholder="handle"
+                className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 outline-none ring-amber-500/30 focus:ring-2"
+                autoComplete="off"
+              />
+            </label>
+            <label className="mt-3 block text-xs font-semibold text-zinc-400">
+              Display name (tape label)
+              <input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="e.g. Desk label"
+                className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 outline-none ring-amber-500/30 focus:ring-2"
+                autoComplete="off"
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAdminModalOpen(false)}
+                className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-zinc-900"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={adminBusy}
+                onClick={() => void adminAddSource()}
+                className="rounded-lg border border-amber-500/45 bg-amber-950/40 px-4 py-2 text-sm font-semibold text-amber-50 hover:bg-amber-900/45 disabled:opacity-50"
+              >
+                {adminBusy ? "Adding…" : "Add monitor"}
               </button>
             </div>
           </div>
