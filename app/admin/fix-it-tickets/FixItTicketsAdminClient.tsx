@@ -69,7 +69,10 @@ export function FixItTicketsAdminClient() {
       const res = await fetch(`/api/admin/fix-it-tickets?${query}`, { credentials: "same-origin" });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json || json.success !== true) {
-        setErr(typeof json?.error === "string" ? json.error : "Could not load tickets.");
+        const base =
+          typeof json?.error === "string" ? json.error : res.status === 402 ? "Subscription required" : "Could not load tickets.";
+        const detail = typeof (json as { detail?: unknown }).detail === "string" ? String((json as { detail: string }).detail) : "";
+        setErr(detail && !base.includes(detail) ? `${base} (${detail})` : base);
         setRows([]);
         return;
       }

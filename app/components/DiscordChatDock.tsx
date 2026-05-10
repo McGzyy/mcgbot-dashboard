@@ -104,9 +104,21 @@ export function DiscordChatDock() {
           {expanded ? (
             <div
               id="discord-chat-dock-panel"
-              className="max-h-[min(52vh,540px)] min-h-0 overflow-hidden border-b border-zinc-800/60"
+              className="flex max-h-[min(52vh,540px)] min-h-0 flex-col overflow-hidden border-b border-zinc-800/60"
             >
-              <DashboardChatPanel feed="lounge" variant="dock" pollMs={12_000} />
+              <div className="flex shrink-0 justify-end border-b border-zinc-800/50 bg-zinc-950/90 px-2 py-1.5">
+                <button
+                  type="button"
+                  onClick={() => setExpandedPersist(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-600/80 bg-zinc-900/80 text-xl font-light leading-none text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-800 hover:text-white"
+                  aria-label="Close quick chat"
+                >
+                  <span aria-hidden className="block translate-y-[-1px]">×</span>
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <DashboardChatPanel feed="lounge" variant="dock" pollMs={12_000} />
+              </div>
             </div>
           ) : null}
 

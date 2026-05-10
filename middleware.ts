@@ -227,6 +227,10 @@ export async function middleware(req: NextRequest) {
         return NextResponse.json({ error: "Verification required" }, { status: 403 });
       }
     }
+    /** Admin APIs enforce `requireDashboardAdmin` in-route; do not block on subscription JWT (stale vs /admin layout). */
+    if (pathname.startsWith("/api/admin/")) {
+      return NextResponse.next();
+    }
     if (!(await hasDashboardAccessResolved(token))) {
       return NextResponse.json({ error: "Subscription required" }, { status: 402 });
     }

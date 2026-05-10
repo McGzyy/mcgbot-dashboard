@@ -37,16 +37,40 @@ export async function GET(request: Request) {
 
   const { data, error } = await q;
   if (error) {
-    console.error("[admin/fix-it-tickets] select:", error);
-    if (error.code === "42P01" || /relation .* does not exist/i.test(error.message)) {
+    console.error("[admin/fix-it-tickets] select:", error.code, error.message, error.details);
+    if (
+      error.code === "42P01" ||
+      error.code === "PGRST205" ||
+      /relation .* does not exist|could not find the table/i.test(String(error.message || ""))
+    ) {
       return Response.json(
         {
+          success: false as const,
           error: "Fix-it tickets table is missing. Apply Supabase migrations (fix_it_tickets).",
         },
         { status: 503 }
       );
     }
-    return Response.json({ error: "Failed to load tickets." }, { status: 500 });
+    if (error.code === "42501" || /permission denied/i.test(String(error.message || ""))) {
+      return Response.json(
+        {
+          success: false as const,
+          error:
+            "Database permission denied for fix_it_tickets. Run migration 20260510230000_fix_it_tickets_service_grants.sql (GRANT to service_role) or verify SUPABASE_SERVICE_ROLE_KEY.",
+          detail: error.message,
+        },
+        { status: 500 }
+      );
+    }
+    return Response.json(
+      {
+        success: false as const,
+        error: "Failed to load tickets.",
+        detail: error.message,
+        code: error.code,
+      },
+      { status: 500 }
+    );
   }
 
   return Response.json({ success: true as const, rows: Array.isArray(data) ? data : [] });
