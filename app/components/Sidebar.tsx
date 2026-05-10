@@ -157,8 +157,25 @@ function SidebarBody({
               }`}
             >
               <span className="font-medium">Call Feeds</span>
-              <span className="text-[10px] text-zinc-500 tabular-nums" aria-hidden>
-                {callsNavOpen ? "▾" : "▸"}
+              <span
+                className={`flex h-5 w-5 shrink-0 items-center justify-center transition-colors ${
+                  callsGroupActive ? "text-zinc-400" : "text-zinc-500"
+                }`}
+                aria-hidden
+              >
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  className={`h-3.5 w-3.5 transition-transform duration-200 ease-out ${
+                    callsNavOpen ? "rotate-90" : "rotate-0"
+                  }`}
+                  stroke="currentColor"
+                  strokeWidth="2.25"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M7.5 5.5 12.5 10 7.5 14.5" />
+                </svg>
               </span>
             </button>
             {callsNavOpen ? (
