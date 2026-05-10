@@ -84,6 +84,7 @@ export function CopyTradeClient() {
         error?: string;
         strategy?: Strategy;
         intents?: IntentRow[];
+        positions?: PositionRow[];
       };
       if (!res.ok) {
         setErr(typeof j.error === "string" ? j.error : "Could not load copy trade settings.");
