@@ -280,22 +280,25 @@ export async function processCopyTradeIntent(
         ? String(quoteRes.quote.outAmount)
         : "0";
 
-  const { error: posErr } = await db.from("copy_trade_positions").insert({
-    intent_id: id,
-    strategy_id: strategyId,
-    discord_user_id: String((claimed as { discord_user_id: string }).discord_user_id),
-    mint: outputMint,
-    entry_buy_lamports: tradeLamports.toString(),
-    entry_token_out_raw: outRaw,
-    sell_rules_snapshot: sellRulesToJson(sellRulesSnapshotFromStrategy(st)),
-    next_rule_index: 0,
-    status: "open",
-    created_at: iso,
-    updated_at: iso,
-    detail: { opened_from_buy: true },
-  });
+  const { error: posErr } = await db.from("copy_trade_positions").upsert(
+    {
+      intent_id: id,
+      strategy_id: strategyId,
+      discord_user_id: String((claimed as { discord_user_id: string }).discord_user_id),
+      mint: outputMint,
+      entry_buy_lamports: tradeLamports.toString(),
+      entry_token_out_raw: outRaw,
+      sell_rules_snapshot: sellRulesToJson(sellRulesSnapshotFromStrategy(st)),
+      next_rule_index: 0,
+      status: "open",
+      created_at: iso,
+      updated_at: iso,
+      detail: { opened_from_buy: true },
+    },
+    { onConflict: "intent_id", ignoreDuplicates: true }
+  );
   if (posErr) {
-    console.error("[copyTrade] position insert after buy", posErr);
+    console.error("[copyTrade] position upsert after buy", posErr);
   }
 
   return { outcome: "completed", intentId: id, signature };

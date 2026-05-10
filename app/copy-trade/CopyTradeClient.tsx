@@ -167,33 +167,36 @@ export function CopyTradeClient() {
   const removeRule = (i: number) => setSellRules((p) => (p.length <= 1 ? p : p.filter((_, j) => j !== i)));
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-20 pt-4 sm:px-6">
-      <header className={`${terminalChrome.headerRule} pb-8`}>
+    <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
+      <header className={`${terminalChrome.headerRule} pb-6 sm:pb-8`}>
         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-300/85">Workspace</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Copy trade (bot calls)</h1>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-          Phase 1 records when you <span className="text-zinc-200">would</span> follow a mirrored bot call under your rules. Deposits, vaults, and on-chain swaps are{" "}
-          <span className="font-medium text-amber-200/90">not live</span> yet — this builds the strategy + intent ledger first.
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">Copy trade</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">
+          Mirror <span className="text-zinc-200">bot</span> calls with your own caps and sell steps. Matched calls become intents; when execution
+          is enabled on the server, buys and milestone sells can run automatically against your saved rules.
         </p>
       </header>
-
-      <div className={`rounded-xl border border-amber-500/25 bg-amber-950/15 px-4 py-3 text-sm text-amber-100/95`}>
-        <p className="font-semibold text-amber-50">Risk &amp; legal</p>
-        <p className="mt-1 text-xs leading-relaxed text-amber-100/85">
-          Trading can result in total loss. Nothing here is investment advice or a promise of returns. By enabling rules you acknowledge
-          experimental software and market risk.
-        </p>
-      </div>
 
       {err ? <p className="mt-4 text-sm text-red-300/90">{err}</p> : null}
       {okMsg ? <p className="mt-4 text-sm text-emerald-300/90">{okMsg}</p> : null}
 
+      <div className={`mt-6 rounded-xl border border-amber-500/25 bg-amber-950/15 px-4 py-3 text-sm text-amber-100/95 sm:px-5`}>
+        <p className="font-semibold text-amber-50">Risk &amp; legal</p>
+        <p className="mt-1 text-xs leading-relaxed text-amber-100/85">
+          Trading can result in total loss. Nothing here is investment advice or a promise of returns. By enabling copy trade you acknowledge
+          experimental software, custody of funds on the execution wallet, and market risk.
+        </p>
+      </div>
+
       {loading ? (
         <div className="mt-8 animate-pulse space-y-3">
-          <div className="h-40 rounded-xl bg-zinc-800/40" />
+          <div className="h-48 rounded-2xl bg-zinc-800/40" />
+          <div className="h-32 rounded-2xl bg-zinc-800/30" />
         </div>
       ) : (
-        <div className={`mt-8 space-y-6 rounded-2xl ${terminalSurface.panelCard} p-5`}>
+        <div className="mt-8 flex flex-col gap-8 lg:grid lg:grid-cols-12 lg:items-start lg:gap-10">
+          <div className="min-w-0 space-y-6 lg:col-span-7">
+        <div className={`space-y-6 rounded-2xl ${terminalSurface.panelCard} p-5 sm:p-6`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-zinc-100">Strategy</h2>
             <label className="flex items-center gap-2 text-sm text-zinc-300">
@@ -323,9 +326,10 @@ export function CopyTradeClient() {
             </p>
           ) : null}
         </div>
-      )}
+          </div>
 
-      <div className={`mt-8 rounded-2xl ${terminalSurface.panelCard} p-5`}>
+          <aside className="min-w-0 space-y-6 lg:col-span-5">
+            <div className={`rounded-2xl ${terminalSurface.panelCard} p-5`}>
         <h2 className="text-sm font-semibold text-zinc-100">Positions</h2>
         <p className="mt-1 text-xs text-zinc-500">
           Open = buy landed; cron checks Jupiter implied multiple vs your sell rules and may send one token→SOL sell per run per row.
@@ -337,6 +341,7 @@ export function CopyTradeClient() {
             {positions.map((p) => {
               const d = p.detail && typeof p.detail === "object" && !Array.isArray(p.detail) ? (p.detail as Record<string, unknown>) : {};
               const lastSig = typeof d.last_sell_signature === "string" ? d.last_sell_signature : null;
+              const feeSig = typeof d.last_fee_signature === "string" ? d.last_fee_signature : null;
               return (
                 <li
                   key={p.id}
@@ -351,7 +356,7 @@ export function CopyTradeClient() {
                       <span className="text-[10px] text-zinc-500">next rule #{p.next_rule_index + 1}</span>
                     ) : null}
                   </div>
-                  <div className="text-[10px] text-zinc-500 sm:text-right">
+                  <div className="flex flex-col gap-0.5 text-[10px] text-zinc-500 sm:items-end sm:text-right">
                     {lastSig ? (
                       <a
                         className="font-mono text-sky-400/90 hover:underline"
@@ -364,15 +369,25 @@ export function CopyTradeClient() {
                     ) : (
                       <span className="text-zinc-600">no sells yet</span>
                     )}
+                    {feeSig ? (
+                      <a
+                        className="font-mono text-amber-400/85 hover:underline"
+                        href={`https://solscan.io/tx/${encodeURIComponent(feeSig)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        fee tx
+                      </a>
+                    ) : null}
                   </div>
                 </li>
               );
             })}
           </ul>
         )}
-      </div>
+            </div>
 
-      <div className={`mt-8 rounded-2xl ${terminalSurface.panelCard} p-5`}>
+            <div className={`rounded-2xl ${terminalSurface.panelCard} p-5`}>
         <h2 className="text-sm font-semibold text-zinc-100">Recent intents</h2>
         <p className="mt-1 text-xs text-zinc-500">
           Queued → processing → completed/failed/skipped. Completed rows include the on-chain buy signature when the execution worker has run.
@@ -426,7 +441,10 @@ export function CopyTradeClient() {
             ))}
           </ul>
         )}
-      </div>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

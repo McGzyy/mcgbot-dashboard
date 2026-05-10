@@ -56,8 +56,7 @@ function isCallsNavPath(pathname: string): boolean {
   return (
     isActive(pathname, "/bot-calls") ||
     isActive(pathname, "/trusted-pro") ||
-    isActive(pathname, "/outside-calls") ||
-    isActive(pathname, "/copy-trade")
+    isActive(pathname, "/outside-calls")
   );
 }
 
@@ -235,20 +234,6 @@ function SidebarBody({
                   />
                   <span>Outside Calls</span>
                 </Link>
-                <Link
-                  href="/copy-trade"
-                  onClick={pick}
-                  data-tutorial="sidebar.nav.copyTrade"
-                  className={getSubNavItemClass(isActive(pathname, "/copy-trade"))}
-                >
-                  <div
-                    className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded ${
-                      isActive(pathname, "/copy-trade") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-                    }`}
-                    aria-hidden
-                  />
-                  <span>Copy trade</span>
-                </Link>
               </div>
             ) : null}
           </div>
@@ -311,6 +296,14 @@ function SidebarBody({
               }`}
             />
             <span>Watchlist</span>
+          </Link>
+          <Link href="/copy-trade" onClick={pick} data-tutorial="sidebar.nav.copyTrade" className={getNavItemClass(isActive(pathname, "/copy-trade"))}>
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/copy-trade") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+            />
+            <span>Copy trade</span>
           </Link>
           <Link href="/referrals" onClick={pick} data-tutorial="sidebar.nav.referrals" className={getNavItemClass(isActive(pathname, "/referrals"))}>
             <div
