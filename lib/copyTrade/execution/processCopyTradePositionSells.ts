@@ -1,6 +1,8 @@
 import { resolveCopyTradeFeeRecipientPubkey } from "@/lib/copyTrade/execution/copyTradeFeeRecipient";
 import { waitForSignature } from "@/lib/copyTrade/execution/confirmTx";
 import { mergeIntentDetail } from "@/lib/copyTrade/execution/mergeIntentDetail";
+import { copyTradeFeeOnSellBpsFromEnv } from "@/lib/copyTrade/platformFee";
+import { loadCopyTradeUserKeypair } from "@/lib/copyTrade/userWalletService";
 import {
   jupiterQuoteExactIn,
   jupiterSwapTransactionBase64,
@@ -12,7 +14,7 @@ import { getTokenRawBalanceForMint } from "@/lib/copyTrade/execution/rpcTokenBal
 import { parseSellRules, type CopySellRule } from "@/lib/copyTrade/sellRules";
 import { solanaRpcUrlServer } from "@/lib/solanaEnv";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Connection, Keypair, PublicKey, VersionedTransaction } from "@solana/web3.js";
+import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
 
 function quoteOutLamports(q: JupiterQuote): bigint | null {
   const o = q.outAmount;
@@ -51,6 +53,7 @@ function rulesFromSnapshot(raw: unknown): CopySellRule[] {
 export type SellPassPositionRow = {
   id: string;
   strategy_id: string;
+  discord_user_id: string;
   mint: string;
   entry_buy_lamports: string | number;
   sell_rules_snapshot: unknown;
@@ -61,16 +64,13 @@ export type SellPassPositionRow = {
 /**
  * One pass over open positions: at most **one** milestone sell per position (next cron continues).
  * Multiple is Jupiter-implied: quote selling 100% of balance → SOL lamports ÷ entry buy lamports.
+ * Each position signs with that user's custodial copy-trade wallet.
  */
-export async function runCopyTradeSellPass(
-  db: SupabaseClient,
-  keypair: Keypair,
-  limit: number
-): Promise<{ results: Record<string, unknown>[] }> {
+export async function runCopyTradeSellPass(db: SupabaseClient, limit: number): Promise<{ results: Record<string, unknown>[] }> {
   const lim = Math.max(1, Math.min(20, Math.floor(limit)));
   const { data: rows, error } = await db
     .from("copy_trade_positions")
-    .select("id,strategy_id,mint,entry_buy_lamports,sell_rules_snapshot,next_rule_index,detail")
+    .select("id,strategy_id,discord_user_id,mint,entry_buy_lamports,sell_rules_snapshot,next_rule_index,detail")
     .eq("status", "open")
     .order("created_at", { ascending: true })
     .limit(lim);
@@ -83,7 +83,6 @@ export async function runCopyTradeSellPass(
   const list = Array.isArray(rows) ? rows : [];
   const rpc = solanaRpcUrlServer();
   const connection = new Connection(rpc, "confirmed");
-  const owner = keypair.publicKey;
   const results: Record<string, unknown>[] = [];
 
   const abortMs = Math.min(90_000, Math.max(10_000, Number(process.env.COPY_TRADE_JUPITER_TIMEOUT_MS ?? 28_000) || 28_000));
@@ -115,17 +114,22 @@ export async function runCopyTradeSellPass(
 
     const { data: stRow } = await db
       .from("copy_trade_strategies")
-      .select("max_slippage_bps, fee_on_sell_bps")
+      .select("max_slippage_bps")
       .eq("id", String(pos.strategy_id))
       .maybeSingle();
     const slip = Math.max(
       0,
       Math.min(5000, Math.floor(Number((stRow as { max_slippage_bps?: number } | null)?.max_slippage_bps ?? 800)))
     );
-    const feeOnSellBps = Math.max(
-      0,
-      Math.min(2500, Math.floor(Number((stRow as { fee_on_sell_bps?: number } | null)?.fee_on_sell_bps ?? 0)))
-    );
+    const feeOnSellBps = copyTradeFeeOnSellBpsFromEnv();
+
+    const discordUserId = String(pos.discord_user_id ?? "").trim();
+    const keypair = discordUserId ? await loadCopyTradeUserKeypair(db, discordUserId) : null;
+    if (!keypair) {
+      results.push({ positionId: posId, outcome: "error", error: "no_copy_trade_wallet" });
+      continue;
+    }
+    const owner = keypair.publicKey;
 
     const rules = rulesFromSnapshot(pos.sell_rules_snapshot);
     let nextIdx = Math.max(0, Math.floor(Number(pos.next_rule_index ?? 0)));

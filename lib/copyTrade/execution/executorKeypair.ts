@@ -2,7 +2,8 @@ import bs58 from "bs58";
 import { Keypair } from "@solana/web3.js";
 
 /**
- * Loads the copy-trade executor hot wallet from env (server only).
+ * Legacy single-wallet executor (server only). Copy-trade buys/sells now use per-user custodial wallets
+ * (`copy_trade_user_wallets`); this helper remains for any one-off ops or migrations.
  * Prefer `COPY_TRADE_EXECUTOR_SOL_SECRET_BASE58` (Phantom-style export).
  * Fallback: `COPY_TRADE_EXECUTOR_SOL_SECRET_JSON` as `[byte,...]` JSON array.
  */

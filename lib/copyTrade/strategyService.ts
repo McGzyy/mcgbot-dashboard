@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { copyTradeFeeOnSellBpsFromEnv } from "@/lib/copyTrade/platformFee";
 import { defaultSellRules } from "@/lib/copyTrade/matchStrategy";
 import { parseSellRules, sellRulesToJson, solToLamportsBigInt, type CopySellRule } from "@/lib/copyTrade/sellRules";
 
@@ -17,6 +18,10 @@ export type CopyTradeStrategyRow = {
   updated_at: string;
 };
 
+function defaultFeeBps(): number {
+  return copyTradeFeeOnSellBpsFromEnv();
+}
+
 const DEFAULTS = {
   enabled: false,
   mirror_bot_calls_only: true,
@@ -24,7 +29,6 @@ const DEFAULTS = {
   max_slippage_bps: 800,
   min_call_mcap_usd: null as number | null,
   min_bot_win_rate_2x_pct: null as number | null,
-  fee_on_sell_bps: 100,
 };
 
 export async function getOrCreateStrategy(db: SupabaseClient, discordUserId: string): Promise<CopyTradeStrategyRow | null> {
@@ -48,7 +52,13 @@ export async function getOrCreateStrategy(db: SupabaseClient, discordUserId: str
     .from("copy_trade_strategies")
     .insert({
       discord_user_id: uid,
-      ...DEFAULTS,
+      enabled: DEFAULTS.enabled,
+      mirror_bot_calls_only: DEFAULTS.mirror_bot_calls_only,
+      max_buy_lamports: DEFAULTS.max_buy_lamports,
+      max_slippage_bps: DEFAULTS.max_slippage_bps,
+      min_call_mcap_usd: DEFAULTS.min_call_mcap_usd,
+      min_bot_win_rate_2x_pct: DEFAULTS.min_bot_win_rate_2x_pct,
+      fee_on_sell_bps: defaultFeeBps(),
       sell_rules: sellRulesToJson(defaultSellRules()),
       created_at: now,
       updated_at: now,
@@ -71,7 +81,6 @@ export type StrategyPatch = {
   min_call_mcap_usd?: number | null;
   min_bot_win_rate_2x_pct?: number | null;
   sell_rules?: CopySellRule[];
-  fee_on_sell_bps?: number;
 };
 
 export async function updateStrategy(
@@ -85,7 +94,10 @@ export async function updateStrategy(
   const row = await getOrCreateStrategy(db, uid);
   if (!row) return { ok: false, error: "Could not load strategy." };
 
-  const next: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  const next: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+    fee_on_sell_bps: defaultFeeBps(),
+  };
 
   if (typeof patch.enabled === "boolean") next.enabled = patch.enabled;
   if (typeof patch.mirror_bot_calls_only === "boolean") next.mirror_bot_calls_only = patch.mirror_bot_calls_only;
@@ -109,9 +121,6 @@ export async function updateStrategy(
     const parsed = parseSellRules(patch.sell_rules);
     if (!parsed.ok) return { ok: false, error: parsed.error };
     next.sell_rules = sellRulesToJson(parsed.rules);
-  }
-  if (typeof patch.fee_on_sell_bps === "number" && Number.isFinite(patch.fee_on_sell_bps)) {
-    next.fee_on_sell_bps = Math.max(0, Math.min(2500, Math.floor(patch.fee_on_sell_bps)));
   }
 
   const { data, error } = await db.from("copy_trade_strategies").update(next).eq("id", row.id).select("*").maybeSingle();

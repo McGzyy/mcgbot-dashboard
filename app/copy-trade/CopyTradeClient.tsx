@@ -15,7 +15,6 @@ type Strategy = {
   min_call_mcap_usd: number | null;
   min_bot_win_rate_2x_pct: number | null;
   sell_rules: CopySellRule[] | unknown;
-  fee_on_sell_bps: number;
 };
 
 type IntentRow = {
@@ -70,8 +69,13 @@ export function CopyTradeClient() {
   const [slippageBps, setSlippageBps] = useState(800);
   const [minMcap, setMinMcap] = useState("");
   const [minWin2x, setMinWin2x] = useState("");
-  const [feeBps, setFeeBps] = useState(100);
   const [sellRules, setSellRules] = useState<CopySellRule[]>([{ multiple: 2, sell_fraction: 1 }]);
+  const [wallet, setWallet] = useState<{ publicKey: string; balanceLamports: string } | null>(null);
+  const [platformFeeOnSellBps, setPlatformFeeOnSellBps] = useState<number | null>(null);
+  const [openPositionsCount, setOpenPositionsCount] = useState(0);
+  const [walletBusy, setWalletBusy] = useState(false);
+  const [withdrawDest, setWithdrawDest] = useState("");
+  const [withdrawSol, setWithdrawSol] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,6 +89,9 @@ export function CopyTradeClient() {
         strategy?: Strategy;
         intents?: IntentRow[];
         positions?: PositionRow[];
+        wallet?: { publicKey: string; balanceLamports: string } | null;
+        platformFeeOnSellBps?: number;
+        openPositionsCount?: number;
       };
       if (!res.ok) {
         setErr(typeof j.error === "string" ? j.error : "Could not load copy trade settings.");
@@ -99,11 +106,13 @@ export function CopyTradeClient() {
         setSlippageBps(s.max_slippage_bps ?? 800);
         setMinMcap(s.min_call_mcap_usd != null ? String(s.min_call_mcap_usd) : "");
         setMinWin2x(s.min_bot_win_rate_2x_pct != null ? String(s.min_bot_win_rate_2x_pct) : "");
-        setFeeBps(s.fee_on_sell_bps ?? 100);
         setSellRules(asSellRules(s.sell_rules));
       }
       setIntents(Array.isArray(j.intents) ? j.intents : []);
       setPositions(Array.isArray(j.positions) ? j.positions : []);
+      setWallet(j.wallet && typeof j.wallet.publicKey === "string" ? j.wallet : null);
+      setPlatformFeeOnSellBps(typeof j.platformFeeOnSellBps === "number" ? j.platformFeeOnSellBps : null);
+      setOpenPositionsCount(typeof j.openPositionsCount === "number" ? j.openPositionsCount : 0);
     } catch {
       setErr("Could not load copy trade settings.");
     } finally {
@@ -134,7 +143,6 @@ export function CopyTradeClient() {
           max_slippage_bps: slippageBps,
           min_call_mcap_usd: minMcapN != null && Number.isFinite(minMcapN) ? minMcapN : null,
           min_bot_win_rate_2x_pct: minWrN != null && Number.isFinite(minWrN) ? minWrN : null,
-          fee_on_sell_bps: feeBps,
           sell_rules: sellRules,
         }),
       });
@@ -150,7 +158,54 @@ export function CopyTradeClient() {
     } finally {
       setSaving(false);
     }
-  }, [enabled, mirrorBotOnly, maxBuySol, slippageBps, minMcap, minWin2x, feeBps, sellRules, load]);
+  }, [enabled, mirrorBotOnly, maxBuySol, slippageBps, minMcap, minWin2x, sellRules, load]);
+
+  const createWallet = useCallback(async () => {
+    setWalletBusy(true);
+    setErr(null);
+    setOkMsg(null);
+    try {
+      const res = await fetch("/api/me/copy-trade-wallet", { method: "POST", credentials: "same-origin" });
+      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; publicKey?: string };
+      if (!res.ok || !j.ok) {
+        setErr(typeof j.error === "string" ? j.error : "Could not create wallet.");
+        return;
+      }
+      setOkMsg("Copy trade wallet created. Send SOL to the address shown, then wait for confirmations.");
+      await load();
+    } catch {
+      setErr("Could not create wallet.");
+    } finally {
+      setWalletBusy(false);
+    }
+  }, [load]);
+
+  const withdraw = useCallback(async () => {
+    setWalletBusy(true);
+    setErr(null);
+    setOkMsg(null);
+    try {
+      const sol = Number(withdrawSol);
+      const res = await fetch("/api/me/copy-trade-withdraw", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination: withdrawDest.trim(), sol }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; signature?: string };
+      if (!res.ok || !j.ok) {
+        setErr(typeof j.error === "string" ? j.error : "Withdraw failed.");
+        return;
+      }
+      setOkMsg(j.signature ? `Withdraw sent. Tx ${j.signature.slice(0, 10)}…` : "Withdraw sent.");
+      setWithdrawSol("");
+      await load();
+    } catch {
+      setErr("Withdraw failed.");
+    } finally {
+      setWalletBusy(false);
+    }
+  }, [withdrawDest, withdrawSol, load]);
 
   const updateRule = (i: number, field: keyof CopySellRule, val: string) => {
     setSellRules((prev) => {
@@ -172,8 +227,8 @@ export function CopyTradeClient() {
         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-300/85">Workspace</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">Copy trade</h1>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">
-          Save rules for size, risk, and exits. Eligible <span className="text-zinc-200">bot</span> calls become <span className="text-zinc-200">intents</span>; the
-          server may execute buys and later sells when automation is enabled. Details below.
+          Fund your personal copy-trade wallet, save rules, then enable matching. Buys and sells sign from{" "}
+          <span className="text-zinc-200">your</span> custodial address—only SOL on that address can be spent. Details below.
         </p>
       </header>
 
@@ -184,7 +239,7 @@ export function CopyTradeClient() {
         <p className="font-semibold text-amber-50">Risk &amp; legal</p>
         <p className="mt-1 text-xs leading-relaxed text-amber-100/85">
           Trading can result in total loss. Nothing here is investment advice or a promise of returns. By enabling copy trade you acknowledge
-          experimental software, custody of funds on the execution wallet, and market risk.
+          experimental software, custody of funds on your copy-trade wallet, and market risk.
         </p>
       </div>
 
@@ -209,9 +264,8 @@ export function CopyTradeClient() {
               1
             </span>
             <span>
-              <span className="font-medium text-zinc-200">Set your strategy</span> on the left: max buy, slippage, optional filters (mcap, bot
-              2× win rate), and <span className="text-zinc-200">sell milestones</span> (for example sell 50% at 2× from entry). Click{" "}
-              <span className="font-medium text-zinc-200">Save strategy</span> after changes. Rules are not active until they are saved.
+              <span className="font-medium text-zinc-200">Create your wallet</span> (button in the panel below when you&apos;re ready), then{" "}
+              <span className="font-medium text-zinc-200">send SOL</span> to that address so buys can execute up to your max size.
             </span>
           </li>
           <li className="flex gap-3">
@@ -222,9 +276,10 @@ export function CopyTradeClient() {
               2
             </span>
             <span>
-              Turn <span className="font-medium text-zinc-200">Enabled</span> on when you want matching to run. With{" "}
-              <span className="font-medium text-zinc-200">Only react to mirrored bot calls</span> (recommended), only official{" "}
-              <span className="text-zinc-200">bot</span> signals count—not every feed item.
+              <span className="font-medium text-zinc-200">Set your strategy</span>: max buy, slippage, optional filters, and{" "}
+              <span className="text-zinc-200">sell milestones</span>. Click <span className="font-medium text-zinc-200">Save strategy</span> after
+              changes. Turn <span className="font-medium text-zinc-200">Enabled</span> when you want matching; with{" "}
+              <span className="font-medium text-zinc-200">mirrored bot calls only</span> (recommended), only official bot signals count.
             </span>
           </li>
           <li className="flex gap-3">
@@ -235,10 +290,9 @@ export function CopyTradeClient() {
               3
             </span>
             <span>
-              When a call passes your filters, a row appears under <span className="font-medium text-zinc-200">Recent intents</span>{" "}
-              (queued → processing → completed, failed, or skipped). <span className="text-zinc-200">Skipped</span> usually means the worker
-              decided not to trade (limits, liquidity, or safety checks). <span className="text-zinc-200">Failed</span> shows an error hint when
-              one is available.
+              When a call passes your filters, a row appears under <span className="font-medium text-zinc-200">Recent intents</span>. The worker
+              spends <span className="text-zinc-200">only SOL in your copy-trade wallet</span> (up to your max buy and what balance allows after
+              buffers). <span className="text-zinc-200">Skipped</span> or <span className="text-zinc-200">failed</span> explains why no buy ran.
             </span>
           </li>
           <li className="flex gap-3">
@@ -262,8 +316,8 @@ export function CopyTradeClient() {
               5
             </span>
             <span>
-              If you set a <span className="font-medium text-zinc-200">platform fee on sells</span>, a separate small SOL transfer may run after
-              qualifying sells when a fee recipient is configured on the server. If none is configured, that fee step is skipped.
+              A <span className="font-medium text-zinc-200">platform fee on sells</span> (basis points) is set by the operator via server config,
+              not in the form. After qualifying milestone sells, a small SOL transfer may go to the configured fee recipient when rules allow.
             </span>
           </li>
         </ol>
@@ -275,7 +329,7 @@ export function CopyTradeClient() {
               <li>Save after every edit; confirm you see a success message.</li>
               <li>Enable only when you accept the risk box above.</li>
               <li>Use intents to confirm buys; use positions to confirm open size and sell progress.</li>
-              <li>Automated buys use SOL on the server&apos;s execution wallet, not the wallet you connect in the header—those balances are separate.</li>
+              <li>Withdraw free SOL from your copy-trade wallet only when you have no open positions (use the withdraw form).</li>
             </ul>
           </div>
           <div>
@@ -298,6 +352,73 @@ export function CopyTradeClient() {
       ) : (
         <div className="mt-8 flex flex-col gap-8 lg:grid lg:grid-cols-12 lg:items-start lg:gap-10">
           <div className="min-w-0 space-y-6 lg:col-span-7">
+            <div className={`rounded-2xl ${terminalSurface.panelCard} p-5 sm:p-6`}>
+              <h2 className="text-sm font-semibold text-zinc-100">Your copy trade wallet</h2>
+              <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                One custodial Solana address per account. Deposits credit on-chain here; buys and milestone sells sign from this address only.
+              </p>
+              {!wallet ? (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    disabled={walletBusy}
+                    onClick={() => void createWallet()}
+                    className="rounded-xl border border-sky-500/35 bg-sky-950/25 px-4 py-2.5 text-sm font-semibold text-sky-100 hover:bg-sky-900/30 disabled:opacity-50"
+                  >
+                    {walletBusy ? "Working…" : "Create my copy trade wallet"}
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Deposit address</p>
+                    <p className="mt-1 break-all font-mono text-xs text-zinc-200">{wallet.publicKey}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">SOL balance (RPC)</p>
+                    <p className="mt-1 text-sm tabular-nums text-zinc-100">
+                      {(Number(wallet.balanceLamports) / 1e9).toLocaleString(undefined, { maximumFractionDigits: 6 })} SOL
+                    </p>
+                  </div>
+                  <div className="border-t border-zinc-800/80 pt-4">
+                    <p className="text-xs font-semibold text-zinc-300">Withdraw SOL</p>
+                    <p className="mt-1 text-[10px] text-zinc-500">
+                      Open positions: {openPositionsCount}. Withdraw is available only when this is 0.
+                    </p>
+                    <label className="mt-3 block text-[11px] font-semibold text-zinc-500">
+                      Destination address
+                      <input
+                        value={withdrawDest}
+                        onChange={(e) => setWithdrawDest(e.target.value)}
+                        className={`mt-1 w-full ${terminalUi.formInput}`}
+                        placeholder="Solana address"
+                        disabled={openPositionsCount > 0 || walletBusy}
+                      />
+                    </label>
+                    <label className="mt-2 block text-[11px] font-semibold text-zinc-500">
+                      Amount (SOL)
+                      <input
+                        value={withdrawSol}
+                        onChange={(e) => setWithdrawSol(e.target.value)}
+                        className={`mt-1 w-full ${terminalUi.formInput}`}
+                        inputMode="decimal"
+                        placeholder="0.1"
+                        disabled={openPositionsCount > 0 || walletBusy}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={openPositionsCount > 0 || walletBusy || !withdrawDest.trim() || !withdrawSol.trim()}
+                      onClick={() => void withdraw()}
+                      className="mt-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-900/25 disabled:opacity-40"
+                    >
+                      {walletBusy ? "Working…" : "Withdraw"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
         <div className={`space-y-6 rounded-2xl ${terminalSurface.panelCard} p-5 sm:p-6`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-zinc-100">Strategy</h2>
@@ -358,19 +479,11 @@ export function CopyTradeClient() {
               Uses the same ATH ≥ 2× definition as the dashboard. Only enforced on <span className="text-zinc-400">bot</span> signals;
               needs at least five eligible bot calls in the window before the threshold applies.
             </p>
-            <label className="block text-xs font-semibold text-zinc-400">
-              Platform fee on sells (bps)
-              <input
-                type="number"
-                value={feeBps}
-                onChange={(e) => setFeeBps(Number(e.target.value) || 0)}
-                className={`mt-1 ${terminalUi.formInput}`}
-              />
-              <span className="mt-1 block text-[10px] font-normal text-zinc-600">
-                After each milestone sell, a separate SOL transfer may send this share to the platform fee recipient configured on the server
-                (minimum transfer rules apply). If no recipient is configured, the fee transfer is skipped.
-              </span>
-            </label>
+            <p className="sm:col-span-2 text-[10px] text-zinc-500">
+              Platform fee on milestone sells:{" "}
+              <span className="font-mono text-zinc-400">{platformFeeOnSellBps != null ? `${platformFeeOnSellBps} bps` : "—"}</span>{" "}
+              (operator-controlled, not editable here).
+            </p>
           </div>
 
           <div>

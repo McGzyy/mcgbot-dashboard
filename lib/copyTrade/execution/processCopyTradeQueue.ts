@@ -1,6 +1,5 @@
 import { processCopyTradeIntent, type ProcessIntentResult } from "@/lib/copyTrade/execution/processCopyTradeIntent";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Keypair } from "@solana/web3.js";
 
 export function isCopyTradeExecutionEnabled(): boolean {
   return process.env.COPY_TRADE_EXECUTION_ENABLED?.trim().toLowerCase() === "true";
@@ -34,7 +33,6 @@ export async function recoverStaleCopyTradeIntents(db: SupabaseClient, staleMs: 
 
 export async function runCopyTradeQueue(opts: {
   db: SupabaseClient;
-  keypair: Keypair;
   limit: number;
   recoverStaleMs?: number;
 }): Promise<{ recovered: number; results: ProcessIntentResult[] }> {
@@ -62,7 +60,7 @@ export async function runCopyTradeQueue(opts: {
 
   const results: ProcessIntentResult[] = [];
   for (const intentId of ids) {
-    const r = await processCopyTradeIntent(opts.db, opts.keypair, intentId);
+    const r = await processCopyTradeIntent(opts.db, intentId);
     if (r.outcome === "not_claimed") continue;
     results.push(r);
   }

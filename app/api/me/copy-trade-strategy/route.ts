@@ -1,144 +1,154 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { copyTradeFeeOnSellBpsFromEnv } from "@/lib/copyTrade/platformFee";
 import { getOrCreateStrategy, updateStrategy, type StrategyPatch } from "@/lib/copyTrade/strategyService";
-import { lamportsBigIntToSolString } from "@/lib/copyTrade/sellRules";
+import { lamportsBigIntToSolString, type CopySellRule } from "@/lib/copyTrade/sellRules";
+import { getCopyTradeUserWallet } from "@/lib/copyTrade/userWalletService";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { solanaRpcUrlServer } from "@/lib/solanaEnv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function discordUserId(session: { user?: { id?: string | null } } | null): string {
+  return session?.user?.id?.trim() ?? "";
+}
+
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  const uid = session?.user?.id?.trim() ?? "";
-  if (!uid) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    const uid = discordUserId(session);
+    if (!uid) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const db = getSupabaseAdmin();
-  if (!db) return Response.json({ error: "Database not configured" }, { status: 503 });
+    const db = getSupabaseAdmin();
+    if (!db) return Response.json({ error: "Database not configured" }, { status: 503 });
 
-  const strategy = await getOrCreateStrategy(db, uid);
-  if (!strategy) return Response.json({ error: "Could not load strategy" }, { status: 500 });
+    const strategy = await getOrCreateStrategy(db, uid);
+    if (!strategy) return Response.json({ error: "Could not load strategy" }, { status: 500 });
 
-  const { data: intentsRaw, error: iErr } = await db
-    .from("copy_trade_intents")
-    .select(
-      "id,status,detail,created_at,signal_id,updated_at,started_at,completed_at,buy_signature,buy_input_lamports,error_message,executor_wallet"
-    )
-    .eq("discord_user_id", uid)
-    .order("created_at", { ascending: false })
-    .limit(40);
+    const maxLamports = BigInt(String(strategy.max_buy_lamports ?? "0"));
+    const max_buy_sol = lamportsBigIntToSolString(maxLamports);
 
-  if (iErr) {
-    console.error("[copy-trade-strategy GET]", iErr);
-  }
+    const [intentsRes, posRes, walletRow, openPosRes] = await Promise.all([
+      db
+        .from("copy_trade_intents")
+        .select(
+          "id,strategy_id,signal_id,status,created_at,updated_at,started_at,completed_at,buy_signature,buy_input_lamports,error_message,executor_wallet,detail"
+        )
+        .eq("discord_user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(40),
+      db
+        .from("copy_trade_positions")
+        .select("id,intent_id,status,mint,next_rule_index,created_at,updated_at,detail")
+        .eq("discord_user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(40),
+      getCopyTradeUserWallet(db, uid),
+      db.from("copy_trade_positions").select("id", { count: "exact", head: true }).eq("discord_user_id", uid).eq("status", "open"),
+    ]);
 
-  const intentsList = Array.isArray(intentsRaw) ? intentsRaw : [];
-  const signalIds = [...new Set(intentsList.map((r: { signal_id?: string }) => String(r.signal_id || "")).filter(Boolean))];
-  let caBySignal = new Map<string, string>();
-  if (signalIds.length) {
-    const { data: sigs } = await db.from("copy_trade_signals").select("id,call_ca").in("id", signalIds);
-    if (Array.isArray(sigs)) {
-      caBySignal = new Map(sigs.map((s: { id: string; call_ca: string }) => [s.id, s.call_ca]));
+    if (intentsRes.error) console.error("[copy-trade-strategy] intents", intentsRes.error);
+    if (posRes.error) console.error("[copy-trade-strategy] positions", posRes.error);
+
+    const intentRows = Array.isArray(intentsRes.data) ? intentsRes.data : [];
+    const signalIds = [...new Set(intentRows.map((r: { signal_id?: string }) => String(r.signal_id ?? "").trim()).filter(Boolean))];
+    const caMap = new Map<string, string>();
+    if (signalIds.length) {
+      const { data: sigs } = await db.from("copy_trade_signals").select("id,call_ca").in("id", signalIds);
+      for (const s of sigs ?? []) {
+        const o = s as { id: string; call_ca: string };
+        if (o?.id) caMap.set(String(o.id), String(o.call_ca ?? ""));
+      }
     }
+
+    const intents = intentRows.map((row: Record<string, unknown>) => ({
+      ...row,
+      call_ca: caMap.get(String(row.signal_id ?? "")) ?? null,
+    }));
+
+    let wallet: { publicKey: string; balanceLamports: string } | null = null;
+    if (walletRow?.public_key) {
+      let bal = "0";
+      try {
+        const rpc = solanaRpcUrlServer();
+        const conn = new Connection(rpc, "confirmed");
+        const pk = new PublicKey(walletRow.public_key);
+        const lamports = await conn.getBalance(pk, "confirmed");
+        bal = String(lamports);
+      } catch {
+        // ignore RPC errors for display
+      }
+      wallet = { publicKey: walletRow.public_key, balanceLamports: bal };
+    }
+
+    const openCount = typeof openPosRes.count === "number" ? openPosRes.count : 0;
+
+    return Response.json({
+      ok: true,
+      strategy: { ...strategy, max_buy_sol },
+      intents,
+      positions: posRes.data ?? [],
+      wallet,
+      platformFeeOnSellBps: copyTradeFeeOnSellBpsFromEnv(),
+      openPositionsCount: openCount,
+    });
+  } catch (e) {
+    console.error("[copy-trade-strategy GET]", e);
+    return Response.json({ error: "Internal error" }, { status: 500 });
   }
-
-  const { data: posRaw, error: pErr } = await db
-    .from("copy_trade_positions")
-    .select("id,intent_id,status,mint,next_rule_index,created_at,updated_at,detail")
-    .eq("discord_user_id", uid)
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  if (pErr) {
-    console.error("[copy-trade-strategy GET] positions", pErr);
-  }
-
-  const intents = intentsList.map(
-    (row: {
-      id: string;
-      status: string;
-      detail: unknown;
-      created_at: string;
-      signal_id: string;
-      updated_at?: string | null;
-      started_at?: string | null;
-      completed_at?: string | null;
-      buy_signature?: string | null;
-      buy_input_lamports?: string | number | null;
-      error_message?: string | null;
-      executor_wallet?: string | null;
-    }) => ({
-      id: row.id,
-      status: row.status,
-      detail: row.detail,
-      created_at: row.created_at,
-      signal_id: row.signal_id,
-      call_ca: caBySignal.get(row.signal_id) ?? null,
-      updated_at: row.updated_at ?? null,
-      started_at: row.started_at ?? null,
-      completed_at: row.completed_at ?? null,
-      buy_signature: row.buy_signature ?? null,
-      buy_input_lamports: row.buy_input_lamports ?? null,
-      error_message: row.error_message ?? null,
-      executor_wallet: row.executor_wallet ?? null,
-    })
-  );
-
-  const maxBuySol = lamportsBigIntToSolString(BigInt(String(strategy.max_buy_lamports ?? 0)));
-
-  return Response.json({
-    ok: true,
-    strategy: {
-      ...strategy,
-      max_buy_sol: maxBuySol,
-    },
-    intents,
-    positions: Array.isArray(posRaw) ? posRaw : [],
-  });
 }
 
 export async function PUT(request: Request) {
-  const session = await getServerSession(authOptions);
-  const uid = session?.user?.id?.trim() ?? "";
-  if (!uid) return Response.json({ error: "Unauthorized" }, { status: 401 });
-
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    const session = await getServerSession(authOptions);
+    const uid = discordUserId(session);
+    if (!uid) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!body) return Response.json({ error: "Invalid JSON" }, { status: 400 });
+
+    const db = getSupabaseAdmin();
+    if (!db) return Response.json({ error: "Database not configured" }, { status: 503 });
+
+    const patch: StrategyPatch = {};
+    if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
+    if (typeof body.mirror_bot_calls_only === "boolean") patch.mirror_bot_calls_only = body.mirror_bot_calls_only;
+    if (typeof body.max_buy_sol === "number") patch.max_buy_sol = body.max_buy_sol;
+    if (typeof body.max_slippage_bps === "number") patch.max_slippage_bps = body.max_slippage_bps;
+    if ("min_call_mcap_usd" in body) {
+      const v = body.min_call_mcap_usd;
+      patch.min_call_mcap_usd =
+        v == null || v === ""
+          ? null
+          : typeof v === "number" && Number.isFinite(v)
+            ? v
+            : Number(v);
+    }
+    if ("min_bot_win_rate_2x_pct" in body) {
+      const v = body.min_bot_win_rate_2x_pct;
+      patch.min_bot_win_rate_2x_pct =
+        v == null || v === ""
+          ? null
+          : typeof v === "number" && Number.isFinite(v)
+            ? v
+            : Number(v);
+    }
+    if (Array.isArray(body.sell_rules)) {
+      patch.sell_rules = body.sell_rules as CopySellRule[];
+    }
+
+    const r = await updateStrategy(db, uid, patch);
+    if (!r.ok) return Response.json({ error: r.error }, { status: 400 });
+
+    const maxLamports = BigInt(String(r.row.max_buy_lamports ?? "0"));
+    return Response.json({
+      ok: true,
+      strategy: { ...r.row, max_buy_sol: lamportsBigIntToSolString(maxLamports) },
+    });
+  } catch (e) {
+    console.error("[copy-trade-strategy PUT]", e);
+    return Response.json({ error: "Internal error" }, { status: 500 });
   }
-
-  const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-  const patch: StrategyPatch = {};
-
-  if ("enabled" in o) patch.enabled = o.enabled === true;
-  if ("mirror_bot_calls_only" in o) patch.mirror_bot_calls_only = o.mirror_bot_calls_only === true;
-  if (typeof o.max_buy_sol === "number") patch.max_buy_sol = o.max_buy_sol;
-  if (typeof o.max_slippage_bps === "number") patch.max_slippage_bps = o.max_slippage_bps;
-  if ("min_call_mcap_usd" in o) {
-    patch.min_call_mcap_usd =
-      o.min_call_mcap_usd === null || o.min_call_mcap_usd === ""
-        ? null
-        : Number(o.min_call_mcap_usd);
-  }
-  if ("min_bot_win_rate_2x_pct" in o) {
-    patch.min_bot_win_rate_2x_pct =
-      o.min_bot_win_rate_2x_pct === null || o.min_bot_win_rate_2x_pct === ""
-        ? null
-        : Number(o.min_bot_win_rate_2x_pct);
-  }
-  if (Array.isArray(o.sell_rules)) patch.sell_rules = o.sell_rules as StrategyPatch["sell_rules"];
-  if (typeof o.fee_on_sell_bps === "number") patch.fee_on_sell_bps = o.fee_on_sell_bps;
-
-  const db = getSupabaseAdmin();
-  if (!db) return Response.json({ error: "Database not configured" }, { status: 503 });
-
-  const res = await updateStrategy(db, uid, patch);
-  if (!res.ok) return Response.json({ error: res.error }, { status: 400 });
-
-  const maxBuySol = lamportsBigIntToSolString(BigInt(String(res.row.max_buy_lamports ?? 0)));
-  return Response.json({
-    ok: true,
-    strategy: { ...res.row, max_buy_sol: maxBuySol },
-  });
 }

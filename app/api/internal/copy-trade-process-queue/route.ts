@@ -1,4 +1,3 @@
-import { loadCopyTradeExecutorKeypair } from "@/lib/copyTrade/execution/executorKeypair";
 import { runCopyTradeSellPass } from "@/lib/copyTrade/execution/processCopyTradePositionSells";
 import { isCopyTradeExecutionEnabled, runCopyTradeQueue } from "@/lib/copyTrade/execution/processCopyTradeQueue";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -74,18 +73,6 @@ export async function POST(request: Request) {
   const sellLimit = parseSellLimit(o, limit);
   const recoverStaleMs = parseRecoverStaleMs(o);
 
-  const kp = loadCopyTradeExecutorKeypair();
-  if (!kp) {
-    return Response.json(
-      {
-        ok: false,
-        error:
-          "Executor key missing. Set COPY_TRADE_EXECUTOR_SOL_SECRET_BASE58 (or COPY_TRADE_EXECUTOR_SOL_SECRET_JSON).",
-      },
-      { status: 503 }
-    );
-  }
-
   const db = getSupabaseAdmin();
   if (!db) {
     return Response.json({ ok: false, error: "Database not configured" }, { status: 503 });
@@ -93,12 +80,11 @@ export async function POST(request: Request) {
 
   const { recovered, results } = await runCopyTradeQueue({
     db,
-    keypair: kp,
     limit,
     recoverStaleMs,
   });
 
-  const sellPass = await runCopyTradeSellPass(db, kp, sellLimit);
+  const sellPass = await runCopyTradeSellPass(db, sellLimit);
 
   const completed = results.filter((r) => r.outcome === "completed").length;
   const failed = results.filter((r) => r.outcome === "failed").length;

@@ -4,9 +4,10 @@ import { jupiterQuoteSolToMint, jupiterSwapTransactionBase64 } from "@/lib/copyT
 import { defaultSellRules } from "@/lib/copyTrade/matchStrategy";
 import { parseSellRules, sellRulesToJson, type CopySellRule } from "@/lib/copyTrade/sellRules";
 import type { CopyTradeStrategyRow } from "@/lib/copyTrade/strategyService";
+import { loadCopyTradeUserKeypair } from "@/lib/copyTrade/userWalletService";
 import { solanaRpcUrlServer } from "@/lib/solanaEnv";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Connection, Keypair, PublicKey, VersionedTransaction } from "@solana/web3.js";
+import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
 
 export type ProcessIntentResult =
   | { outcome: "completed"; intentId: string; signature: string }
@@ -57,13 +58,9 @@ function parseSolanaMint(mint: string): PublicKey | null {
 
 /**
  * Claims one `queued` intent, loads strategy + signal, executes SOL→token buy via Jupiter v6, confirms on RPC.
- * Opens a `copy_trade_positions` row for the sell worker (milestones: token→SOL).
+ * Signs with the user's custodial copy-trade wallet (must exist and hold SOL). Opens `copy_trade_positions` for sells.
  */
-export async function processCopyTradeIntent(
-  db: SupabaseClient,
-  keypair: Keypair,
-  intentId: string
-): Promise<ProcessIntentResult> {
+export async function processCopyTradeIntent(db: SupabaseClient, intentId: string): Promise<ProcessIntentResult> {
   const started = nowIso();
   const { data: claimed, error: claimErr } = await db
     .from("copy_trade_intents")
@@ -152,6 +149,12 @@ export async function processCopyTradeIntent(
 
   if (!parseSolanaMint(outputMint)) {
     return await fail("invalid_output_mint", "invalid_mint");
+  }
+
+  const discordUserId = String((claimed as { discord_user_id: string }).discord_user_id);
+  const keypair = await loadCopyTradeUserKeypair(db, discordUserId);
+  if (!keypair) {
+    return await skip("no_copy_trade_wallet");
   }
 
   const rpc = solanaRpcUrlServer();
