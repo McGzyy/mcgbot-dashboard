@@ -40,6 +40,8 @@ type DashboardChatPanelProps = {
   dashboardChannel?: DashboardChatKind;
   /** Optional Joyride anchor for the chat shell (e.g. lounge tutorial). */
   panelDataTutorial?: string;
+  /** Compact layout for the bottom-screen quick-chat dock (no side preview column, tighter height). */
+  variant?: "default" | "dock";
 };
 
 function formatTime(ts: number): string {
@@ -105,10 +107,12 @@ function inferTabsFromAllowlist(ids: string[]): Array<{ key: DashboardChatKind; 
 }
 
 export function DashboardChatPanel(props: DashboardChatPanelProps) {
+  const variant = props.variant ?? "default";
+  const isDock = variant === "dock";
   const pollMs = props.pollMs ?? 9000;
   const feed = props.feed ?? "lounge";
   const dashboardChannel = props.dashboardChannel ?? "general";
-  const panelDataTutorial = props.panelDataTutorial;
+  const panelDataTutorial = isDock ? undefined : props.panelDataTutorial;
   const { data: session, status } = useSession();
 
   const [channelTabs, setChannelTabs] = useState<Array<{ key: DashboardChatKind; channelId: string }>>([]);
@@ -135,7 +139,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
 
   const endpoint = useMemo(() => {
     const qs = new URLSearchParams();
-    qs.set("limit", "60");
+    qs.set("limit", isDock ? "40" : "60");
     if (feed === "dashboard") {
       qs.set("channel", dashboardChannel);
       return `/api/chat/messages?${qs.toString()}`;
@@ -143,7 +147,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
     const cid = channelTabs.find((t) => t.key === activeTabKey)?.channelId ?? "";
     if (cid) qs.set("channelId", cid);
     return `/api/lounge/discord-chats/messages?${qs.toString()}`;
-  }, [activeTabKey, channelTabs, dashboardChannel, feed]);
+  }, [activeTabKey, channelTabs, dashboardChannel, feed, isDock]);
 
   const sendChannelKind: DashboardChatKind = feed === "dashboard" ? dashboardChannel : activeTabKey;
 
@@ -204,7 +208,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
         setActiveTabKey((prev) => (tabs.some((t) => t.key === prev) ? prev : fallbackKey));
         setMessages(data.messages);
 
-        if (tabs.length <= 1) {
+        if (isDock || tabs.length <= 1) {
           setPreviewMessagesByKey({});
         } else {
           const activeCid = String(data.channelId || "").trim();
@@ -238,7 +242,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [endpoint, feed, status]);
+  }, [endpoint, feed, status, isDock]);
 
   useEffect(() => {
     if (!stickToBottomRef.current) return;
@@ -320,12 +324,13 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
       window.clearTimeout(t);
       window.clearTimeout(t2);
     };
-  }, [loading, panelDataTutorial, feed, messages.length, channelTabs.length, previewMessagesByKey]);
+  }, [loading, panelDataTutorial, feed, messages.length, channelTabs.length, previewMessagesByKey, isDock]);
 
   if (status !== "authenticated") return null;
 
   const viewerDiscordId = session?.user?.id?.trim() ?? "";
   const loungeMulti = feed === "lounge" && channelTabs.length > 1;
+  const loungeAside = loungeMulti && !isDock;
   const headerChannelTitle =
     feed === "dashboard"
       ? dashboardChannel === "mod"
@@ -337,10 +342,16 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
 
   return (
     <section
-      className={`relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-b from-zinc-950/80 via-zinc-950/40 to-black/80 shadow-[0_0_0_1px_rgba(39,39,42,0.35)] ${terminalSurface.insetEdge}`}
+      className={
+        isDock
+          ? `relative overflow-hidden rounded-t-2xl border-x-0 border-b-0 border-t border-zinc-800/55 bg-gradient-to-b from-zinc-950/95 to-zinc-950/85 ${terminalSurface.insetEdge}`
+          : `relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-b from-zinc-950/80 via-zinc-950/40 to-black/80 shadow-[0_0_0_1px_rgba(39,39,42,0.35)] ${terminalSurface.insetEdge}`
+      }
     >
       {loungeMulti ? (
-        <div className="border-b border-zinc-800/50 bg-black/20 px-3 py-2.5 lg:hidden">
+        <div
+          className={`border-b border-zinc-800/50 bg-black/20 px-3 ${isDock ? "py-2" : "py-2.5 lg:hidden"}`}
+        >
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Channels</p>
           <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {channelTabs.map((tab) => {
@@ -370,20 +381,28 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
           className="flex min-h-0 min-w-0 flex-1 flex-col"
         >
           <div
-            className={`flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between ${terminalChrome.headerRule} px-4 py-3 sm:px-5`}
+            className={`flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between ${terminalChrome.headerRule} ${isDock ? "px-3 py-2 sm:px-4" : "px-4 py-3 sm:px-5"}`}
           >
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
                 {feed === "dashboard" ? "Discord" : loungeMulti ? "Active channel" : "Live feed"}
               </p>
-              <h2 className="mt-0.5 text-lg font-semibold tracking-tight text-white sm:text-xl">
+              <h2
+                className={
+                  isDock
+                    ? "mt-0.5 text-base font-semibold tracking-tight text-white"
+                    : "mt-0.5 text-lg font-semibold tracking-tight text-white sm:text-xl"
+                }
+              >
                 {headerChannelTitle}
               </h2>
-              <p className="mt-1 max-w-xl text-[11px] leading-snug text-zinc-500 sm:text-xs">
-                {feed === "lounge"
-                  ? "Your messages are highlighted and aligned to the right. Names link to profiles."
-                  : "Names link to member profiles."}
-              </p>
+              {!isDock ? (
+                <p className="mt-1 max-w-xl text-[11px] leading-snug text-zinc-500 sm:text-xs">
+                  {feed === "lounge"
+                    ? "Your messages are highlighted and aligned to the right. Names link to profiles."
+                    : "Names link to member profiles."}
+                </p>
+              ) : null}
             </div>
             <button
               type="button"
@@ -396,7 +415,9 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
           </div>
 
           {error ? (
-            <div className="border-b border-amber-500/15 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90 sm:px-5">
+            <div
+              className={`border-b border-amber-500/15 bg-amber-500/10 text-sm text-amber-100/90 ${isDock ? "px-3 py-2 sm:px-4" : "px-4 py-3 sm:px-5"}`}
+            >
               {error}
             </div>
           ) : null}
@@ -409,13 +430,19 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
               const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
               stickToBottomRef.current = dist < 80;
             }}
-            className="max-h-[min(70vh,720px)] min-h-[280px] flex-1 overflow-y-auto px-3 py-3 sm:px-5"
+            className={
+              isDock
+                ? "max-h-[min(30vh,260px)] min-h-[120px] flex-1 overflow-y-auto px-3 py-2 sm:px-4"
+                : "max-h-[min(70vh,720px)] min-h-[280px] flex-1 overflow-y-auto px-3 py-3 sm:px-5"
+            }
           >
             {messages.length === 0 && !loading ? (
-              <div className="py-16 text-center text-sm text-zinc-500">No messages yet.</div>
+              <div className={isDock ? "py-8 text-center text-sm text-zinc-500" : "py-16 text-center text-sm text-zinc-500"}>
+                No messages yet.
+              </div>
             ) : null}
 
-            <ul className="space-y-3">
+            <ul className={isDock ? "space-y-2" : "space-y-3"}>
               {messages.map((m) => {
                 const nameColor = m.authorAccentColor ?? DASHBOARD_CHAT_AUTHOR_COLOR[m.authorTier];
                 const isOwn = Boolean(viewerDiscordId && m.authorId === viewerDiscordId);
@@ -524,7 +551,9 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
             </ul>
           </div>
 
-          <div className="border-t border-zinc-800/55 bg-black/25 px-3 py-3 sm:px-5">
+          <div
+            className={`border-t border-zinc-800/55 bg-black/25 ${isDock ? "px-3 py-2 sm:px-4" : "px-3 py-3 sm:px-5"}`}
+          >
             {sendError ? (
               <p className="mb-2 text-xs font-medium text-rose-300/90">{sendError}</p>
             ) : null}
@@ -555,13 +584,17 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
                 {sending ? "Sending…" : "Send"}
               </button>
             </div>
-            <p className="mt-2 text-[11px] text-zinc-600">
-              Sent as you via webhook when configured; Enter sends, Shift+Enter newline.
-            </p>
+        {isDock ? (
+          <p className="mt-1.5 text-[10px] text-zinc-600">Enter sends · Shift+Enter newline · webhook relay when configured.</p>
+        ) : (
+          <p className="mt-2 text-[11px] text-zinc-600">
+            Sent as you via webhook when configured; Enter sends, Shift+Enter newline.
+          </p>
+        )}
           </div>
         </div>
 
-        {loungeMulti ? (
+        {loungeAside ? (
           <aside className="hidden w-[min(100%,300px)] shrink-0 flex-col border-t border-zinc-800/50 bg-black/30 lg:flex lg:border-l lg:border-t-0">
             <div className="border-b border-zinc-800/50 px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Other channels</p>
