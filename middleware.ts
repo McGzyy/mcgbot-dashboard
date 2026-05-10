@@ -40,6 +40,7 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (pathname === "/join") return true;
   if (pathname.startsWith("/join/verify")) return true;
   if (pathname === "/api/public/site-flags" && method === "GET") return true;
+  if (pathname === "/api/copy-trade/bot-7d" && method === "GET") return true;
   if (pathname === "/api/subscription/plans" && method === "GET") return true;
   if (pathname === "/api/subscription/stripe/webhook" && method === "POST") return true;
   if (pathname === "/api/debug-env" && method === "GET") return true;
@@ -173,6 +174,10 @@ export async function middleware(req: NextRequest) {
     }
 
     if (pathname.startsWith("/api/public/") && req.method === "GET") {
+      return NextResponse.next();
+    }
+
+    if (pathname === "/api/copy-trade/bot-7d" && req.method === "GET") {
       return NextResponse.next();
     }
 

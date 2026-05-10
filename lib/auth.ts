@@ -204,19 +204,44 @@ export const authOptions: NextAuthOptions = {
             ? token.helpTier
             : "";
         try {
-          const [end, exempt, helpTier] = await Promise.all([
+          const supabaseUrl = process.env.SUPABASE_URL?.trim();
+          const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+          const sb =
+            supabaseUrl && serviceKey
+              ? createClient(supabaseUrl, serviceKey)
+              : null;
+          const [end, exempt, helpTier, userRes] = await Promise.all([
             getSubscriptionEnd(discordId),
             computeSubscriptionExempt(discordId),
             resolveHelpTierAsync(discordId).catch((e) => {
               console.warn("[auth] resolveHelpTierAsync:", e);
               return "user" as const;
             }),
+            sb
+              ? sb
+                  .from("users")
+                  .select("trusted_pro, created_at, copy_trade_access_state")
+                  .eq("discord_id", discordId)
+                  .maybeSingle()
+              : Promise.resolve({ data: null as Record<string, unknown> | null, error: null }),
           ]);
           token.subscriptionActiveUntil = end;
           token.subscriptionExempt = exempt;
           token.helpTier = helpTier;
           token.canModerate = meetsModerationMinTier(helpTier);
           token.subscriptionRefreshAt = Date.now();
+
+          const ur = userRes as { data: Record<string, unknown> | null; error: { message?: string } | null };
+          if (ur.error) {
+            console.warn("[auth] users gate row fetch:", ur.error.message ?? ur.error);
+          }
+          const urow = !ur.error && ur?.data && typeof ur.data === "object" ? ur.data : null;
+          (token as { trustedPro?: boolean }).trustedPro = urow?.trusted_pro === true;
+          (token as { accountCreatedAt?: string | null }).accountCreatedAt =
+            typeof urow?.created_at === "string" ? urow.created_at : null;
+          const cts = urow?.copy_trade_access_state;
+          (token as { copyTradeAccessState?: string }).copyTradeAccessState =
+            cts === "pending" || cts === "approved" || cts === "denied" || cts === "none" ? String(cts) : "none";
         } catch (e) {
           console.error("[auth] subscription/staff refresh:", e);
           // Do not demote staff or wipe subscription fields on transient DB/network errors.
@@ -314,6 +339,14 @@ export const authOptions: NextAuthOptions = {
       session.user.helpTier =
         tier === "admin" || tier === "mod" || tier === "user" ? tier : "user";
       session.user.canModerate = token.canModerate === true;
+      session.user.trustedPro = (token as { trustedPro?: boolean }).trustedPro === true;
+      session.user.accountCreatedAt =
+        typeof (token as { accountCreatedAt?: string | null }).accountCreatedAt === "string"
+          ? (token as { accountCreatedAt?: string }).accountCreatedAt
+          : null;
+      const cts = (token as { copyTradeAccessState?: string }).copyTradeAccessState;
+      session.user.copyTradeAccessState =
+        cts === "pending" || cts === "approved" || cts === "denied" || cts === "none" ? cts : "none";
 
       // Expose Discord gate status to the client for UX.
       (session.user as any).discordInGuild =

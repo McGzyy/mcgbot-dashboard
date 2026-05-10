@@ -41,6 +41,27 @@ type PositionRow = {
   detail: unknown;
 };
 
+type Bot7dTier = { label: string; hitPct: number };
+
+const BOT7D_PILL_STYLES = [
+  {
+    wrap: "border-emerald-500/45 bg-emerald-950/55",
+    text: "text-emerald-300",
+  },
+  {
+    wrap: "border-amber-400/50 bg-amber-950/45",
+    text: "text-amber-200",
+  },
+  {
+    wrap: "border-cyan-400/45 bg-cyan-950/40",
+    text: "text-cyan-200",
+  },
+  {
+    wrap: "border-sky-400/45 bg-sky-950/45",
+    text: "text-sky-200",
+  },
+] as const;
+
 function asSellRules(v: unknown): CopySellRule[] {
   if (!Array.isArray(v)) return [{ multiple: 2, sell_fraction: 1 }];
   const out: CopySellRule[] = [];
@@ -76,6 +97,8 @@ export function CopyTradeClient() {
   const [walletBusy, setWalletBusy] = useState(false);
   const [withdrawDest, setWithdrawDest] = useState("");
   const [withdrawSol, setWithdrawSol] = useState("");
+  const [bot7d, setBot7d] = useState<{ totalCalls: number; tiers: Bot7dTier[] } | null>(null);
+  const [bot7dErr, setBot7dErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,6 +141,40 @@ export function CopyTradeClient() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setBot7dErr(null);
+      try {
+        const res = await fetch("/api/copy-trade/bot-7d", { credentials: "same-origin", cache: "no-store" });
+        const j = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          totalCalls?: number;
+          tiers?: Bot7dTier[];
+          error?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok || !j.ok) {
+          setBot7d(null);
+          setBot7dErr(typeof j.error === "string" ? j.error : "Could not load 7D bot stats.");
+          return;
+        }
+        setBot7d({
+          totalCalls: typeof j.totalCalls === "number" ? j.totalCalls : 0,
+          tiers: Array.isArray(j.tiers) ? j.tiers : [],
+        });
+      } catch {
+        if (!cancelled) {
+          setBot7d(null);
+          setBot7dErr("Could not load 7D bot stats.");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -551,6 +608,41 @@ export function CopyTradeClient() {
           </div>
 
           <aside className="min-w-0 space-y-6 lg:col-span-5">
+            <div className={`rounded-2xl ${terminalSurface.panelCard} p-4`}>
+              <p className="text-[11px] font-medium text-zinc-400">
+                7D Bot Hitrate
+                {bot7d != null ? (
+                  <>
+                    {" "}
+                    <span className="text-zinc-600">·</span> {bot7d.totalCalls} call{bot7d.totalCalls === 1 ? "" : "s"}
+                  </>
+                ) : null}
+              </p>
+              {bot7dErr ? (
+                <p className="mt-2 text-[11px] text-amber-200/85">{bot7dErr}</p>
+              ) : bot7d && bot7d.tiers.length > 0 ? (
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {bot7d.tiers.map((t, i) => {
+                    const st = BOT7D_PILL_STYLES[i % BOT7D_PILL_STYLES.length];
+                    return (
+                      <span
+                        key={t.label}
+                        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold tabular-nums ${st.wrap} ${st.text}`}
+                      >
+                        {t.label} {t.hitPct}%
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="mt-2 text-[11px] text-zinc-500">Loading rolling 7-day hit rates…</p>
+              )}
+              <p className="mt-2 text-[10px] leading-relaxed text-zinc-600">
+                Eligible bot calls in the last 7 days: share that reached each ATH multiple. Backlogged calls age out of this window; use this as
+                a rough risk lens, not a guarantee.
+              </p>
+            </div>
+
             <div className={`rounded-2xl ${terminalSurface.panelCard} p-5`}>
         <h2 className="text-sm font-semibold text-zinc-100">Positions</h2>
         <p className="mt-1 text-xs leading-relaxed text-zinc-500">

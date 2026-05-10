@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { assertCopyTradeFeatureAccess } from "@/lib/copyTrade/copyTradeAccessHttp";
 import { createCopyTradeUserWallet } from "@/lib/copyTrade/userWalletService";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -8,9 +7,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
-    const session = await getServerSession(authOptions);
-    const uid = session?.user?.id?.trim() ?? "";
-    if (!uid) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const gate = await assertCopyTradeFeatureAccess();
+    if (!gate.ok) return gate.response;
+    const uid = gate.discordId;
 
     const db = getSupabaseAdmin();
     if (!db) return Response.json({ error: "Database not configured" }, { status: 503 });

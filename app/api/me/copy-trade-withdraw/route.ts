@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { assertCopyTradeFeatureAccess } from "@/lib/copyTrade/copyTradeAccessHttp";
 import { sendNativeLamportsTransfer } from "@/lib/copyTrade/execution/nativeSolTransfer";
 import { solToLamportsBigInt } from "@/lib/copyTrade/sellRules";
 import { loadCopyTradeUserKeypair } from "@/lib/copyTrade/userWalletService";
@@ -14,9 +13,9 @@ const CONFIRM_MS = 60_000;
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    const uid = session?.user?.id?.trim() ?? "";
-    if (!uid) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const gate = await assertCopyTradeFeatureAccess();
+    if (!gate.ok) return gate.response;
+    const uid = gate.discordId;
 
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
     if (!body) return Response.json({ error: "Invalid JSON" }, { status: 400 });

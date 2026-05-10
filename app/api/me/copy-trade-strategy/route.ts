@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { assertCopyTradeFeatureAccess } from "@/lib/copyTrade/copyTradeAccessHttp";
 import { copyTradeFeeOnSellBpsFromEnv } from "@/lib/copyTrade/platformFee";
 import { getOrCreateStrategy, updateStrategy, type StrategyPatch } from "@/lib/copyTrade/strategyService";
 import { lamportsBigIntToSolString, type CopySellRule } from "@/lib/copyTrade/sellRules";
@@ -11,15 +10,11 @@ import { solanaRpcUrlServer } from "@/lib/solanaEnv";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function discordUserId(session: { user?: { id?: string | null } } | null): string {
-  return session?.user?.id?.trim() ?? "";
-}
-
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    const uid = discordUserId(session);
-    if (!uid) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const gate = await assertCopyTradeFeatureAccess();
+    if (!gate.ok) return gate.response;
+    const uid = gate.discordId;
 
     const db = getSupabaseAdmin();
     if (!db) return Response.json({ error: "Database not configured" }, { status: 503 });
@@ -102,9 +97,9 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    const uid = discordUserId(session);
-    if (!uid) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const gate = await assertCopyTradeFeatureAccess();
+    if (!gate.ok) return gate.response;
+    const uid = gate.discordId;
 
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
     if (!body) return Response.json({ error: "Invalid JSON" }, { status: 400 });

@@ -72,6 +72,12 @@ export default function AdminOverviewPage() {
           data-tutorial="admin.card.bot"
         />
         <OverviewCard
+          href="/admin/copy-trade"
+          title="Copy trade"
+          subtitle="Custodial wallets, intent queue, recent failures, and pending copy-trade access requests."
+          hint="Read · Supabase"
+        />
+        <OverviewCard
           href="/admin/call-visibility"
           title="Call visibility"
           subtitle="Hide or show a tracked mint on the public web (profiles & lists) — same as !hidecall; nothing deleted in Discord."
