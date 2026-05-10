@@ -44,6 +44,7 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (pathname === "/api/subscription/stripe/webhook" && method === "POST") return true;
   if (pathname === "/api/debug-env" && method === "GET") return true;
   if (pathname === "/api/internal/outside-call-trust" && method === "POST") return true;
+  if (pathname === "/api/internal/copy-trade-on-call" && method === "POST") return true;
   return false;
 }
 
@@ -175,6 +176,10 @@ export async function middleware(req: NextRequest) {
     }
 
     if (pathname === "/api/internal/outside-call-trust" && req.method === "POST") {
+      return NextResponse.next();
+    }
+
+    if (pathname === "/api/internal/copy-trade-on-call" && req.method === "POST") {
       return NextResponse.next();
     }
 

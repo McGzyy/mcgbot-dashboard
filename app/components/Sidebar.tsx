@@ -215,6 +215,20 @@ function SidebarBody({
             />
             <span>Trade Journal</span>
           </Link>
+          <Link
+            href="/copy-trade"
+            onClick={pick}
+            data-tutorial="sidebar.nav.copyTrade"
+            className={getNavItemClass(isActive(pathname, "/copy-trade"))}
+          >
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/copy-trade") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+              aria-hidden
+            />
+            <span>Copy trade</span>
+          </Link>
           <Link href="/watchlist" onClick={pick} data-tutorial="sidebar.nav.watchlist" className={getNavItemClass(isActive(pathname, "/watchlist"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
