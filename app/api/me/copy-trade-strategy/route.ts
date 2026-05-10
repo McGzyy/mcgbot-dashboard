@@ -41,6 +41,17 @@ export async function GET() {
     }
   }
 
+  const { data: posRaw, error: pErr } = await db
+    .from("copy_trade_positions")
+    .select("id,intent_id,status,mint,next_rule_index,created_at,updated_at,detail")
+    .eq("discord_user_id", uid)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (pErr) {
+    console.error("[copy-trade-strategy GET] positions", pErr);
+  }
+
   const intents = intentsList.map(
     (row: {
       id: string;
@@ -81,6 +92,7 @@ export async function GET() {
       max_buy_sol: maxBuySol,
     },
     intents,
+    positions: Array.isArray(posRaw) ? posRaw : [],
   });
 }
 

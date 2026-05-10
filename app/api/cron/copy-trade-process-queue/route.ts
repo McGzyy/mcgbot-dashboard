@@ -1,4 +1,5 @@
 import { loadCopyTradeExecutorKeypair } from "@/lib/copyTrade/execution/executorKeypair";
+import { runCopyTradeSellPass } from "@/lib/copyTrade/execution/processCopyTradePositionSells";
 import { isCopyTradeExecutionEnabled, runCopyTradeQueue } from "@/lib/copyTrade/execution/processCopyTradeQueue";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -20,6 +21,14 @@ function parseLimitFromUrl(request: Request): number {
   return Number.isFinite(n) ? n : 3;
 }
 
+function parseSellLimitFromUrl(request: Request, buyLimit: number): number {
+  const { searchParams } = new URL(request.url);
+  const raw = searchParams.get("sellLimit");
+  if (raw == null || raw === "") return buyLimit;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : buyLimit;
+}
+
 async function runOnce(request: Request): Promise<Response> {
   if (!isCopyTradeExecutionEnabled()) {
     return Response.json({
@@ -28,6 +37,7 @@ async function runOnce(request: Request): Promise<Response> {
       reason: "COPY_TRADE_EXECUTION_ENABLED is not true.",
       recovered: 0,
       results: [],
+      sellPass: [],
     });
   }
 
@@ -45,12 +55,15 @@ async function runOnce(request: Request): Promise<Response> {
   }
 
   const limit = parseLimitFromUrl(request);
+  const sellLimit = parseSellLimitFromUrl(request, limit);
   const { recovered, results } = await runCopyTradeQueue({
     db,
     keypair: kp,
     limit,
     recoverStaleMs: 900_000,
   });
+
+  const sellPass = await runCopyTradeSellPass(db, kp, sellLimit);
 
   const completed = results.filter((r) => r.outcome === "completed").length;
   const failed = results.filter((r) => r.outcome === "failed").length;
@@ -64,6 +77,7 @@ async function runOnce(request: Request): Promise<Response> {
     completed,
     failed,
     skipped,
+    sellPass: sellPass.results,
     results: results.map((r) =>
       r.outcome === "completed"
         ? { outcome: r.outcome, intentId: r.intentId, signature: r.signature }

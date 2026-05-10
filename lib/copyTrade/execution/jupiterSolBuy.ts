@@ -15,16 +15,18 @@ function jupiterBaseUrl(): string {
   return raw.replace(/\/$/, "");
 }
 
-export async function jupiterQuoteSolToMint(params: {
+/** Exact-in quote: `amountRaw` is smallest units of `inputMint`. */
+export async function jupiterQuoteExactIn(params: {
+  inputMint: string;
   outputMint: string;
-  amountLamports: bigint;
+  amountRaw: bigint;
   slippageBps: number;
   signal?: AbortSignal;
 }): Promise<{ ok: true; quote: JupiterQuote } | { ok: false; error: string }> {
-  const amount = params.amountLamports.toString();
+  const amount = params.amountRaw.toString();
   const slip = Math.max(0, Math.min(5000, Math.floor(params.slippageBps)));
   const u = new URL(`${jupiterBaseUrl()}/quote`);
-  u.searchParams.set("inputMint", SOL_MINT_MAINNET);
+  u.searchParams.set("inputMint", params.inputMint.trim());
   u.searchParams.set("outputMint", params.outputMint.trim());
   u.searchParams.set("amount", amount);
   u.searchParams.set("slippageBps", String(slip));
@@ -63,6 +65,21 @@ export async function jupiterQuoteSolToMint(params: {
   }
 
   return { ok: true, quote: q };
+}
+
+export async function jupiterQuoteSolToMint(params: {
+  outputMint: string;
+  amountLamports: bigint;
+  slippageBps: number;
+  signal?: AbortSignal;
+}): Promise<{ ok: true; quote: JupiterQuote } | { ok: false; error: string }> {
+  return jupiterQuoteExactIn({
+    inputMint: SOL_MINT_MAINNET,
+    outputMint: params.outputMint,
+    amountRaw: params.amountLamports,
+    slippageBps: params.slippageBps,
+    signal: params.signal,
+  });
 }
 
 export async function jupiterSwapTransactionBase64(params: {

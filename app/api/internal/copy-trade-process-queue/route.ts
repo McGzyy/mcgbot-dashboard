@@ -1,4 +1,5 @@
 import { loadCopyTradeExecutorKeypair } from "@/lib/copyTrade/execution/executorKeypair";
+import { runCopyTradeSellPass } from "@/lib/copyTrade/execution/processCopyTradePositionSells";
 import { isCopyTradeExecutionEnabled, runCopyTradeQueue } from "@/lib/copyTrade/execution/processCopyTradeQueue";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
       reason: "COPY_TRADE_EXECUTION_ENABLED is not true — no swaps attempted.",
       recovered: 0,
       results: [],
+      sellPass: [],
     });
   }
 
@@ -61,6 +63,7 @@ export async function POST(request: Request) {
 
   const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const limit = parseBodyLimit(o);
+  const sellLimit = parseSellLimit(o, limit);
   const recoverStaleMs = parseRecoverStaleMs(o);
 
   const kp = loadCopyTradeExecutorKeypair();
@@ -87,6 +90,8 @@ export async function POST(request: Request) {
     recoverStaleMs,
   });
 
+  const sellPass = await runCopyTradeSellPass(db, kp, sellLimit);
+
   const completed = results.filter((r) => r.outcome === "completed").length;
   const failed = results.filter((r) => r.outcome === "failed").length;
   const skipped = results.filter((r) => r.outcome === "skipped").length;
@@ -99,6 +104,7 @@ export async function POST(request: Request) {
     completed,
     failed,
     skipped,
+    sellPass: sellPass.results,
     results: results.map((r) =>
       r.outcome === "completed"
         ? { outcome: r.outcome, intentId: r.intentId, signature: r.signature }

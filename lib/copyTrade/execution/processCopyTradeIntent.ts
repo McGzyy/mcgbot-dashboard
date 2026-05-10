@@ -1,5 +1,8 @@
+import { waitForSignature } from "@/lib/copyTrade/execution/confirmTx";
 import { mergeIntentDetail, truncateErrorMessage } from "@/lib/copyTrade/execution/mergeIntentDetail";
 import { jupiterQuoteSolToMint, jupiterSwapTransactionBase64 } from "@/lib/copyTrade/execution/jupiterSolBuy";
+import { defaultSellRules } from "@/lib/copyTrade/matchStrategy";
+import { parseSellRules, sellRulesToJson, type CopySellRule } from "@/lib/copyTrade/sellRules";
 import type { CopyTradeStrategyRow } from "@/lib/copyTrade/strategyService";
 import { solanaRpcUrlServer } from "@/lib/solanaEnv";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -36,20 +39,13 @@ function minBuyLamports(): bigint {
   }
 }
 
-async function waitForSignature(connection: Connection, signature: string, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const r = await connection.getSignatureStatuses([signature], { searchTransactionHistory: true });
-    const s = r.value[0];
-    if (s?.err) throw new Error(`tx_err:${JSON.stringify(s.err)}`);
-    const st = s?.confirmationStatus;
-    if (st === "confirmed" || st === "finalized") return;
-    await new Promise((res) => setTimeout(res, 750));
-  }
-  throw new Error("confirmation_timeout");
-}
-
 const nowIso = () => new Date().toISOString();
+
+function sellRulesSnapshotFromStrategy(row: CopyTradeStrategyRow): CopySellRule[] {
+  const p = parseSellRules(row.sell_rules);
+  if (p.ok) return p.rules;
+  return defaultSellRules();
+}
 
 function parseSolanaMint(mint: string): PublicKey | null {
   try {
@@ -61,7 +57,7 @@ function parseSolanaMint(mint: string): PublicKey | null {
 
 /**
  * Claims one `queued` intent, loads strategy + signal, executes SOL→token buy via Jupiter v6, confirms on RPC.
- * Sell milestones are not executed here (later phase).
+ * Opens a `copy_trade_positions` row for the sell worker (milestones: token→SOL).
  */
 export async function processCopyTradeIntent(
   db: SupabaseClient,
@@ -276,6 +272,31 @@ export async function processCopyTradeIntent(
       }),
     })
     .eq("id", id);
+
+  const outRaw =
+    typeof quoteRes.quote.outAmount === "string"
+      ? quoteRes.quote.outAmount
+      : quoteRes.quote.outAmount != null
+        ? String(quoteRes.quote.outAmount)
+        : "0";
+
+  const { error: posErr } = await db.from("copy_trade_positions").insert({
+    intent_id: id,
+    strategy_id: strategyId,
+    discord_user_id: String((claimed as { discord_user_id: string }).discord_user_id),
+    mint: outputMint,
+    entry_buy_lamports: tradeLamports.toString(),
+    entry_token_out_raw: outRaw,
+    sell_rules_snapshot: sellRulesToJson(sellRulesSnapshotFromStrategy(st)),
+    next_rule_index: 0,
+    status: "open",
+    created_at: iso,
+    updated_at: iso,
+    detail: { opened_from_buy: true },
+  });
+  if (posErr) {
+    console.error("[copyTrade] position insert after buy", posErr);
+  }
 
   return { outcome: "completed", intentId: id, signature };
 }

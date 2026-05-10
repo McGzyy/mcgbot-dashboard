@@ -31,6 +31,17 @@ type IntentRow = {
   completed_at?: string | null;
 };
 
+type PositionRow = {
+  id: string;
+  intent_id: string;
+  status: string;
+  mint: string;
+  next_rule_index: number;
+  created_at: string;
+  updated_at?: string | null;
+  detail: unknown;
+};
+
 function asSellRules(v: unknown): CopySellRule[] {
   if (!Array.isArray(v)) return [{ multiple: 2, sell_fraction: 1 }];
   const out: CopySellRule[] = [];
@@ -51,6 +62,7 @@ export function CopyTradeClient() {
   const [okMsg, setOkMsg] = useState<string | null>(null);
   const [strategy, setStrategy] = useState<Strategy | null>(null);
   const [intents, setIntents] = useState<IntentRow[]>([]);
+  const [positions, setPositions] = useState<PositionRow[]>([]);
 
   const [enabled, setEnabled] = useState(false);
   const [mirrorBotOnly, setMirrorBotOnly] = useState(true);
@@ -90,6 +102,7 @@ export function CopyTradeClient() {
         setSellRules(asSellRules(s.sell_rules));
       }
       setIntents(Array.isArray(j.intents) ? j.intents : []);
+      setPositions(Array.isArray(j.positions) ? j.positions : []);
     } catch {
       setErr("Could not load copy trade settings.");
     } finally {
@@ -243,6 +256,11 @@ export function CopyTradeClient() {
                 onChange={(e) => setFeeBps(Number(e.target.value) || 0)}
                 className={`mt-1 ${terminalUi.formInput}`}
               />
+              <span className="mt-1 block text-[10px] font-normal text-zinc-600">
+                After each milestone sell, a separate SOL transfer sends this share to{" "}
+                <span className="font-mono text-zinc-500">COPY_TRADE_FEE_RECIPIENT_PUBKEY</span> or your tips/treasury env
+                (≥5000 lamports). No recipient configured = fee skipped.
+              </span>
             </label>
           </div>
 
@@ -305,6 +323,53 @@ export function CopyTradeClient() {
           ) : null}
         </div>
       )}
+
+      <div className={`mt-8 rounded-2xl ${terminalSurface.panelCard} p-5`}>
+        <h2 className="text-sm font-semibold text-zinc-100">Positions</h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          Open = buy landed; cron checks Jupiter implied multiple vs your sell rules and may send one token→SOL sell per run per row.
+        </p>
+        {positions.length === 0 ? (
+          <p className="mt-4 text-sm text-zinc-500">No positions yet.</p>
+        ) : (
+          <ul className="mt-4 space-y-2 text-sm">
+            {positions.map((p) => {
+              const d = p.detail && typeof p.detail === "object" && !Array.isArray(p.detail) ? (p.detail as Record<string, unknown>) : {};
+              const lastSig = typeof d.last_sell_signature === "string" ? d.last_sell_signature : null;
+              return (
+                <li
+                  key={p.id}
+                  className="flex flex-col gap-1 rounded-lg border border-zinc-800/70 bg-zinc-950/40 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs text-zinc-400">
+                      {p.mint ? `${p.mint.slice(0, 6)}…${p.mint.slice(-4)}` : "—"}
+                    </span>
+                    <span className="text-xs text-zinc-200">{p.status}</span>
+                    {p.status === "open" ? (
+                      <span className="text-[10px] text-zinc-500">next rule #{p.next_rule_index + 1}</span>
+                    ) : null}
+                  </div>
+                  <div className="text-[10px] text-zinc-500 sm:text-right">
+                    {lastSig ? (
+                      <a
+                        className="font-mono text-sky-400/90 hover:underline"
+                        href={`https://solscan.io/tx/${encodeURIComponent(lastSig)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        last sell tx
+                      </a>
+                    ) : (
+                      <span className="text-zinc-600">no sells yet</span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
 
       <div className={`mt-8 rounded-2xl ${terminalSurface.panelCard} p-5`}>
         <h2 className="text-sm font-semibold text-zinc-100">Recent intents</h2>
