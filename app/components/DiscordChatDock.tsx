@@ -36,6 +36,17 @@ function ChatGlyph() {
   );
 }
 
+function DockCloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" className="shrink-0" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+      />
+    </svg>
+  );
+}
+
 export function DiscordChatDock() {
   const pathname = usePathname() ?? "";
   const { status } = useSession();
@@ -104,21 +115,22 @@ export function DiscordChatDock() {
           {expanded ? (
             <div
               id="discord-chat-dock-panel"
-              className="flex max-h-[min(52vh,540px)] min-h-0 flex-col overflow-hidden border-b border-zinc-800/60"
+              className="relative max-h-[min(52vh,540px)] min-h-0 overflow-hidden border-b border-zinc-800/60"
             >
-              <div className="flex shrink-0 justify-end border-b border-zinc-800/50 bg-zinc-950/90 px-2 py-1.5">
-                <button
-                  type="button"
-                  onClick={() => setExpandedPersist(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-600/80 bg-zinc-900/80 text-xl font-light leading-none text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-800 hover:text-white"
-                  aria-label="Close quick chat"
-                >
-                  <span aria-hidden className="block translate-y-[-1px]">×</span>
-                </button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <DashboardChatPanel feed="lounge" variant="dock" pollMs={12_000} />
-              </div>
+              <button
+                type="button"
+                onClick={() => setExpandedPersist(false)}
+                className="absolute right-1 top-1 z-20 flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700/50 bg-zinc-950/90 text-zinc-400 shadow-sm backdrop-blur-sm transition hover:border-zinc-500/70 hover:bg-zinc-900/95 hover:text-zinc-100"
+                aria-label="Close quick chat"
+              >
+                <DockCloseIcon />
+              </button>
+              <DashboardChatPanel
+                feed="lounge"
+                variant="dock"
+                pollMs={12_000}
+                dockExternalCloseGutter
+              />
             </div>
           ) : null}
 

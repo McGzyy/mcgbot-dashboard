@@ -42,6 +42,8 @@ type DashboardChatPanelProps = {
   panelDataTutorial?: string;
   /** Compact layout for the bottom-screen quick-chat dock (no side preview column, tighter height). */
   variant?: "default" | "dock";
+  /** When dock + a parent renders a floating close control, pad the top rows so content stays clear of it. */
+  dockExternalCloseGutter?: boolean;
 };
 
 function formatTime(ts: number): string {
@@ -109,6 +111,7 @@ function inferTabsFromAllowlist(ids: string[]): Array<{ key: DashboardChatKind; 
 export function DashboardChatPanel(props: DashboardChatPanelProps) {
   const variant = props.variant ?? "default";
   const isDock = variant === "dock";
+  const dockCloseGutter = isDock && Boolean(props.dockExternalCloseGutter);
   const pollMs = props.pollMs ?? 9000;
   const feed = props.feed ?? "lounge";
   const dashboardChannel = props.dashboardChannel ?? "general";
@@ -350,7 +353,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
     >
       {loungeMulti ? (
         <div
-          className={`border-b border-zinc-800/50 bg-black/20 px-3 ${isDock ? "py-2" : "py-2.5 lg:hidden"}`}
+          className={`border-b border-zinc-800/50 bg-black/20 px-3 ${dockCloseGutter ? "pr-10 sm:pr-11" : ""} ${isDock ? "py-2" : "py-2.5 lg:hidden"}`}
         >
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Channels</p>
           <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -381,7 +384,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
           className="flex min-h-0 min-w-0 flex-1 flex-col"
         >
           <div
-            className={`flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between ${terminalChrome.headerRule} ${isDock ? "px-3 py-2 sm:px-4" : "px-4 py-3 sm:px-5"}`}
+            className={`flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between ${terminalChrome.headerRule} ${isDock ? `px-3 py-2 sm:px-4${dockCloseGutter ? " pr-10 sm:pr-11" : ""}` : "px-4 py-3 sm:px-5"}`}
           >
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
