@@ -16,7 +16,7 @@ const TICKET_TYPES: { value: string; label: string; hint: string }[] = [
   { value: "other", label: "Other", hint: "Anything else" },
 ];
 
-const fixItFabEnabled = process.env.NEXT_PUBLIC_FIX_IT_TICKET_BUTTON !== "false";
+const envFabAllowed = process.env.NEXT_PUBLIC_FIX_IT_TICKET_BUTTON !== "false";
 
 export function FixItTicketLauncher() {
   const pathname = usePathname() ?? "/";
@@ -31,8 +31,32 @@ export function FixItTicketLauncher() {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [serverModuleEnabled, setServerModuleEnabled] = useState<boolean | null>(null);
 
   const resolved = useMemo(() => resolveFixItPageFromPathname(pathname), [pathname]);
+
+  useEffect(() => {
+    if (!envFabAllowed) return;
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/fix-it-tickets/module", { credentials: "same-origin" });
+        const j = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok && j && j.ok === true && typeof j.enabled === "boolean") {
+          setServerModuleEnabled(j.enabled);
+        } else {
+          setServerModuleEnabled(true);
+        }
+      } catch {
+        if (!cancelled) setServerModuleEnabled(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   useEffect(() => {
     if (!open) return;
@@ -95,15 +119,18 @@ export function FixItTicketLauncher() {
     }
   }, [allowContact, description, imageFile, pageKey, pathname, submitting, ticketType]);
 
-  if (status !== "authenticated" || !fixItFabEnabled) return null;
+  if (!envFabAllowed) return null;
+  if (status !== "authenticated") return null;
   if (pathname.startsWith("/admin")) return null;
+  if (serverModuleEnabled === false) return null;
+  if (serverModuleEnabled === null) return null;
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-[60] max-w-[calc(100vw-2.5rem)] rounded-2xl border border-amber-500/35 bg-gradient-to-br from-amber-500/20 via-zinc-950/95 to-zinc-950 px-4 py-3 text-left shadow-[0_12px_40px_-12px_rgba(0,0,0,0.85)] shadow-amber-900/20 backdrop-blur-md transition hover:border-amber-400/50 hover:from-amber-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 sm:bottom-6 sm:right-6"
+        className="fixed z-[60] max-w-[calc(100vw-2.5rem)] rounded-2xl border border-amber-500/35 bg-gradient-to-br from-amber-500/20 via-zinc-950/95 to-zinc-950 px-4 py-3 text-left shadow-[0_12px_40px_-12px_rgba(0,0,0,0.85)] shadow-amber-900/20 backdrop-blur-md transition hover:border-amber-400/50 hover:from-amber-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 bottom-[calc(1.25rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] right-5 sm:bottom-[calc(1.5rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] sm:right-6"
         aria-haspopup="dialog"
         aria-expanded={open}
       >

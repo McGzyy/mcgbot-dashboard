@@ -42,6 +42,12 @@ export function DiscordChatDock() {
   const [expanded, setExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  const shouldRenderDock =
+    mounted &&
+    status === "authenticated" &&
+    pathname !== "/lounge/discord-chats" &&
+    !pathname.startsWith("/lounge/discord-chats/");
+
   useEffect(() => {
     setMounted(true);
     try {
@@ -69,6 +75,19 @@ export function DiscordChatDock() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [expanded, setExpandedPersist]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!shouldRenderDock) {
+      root.style.removeProperty("--mcg-dock-stack");
+      return;
+    }
+    const stack = expanded ? "calc(min(52vh, 540px) + 3.25rem)" : "3.75rem";
+    root.style.setProperty("--mcg-dock-stack", stack);
+    return () => {
+      root.style.removeProperty("--mcg-dock-stack");
+    };
+  }, [shouldRenderDock, expanded]);
 
   if (!mounted || status !== "authenticated") return null;
   if (pathname === "/lounge/discord-chats" || pathname.startsWith("/lounge/discord-chats/")) {
