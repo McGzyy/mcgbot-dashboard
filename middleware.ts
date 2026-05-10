@@ -45,6 +45,7 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (pathname === "/api/debug-env" && method === "GET") return true;
   if (pathname === "/api/internal/outside-call-trust" && method === "POST") return true;
   if (pathname === "/api/internal/copy-trade-on-call" && method === "POST") return true;
+  if (pathname === "/api/internal/copy-trade-process-queue" && method === "POST") return true;
   return false;
 }
 

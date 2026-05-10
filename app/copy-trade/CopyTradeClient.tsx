@@ -24,6 +24,11 @@ type IntentRow = {
   created_at: string;
   call_ca: string | null;
   detail: unknown;
+  buy_signature?: string | null;
+  buy_input_lamports?: string | number | null;
+  error_message?: string | null;
+  executor_wallet?: string | null;
+  completed_at?: string | null;
 };
 
 function asSellRules(v: unknown): CopySellRule[] {
@@ -218,14 +223,18 @@ export function CopyTradeClient() {
               />
             </label>
             <label className="block text-xs font-semibold text-zinc-400">
-              Min bot 2× win rate % (optional, reserved)
+              Min bot 2× win rate % (optional)
               <input
                 value={minWin2x}
                 onChange={(e) => setMinWin2x(e.target.value)}
                 className={`mt-1 ${terminalUi.formInput}`}
-                placeholder="e.g. 90 — wiring later"
+                placeholder="e.g. 40 — bot calls only, rolling 90d"
               />
             </label>
+            <p className="sm:col-span-2 text-[10px] text-zinc-600">
+              Uses the same ATH ≥ 2× definition as the dashboard. Only enforced on <span className="text-zinc-400">bot</span> signals;
+              needs at least five eligible bot calls in the window before the threshold applies.
+            </p>
             <label className="block text-xs font-semibold text-zinc-400">
               Platform fee on sells (bps)
               <input
@@ -299,16 +308,54 @@ export function CopyTradeClient() {
 
       <div className={`mt-8 rounded-2xl ${terminalSurface.panelCard} p-5`}>
         <h2 className="text-sm font-semibold text-zinc-100">Recent intents</h2>
-        <p className="mt-1 text-xs text-zinc-500">Queued rows mean your filters matched a new bot call signal (execution still pending in later phase).</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          Queued → processing → completed/failed/skipped. Completed rows include the on-chain buy signature when the execution worker has run.
+        </p>
         {intents.length === 0 ? (
           <p className="mt-4 text-sm text-zinc-500">No intents yet.</p>
         ) : (
           <ul className="mt-4 space-y-2 text-sm">
             {intents.map((it) => (
-              <li key={it.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-800/70 bg-zinc-950/40 px-3 py-2">
-                <span className="font-mono text-xs text-zinc-400">{it.call_ca ? `${it.call_ca.slice(0, 6)}…${it.call_ca.slice(-4)}` : "—"}</span>
-                <span className="text-xs text-emerald-200/90">{it.status}</span>
-                <span className="text-[10px] text-zinc-500">{formatRelativeTime(it.created_at)}</span>
+              <li
+                key={it.id}
+                className="flex flex-col gap-1 rounded-lg border border-zinc-800/70 bg-zinc-950/40 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs text-zinc-400">
+                    {it.call_ca ? `${it.call_ca.slice(0, 6)}…${it.call_ca.slice(-4)}` : "—"}
+                  </span>
+                  <span
+                    className={`text-xs font-medium ${
+                      it.status === "completed"
+                        ? "text-emerald-200/90"
+                        : it.status === "failed"
+                          ? "text-red-300/90"
+                          : it.status === "skipped"
+                            ? "text-amber-200/85"
+                            : "text-zinc-300"
+                    }`}
+                  >
+                    {it.status}
+                  </span>
+                  <span className="text-[10px] text-zinc-500">{formatRelativeTime(it.created_at)}</span>
+                </div>
+                <div className="flex min-w-0 flex-col gap-0.5 text-[10px] text-zinc-500 sm:items-end sm:text-right">
+                  {it.buy_signature ? (
+                    <a
+                      className="truncate font-mono text-emerald-400/90 hover:underline"
+                      href={`https://solscan.io/tx/${encodeURIComponent(it.buy_signature)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      tx {it.buy_signature.slice(0, 8)}…
+                    </a>
+                  ) : null}
+                  {it.error_message ? (
+                    <span className="line-clamp-2 max-w-[280px] text-red-300/80" title={it.error_message}>
+                      {it.error_message}
+                    </span>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

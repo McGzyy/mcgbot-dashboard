@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/award-leaderboard-trophies",
       "schedule": "20 0 * * *"
+    },
+    {
+      "path": "/api/cron/copy-trade-process-queue",
+      "schedule": "*/2 * * * *"
     }
   ]
 }

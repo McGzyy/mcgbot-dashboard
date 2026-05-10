@@ -20,7 +20,9 @@ export async function GET() {
 
   const { data: intentsRaw, error: iErr } = await db
     .from("copy_trade_intents")
-    .select("id,status,detail,created_at,signal_id")
+    .select(
+      "id,status,detail,created_at,signal_id,updated_at,started_at,completed_at,buy_signature,buy_input_lamports,error_message,executor_wallet"
+    )
     .eq("discord_user_id", uid)
     .order("created_at", { ascending: false })
     .limit(40);
@@ -39,14 +41,36 @@ export async function GET() {
     }
   }
 
-  const intents = intentsList.map((row: { id: string; status: string; detail: unknown; created_at: string; signal_id: string }) => ({
-    id: row.id,
-    status: row.status,
-    detail: row.detail,
-    created_at: row.created_at,
-    signal_id: row.signal_id,
-    call_ca: caBySignal.get(row.signal_id) ?? null,
-  }));
+  const intents = intentsList.map(
+    (row: {
+      id: string;
+      status: string;
+      detail: unknown;
+      created_at: string;
+      signal_id: string;
+      updated_at?: string | null;
+      started_at?: string | null;
+      completed_at?: string | null;
+      buy_signature?: string | null;
+      buy_input_lamports?: string | number | null;
+      error_message?: string | null;
+      executor_wallet?: string | null;
+    }) => ({
+      id: row.id,
+      status: row.status,
+      detail: row.detail,
+      created_at: row.created_at,
+      signal_id: row.signal_id,
+      call_ca: caBySignal.get(row.signal_id) ?? null,
+      updated_at: row.updated_at ?? null,
+      started_at: row.started_at ?? null,
+      completed_at: row.completed_at ?? null,
+      buy_signature: row.buy_signature ?? null,
+      buy_input_lamports: row.buy_input_lamports ?? null,
+      error_message: row.error_message ?? null,
+      executor_wallet: row.executor_wallet ?? null,
+    })
+  );
 
   const maxBuySol = lamportsBigIntToSolString(BigInt(String(strategy.max_buy_lamports ?? 0)));
 

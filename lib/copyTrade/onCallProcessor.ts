@@ -1,5 +1,22 @@
-import { strategyMatchesCall, type CallSnapshot } from "@/lib/copyTrade/matchStrategy";
+import { fetchBotCaller2xWinRate } from "@/lib/copyTrade/botCaller2xWinRate";
+import {
+  strategyMatchesCall,
+  type CallSnapshot,
+  type CopyTradeMatchRuntime,
+} from "@/lib/copyTrade/matchStrategy";
+import { getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+function resolveBotStatsDiscordId(row: Record<string, unknown>): string | null {
+  const d = row.discord_id;
+  if (typeof d === "string" && d.trim() !== "") return d.trim();
+  if (d != null && String(d).trim() !== "") return String(d).trim();
+  return (
+    process.env.COPY_TRADE_BOT_STATS_DISCORD_ID?.trim() ||
+    process.env.MCGBOT_STATS_DISCORD_ID?.trim() ||
+    null
+  );
+}
 
 export type CopyTradeOnCallInput = {
   callPerformanceId: string;
@@ -24,7 +41,7 @@ export async function processCopyTradeOnCall(
 
   const { data: callRow, error: cErr } = await db
     .from("call_performance")
-    .select("id,call_ca,source,call_market_cap_usd")
+    .select("id,call_ca,source,call_market_cap_usd,discord_id")
     .eq("id", callId)
     .maybeSingle();
 
@@ -93,6 +110,27 @@ export async function processCopyTradeOnCall(
   }
 
   const rows = Array.isArray(strategies) ? strategies : [];
+  const botCall = source === "bot";
+  const anyMinBotWr = rows.some((raw) => {
+    const v = (raw as { min_bot_win_rate_2x_pct?: number | null }).min_bot_win_rate_2x_pct;
+    return v != null && Number.isFinite(Number(v)) && Number(v) > 0;
+  });
+
+  let bot2xWinRate: CopyTradeMatchRuntime["bot2xWinRate"] = null;
+  if (botCall && anyMinBotWr) {
+    const statsId = resolveBotStatsDiscordId(callRow as Record<string, unknown>);
+    if (statsId) {
+      const cutoverMs = await getStatsCutoverUtcMs();
+      bot2xWinRate = await fetchBotCaller2xWinRate(db, {
+        botStatsDiscordId: statsId,
+        cutoverUtcMs: cutoverMs,
+      });
+    } else {
+      console.warn("[copyTrade] min_bot_win_rate set but no discord_id on call and no COPY_TRADE_BOT_STATS_DISCORD_ID / MCGBOT_STATS_DISCORD_ID");
+    }
+  }
+
+  const runtime: CopyTradeMatchRuntime = { botCall, bot2xWinRate };
   let intentsCreated = 0;
   let intentsSkipped = 0;
 
@@ -123,7 +161,8 @@ export async function processCopyTradeOnCall(
         min_call_mcap_usd: s.min_call_mcap_usd,
         min_bot_win_rate_2x_pct: s.min_bot_win_rate_2x_pct,
       },
-      callSnapshot
+      callSnapshot,
+      runtime
     );
 
     if (!m.ok) {
