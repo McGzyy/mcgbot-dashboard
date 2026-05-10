@@ -62,6 +62,17 @@ type TpCallRow = {
   priorApprovedTrustedProCallCount?: number;
 };
 
+type OutsideSourceSubmissionRow = {
+  id: string;
+  submitter_discord_id?: string;
+  proposed_x_handle?: string;
+  proposed_display_name?: string;
+  submitter_note?: string | null;
+  approver_1_discord_id?: string | null;
+  approver_1_at?: string | null;
+  created_at?: string;
+};
+
 function asString(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
@@ -86,24 +97,28 @@ export function ModerationStaffQueues() {
   const [profileReports, setProfileReports] = useState<ProfileReportRow[]>([]);
   const [tpApps, setTpApps] = useState<TpApplicationRow[]>([]);
   const [tpCalls, setTpCalls] = useState<TpCallRow[]>([]);
+  const [outsideSubs, setOutsideSubs] = useState<OutsideSourceSubmissionRow[]>([]);
   const [actingId, setActingId] = useState<string | null>(null);
+  const [deskInfo, setDeskInfo] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
     setErrHint(null);
     try {
-      const [crRes, prRes, appRes, callRes] = await Promise.all([
+      const [crRes, prRes, appRes, callRes, osRes] = await Promise.all([
         fetch("/api/mod/reports/call?status=open&limit=50", { credentials: "same-origin" }),
         fetch("/api/mod/reports/profile?status=open&limit=50", { credentials: "same-origin" }),
         fetch("/api/mod/trusted-pro-applications/pending", { credentials: "same-origin" }),
         fetch("/api/mod/trusted-pro-calls/pending", { credentials: "same-origin" }),
+        fetch("/api/mod/outside-source-submissions?status=pending&limit=50", { credentials: "same-origin" }),
       ]);
 
       const crJson = await crRes.json().catch(() => ({}));
       const prJson = await prRes.json().catch(() => ({}));
       const appJson = await appRes.json().catch(() => ({}));
       const callJson = await callRes.json().catch(() => ({}));
+      const osJson = await osRes.json().catch(() => ({}));
 
       const problems: string[] = [];
       const hints = new Set<string>();
@@ -148,6 +163,16 @@ export function ModerationStaffQueues() {
         setTpCalls(Array.isArray(j.calls) ? (j.calls as TpCallRow[]) : []);
       }
 
+      if (!osRes.ok) {
+        const { error, hint } = readApiError(osJson);
+        problems.push(`Outside X sources: ${error}`);
+        if (hint) hints.add(hint);
+        setOutsideSubs([]);
+      } else {
+        const j = osJson as { success?: boolean; rows?: unknown };
+        setOutsideSubs(Array.isArray(j.rows) ? (j.rows as OutsideSourceSubmissionRow[]) : []);
+      }
+
       if (problems.length) {
         setErr([...new Set(problems)].join("\n"));
         setErrHint(hints.size ? [...hints].join("\n\n") : null);
@@ -156,6 +181,26 @@ export function ModerationStaffQueues() {
       setErr("Could not load staff desks.");
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const refreshOutsideSubmissions = useCallback(async () => {
+    try {
+      const osRes = await fetch("/api/mod/outside-source-submissions?status=pending&limit=50", {
+        credentials: "same-origin",
+      });
+      const osJson = await osRes.json().catch(() => ({}));
+      if (!osRes.ok) {
+        const { error } = readApiError(osJson);
+        setErr(error);
+        setOutsideSubs([]);
+        return;
+      }
+      const j = osJson as { success?: boolean; rows?: unknown };
+      setOutsideSubs(Array.isArray(j.rows) ? (j.rows as OutsideSourceSubmissionRow[]) : []);
+    } catch {
+      setErr("Could not refresh Outside submissions.");
+      setOutsideSubs([]);
     }
   }, []);
 
@@ -249,8 +294,63 @@ export function ModerationStaffQueues() {
     }
   }, []);
 
+  const postOutsideApprove = useCallback(async (id: string) => {
+    setActingId(`osx:${id}`);
+    setDeskInfo(null);
+    try {
+      const res = await fetch(`/api/mod/outside-source-submissions/${encodeURIComponent(id)}/approve`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        step?: string;
+        message?: string;
+      };
+      if (!res.ok) {
+        setErr(typeof j.error === "string" ? j.error : "Action failed");
+        return;
+      }
+      if (j.step === "first_approval_recorded") {
+        setDeskInfo(typeof j.message === "string" ? j.message : "First approval recorded.");
+      } else {
+        setDeskInfo(typeof j.message === "string" ? j.message : "Source approved.");
+      }
+      await refreshOutsideSubmissions();
+    } finally {
+      setActingId(null);
+    }
+  }, [refreshOutsideSubmissions]);
+
+  const postOutsideReject = useCallback(async (id: string) => {
+    const reason =
+      typeof window !== "undefined"
+        ? window.prompt("Optional reject note for staff logs (leave blank for none):", "") || ""
+        : "";
+    setActingId(`osxrej:${id}`);
+    setDeskInfo(null);
+    try {
+      const res = await fetch(`/api/mod/outside-source-submissions/${encodeURIComponent(id)}/reject`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim() || undefined }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        setErr(typeof j.error === "string" ? j.error : "Reject failed");
+      } else {
+        await refreshOutsideSubmissions();
+      }
+    } finally {
+      setActingId(null);
+    }
+  }, [refreshOutsideSubmissions]);
+
   const totalDesk =
-    callReports.length + profileReports.length + tpApps.length + tpCalls.length;
+    callReports.length + profileReports.length + tpApps.length + tpCalls.length + outsideSubs.length;
 
   return (
     <section className="mt-6 space-y-8">
@@ -258,16 +358,20 @@ export function ModerationStaffQueues() {
         <div>
           <h2 className="text-base font-semibold tracking-tight text-zinc-100">Staff desks (dashboard)</h2>
           <p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-500">
-            Call &amp; profile reports, Trusted Pro applications, and Trusted Pro longform posts (first{" "}
+            Call &amp; profile reports, Trusted Pro applications, Trusted Pro longform posts (first{" "}
             {TRUSTED_PRO_GATED_APPROVALS} approved posts per author are reviewed here; after that, new posts can
-            auto-publish per DB policy). These use Supabase + existing mod APIs — separate from the bot&apos;s{" "}
+            auto-publish per DB policy), and Outside Calls X monitor proposals (two distinct staff approvers; submitters
+            cannot approve their own request). These use Supabase + dashboard mod APIs — separate from the bot&apos;s{" "}
             <span className="font-medium text-zinc-400">#mod-approvals</span> queue below.
           </p>
         </div>
         <button
           type="button"
           disabled={loading}
-          onClick={() => void load()}
+          onClick={() => {
+            setDeskInfo(null);
+            void load();
+          }}
           className="rounded-lg border border-zinc-600 bg-zinc-900/70 px-4 py-2 text-xs font-semibold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
         >
           {loading ? "Loading…" : `Refresh (${totalDesk} open)`}
@@ -278,6 +382,12 @@ export function ModerationStaffQueues() {
         <div className="space-y-2 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">
           <p className="whitespace-pre-line leading-relaxed">{err}</p>
           {errHint ? <p className="text-xs leading-relaxed text-red-200/75">{errHint}</p> : null}
+        </div>
+      ) : null}
+
+      {deskInfo ? (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/15 px-4 py-3 text-sm text-emerald-100/95">
+          {deskInfo}
         </div>
       ) : null}
 
@@ -538,6 +648,85 @@ export function ModerationStaffQueues() {
                           className="rounded-lg border border-zinc-600 bg-zinc-900/70 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
                         >
                           Deny
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          <div
+            id="mod-outside-x-sources"
+            className={`rounded-xl border border-sky-500/25 bg-gradient-to-br from-sky-950/25 via-zinc-950/90 to-zinc-950 p-5 ${terminalSurface.panelCard}`}
+          >
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-200/80">Outside Calls — X monitors (pending)</h3>
+            {outsideSubs.length === 0 ? (
+              <p className="mt-2 text-sm text-zinc-500">No pending Outside X source submissions.</p>
+            ) : (
+              <ul className="mt-3 space-y-3">
+                {outsideSubs.map((s) => {
+                  const sub = asString(s.submitter_discord_id);
+                  const handle = asString(s.proposed_x_handle);
+                  const dn = asString(s.proposed_display_name);
+                  const busy = actingId === `osx:${s.id}` || actingId === `osxrej:${s.id}`;
+                  const hasFirst = Boolean(s.approver_1_discord_id);
+                  return (
+                    <li
+                      key={s.id}
+                      className="rounded-lg border border-sky-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="font-semibold text-sky-100/90">
+                          @{handle}
+                          {dn ? <span className="font-normal text-zinc-400"> · {dn}</span> : null}
+                        </p>
+                        <span className="shrink-0 text-[10px] text-zinc-500">{formatRelativeTime(s.created_at)}</span>
+                      </div>
+                      <p className="mt-2 text-[11px] text-zinc-500">
+                        Submitter{" "}
+                        {sub ? (
+                          <Link href={`/user/${encodeURIComponent(sub)}`} className="font-medium text-emerald-300/90 hover:underline">
+                            {sub}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </p>
+                      {s.submitter_note ? (
+                        <p className="mt-2 whitespace-pre-wrap text-zinc-400">{s.submitter_note}</p>
+                      ) : null}
+                      <p className="mt-2 text-[10px] leading-relaxed text-zinc-500">
+                        {hasFirst ? (
+                          <>
+                            <span className="font-semibold text-amber-200/90">1/2 approvals</span> — a{" "}
+                            <span className="font-medium text-zinc-300">different</span> moderator must complete the
+                            second approval (you cannot approve your own submission).
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-semibold text-sky-200/90">0/2 approvals</span> — first moderator
+                            action records approval one; a second distinct moderator finishes activation.
+                          </>
+                        )}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void postOutsideApprove(s.id)}
+                          className="rounded-lg border border-emerald-500/40 bg-emerald-950/35 px-3 py-1.5 text-[11px] font-bold text-emerald-100 hover:bg-emerald-900/40 disabled:opacity-50"
+                        >
+                          {hasFirst ? "Second approve" : "Approve"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void postOutsideReject(s.id)}
+                          className="rounded-lg border border-zinc-600 bg-zinc-900/70 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+                        >
+                          Reject
                         </button>
                       </div>
                     </li>

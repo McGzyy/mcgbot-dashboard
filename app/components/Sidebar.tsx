@@ -149,6 +149,20 @@ function SidebarBody({
             />
             <span>Trusted Pro</span>
           </Link>
+          <Link
+            href="/outside-calls"
+            onClick={pick}
+            data-tutorial="sidebar.nav.outsideCalls"
+            className={getNavItemClass(isActive(pathname, "/outside-calls"))}
+          >
+            <div
+              className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                isActive(pathname, "/outside-calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+              }`}
+              aria-hidden
+            />
+            <span>Outside Calls</span>
+          </Link>
           <Link href="/leaderboard" onClick={pick} data-tutorial="sidebar.nav.leaderboard" className={getNavItemClass(isActive(pathname, "/leaderboard"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${

@@ -43,6 +43,7 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (pathname === "/api/subscription/plans" && method === "GET") return true;
   if (pathname === "/api/subscription/stripe/webhook" && method === "POST") return true;
   if (pathname === "/api/debug-env" && method === "GET") return true;
+  if (pathname === "/api/internal/outside-call-trust" && method === "POST") return true;
   return false;
 }
 
@@ -170,6 +171,10 @@ export async function middleware(req: NextRequest) {
     }
 
     if (pathname.startsWith("/api/public/") && req.method === "GET") {
+      return NextResponse.next();
+    }
+
+    if (pathname === "/api/internal/outside-call-trust" && req.method === "POST") {
       return NextResponse.next();
     }
 
