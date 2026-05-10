@@ -87,6 +87,11 @@ function numOrNull(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function asRecordRows(v: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(v)) return [];
+  return v as unknown as Record<string, unknown>[];
+}
+
 function classifyCall(
   row: Record<string, unknown>,
   trustedSet: Set<string>,
@@ -139,7 +144,7 @@ export async function fetchCaAnalyzeDashboardIntel(
     console.error("[caAnalyzeIntel] call_performance", callErr.message);
   }
 
-  const rawCalls = Array.isArray(callRows) ? (callRows as Record<string, unknown>[]) : [];
+  const rawCalls = asRecordRows(callRows);
   const callerIds = [...new Set(rawCalls.map((r) => String(r.discord_id ?? "").trim()).filter(Boolean))];
 
   let trustedSet = new Set<string>();
@@ -149,10 +154,9 @@ export async function fetchCaAnalyzeDashboardIntel(
       .select("discord_id, trusted_pro")
       .in("discord_id", callerIds);
     if (!trustErr && Array.isArray(trustRows)) {
+      const trustList = trustRows as unknown as { discord_id?: string; trusted_pro?: boolean }[];
       trustedSet = new Set(
-        (trustRows as { discord_id?: string; trusted_pro?: boolean }[])
-          .filter((u) => u.trusted_pro === true && u.discord_id)
-          .map((u) => String(u.discord_id))
+        trustList.filter((u) => u.trusted_pro === true && u.discord_id).map((u) => String(u.discord_id))
       );
     }
   }
@@ -190,7 +194,7 @@ export async function fetchCaAnalyzeDashboardIntel(
     console.error("[caAnalyzeIntel] outside_calls", outErr.message);
   }
 
-  const rawOut = Array.isArray(outsideRows) ? (outsideRows as Record<string, unknown>[]) : [];
+  const rawOut = asRecordRows(outsideRows);
   const sourceIds = [...new Set(rawOut.map((o) => String(o.source_id ?? "").trim()).filter(Boolean))];
   const sourceMeta = new Map<string, { displayName: string | null; handle: string | null }>();
   if (sourceIds.length) {
@@ -199,7 +203,7 @@ export async function fetchCaAnalyzeDashboardIntel(
       .select("id, display_name, x_handle_normalized")
       .in("id", sourceIds);
     if (Array.isArray(srcRows)) {
-      for (const s of srcRows as Record<string, unknown>[]) {
+      for (const s of asRecordRows(srcRows)) {
         const id = String(s.id ?? "").trim();
         if (!id) continue;
         sourceMeta.set(id, {
@@ -235,7 +239,7 @@ export async function fetchCaAnalyzeDashboardIntel(
       .select("private_watchlist, public_dashboard_watchlist")
       .eq("discord_id", uid)
       .limit(1);
-    const row0 = (wlRows?.[0] ?? {}) as Record<string, unknown>;
+    const row0 = (wlRows?.[0] ?? {}) as unknown as Record<string, unknown>;
     const parseWl = (raw: unknown): string[] => {
       if (raw == null) return [];
       let arr: unknown = raw;
