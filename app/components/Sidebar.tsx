@@ -145,26 +145,27 @@ function SidebarBody({
           <div className="flex flex-col gap-0.5">
             <button
               type="button"
-              id="sidebar-calls-toggle"
+              id="sidebar-call-feeds-toggle"
               onClick={() => setCallsNavOpen((o) => !o)}
               aria-expanded={callsNavOpen}
-              aria-controls="sidebar-calls-submenu"
+              aria-controls="sidebar-call-feeds-submenu"
+              aria-label="Call Feeds menu"
               className={`flex w-full items-center justify-between gap-2 rounded-md px-4 py-2 text-left text-sm transition hover:bg-zinc-900/60 ${
                 callsGroupActive
                   ? "border border-zinc-700/70 bg-zinc-900/50 text-zinc-100"
                   : "text-zinc-400 hover:text-zinc-100"
               }`}
             >
-              <span className="font-medium">Calls</span>
+              <span className="font-medium">Call Feeds</span>
               <span className="text-[10px] text-zinc-500 tabular-nums" aria-hidden>
                 {callsNavOpen ? "▾" : "▸"}
               </span>
             </button>
             {callsNavOpen ? (
               <div
-                id="sidebar-calls-submenu"
+                id="sidebar-call-feeds-submenu"
                 role="group"
-                aria-label="Call feeds"
+                aria-label="Call Feeds"
                 className="ml-2 flex flex-col gap-0.5 border-l border-zinc-800/70 pl-2"
               >
                 <Link
@@ -387,29 +388,14 @@ function SidebarBody({
               ) : null}
 
               {adminNav ? (
-                <>
-                  <Link href="/admin" onClick={pick} data-tutorial="sidebar.nav.admin" className={getNavItemClass(isActive(pathname, "/admin"))}>
-                    <div
-                      className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                        isActive(pathname, "/admin") ? `${tierNavBarClass("admin")} opacity-100` : "opacity-0"
-                      }`}
-                    />
-                    <span>Admin</span>
-                  </Link>
-                  <Link
-                    href="/admin/treasury"
-                    onClick={pick}
-                    data-tutorial="sidebar.nav.treasury"
-                    className={getNavItemClass(isActive(pathname, "/admin/treasury"))}
-                  >
-                    <div
-                      className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
-                        isActive(pathname, "/admin/treasury") ? `${tierNavBarClass("admin")} opacity-100` : "opacity-0"
-                      }`}
-                    />
-                    <span>Treasury</span>
-                  </Link>
-                </>
+                <Link href="/admin" onClick={pick} data-tutorial="sidebar.nav.admin" className={getNavItemClass(isActive(pathname, "/admin"))}>
+                  <div
+                    className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
+                      isActive(pathname, "/admin") ? `${tierNavBarClass("admin")} opacity-100` : "opacity-0"
+                    }`}
+                  />
+                  <span>Admin</span>
+                </Link>
               ) : null}
             </>
           ) : null}
