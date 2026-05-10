@@ -490,8 +490,9 @@ export function TopBar() {
             type="button"
             onClick={openCaAnalyzer}
             data-tutorial="nav.tokenSearchMobile"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-800/70 bg-zinc-900/25 text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900/40 hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 sm:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-700/90 bg-zinc-800/60 text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/35 sm:hidden"
             aria-label="Open CA Analyzer"
+            title="CA Analyzer (shortcut /)"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden>
               <path d="M4 19V5M8 19V9M12 19v-6M16 19v-3M20 19V11" strokeLinecap="round" />
@@ -508,13 +509,11 @@ export function TopBar() {
                 type="button"
                 onClick={openCaAnalyzer}
                 data-tutorial="nav.tokenSearch"
-                className="hidden h-9 items-center gap-2 rounded-lg border border-zinc-800/70 bg-zinc-900/25 px-3 text-sm text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900/40 hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 sm:flex"
+                className="hidden h-9 items-center rounded-lg border border-zinc-700/90 bg-zinc-800/60 px-3 text-xs font-semibold text-zinc-200/95 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/35 sm:inline-flex"
                 aria-label="Open CA Analyzer"
+                title="CA Analyzer (shortcut /)"
               >
-                <span className="text-zinc-400">Analyze CA</span>
-                <span className="rounded-md border border-zinc-800/70 bg-zinc-900/30 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-400">
-                  /
-                </span>
+                Analyze CA
               </button>
               {canTip ? (
                 <>
