@@ -108,8 +108,8 @@ function SidebarBody({
           <Image
             src="/brand/mcgbot-terminal-logo.png"
             alt="McGBot Terminal"
-            width={607}
-            height={153}
+            width={639}
+            height={207}
             priority
             quality={100}
             sizes="(max-width: 1024px) 480px, 560px"
