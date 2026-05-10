@@ -19,6 +19,14 @@ function parseBodyLimit(o: Record<string, unknown>): number {
   return Math.floor(n);
 }
 
+function parseSellLimit(o: Record<string, unknown>, buyLimit: number): number {
+  const raw = o.sellLimit ?? o.sellBatchSize;
+  if (raw === undefined || raw === null) return buyLimit;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return buyLimit;
+  return Math.floor(n);
+}
+
 function parseRecoverStaleMs(o: Record<string, unknown>): number | undefined {
   if (o.recoverStale === false || o.recoverStaleMs === false) return undefined;
   const raw = o.recoverStaleMs ?? o.recoverStaleMinutes;
