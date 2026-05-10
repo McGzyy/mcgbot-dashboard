@@ -2,7 +2,18 @@
 
 import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import { formatRelativeTime } from "@/lib/modUiUtils";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+
+const COPY_TRADE_GUIDE_COLLAPSED_KEY = "mcgbot.copyTrade.howItWorksCollapsed";
+
+function persistGuideCollapsed(collapsed: boolean) {
+  try {
+    if (collapsed) localStorage.setItem(COPY_TRADE_GUIDE_COLLAPSED_KEY, "1");
+    else localStorage.removeItem(COPY_TRADE_GUIDE_COLLAPSED_KEY);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 import type { CopySellRule } from "@/lib/copyTrade/sellRules";
 
 type Strategy = {
@@ -99,6 +110,17 @@ export function CopyTradeClient() {
   const [withdrawSol, setWithdrawSol] = useState("");
   const [bot7d, setBot7d] = useState<{ totalCalls: number; tiers: Bot7dTier[] } | null>(null);
   const [bot7dErr, setBot7dErr] = useState<string | null>(null);
+  const [guideCollapsed, setGuideCollapsed] = useState(false);
+
+  useLayoutEffect(() => {
+    try {
+      if (localStorage.getItem(COPY_TRADE_GUIDE_COLLAPSED_KEY) === "1") {
+        setGuideCollapsed(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -278,6 +300,14 @@ export function CopyTradeClient() {
   const addRule = () => setSellRules((p) => [...p, { multiple: 2, sell_fraction: 0.25 }]);
   const removeRule = (i: number) => setSellRules((p) => (p.length <= 1 ? p : p.filter((_, j) => j !== i)));
 
+  const toggleGuideCollapsed = () => {
+    setGuideCollapsed((prev) => {
+      const next = !prev;
+      persistGuideCollapsed(next);
+      return next;
+    });
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6 lg:px-8">
       <header className={`${terminalChrome.headerRule} pb-6 sm:pb-8`}>
@@ -301,104 +331,138 @@ export function CopyTradeClient() {
       </div>
 
       <section
-        className={`mt-6 rounded-2xl ${terminalSurface.panelCard} p-5 sm:p-6`}
+        className={`mt-6 rounded-2xl ${terminalSurface.panelCard} ${guideCollapsed ? "px-4 py-2.5 sm:px-5" : "relative p-5 sm:p-6"}`}
         aria-labelledby="copy-trade-guide-heading"
       >
-        <h2 id="copy-trade-guide-heading" className="text-sm font-semibold text-zinc-100">
-          How copy trade works
-        </h2>
-        <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-          Nothing runs from the wallet you connect in the browser header. Buys and sells use McGBot&apos;s server-side execution wallet when
-          automation is enabled for this deployment. You only edit and save your personal limits here.
-        </p>
+        {guideCollapsed ? (
+          <button
+            type="button"
+            onClick={toggleGuideCollapsed}
+            className="flex w-full items-center justify-between gap-3 text-left"
+            aria-expanded={false}
+          >
+            <span id="copy-trade-guide-heading" className="text-sm font-semibold text-zinc-100">
+              How copy trade works
+            </span>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-700/80 bg-zinc-900/50 text-zinc-400">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={toggleGuideCollapsed}
+              className="absolute right-4 top-4 rounded-md border border-transparent p-1.5 text-zinc-500 hover:border-zinc-700/60 hover:bg-zinc-900/40 hover:text-zinc-300 sm:right-5 sm:top-5"
+              aria-expanded
+              aria-controls="copy-trade-guide-content"
+              aria-label="Collapse how copy trade works"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+              </svg>
+            </button>
+            <div id="copy-trade-guide-content">
+              <h2 id="copy-trade-guide-heading" className="pr-10 text-sm font-semibold text-zinc-100 sm:pr-11">
+                How copy trade works
+              </h2>
+              <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                Nothing runs from the wallet you connect in the browser header. Buys and sells use McGBot&apos;s server-side execution wallet when
+                automation is enabled for this deployment. You only edit and save your personal limits here.
+              </p>
 
-        <ol className="mt-5 space-y-3 text-sm leading-relaxed text-zinc-300">
-          <li className="flex gap-3">
-            <span
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-amber-200/90 ring-1 ring-zinc-700/80"
-              aria-hidden
-            >
-              1
-            </span>
-            <span>
-              <span className="font-medium text-zinc-200">Create your wallet</span> (button in the panel below when you&apos;re ready), then{" "}
-              <span className="font-medium text-zinc-200">send SOL</span> to that address so buys can execute up to your max size.
-            </span>
-          </li>
-          <li className="flex gap-3">
-            <span
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-amber-200/90 ring-1 ring-zinc-700/80"
-              aria-hidden
-            >
-              2
-            </span>
-            <span>
-              <span className="font-medium text-zinc-200">Set your strategy</span>: max buy, slippage, optional filters, and{" "}
-              <span className="text-zinc-200">sell milestones</span>. Click <span className="font-medium text-zinc-200">Save strategy</span> after
-              changes. Turn <span className="font-medium text-zinc-200">Enabled</span> when you want matching; with{" "}
-              <span className="font-medium text-zinc-200">mirrored bot calls only</span> (recommended), only official bot signals count.
-            </span>
-          </li>
-          <li className="flex gap-3">
-            <span
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-amber-200/90 ring-1 ring-zinc-700/80"
-              aria-hidden
-            >
-              3
-            </span>
-            <span>
-              When a call passes your filters, a row appears under <span className="font-medium text-zinc-200">Recent intents</span>. The worker
-              spends <span className="text-zinc-200">only SOL in your copy-trade wallet</span> (up to your max buy and what balance allows after
-              buffers). <span className="text-zinc-200">Skipped</span> or <span className="text-zinc-200">failed</span> explains why no buy ran.
-            </span>
-          </li>
-          <li className="flex gap-3">
-            <span
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-amber-200/90 ring-1 ring-zinc-700/80"
-              aria-hidden
-            >
-              4
-            </span>
-            <span>
-              After a successful buy, an <span className="font-medium text-zinc-200">open position</span> shows under{" "}
-              <span className="font-medium text-zinc-200">Positions</span>. A background job compares live multiples to your milestones and may send
-              token→SOL sells over time (typically at most one sell action per position per run—exact timing is not guaranteed).
-            </span>
-          </li>
-          <li className="flex gap-3">
-            <span
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-amber-200/90 ring-1 ring-zinc-700/80"
-              aria-hidden
-            >
-              5
-            </span>
-            <span>
-              A <span className="font-medium text-zinc-200">platform fee on sells</span> (basis points) is set by the operator via server config,
-              not in the form. After qualifying milestone sells, a small SOL transfer may go to the configured fee recipient when rules allow.
-            </span>
-          </li>
-        </ol>
+              <ol className="mt-5 space-y-3 text-sm leading-relaxed text-zinc-300">
+                <li className="flex gap-3">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-amber-200/90 ring-1 ring-zinc-700/80"
+                    aria-hidden
+                  >
+                    1
+                  </span>
+                  <span>
+                    <span className="font-medium text-zinc-200">Create your wallet</span> (button in the panel below when you&apos;re ready), then{" "}
+                    <span className="font-medium text-zinc-200">send SOL</span> to that address so buys can execute up to your max size.
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-amber-200/90 ring-1 ring-zinc-700/80"
+                    aria-hidden
+                  >
+                    2
+                  </span>
+                  <span>
+                    <span className="font-medium text-zinc-200">Set your strategy</span>: max buy, slippage, optional filters, and{" "}
+                    <span className="text-zinc-200">sell milestones</span>. Click <span className="font-medium text-zinc-200">Save strategy</span> after
+                    changes. Turn <span className="font-medium text-zinc-200">Enabled</span> when you want matching; with{" "}
+                    <span className="font-medium text-zinc-200">mirrored bot calls only</span> (recommended), only official bot signals count.
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-amber-200/90 ring-1 ring-zinc-700/80"
+                    aria-hidden
+                  >
+                    3
+                  </span>
+                  <span>
+                    When a call passes your filters, a row appears under <span className="font-medium text-zinc-200">Recent intents</span>. The worker
+                    spends <span className="text-zinc-200">only SOL in your copy-trade wallet</span> (up to your max buy and what balance allows after
+                    buffers). <span className="text-zinc-200">Skipped</span> or <span className="text-zinc-200">failed</span> explains why no buy ran.
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-amber-200/90 ring-1 ring-zinc-700/80"
+                    aria-hidden
+                  >
+                    4
+                  </span>
+                  <span>
+                    After a successful buy, an <span className="font-medium text-zinc-200">open position</span> shows under{" "}
+                    <span className="font-medium text-zinc-200">Positions</span>. A background job compares live multiples to your milestones and may send
+                    token→SOL sells over time (typically at most one sell action per position per run—exact timing is not guaranteed).
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-amber-200/90 ring-1 ring-zinc-700/80"
+                    aria-hidden
+                  >
+                    5
+                  </span>
+                  <span>
+                    A <span className="font-medium text-zinc-200">platform fee on sells</span> (basis points) is set by the operator via server config,
+                    not in the form. After qualifying milestone sells, a small SOL transfer may go to the configured fee recipient when rules allow.
+                  </span>
+                </li>
+              </ol>
 
-        <div className="mt-6 grid gap-4 border-t border-zinc-800/80 pt-5 sm:grid-cols-2">
-          <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">What you should do</h3>
-            <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-zinc-400">
-              <li>Save after every edit; confirm you see a success message.</li>
-              <li>Enable only when you accept the risk box above.</li>
-              <li>Use intents to confirm buys; use positions to confirm open size and sell progress.</li>
-              <li>Withdraw free SOL from your copy-trade wallet only when you have no open positions (use the withdraw form).</li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">What you can expect</h3>
-            <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-zinc-400">
-              <li>No trades while the strategy is disabled or filters block a call.</li>
-              <li>Not every intent becomes a buy; rows can stay queued briefly, then complete or stop with a status.</li>
-              <li>Sells follow your milestone table in order; partial fills and market conditions can differ from a backtest.</li>
-              <li>On-chain links (Solscan) appear when the worker records a signature.</li>
-            </ul>
-          </div>
-        </div>
+              <div className="mt-6 grid gap-4 border-t border-zinc-800/80 pt-5 sm:grid-cols-2">
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">What you should do</h3>
+                  <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-zinc-400">
+                    <li>Save after every edit; confirm you see a success message.</li>
+                    <li>Enable only when you accept the risk box above.</li>
+                    <li>Use intents to confirm buys; use positions to confirm open size and sell progress.</li>
+                    <li>Withdraw free SOL from your copy-trade wallet only when you have no open positions (use the withdraw form).</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">What you can expect</h3>
+                  <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-zinc-400">
+                    <li>No trades while the strategy is disabled or filters block a call.</li>
+                    <li>Not every intent becomes a buy; rows can stay queued briefly, then complete or stop with a status.</li>
+                    <li>Sells follow your milestone table in order; partial fills and market conditions can differ from a backtest.</li>
+                    <li>On-chain links (Solscan) appear when the worker records a signature.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </section>
 
       {loading ? (
