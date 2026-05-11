@@ -47,7 +47,10 @@ export type CaAnalyzeCallRow = {
   id: string;
   callTime: string | null;
   callKind: CaCallKind;
+  /** Discord handle from call row (often lowercase). */
   username: string;
+  /** From `users.discord_display_name` when the caller has logged into the dashboard. */
+  displayName: string | null;
   discordId: string;
   callMarketCapUsd: number | null;
   athMultiple: number | null;
@@ -148,25 +151,42 @@ export async function fetchCaAnalyzeDashboardIntel(
   const callerIds = [...new Set(rawCalls.map((r) => String(r.discord_id ?? "").trim()).filter(Boolean))];
 
   let trustedSet = new Set<string>();
+  const displayNameByDiscordId = new Map<string, string | null>();
   if (callerIds.length) {
     const { data: trustRows, error: trustErr } = await db
       .from("users")
-      .select("discord_id, trusted_pro")
+      .select("discord_id, trusted_pro, discord_display_name")
       .in("discord_id", callerIds);
     if (!trustErr && Array.isArray(trustRows)) {
-      const trustList = trustRows as unknown as { discord_id?: string; trusted_pro?: boolean }[];
+      const trustList = trustRows as unknown as {
+        discord_id?: string;
+        trusted_pro?: boolean;
+        discord_display_name?: string | null;
+      }[];
       trustedSet = new Set(
         trustList.filter((u) => u.trusted_pro === true && u.discord_id).map((u) => String(u.discord_id))
       );
+      for (const u of trustList) {
+        const id = String(u.discord_id ?? "").trim();
+        if (!id) continue;
+        const dn = u.discord_display_name;
+        displayNameByDiscordId.set(
+          id,
+          typeof dn === "string" && dn.trim() ? dn.trim() : null
+        );
+      }
     }
   }
 
-  const calls: CaAnalyzeCallRow[] = rawCalls.map((r) => ({
+  const calls: CaAnalyzeCallRow[] = rawCalls.map((r) => {
+    const did = String(r.discord_id ?? "").trim();
+    return {
     id: String(r.id ?? ""),
     callTime: typeof r.call_time === "string" ? r.call_time : null,
     callKind: classifyCall(r, trustedSet, botStatsDiscordId),
     username: typeof r.username === "string" ? r.username : "—",
-    discordId: String(r.discord_id ?? "").trim(),
+    displayName: did ? displayNameByDiscordId.get(did) ?? null : null,
+    discordId: did,
     callMarketCapUsd: numOrNull(r.call_market_cap_usd),
     athMultiple: numOrNull(r.ath_multiple),
     spotMultiple: numOrNull(r.spot_multiple),
@@ -181,7 +201,8 @@ export async function fetchCaAnalyzeDashboardIntel(
     excludedFromStats: r.excluded_from_stats === true,
     hiddenFromDashboard: r.hidden_from_dashboard === true,
     role: typeof r.role === "string" ? r.role : null,
-  }));
+  };
+  });
 
   const { data: outsideRows, error: outErr } = await db
     .from("outside_calls")

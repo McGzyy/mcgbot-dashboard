@@ -86,8 +86,8 @@ function exportMarkdown(entries: TradeJournalRow[]): string {
     if (e.thesis?.trim()) {
       lines.push("### Thesis");
       lines.push(e.thesis.trim());
-      lines.push("");
-    }
+    lines.push("");
+  }
     if (e.entry_justification?.trim()) {
       lines.push("### Entry justification");
       lines.push(e.entry_justification.trim());
@@ -191,20 +191,20 @@ export default function TradeJournalPage() {
         const json = await res.json().catch(() => ({}));
         if (!res.ok || !json.success) {
           setErr(typeof json.error === "string" ? json.error : "Save failed.");
-          return;
-        }
+        return;
+      }
       } else if (editor.id) {
         const res = await fetch(`/api/trade-journal/${encodeURIComponent(editor.id)}`, {
           method: "PATCH",
-          credentials: "same-origin",
+        credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
         const json = await res.json().catch(() => ({}));
-        if (!res.ok || !json.success) {
+      if (!res.ok || !json.success) {
           setErr(typeof json.error === "string" ? json.error : "Update failed.");
-          return;
-        }
+        return;
+      }
       }
       setErr(null);
       setEditor(emptyTradeJournalEditor());
@@ -259,7 +259,7 @@ export default function TradeJournalPage() {
       <header className={`${terminalSurface.routeHeroFrame} px-5 py-6 sm:px-8 sm:py-8`}>
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/90">Workspace</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Trade journal</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
           A private ledger for your process—separate from McGBot calls. Tag entries, track open vs closed, and export to
           Markdown anytime.
         </p>
@@ -278,13 +278,13 @@ export default function TradeJournalPage() {
             >
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{s.label}</p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-zinc-50">{loading ? "…" : s.value}</p>
-            </div>
-          ))}
-        </div>
+              </div>
+            ))}
+          </div>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <button
-            type="button"
+            <button
+              type="button"
             onClick={() =>
               setEditor({
                 ...emptyTradeJournalEditor(),
@@ -293,17 +293,17 @@ export default function TradeJournalPage() {
               })
             }
             className="rounded-xl bg-gradient-to-r from-emerald-500 to-[color:var(--accent)] px-5 py-2.5 text-sm font-semibold text-black shadow-lg shadow-emerald-900/20 transition hover:brightness-110"
-          >
-            New entry
-          </button>
-          <button
-            type="button"
+            >
+              New entry
+            </button>
+            <button
+              type="button"
             onClick={openExport}
-            disabled={entries.length === 0}
+              disabled={entries.length === 0}
             className="rounded-xl border border-zinc-700/90 bg-zinc-950/60 px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-900/50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
+            >
             Export Entries
-          </button>
+            </button>
         </div>
       </header>
 
@@ -336,8 +336,8 @@ export default function TradeJournalPage() {
             >
               <p className="text-sm font-semibold text-zinc-300">No entries yet</p>
               <p className="mt-2 text-xs text-zinc-500">Create your first entry to track setups, mistakes, and rules.</p>
-            </div>
-          ) : (
+              </div>
+            ) : (
             <ul className="space-y-4">
               {entries.map((e) => (
                 <li
@@ -350,39 +350,39 @@ export default function TradeJournalPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="truncate text-lg font-semibold tracking-tight text-zinc-50">{e.title}</h3>
                         {e.tags.map((t) => (
-                          <span
+                      <span
                             key={t}
                             className="shrink-0 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100/90"
                           >
                             {t}
-                          </span>
+                            </span>
                         ))}
-                        <span
+                          <span
                           className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                             e.status === "open"
                               ? "border-amber-400/40 bg-amber-500/10 text-amber-100"
                               : "border-zinc-600/80 bg-zinc-800/60 text-zinc-300"
-                          }`}
-                        >
-                          {e.status}
-                        </span>
+                            }`}
+                          >
+                            {e.status}
+                          </span>
                         {e.has_edge ? (
                           <span className="shrink-0 rounded-full border border-sky-500/35 bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-100/90">
                             Edge
                           </span>
                         ) : null}
-                      </div>
+                        </div>
                       {e.mint ? (
                         <p className="mt-2 font-mono text-[11px] text-zinc-500">
                           <span className="text-zinc-600">Mint</span> {shortenMint(e.mint)}
                         </p>
-                      ) : null}
+                          ) : null}
                       {e.token_symbol || e.token_name ? (
                         <p className="mt-1 text-xs text-zinc-500">
                           {[e.token_symbol, e.token_name].filter(Boolean).join(" · ")}
                           {e.timeframe ? <span className="text-zinc-600"> · {e.timeframe}</span> : null}
                         </p>
-                      ) : null}
+                          ) : null}
                       {fmtUsd(e.entry_mcap_usd) ||
                       fmtUsd(e.exit_mcap_usd) ||
                       fmtUsd(e.profit_usd) ||
@@ -391,8 +391,8 @@ export default function TradeJournalPage() {
                           {fmtUsd(e.entry_mcap_usd) ? (
                             <span>
                               <span className="text-zinc-600">Entry MC</span> {fmtUsd(e.entry_mcap_usd)}
-                            </span>
-                          ) : null}
+                                </span>
+                              ) : null}
                           {fmtUsd(e.exit_mcap_usd) ? (
                             <span>
                               <span className="text-zinc-600">Exit MC</span> {fmtUsd(e.exit_mcap_usd)}
@@ -406,9 +406,9 @@ export default function TradeJournalPage() {
                           {fmtPct(e.profit_pct) ? (
                             <span>
                               <span className="text-zinc-600">%</span> {fmtPct(e.profit_pct)}
-                            </span>
-                          ) : null}
-                        </div>
+                </span>
+              ) : null}
+            </div>
                       ) : null}
                       {e.thesis?.trim() ? (
                         <p className="mt-2 line-clamp-2 text-sm leading-snug text-zinc-400">{e.thesis}</p>
@@ -426,15 +426,15 @@ export default function TradeJournalPage() {
                           <span className="text-zinc-700"> · updated {formatRelativeTime(e.updated_at)}</span>
                         ) : null}
                       </p>
-                    </div>
+                      </div>
                     <div className="flex shrink-0 flex-row gap-2 sm:flex-col sm:items-end">
-                      <button
-                        type="button"
+                            <button
+                              type="button"
                         onClick={() => setEditor(rowToEditor(e))}
                         className="rounded-lg border border-zinc-700/90 bg-zinc-900/50 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800/80"
                       >
                         Edit
-                      </button>
+                            </button>
                       <button
                         type="button"
                         onClick={() => setDeleteId(e.id)}
@@ -443,12 +443,12 @@ export default function TradeJournalPage() {
                         Delete
                       </button>
                     </div>
-                  </div>
-                </li>
+                      </div>
+                    </li>
               ))}
-            </ul>
-          )}
-        </div>
+              </ul>
+            )}
+          </div>
 
         <aside className="mt-10 lg:mt-0 lg:sticky lg:top-6 lg:self-start">
           <TradeJournalWalletActivity
@@ -481,16 +481,16 @@ export default function TradeJournalPage() {
               <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800/80 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
                 <h3 className="text-lg font-semibold text-zinc-50">
                   {editor.mode === "create" ? "New entry" : "Edit entry"}
-                </h3>
-                <button
-                  type="button"
+                        </h3>
+                      <button
+                        type="button"
                   onClick={() => !saving && setEditor(emptyTradeJournalEditor())}
-                  className={terminalUi.modalCloseIconBtn}
-                  aria-label="Close"
-                >
+                        className={terminalUi.modalCloseIconBtn}
+                        aria-label="Close"
+                      >
                   ✕
-                </button>
-              </div>
+                      </button>
+                    </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
                 <div className="grid gap-6 sm:grid-cols-2">
                   <label className="block sm:col-span-2">
@@ -507,25 +507,25 @@ export default function TradeJournalPage() {
                   <div className="sm:col-span-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Token &amp; setup</p>
                     <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                      <label className="block">
+              <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Symbol</span>
-                        <input
+                <input
                           className={`${terminalUi.formInput} mt-1`}
                           value={editor.tokenSymbol}
                           onChange={(ev) => setEditor((s) => ({ ...s, tokenSymbol: ev.target.value }))}
                           maxLength={64}
                           placeholder="e.g. BTW"
-                        />
-                      </label>
-                      <label className="block">
+                />
+              </label>
+              <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Name</span>
-                        <input
+                <input
                           className={`${terminalUi.formInput} mt-1`}
                           value={editor.tokenName}
                           onChange={(ev) => setEditor((s) => ({ ...s, tokenName: ev.target.value }))}
                           maxLength={200}
-                        />
-                      </label>
+                />
+              </label>
                       <label className="block sm:col-span-2">
                         <span className="text-xs font-medium text-zinc-500">Mint (optional)</span>
                         <input
@@ -535,47 +535,47 @@ export default function TradeJournalPage() {
                           placeholder="Solana contract…"
                         />
                       </label>
-                      <label className="block">
+                <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Timeframe</span>
-                        <input
+                  <input
                           className={`${terminalUi.formInput} mt-1`}
                           value={editor.timeframe}
                           onChange={(ev) => setEditor((s) => ({ ...s, timeframe: ev.target.value }))}
                           maxLength={64}
                           placeholder="e.g. 5m / 1H swing"
-                        />
-                      </label>
-                      <label className="block">
+                  />
+                </label>
+                <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Tags</span>
-                        <input
+                  <input
                           className={`${terminalUi.formInput} mt-1`}
                           value={editor.tagsRaw}
                           onChange={(ev) => setEditor((s) => ({ ...s, tagsRaw: ev.target.value }))}
                           placeholder="Comma-separated"
-                        />
-                      </label>
-                      <label className="block">
+                  />
+                </label>
+                <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Status</span>
-                        <select
+                  <select
                           className={`${terminalUi.formInput} mt-1`}
                           value={editor.status}
-                          onChange={(ev) =>
+                    onChange={(ev) =>
                             setEditor((s) => ({ ...s, status: ev.target.value === "closed" ? "closed" : "open" }))
-                          }
-                        >
-                          <option value="open">Open</option>
-                          <option value="closed">Closed</option>
-                        </select>
-                      </label>
+                    }
+                  >
+                    <option value="open">Open</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </label>
                       <label className="flex items-center gap-2 sm:pt-6">
-                        <input
+                      <input
                           type="checkbox"
                           checked={editor.hasEdge}
                           onChange={(ev) => setEditor((s) => ({ ...s, hasEdge: ev.target.checked }))}
                           className="h-4 w-4 rounded border-zinc-600 bg-zinc-900"
                         />
                         <span className="text-sm text-zinc-300">With edge</span>
-                      </label>
+                    </label>
                     </div>
                   </div>
 
@@ -584,26 +584,26 @@ export default function TradeJournalPage() {
                       Market cap (USD)
                     </p>
                     <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                      <label className="block">
+                    <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Entry MC</span>
-                        <input
+                      <input
                           className={`${terminalUi.formInput} mt-1 tabular-nums`}
                           value={editor.entryMcapUsd}
                           onChange={(ev) => setEditor((s) => ({ ...s, entryMcapUsd: ev.target.value }))}
                           inputMode="decimal"
                           placeholder="e.g. 4200000"
-                        />
-                      </label>
-                      <label className="block">
+                      />
+                    </label>
+                    <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Primary exit MC</span>
-                        <input
+                      <input
                           className={`${terminalUi.formInput} mt-1 tabular-nums`}
                           value={editor.exitMcapUsd}
                           onChange={(ev) => setEditor((s) => ({ ...s, exitMcapUsd: ev.target.value }))}
                           inputMode="decimal"
                           placeholder="Optional"
-                        />
-                      </label>
+                      />
+                    </label>
                       <label className="block sm:col-span-2">
                         <span className="text-xs font-medium text-zinc-500">Exit MC path / partials</span>
                         <textarea
@@ -612,17 +612,17 @@ export default function TradeJournalPage() {
                           onChange={(ev) => setEditor((s) => ({ ...s, exitMcapsNote: ev.target.value }))}
                           maxLength={8000}
                           placeholder="Multiple scales, laddered exits, or MC story in your own shorthand…"
-                        />
-                      </label>
-                    </div>
+                      />
+                    </label>
                   </div>
+              </div>
 
                   <div className="sm:col-span-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">P&amp;L &amp; size</p>
                     <div className="mt-3 grid gap-4 sm:grid-cols-3">
                       <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Profit (USD)</span>
-                        <input
+                <input
                           className={`${terminalUi.formInput} mt-1 tabular-nums`}
                           value={editor.profitUsd}
                           onChange={(ev) => setEditor((s) => ({ ...s, profitUsd: ev.target.value }))}
@@ -630,7 +630,7 @@ export default function TradeJournalPage() {
                           placeholder="Realized $"
                         />
                       </label>
-                      <label className="block">
+              <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Profit (%)</span>
                         <input
                           className={`${terminalUi.formInput} mt-1 tabular-nums`}
@@ -638,48 +638,48 @@ export default function TradeJournalPage() {
                           onChange={(ev) => setEditor((s) => ({ ...s, profitPct: ev.target.value }))}
                           inputMode="decimal"
                           placeholder="On risk or position"
-                        />
-                      </label>
-                      <label className="block">
+                />
+              </label>
+              <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Position size (USD)</span>
                         <input
                           className={`${terminalUi.formInput} mt-1 tabular-nums`}
                           value={editor.positionSizeUsd}
                           onChange={(ev) => setEditor((s) => ({ ...s, positionSizeUsd: ev.target.value }))}
                           inputMode="decimal"
-                        />
-                      </label>
+                />
+              </label>
                     </div>
                   </div>
 
                   <div className="sm:col-span-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Prices (USD)</p>
                     <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                      <label className="block">
+                <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Entry price</span>
-                        <input
+                  <input
                           className={`${terminalUi.formInput} mt-1 tabular-nums`}
                           value={editor.entryPriceUsd}
                           onChange={(ev) => setEditor((s) => ({ ...s, entryPriceUsd: ev.target.value }))}
-                          inputMode="decimal"
-                        />
-                      </label>
-                      <label className="block">
+                    inputMode="decimal"
+                  />
+                </label>
+                <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Exit price</span>
-                        <input
+                  <input
                           className={`${terminalUi.formInput} mt-1 tabular-nums`}
                           value={editor.exitPriceUsd}
                           onChange={(ev) => setEditor((s) => ({ ...s, exitPriceUsd: ev.target.value }))}
-                          inputMode="decimal"
-                        />
-                      </label>
+                    inputMode="decimal"
+                  />
+                </label>
                     </div>
                   </div>
 
                   <div className="sm:col-span-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Playbook</p>
                     <div className="mt-3 grid gap-4">
-                      <label className="block">
+                <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Thesis</span>
                         <textarea
                           className={`${terminalUi.formInput} mt-1 min-h-[88px] resize-y`}
@@ -687,9 +687,9 @@ export default function TradeJournalPage() {
                           onChange={(ev) => setEditor((s) => ({ ...s, thesis: ev.target.value }))}
                           maxLength={8000}
                           placeholder="Why you took it — edge, context, invalidation thesis…"
-                        />
-                      </label>
-                      <label className="block">
+                  />
+                </label>
+                <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Entry justification</span>
                         <textarea
                           className={`${terminalUi.formInput} mt-1 min-h-[88px] resize-y`}
@@ -697,8 +697,8 @@ export default function TradeJournalPage() {
                           onChange={(ev) => setEditor((s) => ({ ...s, entryJustification: ev.target.value }))}
                           maxLength={8000}
                           placeholder="Trigger, confluence, what had to be true…"
-                        />
-                      </label>
+                  />
+                </label>
                       <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Planned invalidation</span>
                         <textarea
@@ -707,33 +707,33 @@ export default function TradeJournalPage() {
                           onChange={(ev) => setEditor((s) => ({ ...s, plannedInvalidation: ev.target.value }))}
                           maxLength={4000}
                           placeholder="What would prove you wrong before exit…"
-                        />
-                      </label>
+                  />
+                </label>
                     </div>
-                  </div>
+              </div>
 
                   <div className="sm:col-span-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Story &amp; review</p>
                     <div className="mt-3 grid gap-4">
-                      <label className="block">
+              <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Narrative</span>
-                        <textarea
+                <textarea
                           className={`${terminalUi.formInput} mt-1 min-h-[100px] resize-y`}
                           value={editor.narrative}
                           onChange={(ev) => setEditor((s) => ({ ...s, narrative: ev.target.value }))}
                           maxLength={12000}
                           placeholder="What actually happened — emotions, tape, surprises…"
-                        />
-                      </label>
-                      <label className="block">
+                />
+              </label>
+              <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Lessons / rules to remember</span>
-                        <textarea
+                <textarea
                           className={`${terminalUi.formInput} mt-1 min-h-[80px] resize-y`}
                           value={editor.lessonsLearned}
                           onChange={(ev) => setEditor((s) => ({ ...s, lessonsLearned: ev.target.value }))}
                           maxLength={8000}
-                        />
-                      </label>
+                />
+              </label>
                     </div>
                   </div>
 
@@ -745,9 +745,9 @@ export default function TradeJournalPage() {
                       onChange={(ev) => setEditor((s) => ({ ...s, notes: ev.target.value }))}
                       maxLength={20000}
                       placeholder="Sizing, clicks, partials, broker/RPC quirks, what you’d repeat…"
-                    />
-                  </label>
-                </div>
+                />
+              </label>
+            </div>
               </div>
               <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-zinc-800/80 px-5 py-4 sm:px-6">
                 <button
@@ -789,17 +789,17 @@ export default function TradeJournalPage() {
                 type="button"
                 onClick={() => !deleting && setDeleteId(null)}
                 className="rounded-lg border border-zinc-700 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-300"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
                 disabled={deleting}
                 onClick={() => void confirmDelete()}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
               >
                 {deleting ? "Deleting…" : "Delete"}
-              </button>
+                </button>
             </div>
           </div>
         </div>

@@ -21,6 +21,27 @@ function fmtMult(n: number | null | undefined): string {
   return `${v >= 10 ? v.toFixed(1) : v.toFixed(2)}×`;
 }
 
+/** Human-readable token age (FaSol `ageMinutes`). */
+function fmtAgeFromMinutes(minutes: number | null | undefined): string {
+  const m = typeof minutes === "number" ? minutes : Number(minutes);
+  if (!Number.isFinite(m) || m < 0) return "—";
+  if (m >= 1440 * 2) return `${Math.round(m / 1440)}d`;
+  if (m >= 120) return `${Math.round(m / 60)}h`;
+  if (m >= 60) {
+    const h = m / 60;
+    return Number.isInteger(h) ? `${h}h` : `${h.toFixed(1)}h`;
+  }
+  return `${Math.round(m)}m`;
+}
+
+function fmtTxCount(n: number | null | undefined): string {
+  const v = typeof n === "number" ? n : Number(n);
+  if (!Number.isFinite(v) || v < 0) return "—";
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
+  if (v >= 1000) return `${(v / 1000).toFixed(2)}k`;
+  return String(Math.round(v));
+}
+
 function fmtWhen(iso: string | null): string {
   if (!iso) return "—";
   try {
@@ -58,42 +79,70 @@ type FaSolParsed = {
     ageMinutes?: number | null;
     volume?: number | null;
     fiveMinChangePct?: number | null;
+    fiveMinChangeIsInfinity?: boolean;
     fiveMinVol?: number | null;
     makers?: number | null;
     txBuys?: number | null;
     txSells?: number | null;
   };
-  holders?: { holders?: number | null; top10Pct?: number | null; botsCount?: number | null };
+  holders?: {
+    holders?: number | null;
+    top10Pct?: number | null;
+    botsCount?: number | null;
+    snipersCount?: number | null;
+  };
+  security?: { lpPct?: number | null; dexUnpaid?: boolean; dexPaid?: boolean; taxPct?: number | null };
 };
 
 function FaSolStatsCard({ parsed }: { parsed: FaSolParsed }) {
   const s = parsed.stats ?? {};
   const h = parsed.holders ?? {};
+  const sec = parsed.security ?? {};
+  const ageLabel = fmtAgeFromMinutes(s.ageMinutes ?? null);
+  const fiveMinPctLabel =
+    s.fiveMinChangeIsInfinity === true
+      ? "+∞%"
+      : s.fiveMinChangePct != null && Number.isFinite(s.fiveMinChangePct)
+        ? `${s.fiveMinChangePct >= 0 ? "+" : ""}${s.fiveMinChangePct.toFixed(1)}%`
+        : "—";
   const tiles: { label: string; value: string }[] = [
     { label: "Market cap", value: fmtUsd(s.marketCap ?? null) },
     { label: "ATH", value: fmtUsd(s.ath ?? null) },
     { label: "Liquidity", value: fmtUsd(s.liquidity ?? null) },
-    { label: "Age", value: s.ageMinutes != null ? `${Math.round(s.ageMinutes)}m` : "—" },
     { label: "24h vol (est.)", value: fmtUsd(s.volume ?? null) },
-    { label: "5m Δ%", value: s.fiveMinChangePct != null ? `${s.fiveMinChangePct.toFixed(1)}%` : "—" },
+    { label: "5m Δ%", value: fiveMinPctLabel },
     { label: "5m vol", value: fmtUsd(s.fiveMinVol ?? null) },
     { label: "Makers", value: s.makers != null ? String(s.makers) : "—" },
-    { label: "Buys / sells (TX)", value: `${s.txBuys ?? "—"} / ${s.txSells ?? "—"}` },
+    { label: "Buys / sells (TX)", value: `${fmtTxCount(s.txBuys ?? null)} / ${fmtTxCount(s.txSells ?? null)}` },
     { label: "Holders", value: h.holders != null ? String(h.holders) : "—" },
     { label: "Top 10%", value: h.top10Pct != null ? `${h.top10Pct.toFixed(1)}%` : "—" },
     { label: "Bots", value: h.botsCount != null ? String(h.botsCount) : "—" },
+    { label: "Snipers", value: h.snipersCount != null ? String(h.snipersCount) : "—" },
+    { label: "LP %", value: sec.lpPct != null ? `${sec.lpPct.toFixed(1)}%` : "—" },
+    { label: "Tax %", value: sec.taxPct != null ? `${sec.taxPct.toFixed(2)}%` : "—" },
+    {
+      label: "DEX",
+      value: sec.dexUnpaid === true ? "Unpaid" : sec.dexPaid === true ? "Paid" : "—",
+    },
   ];
   return (
     <div className="mt-4 rounded-xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/50 to-black/30 p-4 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.2)]">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400/80">FaSol scan</p>
-          <p className="mt-1 text-lg font-semibold tracking-tight text-white">
-            {parsed.ticker ? `$${parsed.ticker}` : "Token"}{" "}
-            {parsed.tokenName ? (
-              <span className="text-sm font-normal text-zinc-400">— {parsed.tokenName}</span>
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <p className="text-lg font-semibold tracking-tight text-white">
+              {parsed.ticker ? `$${parsed.ticker}` : "Token"}{" "}
+              {parsed.tokenName ? (
+                <span className="text-sm font-normal text-zinc-400">— {parsed.tokenName}</span>
+              ) : null}
+            </p>
+            {ageLabel !== "—" ? (
+              <span className="shrink-0 rounded-md border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold tabular-nums tracking-wide text-amber-100/95">
+                Age {ageLabel}
+              </span>
             ) : null}
-          </p>
+          </div>
         </div>
         <span className="rounded-md border border-zinc-700/80 bg-zinc-950/80 px-2 py-1 text-[10px] font-medium text-zinc-500">
           Telegram relay
@@ -381,7 +430,10 @@ export function CaAnalyzerModal({ open, onClose }: { open: boolean; onClose: () 
                           </td>
                           <td className="px-3 py-2 align-top text-zinc-400">{fmtWhen(c.callTime)}</td>
                           <td className="px-3 py-2 align-top">
-                            <div className="font-medium text-zinc-100">{c.username}</div>
+                            <div className="font-medium text-zinc-100">{c.displayName ?? c.username}</div>
+                            {c.displayName && c.username && c.displayName !== c.username ? (
+                              <div className="text-[10px] text-zinc-500">@{c.username.replace(/^@/, "")}</div>
+                            ) : null}
                             <div className="font-mono text-[10px] text-zinc-600">{c.discordId}</div>
                           </td>
                           <td className="px-3 py-2 align-top font-mono tabular-nums text-zinc-200">
@@ -399,13 +451,17 @@ export function CaAnalyzerModal({ open, onClose }: { open: boolean; onClose: () 
                           <td className="px-3 py-2 align-top text-[10px] text-zinc-500">
                             {c.excludedFromStats ? <div>Excluded from stats</div> : null}
                             {c.hiddenFromDashboard ? <div>Hidden from dashboard</div> : null}
-                            {!c.excludedFromStats && !c.hiddenFromDashboard ? <span className="text-zinc-600">—</span> : null}
+                            {!c.excludedFromStats && !c.hiddenFromDashboard && !c.messageUrl ? (
+                              <span className="text-zinc-600">—</span>
+                            ) : null}
                             {c.messageUrl ? (
                               <a
                                 href={c.messageUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="mt-1 inline-block font-semibold text-cyan-400/90 hover:underline"
+                                className={`inline-block font-semibold text-cyan-400/90 hover:underline ${
+                                  c.excludedFromStats || c.hiddenFromDashboard ? "mt-1" : ""
+                                }`}
                               >
                                 Jump →
                               </a>
