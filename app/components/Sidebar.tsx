@@ -66,7 +66,8 @@ function isCallsNavPath(pathname: string): boolean {
   return (
     isActive(pathname, "/bot-calls") ||
     isActive(pathname, "/trusted-pro") ||
-    isActive(pathname, "/outside-calls")
+    isActive(pathname, "/outside-calls") ||
+    isActive(pathname, "/hodl")
   );
 }
 
@@ -233,6 +234,20 @@ function SidebarBody({
                     aria-hidden
                   />
                   <span>Outside Calls</span>
+                </Link>
+                <Link
+                  href="/hodl"
+                  onClick={pick}
+                  data-tutorial="sidebar.nav.hodl"
+                  className={getSubNavItemClass(isActive(pathname, "/hodl"))}
+                >
+                  <div
+                    className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded ${
+                      isActive(pathname, "/hodl") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
+                    }`}
+                    aria-hidden
+                  />
+                  <span>HODL</span>
                 </Link>
               </div>
             ) : null}
