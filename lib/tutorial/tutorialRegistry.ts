@@ -415,10 +415,11 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
 
     {
       section: "referrals",
-      target: sel("sidebar.nav.referrals"),
+      target: sel("nav.menu.referralsOverview"),
       title: "Referrals",
-      content: "Workspace — your link, signups, and downstream caller stats.",
-      placement: "right",
+      content:
+        "Open your profile menu (top right) → Referrals — overview, performance, and rewards. Your link and signups live here.",
+      placement: "left",
       scrollOffset: 72,
       skipScroll: true,
     },

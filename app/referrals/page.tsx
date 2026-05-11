@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { formatJoinedAt } from "@/lib/callDisplayFormat";
-import { terminalSurface } from "@/lib/terminalDesignTokens";
+import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 
 type Referral = {
   userId: string;
@@ -46,10 +46,13 @@ function fmtX(n: number): string {
   return `${n.toFixed(1)}x`;
 }
 
-const statCard =
-  "rounded-xl border border-emerald-500/15 bg-emerald-950/[0.12] p-4 shadow-[inset_0_1px_0_0_rgba(16,185,129,0.1)] transition hover:border-emerald-500/25 hover:bg-emerald-950/20";
+const statTile =
+  "rounded-xl border border-zinc-800/85 bg-zinc-950/55 p-4 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.14)] transition hover:border-zinc-700/90 hover:bg-zinc-950/75";
 
-const panelShell = `${terminalSurface.routeSectionFrame} bg-gradient-to-b from-zinc-900/40 to-zinc-950/90 p-4 sm:p-6`;
+const statTileTop =
+  "rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/[0.07] via-zinc-950 to-zinc-950 p-4 ring-1 ring-amber-500/15 shadow-[inset_0_1px_0_0_rgba(251,191,36,0.1)]";
+
+const panelShell = `${terminalSurface.panelCard} p-4 sm:p-5`;
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
@@ -117,11 +120,6 @@ export default function ReferralsPage() {
 
   const topReferral = useMemo(
     () => performance.filter((p) => p.calls > 0).sort((a, b) => b.avgX - a.avgX)[0],
-    [performance]
-  );
-
-  const activeCount = useMemo(
-    () => performance.filter((p) => p.active).length,
     [performance]
   );
 
@@ -226,92 +224,97 @@ export default function ReferralsPage() {
   const nowMs = Date.now();
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] space-y-6 px-0 py-6 sm:space-y-8 sm:py-10">
-      {/* Hero */}
+    <div className="mx-auto max-w-5xl px-4 pb-20 pt-4 sm:px-6">
       <header
-        className={`${terminalSurface.routeHeroFrame} p-5 sm:p-8`}
+        className={`mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between ${terminalChrome.headerRule} pb-8`}
         data-tutorial="referrals.hero"
       >
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_38%,rgba(16,185,129,0.05)_50%,transparent_62%)]" />
-        <div className="pointer-events-none absolute -right-20 -top-16 h-56 w-56 rounded-full bg-emerald-600/[0.07] blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-16 -left-12 h-48 w-48 rounded-full bg-cyan-500/[0.06] blur-3xl" />
-        <div className="relative">
-          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-emerald-400/90">
-            Referral program
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-300/85">Referral program</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Referrals</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+            One link, full attribution. Track who you brought in and how they perform — same density as
+            the rest of the terminal. Open this page anytime from your profile menu (top right).
           </p>
-          <h1 className="mt-2 bg-gradient-to-b from-white via-zinc-100 to-zinc-500 bg-clip-text text-2xl font-bold tracking-tight text-transparent sm:text-3xl sm:tracking-tighter">
-            Referrals
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-            One link, full attribution. Track who you brought in, how they perform, and where your
-            network compounds — built like a trading terminal, not a coupon page.
-          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Link
+            href="/referrals/performance"
+            className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-900/60"
+          >
+            Performance
+          </Link>
+          <Link
+            href="/referrals/rewards"
+            className="rounded-lg border border-violet-500/30 bg-violet-950/25 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:border-violet-400/40 hover:bg-violet-950/35"
+          >
+            Rewards
+          </Link>
         </div>
       </header>
 
-      {/* How it works */}
-      <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-4 py-3.5 sm:px-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Flow</p>
-        <ol className="mt-2 flex flex-col gap-2 text-sm text-zinc-400 sm:flex-row sm:flex-wrap sm:items-center sm:gap-1 sm:text-xs">
+      <div className={`mb-6 rounded-xl border border-zinc-800/80 bg-zinc-950/40 px-4 py-3.5 ${terminalSurface.insetEdgeSoft}`}>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Flow</p>
+        <ol className="mt-2 flex flex-col gap-2.5 text-sm text-zinc-300 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1 sm:text-xs">
           <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-300">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-600/80 bg-zinc-900 text-[11px] font-bold text-zinc-200">
               1
             </span>
-            <span>Drop your link in X, Discord, or DMs</span>
+            <span>Share your link (X, Discord, DMs)</span>
           </li>
-          <span className="hidden text-zinc-700 sm:inline" aria-hidden>
-            ·
+          <span className="hidden text-zinc-600 sm:inline" aria-hidden>
+            →
           </span>
           <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-300">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-600/80 bg-zinc-900 text-[11px] font-bold text-zinc-200">
               2
             </span>
-            <span>Friends sign up through McGBot</span>
+            <span>Friends join through McGBot</span>
           </li>
-          <span className="hidden text-zinc-700 sm:inline" aria-hidden>
-            ·
+          <span className="hidden text-zinc-600 sm:inline" aria-hidden>
+            →
           </span>
           <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-bold text-emerald-300">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-600/80 bg-zinc-900 text-[11px] font-bold text-zinc-200">
               3
             </span>
-            <span>Performance rolls up here in real time</span>
+            <span>Signups & performance roll up here</span>
           </li>
         </ol>
       </div>
 
-      {/* Link hub */}
       <section
-        className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-950/[0.18] via-zinc-950 to-zinc-950 shadow-[0_0_0_1px_rgba(16,185,129,0.08),0_20px_50px_-36px_rgba(0,0,0,0.85)] ring-1 ring-emerald-500/10"
+        className={`relative mb-8 overflow-hidden rounded-2xl border border-zinc-800/90 ${terminalSurface.panelCard} p-5 sm:p-6`}
         data-tutorial="referrals.linkHub"
       >
         <div
-          className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-400/80 via-emerald-500/50 to-teal-700/40"
+          className="pointer-events-none absolute inset-y-3 left-0 w-px bg-gradient-to-b from-emerald-500/50 via-emerald-400/30 to-transparent"
           aria-hidden
         />
-        <div className="relative px-4 py-4 sm:px-6 sm:py-6">
+        <div className="relative pl-3 sm:pl-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3">
             <div className="min-w-0">
               <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Your link</h2>
-              <p className="mt-1 text-xs text-emerald-100/45">
-                Share your vanity link if you set one; the numeric link always works and never
-                changes.
+              <p className="mt-1 text-xs text-zinc-500">
+                Vanity slug if configured; numeric ID link always works.
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
               <Link
                 href="/settings#referral-link"
-                className="rounded-md border border-zinc-600/80 bg-zinc-900/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800"
+                className={terminalUi.secondaryButtonSm}
               >
                 Edit in settings
               </Link>
-              <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200/90">
+              <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200/90">
                 Live
               </span>
             </div>
           </div>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-stretch">
-            <div className="min-w-0 flex-1 break-all rounded-xl border border-emerald-500/15 bg-black/40 px-3 py-3 font-mono text-[12px] text-zinc-200 shadow-inner sm:text-sm">
+            <div
+              className={`min-w-0 flex-1 break-all rounded-xl border border-zinc-800/80 bg-black/35 px-3 py-3 font-mono text-[12px] text-zinc-200 ${terminalSurface.insetEdgeSoft} sm:text-sm`}
+            >
               {status === "loading" || !slugLoaded ? (
                 <span className="text-zinc-500">Loading your link…</span>
               ) : primaryShareUrl ? (
@@ -324,13 +327,13 @@ export default function ReferralsPage() {
               type="button"
               onClick={() => void copyLink()}
               disabled={!refReady}
-              className="w-full shrink-0 rounded-xl border border-emerald-400/35 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--mcg-page)] enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-6"
+              className="w-full shrink-0 rounded-xl border border-emerald-500/35 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-6"
             >
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
           {vanityUrl && idUrl ? (
-            <div className="mt-3 flex flex-col gap-2 rounded-lg border border-zinc-800/60 bg-black/20 px-3 py-3 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-3 flex flex-col gap-2 rounded-xl border border-zinc-800/70 bg-zinc-900/30 px-3 py-3 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
               <span className="min-w-0">
                 <span className="font-medium text-zinc-400">Fallback ID link</span>{" "}
                 <span className="break-all font-mono text-zinc-500">{idUrl}</span>
@@ -338,7 +341,7 @@ export default function ReferralsPage() {
               <button
                 type="button"
                 onClick={() => void copyIdLink()}
-                className="w-full shrink-0 self-stretch rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-[11px] font-semibold text-zinc-200 transition hover:bg-zinc-800 sm:w-auto sm:self-center sm:py-1"
+                className="w-full shrink-0 rounded-md border border-zinc-700/80 bg-zinc-950/60 px-2.5 py-2 text-[11px] font-semibold text-zinc-200 transition hover:bg-zinc-900 sm:w-auto sm:py-1.5"
               >
                 Copy ID link
               </button>
@@ -347,20 +350,17 @@ export default function ReferralsPage() {
         </div>
       </section>
 
-      {/* KPI strip */}
-      <section aria-label="Referral stats" data-tutorial="referrals.stats">
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
-          Network snapshot
-        </p>
+      <section aria-label="Referral stats" className="mb-8" data-tutorial="referrals.stats">
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Network snapshot</p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {topReferral ? (
-            <div className="relative overflow-hidden rounded-xl border border-yellow-500/25 bg-gradient-to-br from-yellow-500/[0.08] via-zinc-950/80 to-zinc-950 p-4 shadow-[0_0_28px_-8px_rgba(234,179,8,0.18)] ring-1 ring-yellow-500/10">
-              <div className="absolute right-3 top-3 rounded border border-yellow-500/20 bg-black/40 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-yellow-200/90">
-                Top
+            <div className={statTileTop}>
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-amber-200/80">Best performer</p>
+                <span className="shrink-0 rounded border border-amber-500/25 bg-black/30 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-200/90">
+                  Top
+                </span>
               </div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-yellow-500/75">
-                Best performer
-              </p>
               <p className="mt-2 truncate text-sm font-semibold text-zinc-50">{topReferral.username}</p>
               <p className="mt-0.5 text-xs text-zinc-500">{topReferral.calls} calls</p>
               <div className="mt-3 flex items-end justify-between gap-2">
@@ -377,7 +377,7 @@ export default function ReferralsPage() {
                 {(topReferral.topCoins ?? []).slice(0, 3).map((coin) => (
                   <div
                     key={coin.symbol}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800/80 bg-black/35 px-2 py-1 text-[11px]"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800/80 bg-black/40 px-2 py-1 text-[11px]"
                   >
                     <span className="font-semibold text-zinc-200">{coin.symbol}</span>
                     <span className="tabular-nums font-semibold text-emerald-400">{fmtX(coin.multiplier)}</span>
@@ -386,15 +386,15 @@ export default function ReferralsPage() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col justify-center rounded-xl border border-dashed border-yellow-500/20 bg-yellow-500/[0.03] p-4 ring-1 ring-yellow-500/5">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-yellow-500/50">Best performer</p>
+            <div className="flex flex-col justify-center rounded-xl border border-dashed border-zinc-700/60 bg-zinc-950/40 p-4">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Best performer</p>
               <p className="mt-3 text-sm leading-snug text-zinc-500">
                 When referred users start calling, your strongest avg / best multiple shows here.
               </p>
             </div>
           )}
 
-          <div className={statCard}>
+          <div className={statTile}>
             <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Total referrals</p>
             <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-zinc-50">
               {referralsLoaded ? (refStats?.total ?? referrals.length) : "—"}
@@ -402,7 +402,7 @@ export default function ReferralsPage() {
             <p className="mt-1 text-xs text-zinc-600">All-time signups</p>
           </div>
 
-          <div className={statCard}>
+          <div className={statTile}>
             <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Today</p>
             <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-zinc-50">
               {referralsLoaded ? (refStats?.today ?? 0) : "—"}
@@ -410,7 +410,7 @@ export default function ReferralsPage() {
             <p className="mt-1 text-xs text-zinc-600">New signups (24h)</p>
           </div>
 
-          <div className={statCard}>
+          <div className={statTile}>
             <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">This week</p>
             <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-zinc-50">
               {referralsLoaded ? (refStats?.week ?? 0) : "—"}
@@ -420,9 +420,9 @@ export default function ReferralsPage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2" data-tutorial="referrals.lists">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6" data-tutorial="referrals.lists">
         <section className={panelShell}>
-          <div className="mb-4 flex items-baseline justify-between gap-2 border-b border-zinc-800/60 pb-3">
+          <div className="mb-4 flex items-baseline justify-between gap-2 border-b border-zinc-800/70 pb-3">
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Recent referrals</h2>
             <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Latest</span>
           </div>
@@ -437,7 +437,7 @@ export default function ReferralsPage() {
               {referrals.map((ref, i) => (
                 <li
                   key={`${ref.userId}-${i}`}
-                  className="flex flex-col gap-2 rounded-xl border border-zinc-800/50 bg-black/25 px-3 py-2.5 transition hover:border-emerald-500/20 hover:bg-emerald-950/15 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                  className="flex flex-col gap-2 rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-3 py-2.5 transition hover:border-zinc-700/90 hover:bg-zinc-900/40 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-700/80 bg-zinc-900 text-[11px] font-bold tabular-nums text-zinc-300">
@@ -471,7 +471,7 @@ export default function ReferralsPage() {
         </section>
 
         <section className={panelShell}>
-          <div className="mb-4 flex items-baseline justify-between gap-2 border-b border-zinc-800/60 pb-3">
+          <div className="mb-4 flex items-baseline justify-between gap-2 border-b border-zinc-800/70 pb-3">
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Referral performance</h2>
             <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Avg / best</span>
           </div>
@@ -480,7 +480,7 @@ export default function ReferralsPage() {
               {performance.map((p, i) => (
                 <li
                   key={`${p.username}-${i}`}
-                  className="rounded-xl border border-zinc-800/50 bg-black/25 px-3 py-3 transition hover:border-emerald-500/20 hover:bg-emerald-950/10"
+                  className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-3 py-3 transition hover:border-zinc-700/90 hover:bg-zinc-900/40"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 items-center gap-3">
@@ -528,91 +528,81 @@ export default function ReferralsPage() {
         </section>
       </div>
 
-      {/* Rewards */}
       <section
-        className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/[0.2] via-zinc-950 to-zinc-950 p-5 ring-1 ring-violet-500/10 sm:p-8"
+        className={`rounded-2xl border border-zinc-800/90 ${terminalSurface.panelCard} p-5 sm:p-6`}
         data-tutorial="referrals.rewards"
       >
-        <div className="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-violet-500/10 blur-3xl" />
-        <div className="relative">
+        <div className="border-b border-violet-500/20 pb-4">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Rewards</h2>
-            <span className="rounded-md border border-violet-500/25 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-200/90">
+            <span className="rounded-md border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-200/90">
               Attribution
             </span>
           </div>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
-            We record qualifying subscription payments from people you referred. Nothing is auto-credited to
-            your membership until we publish a reward policy; this panel is your transparent ledger preview.
+            Qualifying subscription payments from people you referred are logged here. Nothing is auto-credited until a
+            reward policy ships — this stays a transparent ledger preview.
           </p>
+        </div>
 
-          {!referralsLoaded ? (
-            <div className="mt-5 rounded-xl border border-dashed border-violet-500/25 bg-black/30 px-4 py-8 text-center">
-              <p className="text-sm text-zinc-500">Loading reward snapshot…</p>
-            </div>
-          ) : rewardSummary ? (
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
-                  Pending events
-                </p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">
-                  {rewardSummary.pendingQualifyingPayments}
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Paid referee checkouts we logged; not valued in days or cash yet.
-                </p>
-              </div>
-              <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
-                  Paying refs (active sub)
-                </p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">
-                  {rewardSummary.activePayingReferrals}
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">Referred users whose Pro is currently valid</p>
-              </div>
-              <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
-                  Settled rows
-                </p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">{rewardSummary.grantedLedgerRows}</p>
-                <p className="mt-1 text-xs text-zinc-500">Ledger rows marked granted (incl. any legacy auto-credits).</p>
-              </div>
-              <div className="rounded-xl border border-violet-500/20 bg-black/35 px-4 py-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/70">
-                  Legacy Pro days total
-                </p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">
-                  {rewardSummary.legacyGrantedProDaysTotal}
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Sum of day credits on granted rows only; not a promise of future payouts.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-5 rounded-xl border border-dashed border-zinc-600/40 bg-black/30 px-4 py-6 text-center">
-              <p className="text-sm text-zinc-500">
-                Ledger summary needs the service role on the server. Check SUPABASE_SERVICE_ROLE_KEY.
+        {!referralsLoaded ? (
+          <div className="mt-5 rounded-xl border border-dashed border-zinc-700/60 bg-zinc-950/40 px-4 py-8 text-center">
+            <p className="text-sm text-zinc-500">Loading reward snapshot…</p>
+          </div>
+        ) : rewardSummary ? (
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 px-4 py-4 shadow-[inset_0_1px_0_0_rgba(139,92,246,0.08)]">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-300/80">Pending events</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">
+                {rewardSummary.pendingQualifyingPayments}
               </p>
+              <p className="mt-1 text-xs text-zinc-500">Paid checkouts tagged — not valued in days or cash yet.</p>
             </div>
-          )}
-
-          {rewardSummary != null && rewardSummary.voidedLedgerRows > 0 ? (
-            <p className="mt-4 text-xs text-zinc-600">
-              Voided ledger rows:{" "}
-              <span className="font-mono tabular-nums text-zinc-500">{rewardSummary.voidedLedgerRows}</span>
-            </p>
-          ) : null}
-
-          <div className="mt-5 rounded-xl border border-dashed border-violet-500/25 bg-black/30 px-4 py-4">
-            <p className="text-xs font-medium text-violet-200/85">What happens next</p>
-            <p className="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-zinc-500">
-              When you are ready to ship a reward policy, we can map pending rows to Pro time, points, or cash
-              in a controlled step (batch or admin-triggered) without rewriting attribution.
+            <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 px-4 py-4 shadow-[inset_0_1px_0_0_rgba(139,92,246,0.08)]">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-300/80">
+                Paying refs (active sub)
+              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">
+                {rewardSummary.activePayingReferrals}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">Referred users with valid Pro right now.</p>
+            </div>
+            <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 px-4 py-4 shadow-[inset_0_1px_0_0_rgba(139,92,246,0.08)]">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-300/80">Settled rows</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">{rewardSummary.grantedLedgerRows}</p>
+              <p className="mt-1 text-xs text-zinc-500">Granted ledger rows (incl. legacy auto-credits).</p>
+            </div>
+            <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 px-4 py-4 shadow-[inset_0_1px_0_0_rgba(139,92,246,0.08)]">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-300/80">
+                Legacy Pro days total
+              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-zinc-50">
+                {rewardSummary.legacyGrantedProDaysTotal}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">Sum on granted rows only — not a future payout promise.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5 rounded-xl border border-dashed border-zinc-700/60 bg-zinc-950/40 px-4 py-6 text-center">
+            <p className="text-sm text-zinc-500">
+              Ledger summary unavailable. Ensure SUPABASE_SERVICE_ROLE_KEY is set on the server.
             </p>
           </div>
+        )}
+
+        {rewardSummary != null && rewardSummary.voidedLedgerRows > 0 ? (
+          <p className="mt-4 text-xs text-zinc-600">
+            Voided ledger rows:{" "}
+            <span className="font-mono tabular-nums text-zinc-500">{rewardSummary.voidedLedgerRows}</span>
+          </p>
+        ) : null}
+
+        <div className="mt-5 rounded-xl border border-dashed border-zinc-700/60 bg-zinc-950/35 px-4 py-4">
+          <p className="text-xs font-medium text-zinc-300">What happens next</p>
+          <p className="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-zinc-500">
+            When a reward policy is published, pending rows can map to Pro time, points, or cash in a controlled batch —
+            without rewriting attribution.
+          </p>
         </div>
       </section>
     </div>
