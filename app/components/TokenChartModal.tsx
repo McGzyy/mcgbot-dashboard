@@ -313,7 +313,8 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
           </div>
         ) : null}
 
-        <div className="relative min-h-0 flex-1 bg-black">
+        {/* Iframe ignores flex-1 unless parent is flex; use absolute fill so chart uses full pane. */}
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
           {!loaded ? (
             <div className="absolute inset-0 z-[5] flex items-center justify-center bg-black/70">
               <div className="w-full max-w-md px-6 text-center">
@@ -355,7 +356,7 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
             key={chartMode === "gecko" ? geckoSrc : tvSymbol}
             title={chartMode === "gecko" ? "GeckoTerminal chart" : "TradingView chart"}
             src={chartMode === "gecko" ? geckoSrc : iframeSrc}
-            className="min-h-0 w-full flex-1 border-0"
+            className="absolute inset-0 h-full w-full border-0"
             referrerPolicy="no-referrer-when-downgrade"
             allow="clipboard-write; fullscreen"
             onLoad={onIframeLoad}
