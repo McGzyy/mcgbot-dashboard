@@ -399,7 +399,8 @@ export type MembershipEventType =
   | "stripe_checkout_one_time"
   | "stripe_checkout_subscription"
   | "stripe_subscription_renewal"
-  | "voucher_complimentary";
+  | "voucher_complimentary"
+  | "referral_credit_redeem";
 
 export type InsertMembershipEventInput = {
   discordId: string;

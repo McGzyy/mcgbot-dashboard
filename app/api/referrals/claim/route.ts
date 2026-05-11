@@ -1,55 +1,59 @@
-import { createClient } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 
+import { authOptions } from "@/lib/auth";
+import { referralCookieOptions, serializeReferrerCookie } from "@/lib/referralCookie";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { isValidDiscordSnowflake } from "@/lib/subscription/exemptAllowlistDb";
+
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function adminClient() {
-  const url = process.env.SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!url || !key) return null;
-  return createClient(url, key);
+async function resolveReferrerFromBody(body: Record<string, unknown>): Promise<string | null> {
+  const idRaw = typeof body.referrerDiscordId === "string" ? body.referrerDiscordId.trim() : "";
+  if (isValidDiscordSnowflake(idRaw)) return idRaw;
+
+  const slug = typeof body.referralSlug === "string" ? body.referralSlug.trim().toLowerCase() : "";
+  if (!slug || slug.length > 64) return null;
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const { data } = await db.from("users").select("discord_id").eq("referral_slug", slug).maybeSingle();
+  if (!data || typeof data !== "object") return null;
+  const id = typeof (data as { discord_id?: string }).discord_id === "string"
+    ? (data as { discord_id: string }).discord_id.trim()
+    : "";
+  return isValidDiscordSnowflake(id) ? id : null;
 }
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  const referredUserId = session?.user?.id?.trim() ?? "";
-  if (!referredUserId) {
-    return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const selfId = session?.user?.id?.trim() ?? "";
+  if (!selfId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-  const referrerDiscordId =
-    body && typeof body.referrerDiscordId === "string" ? body.referrerDiscordId.trim() : "";
-
-  if (!/^\d{17,19}$/.test(referrerDiscordId)) {
-    return Response.json({ ok: false, error: "Invalid referrer" }, { status: 400 });
-  }
-  if (referrerDiscordId === referredUserId) {
-    return Response.json({ ok: true, skipped: "self" });
+  if (!body) {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const supabase = adminClient();
-  if (!supabase) {
-    return Response.json({ ok: false, error: "Server misconfigured" }, { status: 500 });
+  const ownerId = await resolveReferrerFromBody(body);
+  if (!ownerId) {
+    return NextResponse.json({ error: "Unknown referrer" }, { status: 400 });
+  }
+  if (ownerId === selfId) {
+    return NextResponse.json({ error: "Self-referral is not allowed" }, { status: 400 });
   }
 
-  const joined_at = Date.now();
-  const { error } = await supabase.from("referrals").insert({
-    owner_discord_id: referrerDiscordId,
-    referred_user_id: referredUserId,
-    joined_at,
+  const opts = referralCookieOptions();
+  const clickMs = Date.now();
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(opts.name, serializeReferrerCookie(ownerId, clickMs), {
+    httpOnly: opts.httpOnly,
+    sameSite: opts.sameSite,
+    secure: opts.secure,
+    path: opts.path,
+    maxAge: opts.maxAgeSec,
   });
-
-  if (error) {
-    // If the table has a unique constraint (recommended), duplicates will throw 23505.
-    if (error.code === "23505") {
-      return Response.json({ ok: true, skipped: "duplicate" });
-    }
-    console.error("[referrals/claim]", error);
-    return Response.json({ ok: false, error: "Could not record referral" }, { status: 500 });
-  }
-
-  return Response.json({ ok: true });
+  return res;
 }
-

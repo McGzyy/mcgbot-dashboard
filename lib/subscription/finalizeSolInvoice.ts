@@ -15,6 +15,7 @@ import {
   verifyNativeSolTransferRelaxed,
 } from "@/lib/subscription/solTransferVerifyRelaxed";
 import { syncPremiumDiscordRoleAfterSubscriptionChange } from "@/lib/discordPremiumRole";
+import { recordReferralAccrualFromSolFinalize } from "@/lib/referralRewards";
 
 function lamportsToSolBigNumber(lamports: number): BigNumber {
   return lamportsToSolAmount(lamports);
@@ -122,6 +123,14 @@ export async function finalizeInvoiceFromTxSignature(input: {
     txSignature: signature,
   });
 
+  await recordReferralAccrualFromSolFinalize({
+    referredUserId: invoice.discord_id,
+    paymentInvoiceId: invoice.id,
+    refereePeriodDays: durationDays,
+    amountSol: solPaid,
+    solQuoteUsd: typeof invoice.sol_usd === "number" && Number.isFinite(invoice.sol_usd) ? invoice.sol_usd : null,
+  });
+
   await syncPremiumDiscordRoleAfterSubscriptionChange(invoice.discord_id);
 
   return { ok: true };
@@ -209,6 +218,14 @@ export async function finalizeInvoiceFromReferenceIfPaid(input: {
     amountSol: solPaid,
     solQuoteUsd: typeof invoice.sol_usd === "number" && Number.isFinite(invoice.sol_usd) ? invoice.sol_usd : null,
     txSignature: signature,
+  });
+
+  await recordReferralAccrualFromSolFinalize({
+    referredUserId: invoice.discord_id,
+    paymentInvoiceId: invoice.id,
+    refereePeriodDays: durationDays,
+    amountSol: solPaid,
+    solQuoteUsd: typeof invoice.sol_usd === "number" && Number.isFinite(invoice.sol_usd) ? invoice.sol_usd : null,
   });
 
   await syncPremiumDiscordRoleAfterSubscriptionChange(invoice.discord_id);

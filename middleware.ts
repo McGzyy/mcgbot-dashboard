@@ -19,6 +19,7 @@ function isPublicForAnonymous(pathname: string): boolean {
   if (pathname.startsWith("/auth")) return true;
   if (pathname.startsWith("/subscribe")) return true;
   if (pathname.startsWith("/membership")) return true;
+  if (pathname.startsWith("/ref")) return true;
   return false;
 }
 
@@ -40,6 +41,7 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (pathname === "/join") return true;
   if (pathname.startsWith("/join/verify")) return true;
   if (pathname === "/api/public/site-flags" && method === "GET") return true;
+  if (pathname.startsWith("/ref")) return true;
   if (pathname === "/api/copy-trade/bot-7d" && method === "GET") return true;
   if (pathname === "/api/subscription/plans" && method === "GET") return true;
   if (pathname === "/api/subscription/stripe/webhook" && method === "POST") return true;
@@ -201,6 +203,12 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
+    const referralApiNoPaywall =
+      (pathname === "/api/referrals/claim" && req.method === "POST") ||
+      (pathname === "/api/referrals" && req.method === "GET") ||
+      (pathname.startsWith("/api/me/referral-credit") &&
+        (req.method === "GET" || req.method === "POST"));
+
     if (isSubscriptionProtectedApi(pathname)) {
       if (!token) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -229,6 +237,9 @@ export async function middleware(req: NextRequest) {
     }
     /** Admin APIs enforce `requireDashboardAdmin` in-route; do not block on subscription JWT (stale vs /admin layout). */
     if (pathname.startsWith("/api/admin/")) {
+      return NextResponse.next();
+    }
+    if (referralApiNoPaywall) {
       return NextResponse.next();
     }
     if (!(await hasDashboardAccessResolved(token))) {
@@ -278,6 +289,14 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname.startsWith("/subscribe") || pathname.startsWith("/membership")) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/ref")) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/referrals")) {
     return NextResponse.next();
   }
 

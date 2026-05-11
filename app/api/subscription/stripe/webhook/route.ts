@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { applyPaidStripeCheckoutSession } from "@/lib/subscription/stripeApplySession";
 import { getStripe } from "@/lib/subscription/stripeServer";
 import { tryInsertStripeSubscriptionRenewalMembershipEvent } from "@/lib/subscription/stripeMembershipRenewal";
+import { processStripeInvoicePaidForReferrals } from "@/lib/subscription/stripeReferralInvoice";
 import {
   syncDiscordSubscriptionFromStripeId,
   syncDiscordSubscriptionFromStripeSubscription,
@@ -54,6 +55,11 @@ export async function POST(request: Request) {
           await tryInsertStripeSubscriptionRenewalMembershipEvent({ stripe, invoice });
         } catch (e) {
           console.error("[stripe webhook] invoice.paid membership_events insert", e);
+        }
+        try {
+          await processStripeInvoicePaidForReferrals({ stripe, invoice });
+        } catch (e) {
+          console.error("[stripe webhook] invoice.paid referral accrual", e);
         }
       }
     }

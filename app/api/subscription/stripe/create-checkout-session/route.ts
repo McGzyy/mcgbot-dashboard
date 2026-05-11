@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import Stripe from "stripe";
 import { authOptions } from "@/lib/auth";
@@ -8,6 +9,7 @@ import { getPlanById, getPlanBySlug, getSubscriptionStripeCustomerId } from "@/l
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
+import { readReferrerStripeMetadataFromCookies } from "@/lib/subscription/stripeReferralInvoice";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -173,6 +175,11 @@ export async function POST(request: Request) {
 
     const existingCustomerId = await getSubscriptionStripeCustomerId(discordId);
 
+    const jar = await cookies();
+    const refMetaRaw = readReferrerStripeMetadataFromCookies(jar);
+    const refMeta =
+      refMetaRaw && refMetaRaw.referrer_discord_id.trim() !== discordId.trim() ? refMetaRaw : null;
+
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
       client_reference_id: discordId.slice(0, 200),
@@ -184,6 +191,7 @@ export async function POST(request: Request) {
         plan_id: plan.id,
         plan_slug: plan.slug,
         ...(testCheckout ? { stripe_test_checkout: "1" } : {}),
+        ...(refMeta ?? {}),
       },
       subscription_data: {
         metadata: {
@@ -191,6 +199,7 @@ export async function POST(request: Request) {
           plan_id: plan.id,
           plan_slug: plan.slug,
           ...(testCheckout ? { stripe_test_checkout: "1" } : {}),
+          ...(refMeta ?? {}),
         },
       },
       success_url: successUrl,

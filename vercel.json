@@ -2,16 +2,20 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/reconcile-subscriptions",
-      "schedule": "*/5 * * * *"
-    },
-    {
       "path": "/api/cron/award-leaderboard-trophies",
       "schedule": "20 0 * * *"
     },
     {
       "path": "/api/cron/copy-trade-process-queue",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/reconcile-subscriptions",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/referral-credit-settle",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

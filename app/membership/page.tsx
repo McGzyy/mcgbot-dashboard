@@ -80,6 +80,8 @@ export default function MembershipPage() {
   const searchParams = useSearchParams();
   const referralRef = (searchParams?.get("ref") ?? "").trim();
   const referralReferrerId = /^\d{17,19}$/.test(referralRef) ? referralRef : "";
+  const referralSlugForClaim =
+    referralRef && !referralReferrerId && /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/i.test(referralRef) ? referralRef.toLowerCase() : "";
   const [refClaimed, setRefClaimed] = useState(false);
   const [plans, setPlans] = useState<Plan[] | null>(null);
   const [plansError, setPlansError] = useState<string | null>(null);
@@ -290,7 +292,7 @@ export default function MembershipPage() {
 
   useEffect(() => {
     if (status !== "authenticated" || !session?.user?.id?.trim()) return;
-    if (!referralReferrerId) return;
+    if (!referralReferrerId && !referralSlugForClaim) return;
     if (refClaimed) return;
 
     let cancelled = false;
@@ -300,7 +302,11 @@ export default function MembershipPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
-          body: JSON.stringify({ referrerDiscordId: referralReferrerId }),
+          body: JSON.stringify(
+            referralReferrerId
+              ? { referrerDiscordId: referralReferrerId }
+              : { referralSlug: referralSlugForClaim }
+          ),
         });
         if (cancelled) return;
         if (res.ok) {
@@ -321,7 +327,7 @@ export default function MembershipPage() {
     return () => {
       cancelled = true;
     };
-  }, [refClaimed, referralReferrerId, session?.user?.id, status]);
+  }, [refClaimed, referralReferrerId, referralSlugForClaim, session?.user?.id, status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -633,9 +639,10 @@ export default function MembershipPage() {
     !(Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin) &&
     !(Boolean(siteFlags?.maintenance_enabled) && !isDashboardAdmin);
 
-  const membershipCallbackUrl = referralReferrerId
-    ? `/membership?ref=${encodeURIComponent(referralReferrerId)}`
-    : "/membership";
+  const membershipCallbackUrl =
+    referralReferrerId || referralSlugForClaim
+      ? `/membership?ref=${encodeURIComponent(referralReferrerId || referralSlugForClaim)}`
+      : "/membership";
 
   return (
     <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">

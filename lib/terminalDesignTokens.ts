@@ -72,6 +72,8 @@ export const terminalUi = {
   modalBackdropZ50: `fixed inset-0 z-50 ${modalBackdropScroll}`,
   modalBackdropZ100: `fixed inset-0 z-[100] ${modalBackdropScroll}`,
   modalBackdropZ120: `fixed inset-0 z-[120] ${modalBackdropScroll}`,
+  /** Fix-it ticket (above in-app modals at z-[120], below Solana wallet adapter modals). */
+  fixItTicketBackdrop: `fixed inset-0 z-[135] ${modalBackdropScroll}`,
   /** Centered modal (e.g. quick submit) — shorter vertical padding than scroll modals. */
   modalBackdropCenterZ50: "fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6",
   modalCloseIconBtn:

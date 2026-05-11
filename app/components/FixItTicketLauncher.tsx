@@ -141,7 +141,7 @@ export function FixItTicketLauncher() {
 
       {open ? (
         <div
-          className={terminalUi.modalBackdropZ100}
+          className={terminalUi.fixItTicketBackdrop}
           role="dialog"
           aria-modal="true"
           aria-label="Submit fix-it ticket"
@@ -149,7 +149,7 @@ export function FixItTicketLauncher() {
             if (ev.target === ev.currentTarget && !submitting) close();
           }}
         >
-          <div className={terminalUi.modalPanel2xlWide}>
+          <div className={`relative z-10 ${terminalUi.modalPanel2xlWide}`}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-300/90">Build phase</p>
