@@ -8,7 +8,8 @@ import { useCallback, useEffect, useState } from "react";
 
 function fmtUsd(n: number | null | undefined): string {
   const v = typeof n === "number" ? n : Number(n);
-  if (!Number.isFinite(v) || v <= 0) return "—";
+  if (!Number.isFinite(v) || v < 0) return "—";
+  if (v === 0) return "$0";
   if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
   if (v >= 1e6) return `$${(v / 1e6).toFixed(2)}M`;
   if (v >= 1e3) return `$${(v / 1e3).toFixed(1)}k`;
@@ -35,6 +36,7 @@ function fmtAgeFromMinutes(minutes: number | null | undefined): string {
 }
 
 function fmtTxCount(n: number | null | undefined): string {
+  if (n == null) return "—";
   const v = typeof n === "number" ? n : Number(n);
   if (!Number.isFinite(v) || v < 0) return "—";
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
@@ -90,6 +92,11 @@ type FaSolParsed = {
     top10Pct?: number | null;
     botsCount?: number | null;
     snipersCount?: number | null;
+    freshCount?: number | null;
+    freshPct?: number | null;
+    bundlersCount?: number | null;
+    bundlersPct?: number | null;
+    devHoldPct?: number | null;
   };
   security?: { lpPct?: number | null; dexUnpaid?: boolean; dexPaid?: boolean; taxPct?: number | null };
 };
@@ -118,6 +125,25 @@ function FaSolStatsCard({ parsed }: { parsed: FaSolParsed }) {
     { label: "Top 10%", value: h.top10Pct != null ? `${h.top10Pct.toFixed(1)}%` : "—" },
     { label: "Bots", value: h.botsCount != null ? String(h.botsCount) : "—" },
     { label: "Snipers", value: h.snipersCount != null ? String(h.snipersCount) : "—" },
+    {
+      label: "Fresh",
+      value:
+        h.freshCount != null
+          ? h.freshPct != null
+            ? `${h.freshCount} (${h.freshPct.toFixed(2)}%)`
+            : String(h.freshCount)
+          : "—",
+    },
+    {
+      label: "Bundlers",
+      value:
+        h.bundlersCount != null
+          ? h.bundlersPct != null
+            ? `${h.bundlersCount} (${h.bundlersPct.toFixed(2)}%)`
+            : String(h.bundlersCount)
+          : "—",
+    },
+    { label: "Dev H %", value: h.devHoldPct != null ? `${h.devHoldPct.toFixed(2)}%` : "—" },
     { label: "LP %", value: sec.lpPct != null ? `${sec.lpPct.toFixed(1)}%` : "—" },
     { label: "Tax %", value: sec.taxPct != null ? `${sec.taxPct.toFixed(2)}%` : "—" },
     {
