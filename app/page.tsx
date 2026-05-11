@@ -41,7 +41,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { terminalPage, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
+import { terminalChrome, terminalPage, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
@@ -639,6 +639,12 @@ type SocialFeedItem = {
   text: string;
   metricLabel?: string;
 };
+
+function socialPlatformPillClasses(p: SocialPlatform): string {
+  return p === "x"
+    ? "border-zinc-700/60 bg-zinc-900/40 text-zinc-200"
+    : "border-fuchsia-500/25 bg-fuchsia-500/10 text-fuchsia-200";
+}
 
 const SOCIAL_FEED_MOCK: SocialFeedItem[] = [
   {
@@ -2326,21 +2332,35 @@ function SocialsFeedPanel() {
   const [flashId, setFlashId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
-  const [sources, setSources] = useState<
-    { id: string; platform: SocialPlatform; handle: string; displayName: string | null }[]
-  >([]);
-  const [sourcesLoading, setSourcesLoading] = useState(false);
-  const [sourcePlatform, setSourcePlatform] = useState<SocialPlatform>("x");
-  const [sourceHandle, setSourceHandle] = useState("");
-  const [sourceDisplayName, setSourceDisplayName] = useState("");
-  const [sourceBusy, setSourceBusy] = useState(false);
-  const [removeBusyId, setRemoveBusyId] = useState<string | null>(null);
-  const [sourceOk, setSourceOk] = useState<string | null>(null);
-  const [sourceErr, setSourceErr] = useState<string | null>(null);
+  const [submitOpen, setSubmitOpen] = useState(false);
+  const [submitPlatform, setSubmitPlatform] = useState<SocialPlatform>("x");
+  const [submitHandle, setSubmitHandle] = useState("");
+  const [submitSourceName, setSubmitSourceName] = useState("");
+  const [submitCategory, setSubmitCategory] = useState("");
+  const [submitRationale, setSubmitRationale] = useState("");
+  const [submitBusy, setSubmitBusy] = useState(false);
+  const [submitErr, setSubmitErr] = useState<string | null>(null);
+  const [submitOk, setSubmitOk] = useState<string | null>(null);
 
-  const tier = (session?.user as any)?.helpTier as string | undefined;
-  const canSubmit = status === "authenticated" && (tier === "mod" || tier === "admin");
+  const tier = (session?.user as { helpTier?: string } | undefined)?.helpTier;
   const isAdmin = status === "authenticated" && tier === "admin";
+  const canRequestSource = status === "authenticated" && session?.user?.hasDashboardAccess === true;
+
+  const closeExpanded = useCallback(() => {
+    setExpanded(false);
+    setSubmitOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!expanded && !submitOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (submitOpen) setSubmitOpen(false);
+      else closeExpanded();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded, submitOpen, closeExpanded]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2391,388 +2411,388 @@ function SocialsFeedPanel() {
     };
   }, [tab]);
 
-  const loadSources = useCallback(async () => {
-    setSourcesLoading(true);
-    setSourceErr(null);
-    try {
-      const res = await fetch("/api/social-sources", { credentials: "same-origin" });
-      const json = (await res.json().catch(() => null)) as any;
-      const list = json && json.success === true && Array.isArray(json.sources) ? json.sources : [];
-      const parsed: typeof sources = [];
-      for (const row of list) {
-        if (!row || typeof row !== "object") continue;
-        const o = row as Record<string, unknown>;
-        const id = typeof o.id === "string" ? o.id.trim() : "";
-        const platform = typeof o.platform === "string" ? o.platform : "";
-        const handle = typeof o.handle === "string" ? o.handle.trim() : "";
-        if (!id || !handle) continue;
-        parsed.push({
-          id,
-          platform: platform === "instagram" ? "instagram" : "x",
-          handle,
-          displayName: typeof o.displayName === "string" ? o.displayName : null,
-        });
-      }
-      setSources(parsed);
-    } catch {
-      setSources([]);
-      setSourceErr("Failed to load sources.");
-    } finally {
-      setSourcesLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!expanded) return;
-    void loadSources();
-  }, [expanded, loadSources]);
-
   const rows = useMemo(() => {
     if (tab === "all") return items;
     return items.filter((r) => r.platform === tab);
   }, [items, tab]);
 
-  const platformPill = (p: SocialPlatform) =>
-    p === "x"
-      ? "border-zinc-700/60 bg-zinc-900/40 text-zinc-200"
-      : "border-fuchsia-500/25 bg-fuchsia-500/10 text-fuchsia-200";
-
-  const feedList = (
-    <>
-      {rows.length === 0 ? (
-        <div className="flex h-full items-center justify-center px-3 py-10">
-          <div className="text-center">
-            <p className="text-sm font-semibold text-zinc-200">No posts yet</p>
-            <p className="mt-1 text-xs text-zinc-500">This feed is wired — waiting on sources.</p>
+  const renderFeedList = (compact: boolean) => {
+    const textCls = compact
+      ? "mt-1 line-clamp-2 text-sm text-zinc-200"
+      : "mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-200";
+    return (
+      <>
+        {rows.length === 0 ? (
+          <div className="flex h-full min-h-[12rem] items-center justify-center px-3 py-10">
+            <div className="text-center">
+              <p className="text-sm font-semibold text-zinc-200">No posts yet</p>
+              <p className="mt-1 text-xs text-zinc-500">This feed is wired — waiting on sources.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <ul className="space-y-1">
-          {rows.map((item) => (
-            <li
-              key={item.id}
-              className={`${terminalPage.denseInsetRow} ${
-                flashId === item.id ? "ring-1 ring-[color:var(--accent)]/35 bg-zinc-900/35" : ""
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${platformPill(
-                        item.platform
-                      )}`}
-                    >
-                      {item.platform === "x" ? "X" : "IG"}
-                    </span>
-                    <span className="truncate text-sm font-semibold text-zinc-100">
-                      {item.authorName}
-                    </span>
-                    <span className="text-xs text-zinc-500">{item.authorHandle}</span>
-                    <span className="text-xs text-zinc-600">•</span>
-                    <span className="text-xs tabular-nums text-zinc-500">{item.postedAtLabel}</span>
+        ) : (
+          <ul className="space-y-1">
+            {rows.map((item) => (
+              <li
+                key={item.id}
+                className={`${terminalPage.denseInsetRow} ${
+                  flashId === item.id ? "ring-1 ring-[color:var(--accent)]/35 bg-zinc-900/35" : ""
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${socialPlatformPillClasses(
+                          item.platform
+                        )}`}
+                      >
+                        {item.platform === "x" ? "X" : "IG"}
+                      </span>
+                      <span className="truncate text-sm font-semibold text-zinc-100">
+                        {item.authorName}
+                      </span>
+                      <span className="text-xs text-zinc-500">{item.authorHandle}</span>
+                      <span className="text-xs text-zinc-600">•</span>
+                      <span className="text-xs tabular-nums text-zinc-500">{item.postedAtLabel}</span>
+                    </div>
+                    <p className={textCls}>{item.text}</p>
                   </div>
-                  <p className="mt-1 line-clamp-2 text-sm text-zinc-200">{item.text}</p>
-                </div>
 
-                {item.metricLabel ? (
-                  <span className="shrink-0 rounded-full border border-zinc-700/60 bg-zinc-900/40 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-zinc-200">
-                    {item.metricLabel}
-                  </span>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
-  );
+                  {item.metricLabel ? (
+                    <span className="shrink-0 rounded-full border border-zinc-700/60 bg-zinc-900/40 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-zinc-200">
+                      {item.metricLabel}
+                    </span>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </>
+    );
+  };
 
   return (
     <>
       <PanelCard title="Social Feed" titleClassName="normal-case">
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
-          <button
-            type="button"
-            onClick={() => setTab("all")}
-            className={`rounded-md px-2 py-1 text-xs transition-all ${
-              tab === "all"
-                ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
-                : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
-            }`}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("x")}
-            className={`rounded-md px-2 py-1 text-xs transition-all ${
-              tab === "x"
-                ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
-                : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
-            }`}
-          >
-            X
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("instagram")}
-            className={`rounded-md px-2 py-1 text-xs transition-all ${
-              tab === "instagram"
-                ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
-                : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
-            }`}
-          >
-            Instagram
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="text-[11px] text-zinc-500">
-            {loading ? "Loading…" : "Live • feed wired"}
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
+            <button
+              type="button"
+              onClick={() => setTab("all")}
+              className={`rounded-md px-2 py-1 text-xs transition-all ${
+                tab === "all"
+                  ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
+                  : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
+              }`}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("x")}
+              className={`rounded-md px-2 py-1 text-xs transition-all ${
+                tab === "x"
+                  ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
+                  : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
+              }`}
+            >
+              X
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("instagram")}
+              className={`rounded-md px-2 py-1 text-xs transition-all ${
+                tab === "instagram"
+                  ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
+                  : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
+              }`}
+            >
+              Instagram
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setExpanded(true)}
-            className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55"
-          >
-            Expand
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="text-[11px] text-zinc-500">
+              {loading ? "Loading…" : "Live • feed wired"}
+            </div>
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55"
+            >
+              Expand
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div
-        className={`mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
-      >
-        <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">{feedList}</div>
-      </div>
-    </PanelCard>
+        <div
+          className={`mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
+        >
+          <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">{renderFeedList(true)}</div>
+        </div>
+      </PanelCard>
 
       {expanded
         ? createPortal(
             <div className="fixed inset-0 z-[60]">
               <div
                 className={terminalUi.portalBackdropDim}
-                onClick={() => setExpanded(false)}
+                onClick={() => closeExpanded()}
                 aria-hidden
               />
               <div className={terminalUi.portalFrameScroll}>
-                <div className={terminalUi.modalPanel5xl}>
+                <div
+                  className={`${terminalUi.modalPanel5xl} flex max-h-[min(92dvh,900px)] flex-col`}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
                   <div className={terminalUi.modalSubHeaderBar}>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-zinc-200">Social Feed</p>
                       <p className="text-[11px] text-zinc-500">
-                        {isAdmin
-                          ? "Add accounts to monitor. Mods submit for approval."
-                          : canSubmit
-                            ? "Submit an account for approval."
-                            : "Sign in as staff to submit sources."}
+                        Live posts{canRequestSource ? " · suggest a new source with the button" : ""}
+                        {isAdmin ? (
+                          <>
+                            {" "}
+                            ·{" "}
+                            <Link
+                              href="/admin/social-feed"
+                              className="text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
+                            >
+                              Manage sources (admin)
+                            </Link>
+                          </>
+                        ) : null}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setExpanded(false)}
-                      className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55"
-                    >
-                      Close
-                    </button>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      {canRequestSource ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSubmitErr(null);
+                            setSubmitOk(null);
+                            setSubmitOpen(true);
+                          }}
+                          className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-100 transition hover:bg-emerald-500/20"
+                        >
+                          + Submit Source
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => closeExpanded()}
+                        className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55"
+                      >
+                        Close
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="grid gap-4 p-4 md:grid-cols-[1fr,1fr]">
-                    <div className="rounded-xl border border-zinc-800/60 bg-black/25 p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                          Sources
-                        </p>
+                  <div className="flex flex-wrap items-center gap-2 border-b border-zinc-800/70 px-4 py-2.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                      Filter
+                    </span>
+                    <div className="flex items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
+                      {(["all", "x", "instagram"] as const).map((key) => (
                         <button
+                          key={key}
                           type="button"
-                          onClick={() => void loadSources()}
-                          className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55 disabled:opacity-50"
-                          disabled={sourcesLoading}
+                          onClick={() => setTab(key)}
+                          className={`rounded-md px-2.5 py-1 text-xs transition-all ${
+                            tab === key
+                              ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
+                              : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
+                          }`}
                         >
-                          {sourcesLoading ? "Refreshing…" : "Refresh"}
+                          {key === "all" ? "All" : key === "x" ? "X" : "Instagram"}
                         </button>
-                      </div>
-
-                      {sourceErr ? <p className="mt-2 text-xs text-red-300/90">{sourceErr}</p> : null}
-                      {sourceOk ? (
-                        <p className="mt-2 text-xs text-emerald-300/90">{sourceOk}</p>
-                      ) : null}
-
-                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                          Platform
-                          <select
-                            value={sourcePlatform}
-                            onChange={(e) => setSourcePlatform(e.target.value as SocialPlatform)}
-                            disabled={!canSubmit || sourceBusy}
-                            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950/70 px-2.5 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
-                          >
-                            <option value="x">X</option>
-                            <option value="instagram">Instagram</option>
-                          </select>
-                        </label>
-                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500 sm:col-span-2">
-                          Handle
-                          <input
-                            value={sourceHandle}
-                            onChange={(e) => setSourceHandle(e.target.value)}
-                            disabled={!canSubmit || sourceBusy}
-                            placeholder="@account"
-                            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950/70 px-2.5 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
-                          />
-                        </label>
-                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500 sm:col-span-3">
-                          Display name (optional)
-                          <input
-                            value={sourceDisplayName}
-                            onChange={(e) => setSourceDisplayName(e.target.value)}
-                            disabled={!canSubmit || sourceBusy}
-                            placeholder="Friendly label shown in the feed"
-                            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950/70 px-2.5 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <p className="text-xs text-zinc-500">
-                          Action:{" "}
-                          <span className="font-semibold text-zinc-300">
-                            {isAdmin ? "Add to live feed" : "Submit for approval"}
-                          </span>
-                        </p>
-                        <button
-                          type="button"
-                          disabled={!canSubmit || sourceBusy || !sourceHandle.trim()}
-                          onClick={() => {
-                            void (async () => {
-                              if (sourceBusy) return;
-                              setSourceBusy(true);
-                              setSourceErr(null);
-                              setSourceOk(null);
-                              try {
-                                const res = await fetch("/api/social-sources", {
-                                  method: "POST",
-                                  credentials: "same-origin",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({
-                                    platform: sourcePlatform,
-                                    handle: sourceHandle,
-                                    displayName: sourceDisplayName,
-                                  }),
-                                });
-                                const json = (await res.json().catch(() => null)) as any;
-                                if (!res.ok || !json || json.success !== true) {
-                                  setSourceErr(
-                                    typeof json?.error === "string" ? json.error : "Request failed."
-                                  );
-                                  return;
-                                }
-                                setSourceHandle("");
-                                setSourceDisplayName("");
-                                setSourceOk(
-                                  isAdmin
-                                    ? "Source added."
-                                    : json.alreadyPending
-                                      ? "Already pending approval."
-                                      : "Submitted for approval."
-                                );
-                                await loadSources();
-                              } catch {
-                                setSourceErr("Request failed.");
-                              } finally {
-                                setSourceBusy(false);
-                              }
-                            })();
-                          }}
-                          className="rounded-lg bg-[color:var(--accent)] px-3 py-2 text-[12px] font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-50"
-                        >
-                          {isAdmin ? "Add" : "Submit"}
-                        </button>
-                      </div>
-
-                      {!isAdmin ? (
-                        <p className="mt-2 text-xs text-zinc-600">
-                          Submissions show up in the Admin panel for approval before they appear in the live feed.
-                        </p>
-                      ) : null}
-
-                      <div className="mt-3 border-t border-zinc-800/70 pt-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                          Active sources
-                        </p>
-                        {sources.length === 0 ? (
-                          <p className="mt-2 text-xs text-zinc-500">No sources configured yet.</p>
-                        ) : (
-                          <ul className="mt-2 grid gap-1 sm:grid-cols-2">
-                            {sources.slice(0, 24).map((s) => (
-                              <li
-                                key={s.id}
-                                className="flex items-center justify-between rounded-md border border-zinc-800/60 bg-zinc-950/40 px-2.5 py-2"
-                              >
-                                <span className="min-w-0">
-                                  <span className="text-xs font-semibold text-zinc-200">
-                                    {s.platform === "x" ? "X" : "IG"}
-                                  </span>{" "}
-                                  <span className="text-xs text-zinc-400">
-                                    @{s.handle.replace(/^@/, "")}
-                                  </span>
-                                  {s.displayName ? (
-                                    <span className="ml-2 text-xs text-zinc-500">{s.displayName}</span>
-                                  ) : null}
-                                </span>
-                                {isAdmin ? (
-                                  <button
-                                    type="button"
-                                    disabled={sourceBusy || sourcesLoading || removeBusyId === s.id}
-                                    onClick={() => {
-                                      void (async () => {
-                                        if (removeBusyId === s.id) return;
-                                        setRemoveBusyId(s.id);
-                                        setSourceErr(null);
-                                        setSourceOk(null);
-                                        try {
-                                          const res = await fetch("/api/social-sources", {
-                                            method: "DELETE",
-                                            credentials: "same-origin",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ id: s.id }),
-                                          });
-                                          const json = (await res.json().catch(() => null)) as any;
-                                          if (!res.ok || !json || json.success !== true) {
-                                            setSourceErr(
-                                              typeof json?.error === "string" ? json.error : "Request failed."
-                                            );
-                                            return;
-                                          }
-                                          setSourceOk("Source removed.");
-                                          await loadSources();
-                                        } catch {
-                                          setSourceErr("Request failed.");
-                                        } finally {
-                                          setRemoveBusyId(null);
-                                        }
-                                      })();
-                                    }}
-                                    className="ml-3 shrink-0 rounded-md border border-zinc-700/70 bg-zinc-950/40 px-2 py-1 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55 disabled:opacity-50"
-                                    aria-label={`Remove ${s.handle}`}
-                                    title="Remove from live feed"
-                                  >
-                                    {removeBusyId === s.id ? "Removing…" : "Remove"}
-                                  </button>
-                                ) : null}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
+                      ))}
                     </div>
+                    <span className="text-[11px] text-zinc-500">
+                      {loading ? "Loading…" : "Live • feed wired"}
+                    </span>
+                  </div>
 
+                  <div
+                    className={`min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 ${terminalChrome.scrollYHidden}`}
+                  >
                     <div
                       className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
                     >
-                      <div className="h-[520px] overflow-y-auto pr-1 no-scrollbar">{feedList}</div>
+                      {renderFeedList(false)}
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {submitOpen
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4 py-6"
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setSubmitOpen(false);
+              }}
+            >
+              <div
+                className={terminalUi.modalPanelLg2xl}
+                onMouseDown={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Submit social feed source"
+              >
+                <div className="flex items-start justify-between gap-3 border-b border-zinc-800/70 pb-3">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-100">Submit a source</p>
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      Requests are reviewed before accounts appear in the live feed.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSubmitOpen(false)}
+                    className={terminalUi.modalCloseIconBtn}
+                    aria-label="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {submitErr ? <p className="text-xs text-red-300/90">{submitErr}</p> : null}
+                  {submitOk ? <p className="text-xs text-emerald-300/90">{submitOk}</p> : null}
+
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Source name
+                    <input
+                      value={submitSourceName}
+                      onChange={(e) => setSubmitSourceName(e.target.value)}
+                      disabled={submitBusy}
+                      placeholder="e.g. Project or person name"
+                      className={`${terminalUi.formInput} mt-1`}
+                    />
+                  </label>
+
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Category
+                    <input
+                      value={submitCategory}
+                      onChange={(e) => setSubmitCategory(e.target.value)}
+                      disabled={submitBusy}
+                      placeholder="e.g. KOL, protocol, news"
+                      className={`${terminalUi.formInput} mt-1`}
+                    />
+                  </label>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      Platform
+                      <select
+                        value={submitPlatform}
+                        onChange={(e) => setSubmitPlatform(e.target.value as SocialPlatform)}
+                        disabled={submitBusy}
+                        className={`${terminalUi.formInput} mt-1`}
+                      >
+                        <option value="x">X</option>
+                        <option value="instagram">Instagram</option>
+                      </select>
+                    </label>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      Handle
+                      <input
+                        value={submitHandle}
+                        onChange={(e) => setSubmitHandle(e.target.value)}
+                        disabled={submitBusy}
+                        placeholder="@account"
+                        className={`${terminalUi.formInput} mt-1`}
+                      />
+                    </label>
+                  </div>
+
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Why add this to the feed?
+                    <textarea
+                      value={submitRationale}
+                      onChange={(e) => setSubmitRationale(e.target.value)}
+                      disabled={submitBusy}
+                      rows={4}
+                      placeholder="Short note for reviewers (signal quality, relevance, etc.)"
+                      className={`${terminalUi.formInput} mt-1 min-h-[5.5rem] resize-y`}
+                    />
+                  </label>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2 border-t border-zinc-800/70 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setSubmitOpen(false)}
+                      className={terminalUi.secondaryButtonSm}
+                      disabled={submitBusy}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        submitBusy ||
+                        !submitHandle.trim() ||
+                        !submitSourceName.trim() ||
+                        !submitCategory.trim() ||
+                        submitRationale.trim().length < 8
+                      }
+                      onClick={() => {
+                        void (async () => {
+                          if (submitBusy) return;
+                          setSubmitBusy(true);
+                          setSubmitErr(null);
+                          setSubmitOk(null);
+                          try {
+                            const res = await fetch("/api/social-sources", {
+                              method: "POST",
+                              credentials: "same-origin",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                platform: submitPlatform,
+                                handle: submitHandle,
+                                displayName: submitSourceName,
+                                category: submitCategory,
+                                rationale: submitRationale,
+                              }),
+                            });
+                            const json = (await res.json().catch(() => null)) as {
+                              success?: boolean;
+                              error?: string;
+                              alreadyPending?: boolean;
+                            } | null;
+                            if (!res.ok || !json || json.success !== true) {
+                              setSubmitErr(
+                                typeof json?.error === "string" ? json.error : "Request failed."
+                              );
+                              return;
+                            }
+                            setSubmitOk(
+                              json.alreadyPending
+                                ? "This handle is already pending review."
+                                : "Submitted — thanks. The team will review it."
+                            );
+                            setSubmitHandle("");
+                            setSubmitSourceName("");
+                            setSubmitCategory("");
+                            setSubmitRationale("");
+                          } catch {
+                            setSubmitErr("Request failed.");
+                          } finally {
+                            setSubmitBusy(false);
+                          }
+                        })();
+                      }}
+                      className="rounded-lg bg-[color:var(--accent)] px-4 py-2 text-xs font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-50"
+                    >
+                      {submitBusy ? "Sending…" : "Send request"}
+                    </button>
                   </div>
                 </div>
               </div>

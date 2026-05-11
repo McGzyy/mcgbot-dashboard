@@ -23,6 +23,16 @@ function normalizeDisplayName(raw: unknown): string | null {
   return s ? s.slice(0, 80) : null;
 }
 
+function normalizeCategory(raw: unknown): string | null {
+  const s = typeof raw === "string" ? raw.trim() : "";
+  return s ? s.slice(0, 80) : null;
+}
+
+function normalizeRationale(raw: unknown): string | null {
+  const s = typeof raw === "string" ? raw.trim() : "";
+  return s ? s.slice(0, 2000) : null;
+}
+
 function dbOr503() {
   const db = getSupabaseAdmin();
   if (!db) {
@@ -68,14 +78,19 @@ export async function GET() {
 }
 
 /**
- * Admin: add directly to live sources.
- * Mod: submit a source for approval.
+ * Admin: optional `addToLive: true` adds directly to live sources (legacy / tooling).
+ * Everyone with dashboard access: submit a source for approval (includes category + rationale when provided).
  */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id?.trim() ?? "";
   if (!userId) {
     return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  const hasDashboardAccess = session.user?.hasDashboardAccess === true;
+  if (!hasDashboardAccess) {
+    return Response.json({ success: false, error: "Forbidden" }, { status: 403 });
   }
 
   let body: unknown;
@@ -88,7 +103,11 @@ export async function POST(request: Request) {
   const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const platform = parsePlatform(o.platform);
   const handle = normalizeHandle(o.handle);
-  const displayName = normalizeDisplayName(o.displayName ?? o.display_name);
+  const displayName = normalizeDisplayName(
+    o.displayName ?? o.display_name ?? o.sourceName ?? o.source_name
+  );
+  const category = normalizeCategory(o.category);
+  const rationale = normalizeRationale(o.rationale ?? o.reason);
 
   if (!platform || !handle) {
     return Response.json(
@@ -98,14 +117,11 @@ export async function POST(request: Request) {
   }
 
   const tier = await resolveHelpTierAsync(userId);
-  if (tier !== "admin" && tier !== "mod") {
-    return Response.json({ success: false, error: "Forbidden" }, { status: 403 });
-  }
 
   const db = dbOr503();
   if (db instanceof Response) return db;
 
-  if (tier === "admin") {
+  if (tier === "admin" && o.addToLive === true) {
     // Avoid `onConflict` expressions (PostgREST only accepts column names).
     const { data: existing, error: exErr } = await db
       .from("social_feed_sources")
@@ -151,6 +167,8 @@ export async function POST(request: Request) {
     platform,
     handle,
     display_name: displayName,
+    category,
+    rationale,
     status: "pending",
     submitted_by_discord_id: userId,
   });
