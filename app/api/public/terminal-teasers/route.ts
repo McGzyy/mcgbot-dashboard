@@ -40,6 +40,10 @@ export async function GET() {
 
     let sum = 0;
     let n = 0;
+    let sumBot = 0;
+    let nBot = 0;
+    let sumUser = 0;
+    let nUser = 0;
     const top = new Map<
       string,
       {
@@ -57,6 +61,15 @@ export async function GET() {
       const multiple = rowAthMultiple(r);
       sum += multiple;
       n += 1;
+      const sourceRaw = typeof r.source === "string" ? r.source : "user";
+      const source = String(sourceRaw).trim().toLowerCase() || "user";
+      if (source === "bot") {
+        sumBot += multiple;
+        nBot += 1;
+      } else {
+        sumUser += multiple;
+        nUser += 1;
+      }
 
       const id = typeof r.id === "string" ? r.id : String(r.id ?? "");
       const username = typeof r.username === "string" ? r.username.trim() : String(r.username ?? "").trim();
@@ -68,7 +81,6 @@ export async function GET() {
       const imgRaw = (r as any).token_image_url;
       const tokenImageUrl =
         typeof imgRaw === "string" && imgRaw.trim() ? imgRaw.trim().slice(0, 800) : null;
-      const source = typeof r.source === "string" ? r.source : "user";
       const time = r.call_time;
       const prev = top.get(id);
       if (!prev || multiple > prev.multiple) {
@@ -95,6 +107,8 @@ export async function GET() {
       week: {
         calls: n,
         avgX: n > 0 ? sum / n : 0,
+        avgXBot: nBot > 0 ? sumBot / nBot : null,
+        avgXUser: nUser > 0 ? sumUser / nUser : null,
         topCalls: topWeek,
       },
     });

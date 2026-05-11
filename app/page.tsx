@@ -420,7 +420,15 @@ type PublicTeaserCall = {
 };
 
 type PublicTeasers = {
-  week: { calls: number; avgX: number; topCalls: PublicTeaserCall[] };
+  week: {
+    calls: number;
+    avgX: number;
+    /** Mean ATH× for `source === "bot"` in the same 7d window (null if none). */
+    avgXBot?: number | null;
+    /** Mean ATH× for non-bot calls (user / trusted_pro / etc.) in the same 7d window. */
+    avgXUser?: number | null;
+    topCalls: PublicTeaserCall[];
+  };
 };
 
 function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
@@ -457,8 +465,14 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
   }, []);
 
   const weekCalls = teasers?.week.calls ?? 0;
-  const weekAvgX = teasers?.week.avgX ?? 0;
+  const weekAvgXBot = teasers?.week.avgXBot ?? null;
+  const weekAvgXUser = teasers?.week.avgXUser ?? null;
   const topCalls = teasers?.week.topCalls ?? [];
+
+  const formatTeaserAvgX = (v: number | null | undefined) => {
+    if (v == null || !Number.isFinite(Number(v)) || Number(v) <= 0) return "—";
+    return `${Number(v).toFixed(2)}×`;
+  };
 
   return (
     <div className="relative min-h-[calc(100vh-3rem)] px-0 py-10">
@@ -507,9 +521,28 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                   7d avg multiple
                 </p>
-                <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-200">
-                  {loading ? "—" : `${weekAvgX.toFixed(2)}×`}
-                </p>
+                {loading ? (
+                  <p className="mt-2 text-lg font-bold tabular-nums text-zinc-500">—</p>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-violet-300/90">
+                        Bot
+                      </span>
+                      <span className="text-lg font-bold tabular-nums text-violet-200">
+                        {formatTeaserAvgX(weekAvgXBot)}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2 border-t border-zinc-800/50 pt-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-300/90">
+                        User
+                      </span>
+                      <span className="text-lg font-bold tabular-nums text-emerald-200">
+                        {formatTeaserAvgX(weekAvgXUser)}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-4 py-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -995,6 +1028,29 @@ function parseCallTickerFromActivityText(text: string): string | null {
   const m = text.match(/\(\$([^)]+)\)/i);
   const t = m?.[1]?.trim();
   return t || null;
+}
+
+/** `Name ($TICKER)` tail on “New Call - … called …” lines — for chart title / subtitle. */
+function parseCallTokenDisplayNameFromActivityText(text: string): string | null {
+  const m = text.match(/^New Call - .+? called\s+(.+)$/i);
+  if (!m?.[1]) return null;
+  const tail = String(m[1]).trim();
+  const nameM = tail.match(/^(.+?)\s*\(\$([^)]+)\)/i);
+  if (!nameM?.[1]) return null;
+  const name = String(nameM[1]).trim();
+  return name || null;
+}
+
+/** Ticker for chart: `($TICK)` on calls, or `$TICK hit` milestone lines for wins. */
+function parseActivityChartTicker(text: string, type: ActivityItem["type"]): string | null {
+  const fromParens = parseCallTickerFromActivityText(text);
+  if (fromParens) return fromParens.replace(/^\$/, "");
+  if (type === "win") {
+    const m = text.match(MILESTONE_ACTIVITY_LINE_RE);
+    const tick = m?.[1]?.trim();
+    if (tick) return tick.replace(/^\$/, "");
+  }
+  return null;
 }
 
 function renderTextSegmentWithCa(text: string, dexLink: string): ReactNode {
@@ -3732,15 +3788,20 @@ export default function Home() {
   const activityPopupItem = useMemo((): ActivityPopupItem | null => {
     if (!selectedActivity) return null;
     const contractAddress = resolveActivityMint(selectedActivity);
-    const tokenTicker =
+    const tokenTicker = parseActivityChartTicker(
+      selectedActivity.text,
+      selectedActivity.type
+    );
+    const tokenName =
       selectedActivity.type === "call"
-        ? parseCallTickerFromActivityText(selectedActivity.text)
+        ? parseCallTokenDisplayNameFromActivityText(selectedActivity.text)
         : null;
     return {
       text: selectedActivity.text,
       contractAddress,
       tokenImageUrl: selectedActivity.tokenImageUrl ?? null,
       tokenTicker,
+      tokenName,
     };
   }, [selectedActivity]);
 
@@ -3748,13 +3809,19 @@ export default function Home() {
     (args: {
       contractAddress: string;
       tokenTicker?: string | null;
+      tokenName?: string | null;
       tokenImageUrl?: string | null;
     }) => {
+      const rawTick = String(args.tokenTicker ?? "").trim().replace(/^\$/, "");
+      const name = String(args.tokenName ?? "").trim();
+      const symbolLabel =
+        name || (rawTick ? `$${rawTick}` : undefined);
       openTokenChart({
         chain: "solana",
         contractAddress: args.contractAddress,
-        tokenTicker: args.tokenTicker ?? null,
-        tokenName: null,
+        symbolLabel,
+        tokenTicker: rawTick || null,
+        tokenName: name || null,
         tokenImageUrl: args.tokenImageUrl ?? null,
       });
     },

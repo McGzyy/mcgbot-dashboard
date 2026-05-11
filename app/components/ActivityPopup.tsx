@@ -9,8 +9,10 @@ export type ActivityPopupItem = {
   /** Solana mint when derivable from activity text / Dex link. */
   contractAddress: string | null;
   tokenImageUrl?: string | null;
-  /** Parsed from `($TICKER)` in call lines when present. */
+  /** Parsed from `($TICKER)` or milestone `$TICK hit …` lines. */
   tokenTicker?: string | null;
+  /** Parsed from `New Call - … called Name ($TICK)` when present. */
+  tokenName?: string | null;
 };
 
 type ActivityPopupProps = {
@@ -19,6 +21,7 @@ type ActivityPopupProps = {
   onViewChart: (args: {
     contractAddress: string;
     tokenTicker?: string | null;
+    tokenName?: string | null;
     tokenImageUrl?: string | null;
   }) => void;
   onAddToPrivateWatchlist: (mint: string) => Promise<{ ok: boolean; error?: string }>;
@@ -53,6 +56,7 @@ export function ActivityPopup({
   const [wlError, setWlError] = useState<string | null>(null);
   const [wlOk, setWlOk] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "ok" | "err">("idle");
 
   useEffect(() => {
     if (!item) return;
@@ -69,6 +73,7 @@ export function ActivityPopup({
     setWlError(null);
     setWlOk(false);
     setImgFailed(false);
+    setCopyState("idle");
   }, [item]);
 
   const handleAddWatchlist = useCallback(async () => {
@@ -91,6 +96,19 @@ export function ActivityPopup({
       setWlBusy(false);
     }
   }, [item?.contractAddress, onAddToPrivateWatchlist, onClose, wlBusy]);
+
+  const copyContractAddress = useCallback(async (fullMint: string) => {
+    const t = fullMint.trim();
+    if (!t) return;
+    try {
+      await navigator.clipboard.writeText(t);
+      setCopyState("ok");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      setCopyState("err");
+      window.setTimeout(() => setCopyState("idle"), 2500);
+    }
+  }, []);
 
   if (!item) return null;
 
@@ -179,8 +197,45 @@ export function ActivityPopup({
                 <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Ticker</p>
               ) : null}
               {ticker ? <p className="truncate font-mono text-sm font-semibold text-cyan-300/95">${ticker}</p> : null}
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Contract</p>
-              <p className="break-all font-mono text-[11px] leading-snug text-zinc-400">{shortenMint(mint)}</p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Contract</p>
+                {copyState === "ok" ? (
+                  <span className="text-[10px] font-semibold text-[color:var(--accent)]">Copied</span>
+                ) : copyState === "err" ? (
+                  <span className="text-[10px] font-semibold text-red-400">Copy failed</span>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-2">
+                <p
+                  className="min-w-0 flex-1 truncate font-mono text-[11px] leading-snug text-zinc-300"
+                  title={mint}
+                >
+                  {shortenMint(mint)}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void copyContractAddress(mint)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-zinc-700/90 bg-zinc-900/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800/70 hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/30"
+                  aria-label="Copy full contract address"
+                  title="Copy full contract address"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-3.5 w-3.5"
+                    aria-hidden
+                  >
+                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                  </svg>
+                  Copy CA
+                </button>
+              </div>
               <Link
                 href={dexScreenerUrl(mint)}
                 target="_blank"
@@ -202,6 +257,7 @@ export function ActivityPopup({
                   onViewChart({
                     contractAddress: mint,
                     tokenTicker: item.tokenTicker ?? null,
+                    tokenName: item.tokenName ?? null,
                     tokenImageUrl: item.tokenImageUrl ?? null,
                   });
                   onClose();
