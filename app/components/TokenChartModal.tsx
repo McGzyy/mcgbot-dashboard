@@ -132,10 +132,28 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
 
   const geckoSrc = useMemo(() => {
     if (!ca) return "";
-    // GeckoTerminal supports `?embed=1` (no X-Frame-Options) and redirects tokens → best pool.
+    // GeckoTerminal: `embed=1` is frameable; token URLs redirect to the best pool and honor
+    // `chart_type` + `resolution` in the Location (e.g. market cap axis + 1s candles).
     const seg = String(chain || "solana").toLowerCase().trim() || "solana";
-    return `https://www.geckoterminal.com/${encodeURIComponent(seg)}/tokens/${encodeURIComponent(ca)}?embed=1`;
+    const path = `/${encodeURIComponent(seg)}/tokens/${encodeURIComponent(ca)}`;
+    const qs = new URLSearchParams();
+    qs.set("embed", "1");
+    qs.set("chart_type", "market_cap");
+    qs.set("resolution", "1s");
+    return `https://www.geckoterminal.com${path}?${qs.toString()}`;
   }, [ca, chain]);
+
+  /** Same chart target without embed (new tab / timeout fallback). */
+  const geckoExternalUrl = useMemo(() => {
+    if (!geckoSrc) return "";
+    try {
+      const u = new URL(geckoSrc);
+      u.searchParams.delete("embed");
+      return u.toString();
+    } catch {
+      return geckoSrc.replace(/([?&])embed=1(&|$)/i, "$1").replace(/[?&]$/, "");
+    }
+  }, [geckoSrc]);
 
   const activeSrc = chartMode === "gecko" ? geckoSrc : iframeSrc;
 
@@ -184,7 +202,7 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[100dvh] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl border border-zinc-800/90 bg-zinc-950 shadow-2xl shadow-black/60 sm:max-h-[min(92dvh,920px)] sm:rounded-2xl">
+      <div className="flex h-[min(88dvh,900px)] max-h-[100dvh] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl border border-zinc-800/90 bg-zinc-950 shadow-2xl shadow-black/60 sm:h-[min(92dvh,940px)] sm:rounded-2xl">
         <div className="sticky top-0 z-10 flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-zinc-800/80 bg-zinc-950/95 px-4 py-3 backdrop-blur sm:px-5">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             {payload.tokenImageUrl ? (
@@ -319,7 +337,7 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
                     <a
                       href={
                         chartMode === "gecko"
-                          ? geckoSrc.replace(/\?embed=1\b/i, "")
+                          ? geckoExternalUrl || "https://www.geckoterminal.com/"
                           : "https://www.tradingview.com/"
                       }
                       target="_blank"
@@ -337,7 +355,7 @@ export function TokenChartModal({ open, payload, onClose }: Props) {
             key={chartMode === "gecko" ? geckoSrc : tvSymbol}
             title={chartMode === "gecko" ? "GeckoTerminal chart" : "TradingView chart"}
             src={chartMode === "gecko" ? geckoSrc : iframeSrc}
-            className="h-[min(58dvh,560px)] w-full min-h-[320px] border-0 sm:h-[min(62vh,620px)]"
+            className="min-h-0 w-full flex-1 border-0"
             referrerPolicy="no-referrer-when-downgrade"
             allow="clipboard-write; fullscreen"
             onLoad={onIframeLoad}
