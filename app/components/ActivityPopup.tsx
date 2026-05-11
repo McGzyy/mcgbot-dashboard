@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { terminalUi } from "@/lib/terminalDesignTokens";
 
@@ -25,6 +26,23 @@ type ActivityPopupProps = {
 
 const SOLANA_MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
+function shortenMint(ca: string): string {
+  const t = ca.trim();
+  if (t.length <= 12) return t;
+  return `${t.slice(0, 4)}…${t.slice(-4)}`;
+}
+
+function dexScreenerUrl(mint: string): string {
+  return `https://dexscreener.com/solana/${encodeURIComponent(mint.trim())}`;
+}
+
+/** Split common “New Call - … called …” copy into caller + tail for clearer layout. */
+function parseCallActivityHeadline(text: string): { caller: string; tail: string } | null {
+  const m = text.match(/^New Call - (.+?) called (.+)$/i);
+  if (!m) return null;
+  return { caller: (m[1] ?? "").trim(), tail: (m[2] ?? "").trim() };
+}
+
 export function ActivityPopup({
   item,
   onClose,
@@ -34,6 +52,7 @@ export function ActivityPopup({
   const [wlBusy, setWlBusy] = useState(false);
   const [wlError, setWlError] = useState<string | null>(null);
   const [wlOk, setWlOk] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
     if (!item) return;
@@ -49,6 +68,7 @@ export function ActivityPopup({
     setWlBusy(false);
     setWlError(null);
     setWlOk(false);
+    setImgFailed(false);
   }, [item]);
 
   const handleAddWatchlist = useCallback(async () => {
@@ -76,79 +96,146 @@ export function ActivityPopup({
 
   const mint = (item.contractAddress ?? "").trim();
   const mintOk = SOLANA_MINT_RE.test(mint);
+  const parsed = parseCallActivityHeadline(item.text);
+  const ticker = (item.tokenTicker ?? "").trim();
 
   return (
     <div
       className={terminalUi.activityBackdrop}
-      onClick={onClose}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       role="presentation"
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="activity-popup-title"
-        className={terminalUi.activityPanel}
-        onClick={(e) => e.stopPropagation()}
+        className={`${terminalUi.activityPanel} shadow-[inset_0_1px_0_0_rgba(63,63,70,0.18)]`}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-3 top-3 rounded-md p-1 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200"
-          aria-label="Close"
-        >
-          ✕
-        </button>
-        <h2
-          id="activity-popup-title"
-          className="pr-10 text-base font-semibold leading-snug text-zinc-100"
-        >
-          {item.text}
-        </h2>
-
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {mintOk ? (
-            <button
-              type="button"
-              onClick={() => {
-                onViewChart({
-                  contractAddress: mint,
-                  tokenTicker: item.tokenTicker ?? null,
-                  tokenImageUrl: item.tokenImageUrl ?? null,
-                });
-                onClose();
-              }}
-              className="inline-flex flex-1 justify-center rounded-lg bg-sky-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-sky-500"
+        <div className="flex items-start justify-between gap-3 border-b border-zinc-800/70 pb-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400/85">McGBot Terminal</p>
+            <h2 id="activity-popup-title" className="mt-1 text-base font-semibold tracking-tight text-white">
+              {parsed ? "New call" : "Activity"}
+            </h2>
+            {parsed ? (
+              <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+                <span className="font-medium text-zinc-100">{parsed.caller}</span>
+                <span className="text-zinc-500"> called </span>
+                <span className="text-zinc-200">{parsed.tail}</span>
+              </p>
+            ) : (
+              <p className="mt-2 text-sm leading-relaxed text-zinc-300">{item.text}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className={terminalUi.modalCloseIconBtn}
+            aria-label="Close"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+              aria-hidden
             >
-              View chart
-            </button>
-          ) : null}
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
+        {mintOk ? (
+          <div className="mt-4 flex gap-3 rounded-xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/40 to-black/20 p-3 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.12)]">
+            {item.tokenImageUrl && !imgFailed ? (
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-zinc-800/90 bg-zinc-900">
+                {/* eslint-disable-next-line @next/next/no-img-element -- token icons from arbitrary CDNs */}
+                <img
+                  src={item.tokenImageUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  onError={() => setImgFailed(true)}
+                />
+              </div>
+            ) : (
+              <div
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-900/80 text-lg font-bold text-zinc-600"
+                aria-hidden
+              >
+                {ticker ? ticker.slice(0, 1).toUpperCase() : "◆"}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              {ticker ? (
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Ticker</p>
+              ) : null}
+              {ticker ? <p className="truncate font-mono text-sm font-semibold text-cyan-300/95">${ticker}</p> : null}
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Contract</p>
+              <p className="break-all font-mono text-[11px] leading-snug text-zinc-400">{shortenMint(mint)}</p>
+              <Link
+                href={dexScreenerUrl(mint)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex text-xs font-semibold text-cyan-400/90 underline-offset-2 hover:underline"
+              >
+                Dexscreener →
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
           {mintOk ? (
-            <button
-              type="button"
-              onClick={() => void handleAddWatchlist()}
-              disabled={wlBusy}
-              className="inline-flex flex-1 justify-center rounded-lg border border-emerald-600/50 bg-emerald-600/15 px-4 py-2.5 text-center text-sm font-semibold text-emerald-100 transition hover:bg-emerald-600/25 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {wlBusy ? "Adding…" : "+ to Watchlist"}
-            </button>
-          ) : null}
-
-          {!mintOk ? (
-            <p className="text-sm text-zinc-500">
-              No Solana contract could be read from this activity (needs a Dex link or mint in the
-              text).
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  onViewChart({
+                    contractAddress: mint,
+                    tokenTicker: item.tokenTicker ?? null,
+                    tokenImageUrl: item.tokenImageUrl ?? null,
+                  });
+                  onClose();
+                }}
+                className="inline-flex flex-1 justify-center rounded-md bg-[color:var(--accent)] px-4 py-2.5 text-center text-sm font-semibold text-black shadow-lg shadow-black/35 transition hover:bg-green-500 sm:flex-none sm:min-w-[140px]"
+              >
+                View chart
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleAddWatchlist()}
+                disabled={wlBusy}
+                className="inline-flex flex-1 justify-center rounded-md border border-zinc-700/90 bg-zinc-900/50 px-4 py-2.5 text-center text-sm font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800/60 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:min-w-[160px]"
+              >
+                {wlBusy ? "Adding…" : "Add to watchlist"}
+              </button>
+            </>
+          ) : (
+            <p className="text-sm leading-relaxed text-zinc-500">
+              No Solana contract could be read from this line. Open a row that includes a mint or Dexscreener link, or
+              use CA Analyzer from the top bar.
             </p>
-          ) : null}
+          )}
         </div>
 
         {wlError ? (
-          <p className="mt-3 text-sm text-red-400" role="alert">
+          <p className="mt-3 rounded-lg border border-red-500/30 bg-red-950/25 px-3 py-2 text-sm text-red-200/95" role="alert">
             {wlError}
           </p>
         ) : null}
         {wlOk ? (
-          <p className="mt-3 text-sm text-[color:var(--accent)]">Added to your private watchlist.</p>
+          <p className="mt-3 rounded-lg border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-3 py-2 text-sm font-medium text-[color:var(--accent)]">
+            Added to your private watchlist.
+          </p>
         ) : null}
       </div>
     </div>

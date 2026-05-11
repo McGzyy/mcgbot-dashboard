@@ -85,8 +85,8 @@ export const terminalUi = {
   dialogPanelCompact: `my-auto w-full max-w-md rounded-xl ${raisedSurface} p-4 shadow-xl shadow-black/50 backdrop-blur`,
   inlineFooterRule: "border-t border-zinc-800/90",
   activityBackdrop:
-    "activity-popup-backdrop fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-[3px]",
-  activityPanel: `activity-popup-panel relative w-full max-w-md rounded-xl ${raisedSurface} p-4 shadow-xl`,
+    "fixed inset-0 z-[200] flex items-center justify-center bg-black/60 px-4 py-10 backdrop-blur-sm",
+  activityPanel: `relative w-full max-w-lg rounded-2xl border border-zinc-800/70 bg-zinc-950/85 p-5 shadow-2xl shadow-black/60 ring-1 ring-zinc-800/35 backdrop-blur-md sm:p-6`,
   /** Dim layer + frame for portaled overlays below notifications (`z-[60]`). */
   portalBackdropDim: "absolute inset-0 bg-black/70 backdrop-blur-sm",
   portalFrameScroll: "absolute inset-0 flex items-start justify-center overflow-y-auto p-4 sm:p-8",
