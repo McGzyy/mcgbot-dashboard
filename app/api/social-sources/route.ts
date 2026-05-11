@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const hasDashboardAccess = session.user?.hasDashboardAccess === true;
+  const hasDashboardAccess = session?.user?.hasDashboardAccess === true;
   if (!hasDashboardAccess) {
     return Response.json({ success: false, error: "Forbidden" }, { status: 403 });
   }
