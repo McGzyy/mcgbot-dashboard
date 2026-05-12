@@ -887,16 +887,16 @@ export default function MembershipPage() {
           </div>
         ) : null}
 
-        <section className="mx-auto w-full max-w-3xl">
-          <div className="rounded-3xl border border-zinc-800/80 bg-[linear-gradient(180deg,rgba(24,24,27,0.65),rgba(0,0,0,0.35))] p-6 shadow-[0_30px_140px_rgba(0,0,0,0.65)] sm:p-7">
+        <section className="mx-auto w-full max-w-6xl">
+          <div className="rounded-3xl border border-zinc-800/80 bg-[linear-gradient(165deg,rgba(39,39,42,0.75)_0%,rgba(9,9,11,0.92)_45%,rgba(0,0,0,0.55)_100%)] p-6 shadow-[0_32px_120px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.04] sm:p-8">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
                   Choose a plan
                 </p>
-                <p className="mt-2 text-sm text-zinc-300">
+                <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-300">
                   Pick a tier, then pay with Stripe or SOL. If you have a{" "}
-                  <strong className="font-medium text-zinc-200">Stripe promotion code</strong>, enter it on
+                  <strong className="font-medium text-zinc-100">Stripe promotion code</strong>, enter it on
                   Stripe&apos;s checkout page (not here).
                 </p>
               </div>
@@ -904,13 +904,13 @@ export default function MembershipPage() {
                 href={resolveDiscordInviteUrl(siteFlags)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs font-semibold text-[#949cf7] underline-offset-4 hover:underline"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-zinc-700/60 bg-zinc-900/50 px-3.5 py-2 text-xs font-semibold text-zinc-200 transition hover:border-[#949cf7]/50 hover:bg-zinc-800/80 hover:text-white"
               >
                 Open Discord
               </a>
             </div>
 
-            <div className="mt-5 space-y-6">
+            <div className="mt-6 space-y-6">
         {siteFlags?.maintenance_enabled && isDashboardAdmin ? (
           <p className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
             Maintenance mode is on for everyone else. You can still use checkout as a dashboard admin.
@@ -938,8 +938,8 @@ export default function MembershipPage() {
               <div
                 className={
                   planCardsVisuallyLocked
-                    ? "pointer-events-none select-none grid gap-4 opacity-[0.5] grayscale sm:grid-cols-3"
-                    : "grid gap-4 sm:grid-cols-3"
+                    ? "pointer-events-none select-none grid gap-4 opacity-[0.5] grayscale sm:grid-cols-2 xl:grid-cols-4"
+                    : "grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
                 }
               >
                 {plans.map((p) => {
@@ -948,54 +948,81 @@ export default function MembershipPage() {
                   const discountPercent = Math.max(0, Math.min(100, Math.round(Number(p.discountPercent ?? 0) || 0)));
                   const listPriceUsd = Number.isFinite(Number(p.listPriceUsd)) ? Number(p.listPriceUsd) : null;
                   const showDiscount = discountPercent > 0 && listPriceUsd != null && listPriceUsd > p.priceUsd;
+                  const savingsUsd =
+                    showDiscount && listPriceUsd != null ? Math.max(0, listPriceUsd - p.priceUsd) : 0;
                   return (
                     <button
                       key={p.slug}
                       type="button"
                       onClick={() => setSelectedSlug(p.slug)}
                       className={[
-                        "group relative flex min-h-[158px] flex-col overflow-hidden rounded-2xl border px-5 py-5 text-left transition sm:min-h-[168px]",
+                        "group relative flex min-h-[176px] flex-col overflow-hidden rounded-2xl border text-left shadow-lg transition sm:min-h-[188px]",
                         sel
-                          ? "border-[color:var(--accent)]/55 bg-[linear-gradient(180deg,rgba(34,197,94,0.16),rgba(0,0,0,0.22))] shadow-[0_0_0_1px_rgba(34,197,94,0.22),0_22px_80px_rgba(0,0,0,0.6)]"
-                          : "border-zinc-800/80 bg-[linear-gradient(180deg,rgba(161,161,170,0.08),rgba(0,0,0,0.22))] hover:border-zinc-700 hover:bg-[linear-gradient(180deg,rgba(161,161,170,0.12),rgba(0,0,0,0.28))]",
+                          ? "border-emerald-400/50 bg-[linear-gradient(165deg,rgba(6,78,59,0.35)_0%,rgba(0,0,0,0.5)_55%)] shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_24px_60px_rgba(0,0,0,0.55)] ring-1 ring-emerald-400/25"
+                          : featured
+                            ? "border-amber-500/35 bg-[linear-gradient(165deg,rgba(120,53,15,0.22)_0%,rgba(0,0,0,0.45)_50%)] shadow-[0_0_0_1px_rgba(245,158,11,0.12)] ring-1 ring-amber-500/15 hover:border-amber-500/45 hover:ring-amber-400/25"
+                            : "border-zinc-800/90 bg-[linear-gradient(165deg,rgba(39,39,42,0.55)_0%,rgba(0,0,0,0.42)_100%)] hover:border-zinc-600/80 hover:shadow-xl",
                       ].join(" ")}
                     >
-                      <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
-                        <div className="absolute -top-24 left-1/2 h-40 w-64 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.18),transparent_60%)] blur-2xl" />
-                      </div>
-
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 pr-1">
-                          <span className="block text-base font-semibold tracking-tight text-white">{p.label}</span>
-                          <span className="mt-1.5 block text-[11px] leading-snug text-zinc-500">
-                            {billingCadenceLabel(p.billingMonths, p.durationDays)}
-                            {showDiscount ? ` · ${discountPercent}% off vs list` : ""}
-                          </span>
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1">
+                      {showDiscount ? (
+                        <div className="relative flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-emerald-600/90 via-emerald-500/85 to-teal-600/75 px-4 py-2.5">
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-950/80">
+                              Limited-time built-in discount
+                            </span>
+                            <span className="text-lg font-extrabold tracking-tight text-white drop-shadow-sm">
+                              {discountPercent}% off list
+                            </span>
+                            <span className="text-xs font-semibold text-emerald-950/90">
+                              You save ${savingsUsd.toFixed(2)} on this period
+                            </span>
+                          </div>
                           {featured ? (
-                            <span className="rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--accent)]/90">
+                            <span className="shrink-0 rounded-full border border-amber-200/90 bg-amber-400 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-950 shadow-sm">
                               Best value
                             </span>
                           ) : null}
-                          {showDiscount ? (
-                            <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200">
-                              Save {discountPercent}%
-                            </span>
-                          ) : null}
                         </div>
+                      ) : featured ? (
+                        <div className="flex justify-end border-b border-amber-500/25 bg-amber-500/15 px-3 py-2">
+                          <span className="rounded-full border border-amber-200/80 bg-amber-400 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-950">
+                            Best value
+                          </span>
+                        </div>
+                      ) : null}
+
+                      <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
+                        <div className="absolute -top-20 left-1/2 h-44 w-72 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.2),transparent_62%)] blur-2xl" />
                       </div>
 
-                      <div className="mt-auto pt-5">
-                        <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
-                          <span className="text-[26px] font-semibold leading-none tabular-nums tracking-tight text-zinc-50 sm:text-[28px]">
-                            ${p.priceUsd.toFixed(2)}
-                          </span>
-                          <span className="pb-0.5 text-xs text-zinc-500">USD / period</span>
-                          {showDiscount ? (
-                            <span className="pb-0.5 text-xs tabular-nums text-zinc-500 line-through">
-                              ${listPriceUsd!.toFixed(2)} list
+                      <div className="relative flex flex-1 flex-col px-5 pb-5 pt-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 pr-1">
+                            <span className="block text-lg font-semibold tracking-tight text-white">{p.label}</span>
+                            <span className="mt-1.5 block text-[12px] leading-snug text-zinc-400">
+                              {billingCadenceLabel(p.billingMonths, p.durationDays)}
                             </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-auto pt-6">
+                          <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
+                            <span className="text-[28px] font-bold leading-none tabular-nums tracking-tight text-white sm:text-[30px]">
+                              ${p.priceUsd.toFixed(2)}
+                            </span>
+                            <span className="pb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                              USD / period
+                            </span>
+                          </div>
+                          {showDiscount ? (
+                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className="text-sm font-semibold tabular-nums text-zinc-500 line-through decoration-zinc-600">
+                                ${listPriceUsd!.toFixed(2)} list
+                              </span>
+                              <span className="inline-flex items-center rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-200 ring-1 ring-emerald-400/35 sm:hidden">
+                                −{discountPercent}% vs list
+                              </span>
+                            </div>
                           ) : null}
                         </div>
                       </div>
