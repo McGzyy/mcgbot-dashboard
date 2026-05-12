@@ -1,5 +1,5 @@
 import { requireDashboardAdmin } from "@/lib/adminGate";
-import { parseSocialFeedCategorySlug } from "@/lib/socialFeedCategories";
+import { normalizeCategoryOther, parseSocialFeedCategorySlug } from "@/lib/socialFeedCategories";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -85,6 +85,13 @@ export async function PATCH(request: Request) {
       .replace(/\s+/g, "")
       .toLowerCase();
     const display_name = (row as any).display_name ?? null;
+    const categorySlug = parseSocialFeedCategorySlug((row as any).category) ?? "other";
+    let categoryOther = normalizeCategoryOther((row as any).category_other);
+    if (categorySlug === "other") {
+      categoryOther = categoryOther ?? "Unspecified";
+    } else {
+      categoryOther = null;
+    }
 
     if (!platform || !handle) {
       return Response.json({ success: false, error: "Invalid submission payload" }, { status: 400 });
@@ -108,6 +115,8 @@ export async function PATCH(request: Request) {
           handle,
           display_name,
           active: true,
+          category: categorySlug,
+          category_other: categoryOther,
         })
         .eq("id", (existing as any).id);
       if (updErr) {
@@ -121,8 +130,8 @@ export async function PATCH(request: Request) {
         display_name,
         created_by_discord_id: gate.discordId,
         active: true,
-        category,
-        category_other,
+        category: categorySlug,
+        category_other: categoryOther,
       });
       if (insErr) {
         console.error("[admin social submissions] approve insert source:", insErr);
