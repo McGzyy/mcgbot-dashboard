@@ -1,6 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-
-const DAY_MS = 86_400_000;
+import { computeSubscriptionPeriodEnd } from "@/lib/subscription/calendarSubscriptionEnd";
 
 export type SubscriptionPlanRow = {
   id: string;
@@ -254,6 +253,10 @@ export async function getPlanDurationDays(planId: string): Promise<number | null
   return Number(data.duration_days);
 }
 
+/**
+ * Sets `current_period_end` from `duration_days`: calendar months when ≥ 28 days (Stripe-like),
+ * otherwise literal day extension (short voucher overrides).
+ */
 export async function upsertSubscriptionAfterPayment(input: {
   discordId: string;
   planId: string;
@@ -274,7 +277,7 @@ export async function upsertSubscriptionAfterPayment(input: {
     existing?.current_period_end && new Date(String(existing.current_period_end)).getTime() > now
       ? new Date(String(existing.current_period_end))
       : new Date();
-  const end = new Date(base.getTime() + input.durationDays * DAY_MS);
+  const end = computeSubscriptionPeriodEnd(base, input.durationDays);
 
   const channel = input.paymentChannel ?? "stripe";
   const { error } = await db.from("subscriptions").upsert(
@@ -296,7 +299,8 @@ export async function upsertSubscriptionAfterPayment(input: {
 }
 
 /**
- * Extend an existing subscription by N days. Creates a row if none exists.
+ * Extend an existing subscription from `duration_days` (plan-shaped): **calendar months** when ≥ 28 days;
+ * shorter values add literal days (voucher overrides). Creates a row if none exists.
  * Does not change the user's plan_id (unless it must create the row).
  */
 export async function extendSubscriptionDays(input: {
@@ -328,7 +332,7 @@ export async function extendSubscriptionDays(input: {
     existing?.current_period_end && new Date(String(existing.current_period_end)).getTime() > now
       ? new Date(String(existing.current_period_end))
       : new Date();
-  const end = new Date(base.getTime() + days * DAY_MS);
+  const end = computeSubscriptionPeriodEnd(base, days);
 
   const planId =
     typeof existing?.plan_id === "string" && existing.plan_id.trim()

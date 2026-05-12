@@ -190,6 +190,11 @@ export function SubscriptionPlansAdminClient() {
             <span className="font-mono text-zinc-300">price_…</span>
             ), not the Product id. Create the price in Stripe, then paste it here. Checkout charges{" "}
             <span className="font-medium text-zinc-200">list price minus discount</span> (then vouchers, if any).
+            <span className="block pt-1 text-xs text-zinc-500">
+              For SOL / complimentary / referral extensions, <span className="font-medium text-zinc-200">Days</span>{" "}
+              ≥ 28 grant whole <span className="font-medium text-zinc-200">calendar months</span> (same month math as
+              Stripe); shorter values add exact days (e.g. trial vouchers).
+            </span>
             <span className="block pt-2 text-xs text-zinc-500">
               Optional <span className="font-medium text-zinc-200">$1 Stripe test</span> checkout is configured in{" "}
               <Link

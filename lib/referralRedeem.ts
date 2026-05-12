@@ -2,13 +2,9 @@ import { invalidateLiveDashboardAccessCache } from "@/lib/dashboardGate";
 import { syncPremiumDiscordRoleAfterSubscriptionChange } from "@/lib/discordPremiumRole";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { planDurationDaysToBillingMonths } from "@/lib/subscription/calendarSubscriptionEnd";
 import { extendSubscriptionDays, getPlanBySlug } from "@/lib/subscription/subscriptionDb";
 import { REFERRAL_EXEMPT_SEGMENT_REDEEM_CAP_MONTHS } from "@/lib/referralPolicy";
-
-function planMonthsEquivalent(durationDays: number): number {
-  const d = Math.max(1, Math.floor(durationDays));
-  return Math.max(1, Math.round(d / 30));
-}
 
 function effectivePlanPriceCents(priceUsd: number, discountPercent: number): number {
   const list = Math.max(0, Number(priceUsd));
@@ -64,7 +60,7 @@ export async function redeemReferralCreditForPlan(input: {
   );
   if (costCents <= 0) return { ok: false, error: "Invalid plan price", code: "plan_price" };
 
-  const monthsEq = planMonthsEquivalent(plan.duration_days);
+  const monthsEq = planDurationDaysToBillingMonths(plan.duration_days);
 
   const db = getSupabaseAdmin();
   if (!db) return { ok: false, error: "Database not configured", code: "db" };
