@@ -845,16 +845,16 @@ const SOCIAL_AUTHOR_POOL: Array<{
   authorHandle: string;
   categorySlug: SocialFeedCategorySlug;
 }> = [
-  { platform: "x", authorName: "Onchain Radar", authorHandle: "@onchainradar", categorySlug: "news" },
+  { platform: "x", authorName: "Onchain Radar", authorHandle: "@onchainradar", categorySlug: "crypto" },
   { platform: "x", authorName: "Dex Pulse", authorHandle: "@dexpulse", categorySlug: "trader" },
   { platform: "x", authorName: "Liquidity Lens", authorHandle: "@liq_lens", categorySlug: "protocol" },
   { platform: "x", authorName: "Tape Reader", authorHandle: "@tapereader", categorySlug: "kol" },
   { platform: "x", authorName: "Whale Watch", authorHandle: "@whalewatch", categorySlug: "media" },
-  { platform: "instagram", authorName: "Market Narratives", authorHandle: "@marketnarratives", categorySlug: "news" },
+  { platform: "instagram", authorName: "Market Narratives", authorHandle: "@marketnarratives", categorySlug: "politics" },
   { platform: "instagram", authorName: "Chart Room", authorHandle: "@chartroom", categorySlug: "trader" },
-  { platform: "instagram", authorName: "Volume Lab", authorHandle: "@volumelab", categorySlug: "media" },
-  { platform: "instagram", authorName: "Risk First", authorHandle: "@riskfirst", categorySlug: "kol" },
-  { platform: "instagram", authorName: "Alpha Board", authorHandle: "@alphaboard", categorySlug: "protocol" },
+  { platform: "instagram", authorName: "Volume Lab", authorHandle: "@volumelab", categorySlug: "culture" },
+  { platform: "instagram", authorName: "Risk First", authorHandle: "@riskfirst", categorySlug: "economy" },
+  { platform: "instagram", authorName: "Alpha Board", authorHandle: "@alphaboard", categorySlug: "tech" },
 ];
 
 const SOCIAL_TEXT_POOL: string[] = [
@@ -2540,17 +2540,7 @@ function SocialsFeedPanel() {
                 }`}
                 title={opt.label}
               >
-                {opt.id === "kol"
-                  ? "KOL"
-                  : opt.id === "protocol"
-                    ? "Protocol"
-                    : opt.id === "news"
-                      ? "News"
-                      : opt.id === "trader"
-                        ? "Trader"
-                        : opt.id === "media"
-                          ? "Media"
-                          : "Other"}
+                {opt.short}
               </button>
             ))}
           </div>
@@ -2659,17 +2649,7 @@ function SocialsFeedPanel() {
                           }`}
                           title={opt.label}
                         >
-                          {opt.id === "kol"
-                            ? "KOL"
-                            : opt.id === "protocol"
-                              ? "Protocol"
-                              : opt.id === "news"
-                                ? "News"
-                                : opt.id === "trader"
-                                  ? "Trader"
-                                  : opt.id === "media"
-                                    ? "Media"
-                                    : "Other"}
+                          {opt.short}
                         </button>
                       ))}
                     </div>
