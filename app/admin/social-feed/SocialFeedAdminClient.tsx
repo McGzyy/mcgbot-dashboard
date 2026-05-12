@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { adminChrome } from "@/lib/roleTierStyles";
@@ -18,10 +19,27 @@ type SubmissionRow = {
   review_note: string | null;
 };
 
+type SourceRow = {
+  id: string;
+  platform: "x" | "instagram";
+  handle: string;
+  displayName: string | null;
+  active: boolean;
+  createdAt: string | null;
+  createdByDiscordId: string | null;
+  lastSeenPostAt: string | null;
+};
+
 function pill(status: SubmissionRow["status"]): string {
   if (status === "pending") return "border-amber-500/30 bg-amber-500/10 text-amber-200";
   if (status === "approved") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-200";
   return "border-red-500/25 bg-red-500/10 text-red-200";
+}
+
+function activePill(active: boolean): string {
+  return active
+    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+    : "border-zinc-600/40 bg-zinc-800/40 text-zinc-400";
 }
 
 export function SocialFeedAdminClient() {
@@ -30,6 +48,19 @@ export function SocialFeedAdminClient() {
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [noteById, setNoteById] = useState<Record<string, string>>({});
+
+  const [sources, setSources] = useState<SourceRow[]>([]);
+  const [sourcesLoading, setSourcesLoading] = useState(true);
+  const [sourcesErr, setSourcesErr] = useState<string | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<"all" | "active" | "inactive">("active");
+  const [busySourceId, setBusySourceId] = useState<string | null>(null);
+
+  const [editSource, setEditSource] = useState<SourceRow | null>(null);
+  const [editPlatform, setEditPlatform] = useState<"x" | "instagram">("x");
+  const [editHandle, setEditHandle] = useState("");
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editBusy, setEditBusy] = useState(false);
+  const [editErr, setEditErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,11 +82,43 @@ export function SocialFeedAdminClient() {
     }
   }, []);
 
+  const loadSources = useCallback(async () => {
+    setSourcesLoading(true);
+    setSourcesErr(null);
+    try {
+      const res = await fetch("/api/admin/social-sources", { credentials: "same-origin" });
+      const json = (await res.json().catch(() => null)) as any;
+      if (!res.ok || !json || json.success !== true || !Array.isArray(json.sources)) {
+        setSources([]);
+        setSourcesErr(typeof json?.error === "string" ? json.error : "Failed to load sources.");
+        return;
+      }
+      setSources(json.sources as SourceRow[]);
+    } catch {
+      setSources([]);
+      setSourcesErr("Failed to load sources.");
+    } finally {
+      setSourcesLoading(false);
+    }
+  }, []);
+
+  const refreshAll = useCallback(() => {
+    void load();
+    void loadSources();
+  }, [load, loadSources]);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadSources();
+  }, [load, loadSources]);
 
   const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
+
+  const filteredSources = useMemo(() => {
+    if (sourceFilter === "active") return sources.filter((s) => s.active);
+    if (sourceFilter === "inactive") return sources.filter((s) => !s.active);
+    return sources;
+  }, [sources, sourceFilter]);
 
   const act = useCallback(
     async (id: string, action: "approve" | "deny") => {
@@ -75,24 +138,97 @@ export function SocialFeedAdminClient() {
           return;
         }
         await load();
+        await loadSources();
       } catch {
         setErr("Action failed.");
       } finally {
         setBusyId(null);
       }
     },
-    [busyId, load, noteById]
+    [busyId, load, loadSources, noteById]
   );
+
+  const patchSource = useCallback(
+    async (id: string, body: Record<string, unknown>) => {
+      setBusySourceId(id);
+      setSourcesErr(null);
+      try {
+        const res = await fetch("/api/admin/social-sources", {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, ...body }),
+        });
+        const json = (await res.json().catch(() => null)) as any;
+        if (!res.ok || !json || json.success !== true) {
+          setSourcesErr(typeof json?.error === "string" ? json.error : "Update failed.");
+          return false;
+        }
+        await loadSources();
+        return true;
+      } catch {
+        setSourcesErr("Update failed.");
+        return false;
+      } finally {
+        setBusySourceId(null);
+      }
+    },
+    [loadSources]
+  );
+
+  const openEdit = useCallback((s: SourceRow) => {
+    setEditErr(null);
+    setEditSource(s);
+    setEditPlatform(s.platform);
+    setEditHandle(s.handle.startsWith("@") ? s.handle : `@${s.handle}`);
+    setEditDisplayName(s.displayName ?? "");
+  }, []);
+
+  const closeEdit = useCallback(() => {
+    if (editBusy) return;
+    setEditSource(null);
+    setEditErr(null);
+  }, [editBusy]);
+
+  const saveEdit = useCallback(async () => {
+    if (!editSource) return;
+    setEditBusy(true);
+    setEditErr(null);
+    try {
+      const res = await fetch("/api/admin/social-sources", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editSource.id,
+          platform: editPlatform,
+          handle: editHandle,
+          displayName: editDisplayName.trim() || null,
+        }),
+      });
+      const json = (await res.json().catch(() => null)) as any;
+      if (!res.ok || !json || json.success !== true) {
+        setEditErr(typeof json?.error === "string" ? json.error : "Save failed.");
+        return;
+      }
+      await loadSources();
+      setEditSource(null);
+    } catch {
+      setEditErr("Save failed.");
+    } finally {
+      setEditBusy(false);
+    }
+  }, [editDisplayName, editHandle, editPlatform, editSource, loadSources]);
 
   return (
     <div className="space-y-6" data-tutorial="admin.socialFeed">
       <AdminPageHeader
-        title="Source approvals"
-        description="Moderators can submit accounts from the Social Feed widget. Approving adds the account to the live monitored sources."
+        title="Social feed"
+        description="Review member submissions and manage which X / Instagram accounts are monitored for the dashboard feed."
         actions={
           <button
             type="button"
-            onClick={() => void load()}
+            onClick={() => void refreshAll()}
             className={`rounded-lg border border-zinc-500/50 bg-zinc-900/80 px-4 py-2 text-xs font-semibold text-zinc-100 transition ${adminChrome.btnGhostHover} hover:text-white`}
           >
             Refresh
@@ -178,7 +314,201 @@ export function SocialFeedAdminClient() {
           </ul>
         )}
       </AdminPanel>
+
+      <AdminPanel className="p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Monitored accounts</h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              Edit handles or labels, remove from the live feed (soft-off), or restore disabled rows.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
+            {(["active", "all", "inactive"] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSourceFilter(key)}
+                className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                  sourceFilter === key
+                    ? "border border-zinc-500/30 bg-zinc-500/10 text-zinc-100"
+                    : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
+                }`}
+              >
+                {key === "all" ? "All" : key === "active" ? "Live" : "Disabled"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {sourcesErr ? (
+          <p className="mt-3 text-sm text-red-200">{sourcesErr}</p>
+        ) : null}
+
+        {sourcesLoading ? (
+          <p className="mt-4 text-sm text-zinc-500">Loading sources…</p>
+        ) : filteredSources.length === 0 ? (
+          <p className="mt-4 text-sm text-zinc-500">No sources in this view.</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-800/70">
+            <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-800/80 bg-black/30 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  <th className="px-3 py-2.5">Status</th>
+                  <th className="px-3 py-2.5">Platform</th>
+                  <th className="px-3 py-2.5">Handle</th>
+                  <th className="px-3 py-2.5">Display name</th>
+                  <th className="px-3 py-2.5">Created</th>
+                  <th className="px-3 py-2.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSources.map((s) => (
+                  <tr key={s.id} className="border-b border-zinc-900/80 last:border-b-0 hover:bg-zinc-900/25">
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${activePill(s.active)}`}
+                      >
+                        {s.active ? "Live" : "Off"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-zinc-300">{s.platform === "x" ? "X" : "Instagram"}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs text-zinc-200">@{s.handle.replace(/^@/, "")}</td>
+                    <td className="max-w-[200px] truncate px-3 py-2.5 text-zinc-400" title={s.displayName ?? ""}>
+                      {s.displayName ?? "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2.5 text-xs text-zinc-500">
+                      {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <button
+                          type="button"
+                          disabled={busySourceId === s.id}
+                          onClick={() => openEdit(s)}
+                          className="rounded-md border border-zinc-600/50 bg-zinc-900/60 px-2 py-1 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/80 disabled:opacity-50"
+                        >
+                          Edit
+                        </button>
+                        {s.active ? (
+                          <button
+                            type="button"
+                            disabled={busySourceId === s.id}
+                            onClick={() => void patchSource(s.id, { active: false })}
+                            className="rounded-md border border-red-500/35 bg-red-950/20 px-2 py-1 text-[11px] font-semibold text-red-100 transition hover:border-red-400/50 disabled:opacity-50"
+                          >
+                            Remove from feed
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busySourceId === s.id}
+                            onClick={() => void patchSource(s.id, { active: true })}
+                            className="rounded-md border border-emerald-500/35 bg-emerald-950/20 px-2 py-1 text-[11px] font-semibold text-emerald-100 transition hover:border-emerald-400/55 disabled:opacity-50"
+                          >
+                            Restore
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </AdminPanel>
+
+      {editSource && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-black/65 px-4 py-8"
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) closeEdit();
+              }}
+            >
+              <div
+                className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Edit monitored source"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Edit source</p>
+                    <p className="mt-0.5 text-xs text-zinc-500">Platform, handle, and display name.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => closeEdit()}
+                    disabled={editBusy}
+                    className="rounded-md px-2 py-1 text-lg leading-none text-zinc-500 hover:text-white disabled:opacity-50"
+                    aria-label="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {editErr ? <p className="mt-3 text-xs text-red-300">{editErr}</p> : null}
+
+                <div className="mt-4 grid gap-3">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Display name
+                    <input
+                      value={editDisplayName}
+                      onChange={(e) => setEditDisplayName(e.target.value)}
+                      disabled={editBusy}
+                      className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
+                    />
+                  </label>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Platform
+                    <select
+                      value={editPlatform}
+                      onChange={(e) => setEditPlatform(e.target.value as "x" | "instagram")}
+                      disabled={editBusy}
+                      className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/30 px-3 py-2 text-sm text-white focus:border-zinc-500 focus:outline-none"
+                    >
+                      <option value="x">X</option>
+                      <option value="instagram">Instagram</option>
+                    </select>
+                  </label>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Handle
+                    <input
+                      value={editHandle}
+                      onChange={(e) => setEditHandle(e.target.value)}
+                      disabled={editBusy}
+                      className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-5 flex justify-end gap-2 border-t border-zinc-800/80 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => closeEdit()}
+                    disabled={editBusy}
+                    className="rounded-lg border border-zinc-600/50 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-800/80 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void saveEdit()}
+                    disabled={editBusy || !editHandle.trim()}
+                    className="rounded-lg border border-emerald-500/40 bg-emerald-950/25 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-950/40 disabled:opacity-50"
+                  >
+                    {editBusy ? "Saving…" : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
-

@@ -2649,7 +2649,9 @@ function SocialsFeedPanel() {
                   <div>
                     <p className="text-sm font-semibold text-zinc-100">Submit a source</p>
                     <p className="mt-0.5 text-xs text-zinc-500">
-                      Requests are reviewed before accounts appear in the live feed.
+                      {isAdmin
+                        ? "As an admin, submitting here adds the account to the live feed immediately."
+                        : "Requests are reviewed before accounts appear in the live feed."}
                     </p>
                   </div>
                   <button
@@ -2765,7 +2767,9 @@ function SocialsFeedPanel() {
                             const json = (await res.json().catch(() => null)) as {
                               success?: boolean;
                               error?: string;
+                              mode?: string;
                               alreadyPending?: boolean;
+                              updated?: boolean;
                             } | null;
                             if (!res.ok || !json || json.success !== true) {
                               setSubmitErr(
@@ -2773,11 +2777,19 @@ function SocialsFeedPanel() {
                               );
                               return;
                             }
-                            setSubmitOk(
-                              json.alreadyPending
-                                ? "This handle is already pending review."
-                                : "Submitted — thanks. The team will review it."
-                            );
+                            if (json.mode === "added") {
+                              setSubmitOk(
+                                json.updated
+                                  ? "Updated and live in the feed."
+                                  : "Added to the live feed."
+                              );
+                            } else {
+                              setSubmitOk(
+                                json.alreadyPending
+                                  ? "This handle is already pending review."
+                                  : "Submitted — thanks. The team will review it."
+                              );
+                            }
                             setSubmitHandle("");
                             setSubmitSourceName("");
                             setSubmitCategory("");
@@ -2791,7 +2803,7 @@ function SocialsFeedPanel() {
                       }}
                       className="rounded-lg bg-[color:var(--accent)] px-4 py-2 text-xs font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-50"
                     >
-                      {submitBusy ? "Sending…" : "Send request"}
+                      {submitBusy ? "Sending…" : isAdmin ? "Add to live feed" : "Send request"}
                     </button>
                   </div>
                 </div>

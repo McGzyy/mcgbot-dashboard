@@ -78,8 +78,8 @@ export async function GET() {
 }
 
 /**
- * Admin: optional `addToLive: true` adds directly to live sources (legacy / tooling).
- * Everyone with dashboard access: submit a source for approval (includes category + rationale when provided).
+ * Help-tier admin: same payload as members, but the account is upserted into live sources immediately
+ * (no pending queue). Other dashboard users submit for approval.
  */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
   const db = dbOr503();
   if (db instanceof Response) return db;
 
-  if (tier === "admin" && o.addToLive === true) {
+  if (tier === "admin") {
     // Avoid `onConflict` expressions (PostgREST only accepts column names).
     const { data: existing, error: exErr } = await db
       .from("social_feed_sources")
@@ -146,21 +146,36 @@ export async function POST(request: Request) {
         console.error("[social-sources] POST admin update:", updErr);
         return Response.json({ success: false, error: "Failed to add source" }, { status: 500 });
       }
-      return Response.json({ success: true, mode: "added" as const, updated: true });
+    } else {
+      const { error } = await db.from("social_feed_sources").insert({
+        platform,
+        handle,
+        display_name: displayName,
+        created_by_discord_id: userId,
+        active: true,
+      });
+      if (error) {
+        console.error("[social-sources] POST admin insert:", error);
+        return Response.json({ success: false, error: "Failed to add source" }, { status: 500 });
+      }
     }
 
-    const { error } = await db.from("social_feed_sources").insert({
-      platform,
-      handle,
-      display_name: displayName,
-      created_by_discord_id: userId,
-      active: true,
-    });
-    if (error) {
-      console.error("[social-sources] POST admin insert:", error);
-      return Response.json({ success: false, error: "Failed to add source" }, { status: 500 });
+    const { error: clearPendingErr } = await db
+      .from("social_feed_source_submissions")
+      .delete()
+      .eq("platform", platform)
+      .eq("status", "pending")
+      .ilike("handle", handle);
+    if (clearPendingErr) {
+      console.warn("[social-sources] POST admin clear pending:", clearPendingErr);
     }
-    return Response.json({ success: true, mode: "added" as const });
+
+    return Response.json({
+      success: true,
+      mode: "added" as const,
+      updated: Boolean(existing && (existing as any).id),
+      autoApproved: true,
+    });
   }
 
   const { error } = await db.from("social_feed_source_submissions").insert({

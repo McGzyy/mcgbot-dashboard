@@ -118,7 +118,7 @@ const NAV_GROUPS: NavGroup[] = [
       {
         href: "/admin/social-feed",
         label: "Social feed",
-        description: "Source approvals",
+        description: "Submissions & live sources",
         icon: (a) => (
           <svg className={`h-4 w-4 ${a ? adminChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3.75h9m-9 3.75h6" />
