@@ -69,7 +69,7 @@ export function SocialFeedAdminClient() {
   const [editPlatform, setEditPlatform] = useState<"x" | "instagram">("x");
   const [editHandle, setEditHandle] = useState("");
   const [editDisplayName, setEditDisplayName] = useState("");
-  const [editCategorySlug, setEditCategorySlug] = useState<SocialFeedCategorySlug>("kol");
+  const [editCategorySlug, setEditCategorySlug] = useState<SocialFeedCategorySlug>("crypto");
   const [editCategoryOther, setEditCategoryOther] = useState("");
   const [editBusy, setEditBusy] = useState(false);
   const [editErr, setEditErr] = useState<string | null>(null);
@@ -198,7 +198,7 @@ export function SocialFeedAdminClient() {
     setEditPlatform(s.platform);
     setEditHandle(s.handle.startsWith("@") ? s.handle : `@${s.handle}`);
     setEditDisplayName(s.displayName ?? "");
-    setEditCategorySlug(parseSocialFeedCategorySlug(s.category) ?? "kol");
+    setEditCategorySlug(parseSocialFeedCategorySlug(s.category) ?? "crypto");
     setEditCategoryOther(s.categoryOther ?? "");
   }, []);
 

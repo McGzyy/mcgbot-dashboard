@@ -1,16 +1,9 @@
 /** Canonical slugs stored in DB (`social_feed_sources.category`, submissions `category`). */
 export const SOCIAL_FEED_CATEGORY_SLUGS = [
-  "politics",
-  "law",
-  "economy",
-  "equities",
-  "culture",
-  "tech",
   "crypto",
-  "protocol",
-  "trader",
-  "kol",
-  "media",
+  "politics",
+  "economy",
+  "culture",
   "other",
 ] as const;
 
@@ -22,22 +15,29 @@ export const SOCIAL_FEED_CATEGORY_OPTIONS: ReadonlyArray<{
   label: string;
   /** Short label for compact filter tabs */
   short: string;
+  /** If false, hidden from home feed chip row (still in submit/admin selects). */
+  inFeedTabs: boolean;
 }> = [
-  { id: "politics", label: "Politics & world events", short: "Politics" },
-  { id: "law", label: "Law & policy", short: "Law" },
-  { id: "economy", label: "Economy & rates", short: "Economy" },
-  { id: "equities", label: "Stocks & earnings", short: "Stocks" },
-  { id: "culture", label: "Culture, celebs & sports", short: "Culture" },
-  { id: "tech", label: "Tech & AI", short: "Tech" },
-  { id: "crypto", label: "Crypto & industry", short: "Crypto" },
-  { id: "protocol", label: "Projects & protocols", short: "Protocol" },
-  { id: "trader", label: "Traders & charts", short: "Trader" },
-  { id: "kol", label: "Influencers & KOLs", short: "KOL" },
-  { id: "media", label: "Shows & podcasts", short: "Media" },
-  { id: "other", label: "Other (describe)", short: "Other" },
+  { id: "crypto", label: "Crypto & industry", short: "Crypto", inFeedTabs: true },
+  { id: "politics", label: "Politics & world events", short: "Politics", inFeedTabs: true },
+  { id: "economy", label: "Economy, markets & policy", short: "Economy", inFeedTabs: true },
+  { id: "culture", label: "Culture, tech & media", short: "Culture", inFeedTabs: true },
+  { id: "other", label: "Other (describe)", short: "Other", inFeedTabs: false },
 ];
 
 const SLUG_SET = new Set<string>(SOCIAL_FEED_CATEGORY_SLUGS);
+
+/** Maps retired / granular slugs to the current five. */
+const LEGACY_CATEGORY_SLUG: Record<string, SocialFeedCategorySlug> = {
+  news: "crypto",
+  protocol: "crypto",
+  trader: "crypto",
+  kol: "crypto",
+  media: "crypto",
+  law: "economy",
+  equities: "economy",
+  tech: "culture",
+};
 
 export function isSocialFeedCategorySlug(s: string): s is SocialFeedCategorySlug {
   return SLUG_SET.has(s);
@@ -45,9 +45,8 @@ export function isSocialFeedCategorySlug(s: string): s is SocialFeedCategorySlug
 
 export function parseSocialFeedCategorySlug(raw: unknown): SocialFeedCategorySlug | null {
   const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  /** Legacy slug from first taxonomy; DB migration rewrites rows, API may still send `news` briefly */
-  if (s === "news") return "crypto";
-  return isSocialFeedCategorySlug(s) ? s : null;
+  const mapped = LEGACY_CATEGORY_SLUG[s] ?? s;
+  return isSocialFeedCategorySlug(mapped) ? mapped : null;
 }
 
 export function normalizeCategoryOther(raw: unknown): string | null {

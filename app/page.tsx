@@ -846,15 +846,15 @@ const SOCIAL_AUTHOR_POOL: Array<{
   categorySlug: SocialFeedCategorySlug;
 }> = [
   { platform: "x", authorName: "Onchain Radar", authorHandle: "@onchainradar", categorySlug: "crypto" },
-  { platform: "x", authorName: "Dex Pulse", authorHandle: "@dexpulse", categorySlug: "trader" },
-  { platform: "x", authorName: "Liquidity Lens", authorHandle: "@liq_lens", categorySlug: "protocol" },
-  { platform: "x", authorName: "Tape Reader", authorHandle: "@tapereader", categorySlug: "kol" },
-  { platform: "x", authorName: "Whale Watch", authorHandle: "@whalewatch", categorySlug: "media" },
+  { platform: "x", authorName: "Dex Pulse", authorHandle: "@dexpulse", categorySlug: "crypto" },
+  { platform: "x", authorName: "Liquidity Lens", authorHandle: "@liq_lens", categorySlug: "crypto" },
+  { platform: "x", authorName: "Tape Reader", authorHandle: "@tapereader", categorySlug: "crypto" },
+  { platform: "x", authorName: "Whale Watch", authorHandle: "@whalewatch", categorySlug: "economy" },
   { platform: "instagram", authorName: "Market Narratives", authorHandle: "@marketnarratives", categorySlug: "politics" },
-  { platform: "instagram", authorName: "Chart Room", authorHandle: "@chartroom", categorySlug: "trader" },
+  { platform: "instagram", authorName: "Chart Room", authorHandle: "@chartroom", categorySlug: "economy" },
   { platform: "instagram", authorName: "Volume Lab", authorHandle: "@volumelab", categorySlug: "culture" },
   { platform: "instagram", authorName: "Risk First", authorHandle: "@riskfirst", categorySlug: "economy" },
-  { platform: "instagram", authorName: "Alpha Board", authorHandle: "@alphaboard", categorySlug: "tech" },
+  { platform: "instagram", authorName: "Alpha Board", authorHandle: "@alphaboard", categorySlug: "culture" },
 ];
 
 const SOCIAL_TEXT_POOL: string[] = [
@@ -2367,7 +2367,7 @@ function SocialsFeedPanel() {
   const [submitPlatform, setSubmitPlatform] = useState<SocialPlatform>("x");
   const [submitHandle, setSubmitHandle] = useState("");
   const [submitSourceName, setSubmitSourceName] = useState("");
-  const [submitCategorySlug, setSubmitCategorySlug] = useState<SocialFeedCategorySlug>("kol");
+  const [submitCategorySlug, setSubmitCategorySlug] = useState<SocialFeedCategorySlug>("crypto");
   const [submitCategoryOther, setSubmitCategoryOther] = useState("");
   const [submitRationale, setSubmitRationale] = useState("");
   const [submitBusy, setSubmitBusy] = useState(false);
@@ -2528,7 +2528,7 @@ function SocialsFeedPanel() {
             >
               All
             </button>
-            {SOCIAL_FEED_CATEGORY_OPTIONS.map((opt) => (
+            {SOCIAL_FEED_CATEGORY_OPTIONS.filter((o) => o.inFeedTabs).map((opt) => (
               <button
                 key={opt.id}
                 type="button"
@@ -2637,7 +2637,7 @@ function SocialsFeedPanel() {
                       >
                         All
                       </button>
-                      {SOCIAL_FEED_CATEGORY_OPTIONS.map((opt) => (
+                      {SOCIAL_FEED_CATEGORY_OPTIONS.filter((o) => o.inFeedTabs).map((opt) => (
                         <button
                           key={opt.id}
                           type="button"
@@ -2860,7 +2860,7 @@ function SocialsFeedPanel() {
                             }
                             setSubmitHandle("");
                             setSubmitSourceName("");
-                            setSubmitCategorySlug("kol");
+                            setSubmitCategorySlug("crypto");
                             setSubmitCategoryOther("");
                             setSubmitRationale("");
                           } catch {
