@@ -45,6 +45,8 @@ import { terminalChrome, terminalPage, terminalSurface, terminalUi } from "@/lib
 import {
   SOCIAL_FEED_CATEGORY_OPTIONS,
   formatSocialFeedCategoryLabel,
+  normalizeCategoryOther,
+  parseSocialFeedCategorySlug,
   type SocialFeedCategorySlug,
 } from "@/lib/socialFeedCategories";
 
@@ -2413,9 +2415,14 @@ function SocialsFeedPanel() {
           const postedAtLabel = typeof o.postedAtLabel === "string" ? o.postedAtLabel.trim() : "";
           const text = typeof o.text === "string" ? o.text.trim() : "";
           if (!id || !authorName || !postedAtLabel || !text) continue;
+          const categorySlug =
+            parseSocialFeedCategorySlug(o.categorySlug ?? o.category_slug ?? o.category) ?? "other";
+          const categoryOther = normalizeCategoryOther(o.categoryOther ?? o.category_other);
           parsed.push({
             id,
             platform: (platform as SocialFeedItem["platform"]) || "x",
+            categorySlug,
+            categoryOther,
             authorName,
             authorHandle,
             postedAtLabel,
