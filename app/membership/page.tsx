@@ -959,32 +959,25 @@ export default function MembershipPage() {
                         "group relative flex min-h-[176px] flex-col overflow-hidden rounded-2xl border text-left shadow-lg transition sm:min-h-[188px]",
                         sel
                           ? "border-emerald-400/50 bg-[linear-gradient(165deg,rgba(6,78,59,0.35)_0%,rgba(0,0,0,0.5)_55%)] shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_24px_60px_rgba(0,0,0,0.55)] ring-1 ring-emerald-400/25"
-                          : featured
-                            ? "border-amber-500/35 bg-[linear-gradient(165deg,rgba(120,53,15,0.22)_0%,rgba(0,0,0,0.45)_50%)] shadow-[0_0_0_1px_rgba(245,158,11,0.12)] ring-1 ring-amber-500/15 hover:border-amber-500/45 hover:ring-amber-400/25"
-                            : "border-zinc-800/90 bg-[linear-gradient(165deg,rgba(39,39,42,0.55)_0%,rgba(0,0,0,0.42)_100%)] hover:border-zinc-600/80 hover:shadow-xl",
+                          : "border-zinc-800/90 bg-[linear-gradient(165deg,rgba(39,39,42,0.55)_0%,rgba(0,0,0,0.42)_100%)] hover:border-zinc-600/80 hover:shadow-xl",
                       ].join(" ")}
                     >
                       {showDiscount ? (
-                        <div className="relative flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-emerald-600/90 via-emerald-500/85 to-teal-600/75 px-4 py-2.5">
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-950/80">
-                              Limited-time built-in discount
-                            </span>
-                            <span className="text-lg font-extrabold tracking-tight text-white drop-shadow-sm">
-                              {discountPercent}% off list
-                            </span>
-                            <span className="text-xs font-semibold text-emerald-950/90">
-                              You save ${savingsUsd.toFixed(2)} on this period
-                            </span>
-                          </div>
+                        <div className="relative flex min-h-[5.25rem] flex-col justify-center bg-gradient-to-r from-emerald-600/90 via-emerald-500/85 to-teal-600/75 px-4 py-3 pr-28">
                           {featured ? (
-                            <span className="shrink-0 rounded-full border border-amber-200/90 bg-amber-400 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-950 shadow-sm">
+                            <span className="absolute right-3 top-1/2 max-w-[calc(100%-1rem)] -translate-y-1/2 truncate rounded-full border border-amber-200/90 bg-amber-400 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.1em] text-amber-950 shadow-sm">
                               Best value
                             </span>
                           ) : null}
+                          <span className="text-xl font-extrabold tracking-tight text-white drop-shadow-sm">
+                            Save {discountPercent}%
+                          </span>
+                          <span className="mt-1 text-xs font-semibold leading-snug text-emerald-50/95">
+                            You pay ${savingsUsd.toFixed(2)} less than full price
+                          </span>
                         </div>
                       ) : featured ? (
-                        <div className="flex justify-end border-b border-amber-500/25 bg-amber-500/15 px-3 py-2">
+                        <div className="flex min-h-[2.75rem] items-center justify-end border-b border-amber-500/25 bg-amber-500/15 px-3 py-2">
                           <span className="rounded-full border border-amber-200/80 bg-amber-400 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-950">
                             Best value
                           </span>
@@ -1017,10 +1010,10 @@ export default function MembershipPage() {
                           {showDiscount ? (
                             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                               <span className="text-sm font-semibold tabular-nums text-zinc-500 line-through decoration-zinc-600">
-                                ${listPriceUsd!.toFixed(2)} list
+                                Full price ${listPriceUsd!.toFixed(2)}
                               </span>
                               <span className="inline-flex items-center rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-200 ring-1 ring-emerald-400/35 sm:hidden">
-                                −{discountPercent}% vs list
+                                Save {discountPercent}%
                               </span>
                             </div>
                           ) : null}
