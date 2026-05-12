@@ -177,3 +177,46 @@ export async function PATCH(request: Request) {
 
   return Response.json({ success: true });
 }
+
+/** Permanently remove a source row (dashboard admin only). */
+export async function DELETE(request: Request) {
+  const gate = await requireDashboardAdmin();
+  if (!gate.ok) return gate.response;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+  }
+  const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const id = typeof o.id === "string" ? o.id.trim() : "";
+  if (!id) {
+    return Response.json({ success: false, error: "Missing id" }, { status: 400 });
+  }
+
+  const db = dbOr503();
+  if (db instanceof Response) return db;
+
+  const { data: row, error: loadErr } = await db
+    .from("social_feed_sources")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (loadErr) {
+    console.error("[admin social-sources] DELETE load:", loadErr);
+    return Response.json({ success: false, error: "Failed to load source" }, { status: 500 });
+  }
+  if (!row) {
+    return Response.json({ success: false, error: "Source not found" }, { status: 404 });
+  }
+
+  const { error: delErr } = await db.from("social_feed_sources").delete().eq("id", id);
+  if (delErr) {
+    console.error("[admin social-sources] DELETE:", delErr);
+    return Response.json({ success: false, error: "Failed to delete source" }, { status: 500 });
+  }
+
+  return Response.json({ success: true });
+}

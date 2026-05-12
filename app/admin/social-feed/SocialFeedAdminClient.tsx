@@ -62,6 +62,10 @@ export function SocialFeedAdminClient() {
   const [editBusy, setEditBusy] = useState(false);
   const [editErr, setEditErr] = useState<string | null>(null);
 
+  const [deleteConfirmSource, setDeleteConfirmSource] = useState<SourceRow | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
@@ -189,6 +193,37 @@ export function SocialFeedAdminClient() {
     setEditSource(null);
     setEditErr(null);
   }, [editBusy]);
+
+  const closeDeleteConfirm = useCallback(() => {
+    if (deleteBusy) return;
+    setDeleteConfirmSource(null);
+    setDeleteErr(null);
+  }, [deleteBusy]);
+
+  const confirmPermanentDelete = useCallback(async () => {
+    if (!deleteConfirmSource) return;
+    setDeleteBusy(true);
+    setDeleteErr(null);
+    try {
+      const res = await fetch("/api/admin/social-sources", {
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleteConfirmSource.id }),
+      });
+      const json = (await res.json().catch(() => null)) as any;
+      if (!res.ok || !json || json.success !== true) {
+        setDeleteErr(typeof json?.error === "string" ? json.error : "Delete failed.");
+        return;
+      }
+      setDeleteConfirmSource(null);
+      await loadSources();
+    } catch {
+      setDeleteErr("Delete failed.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [deleteConfirmSource, loadSources]);
 
   const saveEdit = useCallback(async () => {
     if (!editSource) return;
@@ -320,7 +355,8 @@ export function SocialFeedAdminClient() {
           <div>
             <h3 className="text-sm font-semibold text-white">Monitored accounts</h3>
             <p className="mt-1 text-xs text-zinc-500">
-              Edit handles or labels, remove from the live feed (soft-off), or restore disabled rows.
+              Edit handles or labels, remove from the live feed (soft-off), restore disabled rows, or permanently delete
+              a row from the database (irreversible).
             </p>
           </div>
           <div className="flex flex-wrap gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
@@ -384,7 +420,7 @@ export function SocialFeedAdminClient() {
                       <div className="flex flex-wrap justify-end gap-1.5">
                         <button
                           type="button"
-                          disabled={busySourceId === s.id}
+                          disabled={busySourceId === s.id || deleteBusy}
                           onClick={() => openEdit(s)}
                           className="rounded-md border border-zinc-600/50 bg-zinc-900/60 px-2 py-1 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/80 disabled:opacity-50"
                         >
@@ -393,7 +429,7 @@ export function SocialFeedAdminClient() {
                         {s.active ? (
                           <button
                             type="button"
-                            disabled={busySourceId === s.id}
+                            disabled={busySourceId === s.id || deleteBusy}
                             onClick={() => void patchSource(s.id, { active: false })}
                             className="rounded-md border border-red-500/35 bg-red-950/20 px-2 py-1 text-[11px] font-semibold text-red-100 transition hover:border-red-400/50 disabled:opacity-50"
                           >
@@ -402,13 +438,25 @@ export function SocialFeedAdminClient() {
                         ) : (
                           <button
                             type="button"
-                            disabled={busySourceId === s.id}
+                            disabled={busySourceId === s.id || deleteBusy}
                             onClick={() => void patchSource(s.id, { active: true })}
                             className="rounded-md border border-emerald-500/35 bg-emerald-950/20 px-2 py-1 text-[11px] font-semibold text-emerald-100 transition hover:border-emerald-400/55 disabled:opacity-50"
                           >
                             Restore
                           </button>
                         )}
+                        <button
+                          type="button"
+                          disabled={busySourceId === s.id || deleteBusy}
+                          onClick={() => {
+                            setDeleteErr(null);
+                            setEditSource(null);
+                            setDeleteConfirmSource(s);
+                          }}
+                          className="rounded-md border border-red-600/50 bg-red-950/30 px-2 py-1 text-[11px] font-semibold text-red-200 transition hover:border-red-500 hover:bg-red-950/45 disabled:opacity-50"
+                        >
+                          Delete permanently…
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -502,6 +550,61 @@ export function SocialFeedAdminClient() {
                     className="rounded-lg border border-emerald-500/40 bg-emerald-950/25 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-950/40 disabled:opacity-50"
                   >
                     {editBusy ? "Saving…" : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {deleteConfirmSource && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[85] flex items-center justify-center bg-black/70 px-4 py-8"
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) closeDeleteConfirm();
+              }}
+            >
+              <div
+                className="w-full max-w-md rounded-xl border border-red-900/40 bg-zinc-950 p-5 shadow-2xl"
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="delete-source-title"
+                aria-describedby="delete-source-desc"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <p id="delete-source-title" className="text-sm font-semibold text-red-100">
+                  Permanently delete this source?
+                </p>
+                <p id="delete-source-desc" className="mt-2 text-sm leading-relaxed text-zinc-400">
+                  This permanently deletes the monitored account{" "}
+                  <span className="font-mono font-semibold text-zinc-200">
+                    {deleteConfirmSource.platform === "x" ? "X" : "Instagram"} @
+                    {deleteConfirmSource.handle.replace(/^@/, "")}
+                  </span>{" "}
+                  from the database. This cannot be undone.
+                </p>
+
+                {deleteErr ? <p className="mt-3 text-xs text-red-300">{deleteErr}</p> : null}
+
+                <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-zinc-800/80 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => closeDeleteConfirm()}
+                    disabled={deleteBusy}
+                    className="rounded-lg border border-zinc-600/50 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-800/80 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void confirmPermanentDelete()}
+                    disabled={deleteBusy}
+                    className="rounded-lg border border-red-500/50 bg-red-600/90 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-red-950/40 hover:bg-red-500 disabled:opacity-50"
+                  >
+                    {deleteBusy ? "Deleting…" : "Delete permanently"}
                   </button>
                 </div>
               </div>
