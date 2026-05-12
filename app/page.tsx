@@ -2358,7 +2358,7 @@ function FollowingFeedPanel() {
 
 function SocialsFeedPanel() {
   const { data: session, status } = useSession();
-  const [tab, setTab] = useState<"all" | SocialPlatform>("all");
+  const [tab, setTab] = useState<"all" | SocialFeedCategorySlug>("all");
   const [items, setItems] = useState<SocialFeedItem[]>([]);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -2367,7 +2367,8 @@ function SocialsFeedPanel() {
   const [submitPlatform, setSubmitPlatform] = useState<SocialPlatform>("x");
   const [submitHandle, setSubmitHandle] = useState("");
   const [submitSourceName, setSubmitSourceName] = useState("");
-  const [submitCategory, setSubmitCategory] = useState("");
+  const [submitCategorySlug, setSubmitCategorySlug] = useState<SocialFeedCategorySlug>("kol");
+  const [submitCategoryOther, setSubmitCategoryOther] = useState("");
   const [submitRationale, setSubmitRationale] = useState("");
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
@@ -2396,7 +2397,7 @@ function SocialsFeedPanel() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/social-feed?platform=${encodeURIComponent(tab)}`, { credentials: "same-origin" })
+    fetch(`/api/social-feed?category=${encodeURIComponent(tab)}`, { credentials: "same-origin" })
       .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
       .then(({ ok, json }) => {
         if (cancelled) return;
