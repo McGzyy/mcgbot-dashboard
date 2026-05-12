@@ -60,7 +60,12 @@ export async function redeemReferralCreditForPlan(input: {
   );
   if (costCents <= 0) return { ok: false, error: "Invalid plan price", code: "plan_price" };
 
-  const monthsEq = planDurationDaysToBillingMonths(plan.duration_days);
+  const monthsEq = Math.max(
+    1,
+    Number.isFinite(Number(plan.billing_months)) && Number(plan.billing_months) >= 1
+      ? Math.floor(Number(plan.billing_months))
+      : planDurationDaysToBillingMonths(plan.duration_days)
+  );
 
   const db = getSupabaseAdmin();
   if (!db) return { ok: false, error: "Database not configured", code: "db" };
@@ -97,6 +102,7 @@ export async function redeemReferralCreditForPlan(input: {
   const extended = await extendSubscriptionDays({
     discordId,
     days: plan.duration_days,
+    billingMonths: plan.billing_months,
     fallbackPlanId: plan.id,
   });
   if (!extended) {

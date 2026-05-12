@@ -9,6 +9,7 @@ type PlanRow = {
   id: string;
   slug: string;
   label: string;
+  billing_months: number;
   duration_days: number;
   price_usd: number;
   discount_percent: number;
@@ -31,7 +32,7 @@ function effectivePrice(row: PlanRow): number {
 type PatchBody = Partial<{
   label: string;
   slug: string;
-  durationDays: number;
+  billingMonths: number;
   priceUsd: number;
   discountPercent: number;
   sortOrder: number;
@@ -42,7 +43,7 @@ type PatchBody = Partial<{
 const emptyDraft = {
   slug: "",
   label: "",
-  durationDays: 30,
+  billingMonths: 1,
   priceUsd: 24.99,
   discountPercent: 0,
   sortOrder: 1,
@@ -154,7 +155,7 @@ export function SubscriptionPlansAdminClient() {
         body: JSON.stringify({
           slug,
           label,
-          durationDays: draft.durationDays,
+          billingMonths: draft.billingMonths,
           priceUsd: draft.priceUsd,
           discountPercent: draft.discountPercent,
           sortOrder: draft.sortOrder,
@@ -191,9 +192,9 @@ export function SubscriptionPlansAdminClient() {
             ), not the Product id. Create the price in Stripe, then paste it here. Checkout charges{" "}
             <span className="font-medium text-zinc-200">list price minus discount</span> (then vouchers, if any).
             <span className="block pt-1 text-xs text-zinc-500">
-              For SOL / complimentary / referral extensions, <span className="font-medium text-zinc-200">Days</span>{" "}
-              ≥ 28 grant whole <span className="font-medium text-zinc-200">calendar months</span> (same month math as
-              Stripe); shorter values add exact days (e.g. trial vouchers).
+              <span className="font-medium text-zinc-200">Months</span> is what SOL / complimentary / referral use for
+              calendar access (same idea as Stripe). List “per day” uses 30-day months (
+              <span className="font-mono text-zinc-400">months × 30</span> days) for display only.
             </span>
             <span className="block pt-2 text-xs text-zinc-500">
               Optional <span className="font-medium text-zinc-200">$1 Stripe test</span> checkout is configured in{" "}
@@ -251,12 +252,18 @@ export function SubscriptionPlansAdminClient() {
               />
             </label>
             <label>
-              <span className="block text-[11px] font-semibold text-zinc-400">Days</span>
+              <span className="block text-[11px] font-semibold text-zinc-400">Months</span>
               <input
                 type="number"
                 min={1}
-                value={draft.durationDays}
-                onChange={(e) => setDraft((d) => ({ ...d, durationDays: Math.max(1, Math.floor(Number(e.target.value)) || 1) }))}
+                max={120}
+                value={draft.billingMonths}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    billingMonths: Math.max(1, Math.min(120, Math.floor(Number(e.target.value)) || 1)),
+                  }))
+                }
                 disabled={creating}
                 className="mt-1 h-10 w-full rounded-lg border border-zinc-800/70 bg-[#060606] px-3 text-sm text-zinc-200 outline-none transition focus:border-zinc-700 focus:ring-2 focus:ring-[color:var(--accent)]/15 disabled:opacity-60"
               />
@@ -398,14 +405,16 @@ export function SubscriptionPlansAdminClient() {
                     </label>
 
                     <label>
-                      <span className="block text-[11px] font-semibold text-zinc-400">Days</span>
+                      <span className="block text-[11px] font-semibold text-zinc-400">Months</span>
                       <input
+                        key={`bm-${r.id}-${r.billing_months}`}
                         type="number"
-                        defaultValue={r.duration_days}
                         min={1}
+                        max={120}
+                        defaultValue={r.billing_months}
                         onBlur={(e) => {
-                          const n = Math.max(1, Math.floor(Number(e.target.value)));
-                          if (Number.isFinite(n) && n !== r.duration_days) void patch(r.id, { durationDays: n });
+                          const n = Math.max(1, Math.min(120, Math.floor(Number(e.target.value))));
+                          if (Number.isFinite(n) && n !== r.billing_months) void patch(r.id, { billingMonths: n });
                         }}
                         disabled={busy || creating}
                         className="mt-1 h-10 w-full rounded-lg border border-zinc-800/70 bg-[#060606] px-3 text-sm text-zinc-200 outline-none transition focus:border-zinc-700 focus:ring-2 focus:ring-[color:var(--accent)]/15 disabled:opacity-60"

@@ -133,6 +133,7 @@ export async function POST(request: Request) {
     discordId,
     planId: plan.id,
     durationDays: finalDurationDays,
+    billingMonths: finalDurationDays < 28 ? null : plan.billing_months,
   });
 
   if (granted) {

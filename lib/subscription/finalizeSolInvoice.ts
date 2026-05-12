@@ -4,7 +4,7 @@ import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
 import { getSolanaRpcUrl } from "@/lib/subscription/solanaRpc";
 import {
-  getPlanDurationDays,
+  getPlanBillingSnapshot,
   insertMembershipEvent,
   markInvoicePaid,
   type PendingInvoiceRow,
@@ -93,15 +93,16 @@ export async function finalizeInvoiceFromTxSignature(input: {
     };
   }
 
-  const durationDays = await getPlanDurationDays(invoice.plan_id);
-  if (!durationDays || durationDays <= 0) {
+  const snap = await getPlanBillingSnapshot(invoice.plan_id);
+  if (!snap || snap.duration_days <= 0) {
     return { ok: false, error: "Plan misconfigured.", code: "plan_misconfigured" };
   }
 
   const subOk = await upsertSubscriptionAfterPayment({
     discordId: invoice.discord_id,
     planId: invoice.plan_id,
-    durationDays,
+    durationDays: snap.duration_days,
+    billingMonths: snap.billing_months,
     paymentChannel: "sol",
   });
   if (!subOk) {
@@ -126,7 +127,7 @@ export async function finalizeInvoiceFromTxSignature(input: {
   await recordReferralAccrualFromSolFinalize({
     referredUserId: invoice.discord_id,
     paymentInvoiceId: invoice.id,
-    refereePeriodDays: durationDays,
+    refereePeriodDays: snap.duration_days,
     amountSol: solPaid,
     solQuoteUsd: typeof invoice.sol_usd === "number" && Number.isFinite(invoice.sol_usd) ? invoice.sol_usd : null,
   });
@@ -194,15 +195,16 @@ export async function finalizeInvoiceFromReferenceIfPaid(input: {
     return { ok: false, reason: "db" };
   }
 
-  const durationDays = await getPlanDurationDays(invoice.plan_id);
-  if (!durationDays || durationDays <= 0) {
+  const snap = await getPlanBillingSnapshot(invoice.plan_id);
+  if (!snap || snap.duration_days <= 0) {
     return { ok: false, reason: "db", detail: "plan duration" };
   }
 
   const subOk = await upsertSubscriptionAfterPayment({
     discordId: invoice.discord_id,
     planId: invoice.plan_id,
-    durationDays,
+    durationDays: snap.duration_days,
+    billingMonths: snap.billing_months,
     paymentChannel: "sol",
   });
   if (!subOk) {
@@ -223,7 +225,7 @@ export async function finalizeInvoiceFromReferenceIfPaid(input: {
   await recordReferralAccrualFromSolFinalize({
     referredUserId: invoice.discord_id,
     paymentInvoiceId: invoice.id,
-    refereePeriodDays: durationDays,
+    refereePeriodDays: snap.duration_days,
     amountSol: solPaid,
     solQuoteUsd: typeof invoice.sol_usd === "number" && Number.isFinite(invoice.sol_usd) ? invoice.sol_usd : null,
   });

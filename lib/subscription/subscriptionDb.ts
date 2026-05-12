@@ -5,6 +5,9 @@ export type SubscriptionPlanRow = {
   id: string;
   slug: string;
   label: string;
+  /** Whole months for SOL / voucher / referral calendar extension. */
+  billing_months: number;
+  /** Kept as `billing_months * 30` for list-price-per-day display. */
   duration_days: number;
   price_usd: number;
   discount_percent?: number | null;
@@ -17,7 +20,7 @@ export async function listActivePlans(): Promise<SubscriptionPlanRow[]> {
   if (!db) return [];
   const { data, error } = await db
     .from("subscription_plans")
-    .select("id, slug, label, duration_days, price_usd, discount_percent, stripe_price_id")
+    .select("id, slug, label, billing_months, duration_days, price_usd, discount_percent, stripe_price_id")
     .eq("active", true)
     .order("sort_order", { ascending: true });
   if (error || !data) return [];
@@ -29,7 +32,7 @@ export async function getPlanBySlug(slug: string): Promise<SubscriptionPlanRow |
   if (!db) return null;
   const { data, error } = await db
     .from("subscription_plans")
-    .select("id, slug, label, duration_days, price_usd, discount_percent, stripe_price_id")
+    .select("id, slug, label, billing_months, duration_days, price_usd, discount_percent, stripe_price_id")
     .eq("slug", slug)
     .eq("active", true)
     .maybeSingle();
@@ -45,7 +48,7 @@ export async function getPlanById(planId: string): Promise<SubscriptionPlanRow |
   if (!db) return null;
   const { data, error } = await db
     .from("subscription_plans")
-    .select("id, slug, label, duration_days, price_usd, discount_percent, stripe_price_id")
+    .select("id, slug, label, billing_months, duration_days, price_usd, discount_percent, stripe_price_id")
     .eq("id", id)
     .maybeSingle();
   if (error || !data) return null;
@@ -241,26 +244,43 @@ export async function markInvoicePaid(input: {
   return Boolean(data?.id);
 }
 
-export async function getPlanDurationDays(planId: string): Promise<number | null> {
+export async function getPlanBillingSnapshot(planId: string): Promise<{
+  duration_days: number;
+  billing_months: number;
+} | null> {
+  const id = planId.trim();
+  if (!id) return null;
   const db = getSupabaseAdmin();
   if (!db) return null;
   const { data, error } = await db
     .from("subscription_plans")
-    .select("duration_days")
-    .eq("id", planId)
+    .select("duration_days, billing_months")
+    .eq("id", id)
     .maybeSingle();
-  if (error || !data?.duration_days) return null;
-  return Number(data.duration_days);
+  if (error || !data) return null;
+  const row = data as { duration_days?: unknown; billing_months?: unknown };
+  const dd = Number(row.duration_days);
+  const bm = Number(row.billing_months);
+  if (!Number.isFinite(dd) || dd <= 0) return null;
+  const billing_months = Number.isFinite(bm) && bm >= 1 ? Math.floor(bm) : Math.max(1, Math.round(dd / 30));
+  return { duration_days: dd, billing_months };
+}
+
+/** Display / referral-day accounting: synced list anchor (`billing_months * 30` when maintained by admin). */
+export async function getPlanDurationDays(planId: string): Promise<number | null> {
+  const snap = await getPlanBillingSnapshot(planId);
+  return snap?.duration_days ?? null;
 }
 
 /**
- * Sets `current_period_end` from `duration_days`: calendar months when ≥ 28 days (Stripe-like),
- * otherwise literal day extension (short voucher overrides).
+ * Sets `current_period_end`: under 28 days = literal day add; otherwise calendar months
+ * (uses `billingMonths` when provided, else infers from `durationDays`).
  */
 export async function upsertSubscriptionAfterPayment(input: {
   discordId: string;
   planId: string;
   durationDays: number;
+  billingMonths?: number | null;
   paymentChannel?: "stripe" | "sol";
 }): Promise<boolean> {
   const db = getSupabaseAdmin();
@@ -277,7 +297,7 @@ export async function upsertSubscriptionAfterPayment(input: {
     existing?.current_period_end && new Date(String(existing.current_period_end)).getTime() > now
       ? new Date(String(existing.current_period_end))
       : new Date();
-  const end = computeSubscriptionPeriodEnd(base, input.durationDays);
+  const end = computeSubscriptionPeriodEnd(base, input.durationDays, input.billingMonths ?? null);
 
   const channel = input.paymentChannel ?? "stripe";
   const { error } = await db.from("subscriptions").upsert(
@@ -299,13 +319,12 @@ export async function upsertSubscriptionAfterPayment(input: {
 }
 
 /**
- * Extend an existing subscription from `duration_days` (plan-shaped): **calendar months** when ≥ 28 days;
- * shorter values add literal days (voucher overrides). Creates a row if none exists.
- * Does not change the user's plan_id (unless it must create the row).
+ * Extend subscription end: same rules as {@link upsertSubscriptionAfterPayment} (`days` + optional `billingMonths`).
  */
 export async function extendSubscriptionDays(input: {
   discordId: string;
   days: number;
+  billingMonths?: number | null;
   fallbackPlanId?: string | null;
 }): Promise<boolean> {
   const db = getSupabaseAdmin();
@@ -332,7 +351,7 @@ export async function extendSubscriptionDays(input: {
     existing?.current_period_end && new Date(String(existing.current_period_end)).getTime() > now
       ? new Date(String(existing.current_period_end))
       : new Date();
-  const end = computeSubscriptionPeriodEnd(base, days);
+  const end = computeSubscriptionPeriodEnd(base, days, input.billingMonths ?? null);
 
   const planId =
     typeof existing?.plan_id === "string" && existing.plan_id.trim()

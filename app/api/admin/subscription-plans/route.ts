@@ -8,6 +8,7 @@ type PlanRow = {
   id: string;
   slug: string;
   label: string;
+  billing_months: number;
   duration_days: number;
   price_usd: number;
   discount_percent: number;
@@ -18,7 +19,7 @@ type PlanRow = {
 };
 
 const SELECT_PLAN =
-  "id, slug, label, duration_days, price_usd, discount_percent, sort_order, active, created_at, stripe_price_id";
+  "id, slug, label, billing_months, duration_days, price_usd, discount_percent, sort_order, active, created_at, stripe_price_id";
 
 function normalizeSlug(raw: unknown): string | null {
   const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
@@ -106,11 +107,12 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Label is required." }, { status: 400 });
   }
 
-  const durationDays = clampInt(body.durationDays ?? body.duration_days, 1, 3650);
-  if (durationDays == null) {
-    return Response.json({ ok: false, error: "Invalid durationDays." }, { status: 400 });
+  const billingMonths = clampInt(body.billingMonths ?? body.billing_months, 1, 120);
+  if (billingMonths == null) {
+    return Response.json({ ok: false, error: "Invalid billingMonths (1–120)." }, { status: 400 });
   }
 
+  const durationDays = billingMonths * 30;
   const priceUsd = clampMoney(body.priceUsd ?? body.price_usd);
   if (priceUsd == null) {
     return Response.json({ ok: false, error: "Invalid priceUsd." }, { status: 400 });
@@ -146,6 +148,7 @@ export async function POST(req: Request) {
     .insert({
       slug,
       label: label.slice(0, 80),
+      billing_months: billingMonths,
       duration_days: durationDays,
       price_usd: priceUsd,
       discount_percent: discountPercent,
@@ -213,13 +216,20 @@ export async function PATCH(req: Request) {
     patch.label = label.slice(0, 80);
   }
 
-  if ("duration_days" in o || "durationDays" in o) {
+  const billingMonthsTouched = "billing_months" in o || "billingMonths" in o;
+  if (billingMonthsTouched) {
+    const v = "billingMonths" in o ? o.billingMonths : o.billing_months;
+    const n = clampInt(v, 1, 120);
+    if (n == null) return Response.json({ ok: false, error: "Invalid billingMonths." }, { status: 400 });
+    patch.billing_months = n;
+    patch.duration_days = n * 30;
+  } else if ("duration_days" in o || "durationDays" in o) {
     const v = "durationDays" in o ? o.durationDays : o.duration_days;
     const n = clampInt(v, 1, 3650);
     if (n == null) return Response.json({ ok: false, error: "Invalid durationDays." }, { status: 400 });
     patch.duration_days = n;
+    patch.billing_months = Math.max(1, Math.min(120, Math.round(n / 30)));
   }
-
   if ("price_usd" in o || "priceUsd" in o) {
     const v = "priceUsd" in o ? o.priceUsd : o.price_usd;
     const n = clampMoney(v);

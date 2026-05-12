@@ -43,6 +43,7 @@ export async function GET() {
     return {
       slug: p.slug,
       label: p.label,
+      billingMonths: Math.max(1, Math.floor(Number(p.billing_months) || 1)),
       durationDays: p.duration_days,
       priceUsd,
       listPriceUsd,

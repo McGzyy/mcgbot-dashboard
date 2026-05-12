@@ -21,13 +21,14 @@ type Plan = {
   listPriceUsd?: number;
   discountPercent?: number;
   durationDays: number;
+  billingMonths: number;
 };
 
 type CheckoutVoucherOk = {
   success: true;
   activated: true;
   via: "voucher";
-  plan: { slug: string; label: string; priceUsd: number; durationDays: number };
+  plan: { slug: string; label: string; priceUsd: number; durationDays: number; billingMonths?: number };
   voucher?: { percentOff?: number } | null;
 };
 
@@ -55,11 +56,14 @@ function resolveDiscordInviteUrl(siteFlags: SiteFlags | null): string {
   return fromSite || DISCORD_SERVER_INVITE_URL;
 }
 
-function billingCadenceLabel(durationDays: number): string {
+function billingCadenceLabel(billingMonths: number, durationDays: number): string {
+  const m = Math.max(0, Math.floor(Number(billingMonths) || 0));
+  if (m === 1) return "Billed every month";
+  if (m === 3) return "Billed every 3 months";
+  if (m === 6) return "Billed every 6 months";
+  if (m === 12) return "Billed once per year";
+  if (m > 1) return `Billed every ${m} months`;
   const d = Math.floor(Number(durationDays));
-  if (d === 30) return "Billed every month";
-  if (d === 90) return "Billed every 3 months";
-  if (d === 365) return "Billed once per year";
   if (d > 0) return `Renews on a ${d}-day cycle`;
   return "Recurring in Stripe";
 }
@@ -354,7 +358,24 @@ export default function MembershipPage() {
           setPlans([]);
           return;
         }
-        setPlans(json.plans);
+        const normalized: Plan[] = json.plans!.map((raw) => {
+          const durationDays = Math.max(1, Math.floor(Number(raw.durationDays) || 0));
+          const billingMonthsRaw = Number((raw as { billingMonths?: unknown }).billingMonths);
+          const billingMonths =
+            Number.isFinite(billingMonthsRaw) && billingMonthsRaw >= 1
+              ? Math.floor(billingMonthsRaw)
+              : Math.max(1, Math.round(durationDays / 30));
+          return {
+            slug: raw.slug,
+            label: raw.label,
+            priceUsd: raw.priceUsd,
+            listPriceUsd: raw.listPriceUsd,
+            discountPercent: raw.discountPercent,
+            durationDays,
+            billingMonths,
+          };
+        });
+        setPlans(normalized);
         setPlansError(null);
         setSelectedSlug((prev) => prev || (json.plans!.length ? json.plans![0]!.slug : ""));
       } catch {
@@ -947,7 +968,7 @@ export default function MembershipPage() {
                         <div className="min-w-0 pr-1">
                           <span className="block text-base font-semibold tracking-tight text-white">{p.label}</span>
                           <span className="mt-1.5 block text-[11px] leading-snug text-zinc-500">
-                            {billingCadenceLabel(p.durationDays)}
+                            {billingCadenceLabel(p.billingMonths, p.durationDays)}
                             {showDiscount ? ` · ${discountPercent}% off vs list` : ""}
                           </span>
                         </div>

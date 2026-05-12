@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import {
   expireStaleInvoices,
-  getPlanDurationDays,
+  getPlanBillingSnapshot,
   listDiscordIdsWithRecentlyEndedSubscriptions,
   listPendingInvoices,
   markInvoicePaid,
@@ -119,18 +119,19 @@ async function runReconcile(): Promise<Response> {
         });
         if (!paid) continue;
 
-        const days = await getPlanDurationDays(inv.plan_id);
-        if (days != null && days > 0) {
+        const snap = await getPlanBillingSnapshot(inv.plan_id);
+        if (snap != null && snap.duration_days > 0) {
           await upsertSubscriptionAfterPayment({
             discordId: inv.discord_id,
             planId: inv.plan_id,
-            durationDays: days,
+            durationDays: snap.duration_days,
+            billingMonths: snap.billing_months,
           });
           await syncPremiumDiscordRoleAfterSubscriptionChange(inv.discord_id);
           await recordPendingReferralEventForPaidInvoice({
             referredUserId: inv.discord_id,
             invoiceId: inv.id,
-            refereePeriodDays: days,
+            refereePeriodDays: snap.duration_days,
             source: "reconcile-subscriptions",
           });
         }

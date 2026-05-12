@@ -41,13 +41,20 @@ export function addCalendarMonthsUtc(base: Date, months: number): Date {
 }
 
 /**
- * Stripe-like for normal plans: `duration_days` ≥ 28 → extend by that many **calendar months**
- * (from {@link planDurationDaysToBillingMonths}). Shorter values → fixed **day** extension (vouchers / trials).
+ * Stripe-like: short grants (under 28 days) extend by literal days. Otherwise extend by **calendar months**
+ * (`billingMonths` when set, else {@link planDurationDaysToBillingMonths} from `duration_days`).
  */
-export function computeSubscriptionPeriodEnd(base: Date, durationDays: number): Date {
+export function computeSubscriptionPeriodEnd(
+  base: Date,
+  durationDays: number,
+  billingMonths?: number | null
+): Date {
   const d = Math.max(1, Math.floor(Number(durationDays) || 0));
   if (d < 28) {
     return new Date(base.getTime() + d * DAY_MS);
   }
-  return addCalendarMonthsUtc(base, planDurationDaysToBillingMonths(d));
+  const bmRaw = billingMonths != null && Number.isFinite(Number(billingMonths)) ? Number(billingMonths) : null;
+  const months =
+    bmRaw != null && bmRaw >= 1 ? Math.floor(bmRaw) : planDurationDaysToBillingMonths(d);
+  return addCalendarMonthsUtc(base, months);
 }
