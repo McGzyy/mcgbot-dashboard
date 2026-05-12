@@ -5,12 +5,20 @@ import { createPortal } from "react-dom";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { adminChrome } from "@/lib/roleTierStyles";
+import {
+  SOCIAL_FEED_CATEGORY_OPTIONS,
+  formatSocialFeedCategoryLabel,
+  parseSocialFeedCategorySlug,
+  type SocialFeedCategorySlug,
+} from "@/lib/socialFeedCategories";
 
 type SubmissionRow = {
   id: string;
   platform: "x" | "instagram";
   handle: string;
   display_name: string | null;
+  category?: string;
+  category_other?: string | null;
   status: "pending" | "approved" | "denied";
   submitted_at: string;
   submitted_by_discord_id: string;
@@ -24,6 +32,8 @@ type SourceRow = {
   platform: "x" | "instagram";
   handle: string;
   displayName: string | null;
+  category: SocialFeedCategorySlug;
+  categoryOther: string | null;
   active: boolean;
   createdAt: string | null;
   createdByDiscordId: string | null;
@@ -59,6 +69,8 @@ export function SocialFeedAdminClient() {
   const [editPlatform, setEditPlatform] = useState<"x" | "instagram">("x");
   const [editHandle, setEditHandle] = useState("");
   const [editDisplayName, setEditDisplayName] = useState("");
+  const [editCategorySlug, setEditCategorySlug] = useState<SocialFeedCategorySlug>("kol");
+  const [editCategoryOther, setEditCategoryOther] = useState("");
   const [editBusy, setEditBusy] = useState(false);
   const [editErr, setEditErr] = useState<string | null>(null);
 
@@ -186,6 +198,8 @@ export function SocialFeedAdminClient() {
     setEditPlatform(s.platform);
     setEditHandle(s.handle.startsWith("@") ? s.handle : `@${s.handle}`);
     setEditDisplayName(s.displayName ?? "");
+    setEditCategorySlug(parseSocialFeedCategorySlug(s.category) ?? "kol");
+    setEditCategoryOther(s.categoryOther ?? "");
   }, []);
 
   const closeEdit = useCallback(() => {
@@ -239,6 +253,9 @@ export function SocialFeedAdminClient() {
           platform: editPlatform,
           handle: editHandle,
           displayName: editDisplayName.trim() || null,
+          categorySlug: editCategorySlug,
+          categoryOther:
+            editCategorySlug === "other" ? editCategoryOther.trim() || null : null,
         }),
       });
       const json = (await res.json().catch(() => null)) as any;
@@ -253,7 +270,7 @@ export function SocialFeedAdminClient() {
     } finally {
       setEditBusy(false);
     }
-  }, [editDisplayName, editHandle, editPlatform, editSource, loadSources]);
+  }, [editCategoryOther, editCategorySlug, editDisplayName, editHandle, editPlatform, editSource, loadSources]);
 
   return (
     <div className="space-y-6" data-tutorial="admin.socialFeed">
@@ -308,7 +325,13 @@ export function SocialFeedAdminClient() {
                         <span className="text-xs text-zinc-500">{r.display_name}</span>
                       ) : null}
                     </div>
-                    <p className="mt-1 text-xs text-zinc-600">
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Category:{" "}
+                      <span className="text-zinc-300">
+                        {formatSocialFeedCategoryLabel(r.category ?? "other", r.category_other ?? null)}
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-zinc-600">
                       Submitted by <span className="font-mono">{r.submitted_by_discord_id}</span> ·{" "}
                       {new Date(r.submitted_at).toLocaleString()}
                     </p>
@@ -387,13 +410,14 @@ export function SocialFeedAdminClient() {
           <p className="mt-4 text-sm text-zinc-500">No sources in this view.</p>
         ) : (
           <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-800/70">
-            <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-800/80 bg-black/30 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                   <th className="px-3 py-2.5">Status</th>
                   <th className="px-3 py-2.5">Platform</th>
                   <th className="px-3 py-2.5">Handle</th>
                   <th className="px-3 py-2.5">Display name</th>
+                  <th className="px-3 py-2.5">Category</th>
                   <th className="px-3 py-2.5">Created</th>
                   <th className="px-3 py-2.5 text-right">Actions</th>
                 </tr>
@@ -412,6 +436,9 @@ export function SocialFeedAdminClient() {
                     <td className="px-3 py-2.5 font-mono text-xs text-zinc-200">@{s.handle.replace(/^@/, "")}</td>
                     <td className="max-w-[200px] truncate px-3 py-2.5 text-zinc-400" title={s.displayName ?? ""}>
                       {s.displayName ?? "—"}
+                    </td>
+                    <td className="max-w-[180px] truncate px-3 py-2.5 text-xs text-zinc-400" title={formatSocialFeedCategoryLabel(s.category, s.categoryOther)}>
+                      {formatSocialFeedCategoryLabel(s.category, s.categoryOther)}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-xs text-zinc-500">
                       {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : "—"}
@@ -486,7 +513,7 @@ export function SocialFeedAdminClient() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-white">Edit source</p>
-                    <p className="mt-0.5 text-xs text-zinc-500">Platform, handle, and display name.</p>
+                    <p className="mt-0.5 text-xs text-zinc-500">Platform, handle, category, and display name.</p>
                   </div>
                   <button
                     type="button"
@@ -532,6 +559,34 @@ export function SocialFeedAdminClient() {
                       className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
                     />
                   </label>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Category
+                    <select
+                      value={editCategorySlug}
+                      onChange={(e) =>
+                        setEditCategorySlug(e.target.value as SocialFeedCategorySlug)
+                      }
+                      disabled={editBusy}
+                      className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/30 px-3 py-2 text-sm text-white focus:border-zinc-500 focus:outline-none"
+                    >
+                      {SOCIAL_FEED_CATEGORY_OPTIONS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {editCategorySlug === "other" ? (
+                    <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      Describe “other”
+                      <input
+                        value={editCategoryOther}
+                        onChange={(e) => setEditCategoryOther(e.target.value)}
+                        disabled={editBusy}
+                        className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/30 px-3 py-2 text-sm text-white focus:border-zinc-500 focus:outline-none"
+                      />
+                    </label>
+                  ) : null}
                 </div>
 
                 <div className="mt-5 flex justify-end gap-2 border-t border-zinc-800/80 pt-4">
@@ -546,7 +601,11 @@ export function SocialFeedAdminClient() {
                   <button
                     type="button"
                     onClick={() => void saveEdit()}
-                    disabled={editBusy || !editHandle.trim()}
+                    disabled={
+                      editBusy ||
+                      !editHandle.trim() ||
+                      (editCategorySlug === "other" && editCategoryOther.trim().length < 2)
+                    }
                     className="rounded-lg border border-emerald-500/40 bg-emerald-950/25 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-950/40 disabled:opacity-50"
                   >
                     {editBusy ? "Saving…" : "Save"}

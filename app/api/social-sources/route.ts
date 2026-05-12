@@ -1,6 +1,11 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
+import {
+  normalizeCategoryOther,
+  parseSocialFeedCategorySlug,
+  type SocialFeedCategorySlug,
+} from "@/lib/socialFeedCategories";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 type SocialPlatform = "x" | "instagram";
@@ -23,14 +28,29 @@ function normalizeDisplayName(raw: unknown): string | null {
   return s ? s.slice(0, 80) : null;
 }
 
-function normalizeCategory(raw: unknown): string | null {
-  const s = typeof raw === "string" ? raw.trim() : "";
-  return s ? s.slice(0, 80) : null;
-}
-
 function normalizeRationale(raw: unknown): string | null {
   const s = typeof raw === "string" ? raw.trim() : "";
   return s ? s.slice(0, 2000) : null;
+}
+
+/** Parses `category` / `categorySlug` + optional `categoryOther`. Returns Response on validation error. */
+function parseCategoryFields(o: Record<string, unknown>): { slug: SocialFeedCategorySlug; other: string | null } | Response {
+  const slug =
+    parseSocialFeedCategorySlug(o.categorySlug ?? o.category_slug ?? o.category) ?? null;
+  if (!slug) {
+    return Response.json({ success: false, error: "Choose a category" }, { status: 400 });
+  }
+  const other = normalizeCategoryOther(o.categoryOther ?? o.category_other);
+  if (slug === "other") {
+    if (!other || other.length < 2) {
+      return Response.json(
+        { success: false, error: "Please describe “Other” in a few words" },
+        { status: 400 }
+      );
+    }
+    return { slug, other };
+  }
+  return { slug, other: null };
 }
 
 function dbOr503() {
@@ -51,7 +71,7 @@ export async function GET() {
 
   const { data, error } = await db
     .from("social_feed_sources")
-    .select("id, platform, handle, display_name, active, created_at")
+    .select("id, platform, handle, display_name, active, created_at, category, category_other")
     .eq("active", true)
     .order("created_at", { ascending: false })
     .limit(250);
@@ -72,6 +92,8 @@ export async function GET() {
       platform: r.platform === "instagram" ? "instagram" : "x",
       handle: String(r.handle ?? ""),
       displayName: typeof r.display_name === "string" ? r.display_name : null,
+      category: parseSocialFeedCategorySlug(r.category) ?? "other",
+      categoryOther: typeof r.category_other === "string" ? r.category_other : null,
       createdAt: r.created_at ?? null,
     })),
   });
@@ -106,8 +128,11 @@ export async function POST(request: Request) {
   const displayName = normalizeDisplayName(
     o.displayName ?? o.display_name ?? o.sourceName ?? o.source_name
   );
-  const category = normalizeCategory(o.category);
   const rationale = normalizeRationale(o.rationale ?? o.reason);
+
+  const cat = parseCategoryFields(o);
+  if (cat instanceof Response) return cat;
+  const { slug: categorySlug, other: categoryOther } = cat;
 
   if (!platform || !handle) {
     return Response.json(
@@ -140,6 +165,8 @@ export async function POST(request: Request) {
           handle,
           display_name: displayName,
           active: true,
+          category: categorySlug,
+          category_other: categoryOther,
         })
         .eq("id", (existing as any).id);
       if (updErr) {
@@ -153,6 +180,8 @@ export async function POST(request: Request) {
         display_name: displayName,
         created_by_discord_id: userId,
         active: true,
+        category: categorySlug,
+        category_other: categoryOther,
       });
       if (error) {
         console.error("[social-sources] POST admin insert:", error);
@@ -182,7 +211,8 @@ export async function POST(request: Request) {
     platform,
     handle,
     display_name: displayName,
-    category,
+    category: categorySlug,
+    category_other: categoryOther,
     rationale,
     status: "pending",
     submitted_by_discord_id: userId,
@@ -241,4 +271,3 @@ export async function DELETE(request: Request) {
 
   return Response.json({ success: true });
 }
-

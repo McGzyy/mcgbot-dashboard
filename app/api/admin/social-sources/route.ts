@@ -1,4 +1,8 @@
 import { requireDashboardAdmin } from "@/lib/adminGate";
+import {
+  normalizeCategoryOther,
+  parseSocialFeedCategorySlug,
+} from "@/lib/socialFeedCategories";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -45,7 +49,9 @@ export async function GET(request: Request) {
 
   let q = db
     .from("social_feed_sources")
-    .select("id, platform, handle, display_name, active, created_at, created_by_discord_id, last_seen_post_at")
+    .select(
+      "id, platform, handle, display_name, active, created_at, created_by_discord_id, last_seen_post_at, category, category_other"
+    )
     .order("active", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(500);
@@ -70,6 +76,8 @@ export async function GET(request: Request) {
       handle: String(r.handle ?? ""),
       displayName: typeof r.display_name === "string" ? r.display_name : null,
       active: r.active === true,
+      category: parseSocialFeedCategorySlug(r.category) ?? "other",
+      categoryOther: typeof r.category_other === "string" ? r.category_other : null,
       createdAt: r.created_at ?? null,
       createdByDiscordId:
         typeof r.created_by_discord_id === "string" ? r.created_by_discord_id : null,
@@ -100,7 +108,7 @@ export async function PATCH(request: Request) {
 
   const { data: row, error: loadErr } = await db
     .from("social_feed_sources")
-    .select("id, platform, handle, display_name, active")
+    .select("id, platform, handle, display_name, active, category, category_other")
     .eq("id", id)
     .maybeSingle();
 
@@ -157,6 +165,28 @@ export async function PATCH(request: Request) {
     }
     updates.platform = platformNext;
     updates.handle = handleNext;
+  }
+
+  if ("category" in o || "categorySlug" in o || "categoryOther" in o || "category_other" in o) {
+    const slug =
+      parseSocialFeedCategorySlug(o.categorySlug ?? o.category ?? cur.category) ?? null;
+    if (!slug) {
+      return Response.json({ success: false, error: "Invalid category" }, { status: 400 });
+    }
+    const other = normalizeCategoryOther(o.categoryOther ?? o.category_other);
+    if (slug === "other") {
+      if (!other || other.length < 2) {
+        return Response.json(
+          { success: false, error: "Describe “Other” in a few words" },
+          { status: 400 }
+        );
+      }
+      updates.category = slug;
+      updates.category_other = other;
+    } else {
+      updates.category = slug;
+      updates.category_other = null;
+    }
   }
 
   if (Object.keys(updates).length === 0) {

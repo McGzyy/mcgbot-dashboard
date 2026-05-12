@@ -42,6 +42,11 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { terminalChrome, terminalPage, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
+import {
+  SOCIAL_FEED_CATEGORY_OPTIONS,
+  formatSocialFeedCategoryLabel,
+  type SocialFeedCategorySlug,
+} from "@/lib/socialFeedCategories";
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
@@ -633,6 +638,8 @@ type SocialPlatform = "x" | "instagram";
 type SocialFeedItem = {
   id: string;
   platform: SocialPlatform;
+  categorySlug: SocialFeedCategorySlug;
+  categoryOther?: string | null;
   authorName: string;
   authorHandle: string;
   postedAtLabel: string;
@@ -646,7 +653,15 @@ function socialPlatformPillClasses(p: SocialPlatform): string {
     : "border-fuchsia-500/25 bg-fuchsia-500/10 text-fuchsia-200";
 }
 
-const SOCIAL_FEED_MOCK: SocialFeedItem[] = [
+const SOCIAL_FEED_RAW: Array<{
+  id: string;
+  platform: SocialPlatform;
+  authorName: string;
+  authorHandle: string;
+  postedAtLabel: string;
+  text: string;
+  metricLabel?: string;
+}> = [
   {
     id: "x-1",
     platform: "x",
@@ -811,21 +826,33 @@ const SOCIAL_FEED_MOCK: SocialFeedItem[] = [
   },
 ];
 
+const SOCIAL_FEED_CATEGORY_ROTATE = SOCIAL_FEED_CATEGORY_OPTIONS.map((o) => o.id);
+
+const SOCIAL_FEED_MOCK: SocialFeedItem[] = SOCIAL_FEED_RAW.map((row, i) => {
+  const slug = SOCIAL_FEED_CATEGORY_ROTATE[i % SOCIAL_FEED_CATEGORY_ROTATE.length]!;
+  return {
+    ...row,
+    categorySlug: slug,
+    categoryOther: slug === "other" ? "Curated highlight" : null,
+  };
+});
+
 const SOCIAL_AUTHOR_POOL: Array<{
   platform: SocialPlatform;
   authorName: string;
   authorHandle: string;
+  categorySlug: SocialFeedCategorySlug;
 }> = [
-  { platform: "x", authorName: "Onchain Radar", authorHandle: "@onchainradar" },
-  { platform: "x", authorName: "Dex Pulse", authorHandle: "@dexpulse" },
-  { platform: "x", authorName: "Liquidity Lens", authorHandle: "@liq_lens" },
-  { platform: "x", authorName: "Tape Reader", authorHandle: "@tapereader" },
-  { platform: "x", authorName: "Whale Watch", authorHandle: "@whalewatch" },
-  { platform: "instagram", authorName: "Market Narratives", authorHandle: "@marketnarratives" },
-  { platform: "instagram", authorName: "Chart Room", authorHandle: "@chartroom" },
-  { platform: "instagram", authorName: "Volume Lab", authorHandle: "@volumelab" },
-  { platform: "instagram", authorName: "Risk First", authorHandle: "@riskfirst" },
-  { platform: "instagram", authorName: "Alpha Board", authorHandle: "@alphaboard" },
+  { platform: "x", authorName: "Onchain Radar", authorHandle: "@onchainradar", categorySlug: "news" },
+  { platform: "x", authorName: "Dex Pulse", authorHandle: "@dexpulse", categorySlug: "trader" },
+  { platform: "x", authorName: "Liquidity Lens", authorHandle: "@liq_lens", categorySlug: "protocol" },
+  { platform: "x", authorName: "Tape Reader", authorHandle: "@tapereader", categorySlug: "kol" },
+  { platform: "x", authorName: "Whale Watch", authorHandle: "@whalewatch", categorySlug: "media" },
+  { platform: "instagram", authorName: "Market Narratives", authorHandle: "@marketnarratives", categorySlug: "news" },
+  { platform: "instagram", authorName: "Chart Room", authorHandle: "@chartroom", categorySlug: "trader" },
+  { platform: "instagram", authorName: "Volume Lab", authorHandle: "@volumelab", categorySlug: "media" },
+  { platform: "instagram", authorName: "Risk First", authorHandle: "@riskfirst", categorySlug: "kol" },
+  { platform: "instagram", authorName: "Alpha Board", authorHandle: "@alphaboard", categorySlug: "protocol" },
 ];
 
 const SOCIAL_TEXT_POOL: string[] = [
@@ -854,6 +881,8 @@ function makeNewSocialPost(forcePlatform?: SocialPlatform): SocialFeedItem {
   return {
     id: `mock-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     platform: author.platform,
+    categorySlug: author.categorySlug,
+    categoryOther: author.categorySlug === "other" ? "Live sample" : null,
     authorName: author.authorName,
     authorHandle: author.authorHandle,
     postedAtLabel: "now",
@@ -2413,7 +2442,7 @@ function SocialsFeedPanel() {
 
   const rows = useMemo(() => {
     if (tab === "all") return items;
-    return items.filter((r) => r.platform === tab);
+    return items.filter((r) => r.categorySlug === tab);
   }, [items, tab]);
 
   const renderFeedList = (compact: boolean) => {
@@ -2448,6 +2477,9 @@ function SocialsFeedPanel() {
                       >
                         {item.platform === "x" ? "X" : "IG"}
                       </span>
+                      <span className="inline-flex max-w-[10rem] truncate rounded-full border border-zinc-600/40 bg-zinc-900/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                        {formatSocialFeedCategoryLabel(item.categorySlug, item.categoryOther)}
+                      </span>
                       <span className="truncate text-sm font-semibold text-zinc-100">
                         {item.authorName}
                       </span>
@@ -2476,7 +2508,7 @@ function SocialsFeedPanel() {
     <>
       <PanelCard title="Social Feed" titleClassName="normal-case">
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
+          <div className="flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
             <button
               type="button"
               onClick={() => setTab("all")}
@@ -2488,28 +2520,31 @@ function SocialsFeedPanel() {
             >
               All
             </button>
-            <button
-              type="button"
-              onClick={() => setTab("x")}
-              className={`rounded-md px-2 py-1 text-xs transition-all ${
-                tab === "x"
-                  ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
-                  : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
-              }`}
-            >
-              X
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("instagram")}
-              className={`rounded-md px-2 py-1 text-xs transition-all ${
-                tab === "instagram"
-                  ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
-                  : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
-              }`}
-            >
-              Instagram
-            </button>
+            {SOCIAL_FEED_CATEGORY_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setTab(opt.id)}
+                className={`max-w-[7.5rem] truncate rounded-md px-2 py-1 text-xs transition-all ${
+                  tab === opt.id
+                    ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
+                    : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
+                }`}
+                title={opt.label}
+              >
+                {opt.id === "kol"
+                  ? "KOL"
+                  : opt.id === "protocol"
+                    ? "Protocol"
+                    : opt.id === "news"
+                      ? "News"
+                      : opt.id === "trader"
+                        ? "Trader"
+                        : opt.id === "media"
+                          ? "Media"
+                          : "Other"}
+              </button>
+            ))}
           </div>
           <div className="flex items-center gap-2">
             <div className="text-[11px] text-zinc-500">
@@ -2592,19 +2627,41 @@ function SocialsFeedPanel() {
                     <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
                       Filter
                     </span>
-                    <div className="flex items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
-                      {(["all", "x", "instagram"] as const).map((key) => (
+                    <div className="flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setTab("all")}
+                        className={`rounded-md px-2.5 py-1 text-xs transition-all ${
+                          tab === "all"
+                            ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
+                            : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
+                        }`}
+                      >
+                        All
+                      </button>
+                      {SOCIAL_FEED_CATEGORY_OPTIONS.map((opt) => (
                         <button
-                          key={key}
+                          key={opt.id}
                           type="button"
-                          onClick={() => setTab(key)}
-                          className={`rounded-md px-2.5 py-1 text-xs transition-all ${
-                            tab === key
+                          onClick={() => setTab(opt.id)}
+                          className={`max-w-[8rem] truncate rounded-md px-2.5 py-1 text-xs transition-all ${
+                            tab === opt.id
                               ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
                               : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
                           }`}
+                          title={opt.label}
                         >
-                          {key === "all" ? "All" : key === "x" ? "X" : "Instagram"}
+                          {opt.id === "kol"
+                            ? "KOL"
+                            : opt.id === "protocol"
+                              ? "Protocol"
+                              : opt.id === "news"
+                                ? "News"
+                                : opt.id === "trader"
+                                  ? "Trader"
+                                  : opt.id === "media"
+                                    ? "Media"
+                                    : "Other"}
                         </button>
                       ))}
                     </div>
@@ -2681,14 +2738,33 @@ function SocialsFeedPanel() {
 
                   <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                     Category
-                    <input
-                      value={submitCategory}
-                      onChange={(e) => setSubmitCategory(e.target.value)}
+                    <select
+                      value={submitCategorySlug}
+                      onChange={(e) =>
+                        setSubmitCategorySlug(e.target.value as SocialFeedCategorySlug)
+                      }
                       disabled={submitBusy}
-                      placeholder="e.g. KOL, protocol, news"
                       className={`${terminalUi.formInput} mt-1`}
-                    />
+                    >
+                      {SOCIAL_FEED_CATEGORY_OPTIONS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
                   </label>
+                  {submitCategorySlug === "other" ? (
+                    <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      Describe “other”
+                      <input
+                        value={submitCategoryOther}
+                        onChange={(e) => setSubmitCategoryOther(e.target.value)}
+                        disabled={submitBusy}
+                        placeholder="e.g. Ecosystem fund, regional desk"
+                        className={`${terminalUi.formInput} mt-1`}
+                      />
+                    </label>
+                  ) : null}
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
@@ -2742,7 +2818,7 @@ function SocialsFeedPanel() {
                         submitBusy ||
                         !submitHandle.trim() ||
                         !submitSourceName.trim() ||
-                        !submitCategory.trim() ||
+                        (submitCategorySlug === "other" && submitCategoryOther.trim().length < 2) ||
                         submitRationale.trim().length < 8
                       }
                       onClick={() => {
@@ -2760,7 +2836,11 @@ function SocialsFeedPanel() {
                                 platform: submitPlatform,
                                 handle: submitHandle,
                                 displayName: submitSourceName,
-                                category: submitCategory,
+                                categorySlug: submitCategorySlug,
+                                categoryOther:
+                                  submitCategorySlug === "other"
+                                    ? submitCategoryOther.trim()
+                                    : null,
                                 rationale: submitRationale,
                               }),
                             });
@@ -2792,7 +2872,8 @@ function SocialsFeedPanel() {
                             }
                             setSubmitHandle("");
                             setSubmitSourceName("");
-                            setSubmitCategory("");
+                            setSubmitCategorySlug("kol");
+                            setSubmitCategoryOther("");
                             setSubmitRationale("");
                           } catch {
                             setSubmitErr("Request failed.");

@@ -1,4 +1,5 @@
 import { requireDashboardAdmin } from "@/lib/adminGate";
+import { parseSocialFeedCategorySlug } from "@/lib/socialFeedCategories";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -120,6 +121,8 @@ export async function PATCH(request: Request) {
         display_name,
         created_by_discord_id: gate.discordId,
         active: true,
+        category,
+        category_other,
       });
       if (insErr) {
         console.error("[admin social submissions] approve insert source:", insErr);
