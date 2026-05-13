@@ -29,7 +29,7 @@ export function PanelCard({
   return (
     <div
       data-tutorial={dataTutorial}
-      className={`rounded-xl border ${paddingClassName} backdrop-blur-sm ${surface} ${CARD_HOVER} ${className}`}
+      className={`min-w-0 max-w-full rounded-xl border ${paddingClassName} backdrop-blur-sm ${surface} ${CARD_HOVER} ${className}`}
     >
       <div className="flex items-start justify-between gap-3">
         <h2

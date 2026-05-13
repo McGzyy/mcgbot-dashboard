@@ -50,7 +50,7 @@ export const terminalPage = {
   denseInsetRow:
     "rounded-lg border border-zinc-800/90 bg-zinc-900/20 px-3 py-2 transition-colors hover:bg-zinc-900/35",
   denseInsetRowButton:
-    "group flex w-full items-center justify-between gap-3 rounded-lg border border-zinc-800/90 bg-zinc-900/20 px-3 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25",
+    "group flex min-w-0 w-full items-center justify-between gap-2 rounded-lg border border-zinc-800/90 bg-zinc-900/20 px-2 py-2 text-left transition-colors hover:bg-zinc-900/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25 sm:gap-3 sm:px-3",
 } as const;
 
 /** Flyouts, menus, modals, and form controls that should match TopBar / PanelCard chrome. */

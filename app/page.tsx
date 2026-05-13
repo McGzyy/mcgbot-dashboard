@@ -1713,7 +1713,12 @@ function TrendingPanel() {
     }`;
 
   return (
-    <PanelCard title="Trending Tokens" titleClassName="normal-case" data-tutorial="dashboard.trending">
+    <PanelCard
+      title="Trending Tokens"
+      titleClassName="normal-case"
+      data-tutorial="dashboard.trending"
+      className="min-w-0 max-w-full"
+    >
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
@@ -1745,7 +1750,7 @@ function TrendingPanel() {
           </p>
         </div>
 
-        <div className="text-[11px] text-zinc-500">
+        <div className="hidden min-w-0 truncate text-[11px] text-zinc-500 sm:block">
           {apiLoading
             ? "Loading…"
             : apiHealth
@@ -1761,11 +1766,12 @@ function TrendingPanel() {
         </div>
       </div>
 
-      <div
-        className={`mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
-      >
-        <div className="px-2 pb-2 text-[11px] uppercase tracking-wider text-zinc-600">
-          <div className="grid grid-cols-[minmax(0,1.2fr)_auto_auto] items-center gap-3">
+      <div className="max-w-full overflow-x-auto overscroll-x-contain">
+        <div
+          className={`mt-3 min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
+        >
+        <div className="px-2 pb-2 text-[10px] uppercase tracking-wider text-zinc-600 sm:text-[11px]">
+          <div className="grid min-w-[16rem] grid-cols-[minmax(0,1fr)_minmax(0,4.25rem)_minmax(0,4.25rem)] items-center gap-1.5 sm:min-w-0 sm:grid-cols-[minmax(0,1.2fr)_auto_auto] sm:gap-3">
             <span>Token</span>
             <span className="text-right">MC / Chg</span>
             <span className="text-right">Liq / Vol</span>
@@ -1870,6 +1876,7 @@ function TrendingPanel() {
               })}
             </ul>
           )}
+        </div>
         </div>
       </div>
     </PanelCard>
@@ -2096,7 +2103,7 @@ function TopPerformersPanel({
       <PanelCard
         title="🔥 Top Performers Today"
         titleClassName="normal-case"
-        className="relative min-w-0 overflow-x-auto"
+        className="relative min-w-0 max-w-full overflow-hidden"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-yellow-500/35 via-[color:var(--accent)]/35 to-transparent" />
         {topPerformersLoading ? (
@@ -2123,7 +2130,7 @@ function TopPerformersPanel({
                   key={row.discordId}
                   className={`${v.row} ${TOP_PERFORMER_ROW_INTERACTIVE}`}
                 >
-                  <div className="flex min-w-0 items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                       <span
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${v.badge}`}
@@ -2143,7 +2150,7 @@ function TopPerformersPanel({
                         badges={(badgesByUser ?? {})[row.discordId.trim()] ?? []}
                       />
                     </div>
-                    <div className="shrink-0 text-right text-sm">
+                    <div className="flex shrink-0 flex-col text-right text-xs tabular-nums sm:text-sm">
                       <p className="tabular-nums">
                         <span className={v.avgStrong}>
                           {row.avgX.toFixed(1)}x
@@ -2297,7 +2304,7 @@ function ActivityFeedPanel({
   );
 
   return (
-    <PanelCard title="Live Activity">
+      <PanelCard title="Live Activity" className="min-w-0 max-w-full">
       <div className="mt-2 flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar sm:gap-2">
         {(
           [
@@ -2942,7 +2949,7 @@ function SocialsFeedPanel() {
       <PanelCard
         title="Social Feed"
         titleClassName="normal-case"
-        className="relative overflow-hidden"
+        className="relative min-w-0 max-w-full overflow-hidden"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-sky-500/25 via-[color:var(--accent)]/20 to-transparent" />
         <div className="mt-2 flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 no-scrollbar">
@@ -2981,7 +2988,7 @@ function SocialsFeedPanel() {
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="shrink-0 rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55 sm:px-3"
+              className="shrink-0 rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-2 py-1.5 text-[10px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55 sm:px-3 sm:text-[11px]"
             >
               Expand
             </button>
@@ -4576,16 +4583,86 @@ export default function Home() {
   const showRankWidget = widgetEnabled(widgets, "rank");
   const showTrendingWidget = widgetEnabled(widgets, "trending");
 
+  const quickActionsBlock = widgetEnabled(widgets, "quick_actions") ? (
+    <PanelCard title="Quick Actions" data-tutorial="dashboard.quickActions">
+      <div className="mt-3 space-y-3">
+        <button
+          type="button"
+          onClick={() => {
+            setSubmitCallFeedback(null);
+            setSubmitCallOpen(true);
+          }}
+          data-tutorial="dashboard.quickActions.submitCall"
+          className="w-full rounded-xl bg-[color:var(--accent)] px-4 py-3 text-base font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/30"
+        >
+          Submit Call
+        </button>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Link
+            href={userProfileHref({
+              discordId: session.user.id,
+              displayName: session.user.name,
+            })}
+            data-tutorial="dashboard.quickActions.myProfile"
+            className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+          >
+            My Profile
+          </Link>
+          <button
+            type="button"
+            onClick={() => setAddWatchlistOpen(true)}
+            data-tutorial="dashboard.quickActions.watchlist"
+            className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+          >
+            Watchlist
+          </button>
+          <button
+            type="button"
+            onClick={() => setAlertsModalOpen(true)}
+            data-tutorial="dashboard.quickActions.createAlert"
+            className="rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+          >
+            Create Alert
+          </button>
+          <Link
+            href="/referrals"
+            data-tutorial="dashboard.quickActions.referrals"
+            className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
+          >
+            Referrals
+          </Link>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleCopy}
+          disabled={!referralUrl}
+          className="w-full rounded-lg border border-zinc-800/90 bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {copied ? "Referral Link Copied" : "Copy Referral Link"}
+        </button>
+      </div>
+    </PanelCard>
+  ) : null;
+
   return (
     <div className="contents">
       <HodlDashboardDock />
-      <div className="mx-auto max-w-[1200px] px-3 sm:px-2 md:px-0" data-tutorial="dashboard.tutorialWelcome">
+      <div
+        className="mx-auto w-full min-w-0 max-w-[1200px] overflow-x-hidden px-3 sm:px-4 md:px-0"
+        data-tutorial="dashboard.tutorialWelcome"
+      >
       <div className="space-y-8" data-tutorial="dashboard.pageIntro">
       <div className="mb-8" data-tutorial="dashboard.performanceChart">
         <PerformanceChart refreshNonce={homeDataRefreshNonce} />
       </div>
 
-      <section className="mb-8 space-y-4" data-tutorial="dashboard.personalStats">
+      {quickActionsBlock ? (
+        <div className="mb-8 lg:hidden">{quickActionsBlock}</div>
+      ) : null}
+
+      <section className="mb-8 min-w-0 space-y-4 overflow-x-hidden" data-tutorial="dashboard.personalStats">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className={terminalPage.sectionTitle}>
@@ -4757,11 +4834,11 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-5">
+      <div className="mb-6 grid min-w-0 max-w-full grid-cols-1 gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)] lg:items-start">
+        <div className="flex min-w-0 max-w-full flex-col gap-5 overflow-x-hidden">
           <div data-tutorial="dashboard.activityFeed">
           {widgetEnabled(widgets, "activity") && (
-            <div className="min-h-[420px]">
+            <div className="min-h-[420px] min-w-0 max-w-full overflow-x-hidden">
               <ActivityFeedPanel
                 feedMode={feedMode}
                 setFeedMode={setFeedMode}
@@ -4803,71 +4880,10 @@ export default function Home() {
         </div>
 
         <div
-          className="flex flex-col gap-4 lg:sticky lg:top-24 lg:z-10 lg:self-start"
-          data-tutorial="dashboard.quickActions"
+          className="flex min-w-0 max-w-full flex-col gap-4 overflow-x-hidden lg:sticky lg:top-24 lg:z-10 lg:self-start"
+          data-tutorial="dashboard.sidebarColumn"
         >
-          {widgetEnabled(widgets, "quick_actions") && (
-            <PanelCard title="Quick Actions">
-              <div className="mt-3 space-y-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSubmitCallFeedback(null);
-                    setSubmitCallOpen(true);
-                  }}
-                  data-tutorial="dashboard.quickActions.submitCall"
-                  className="w-full rounded-xl bg-[color:var(--accent)] px-4 py-3 text-base font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/30"
-                >
-                  Submit Call
-                </button>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Link
-                    href={userProfileHref({
-                      discordId: session.user.id,
-                      displayName: session.user.name,
-                    })}
-                    data-tutorial="dashboard.quickActions.myProfile"
-                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
-                  >
-                    My Profile
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setAddWatchlistOpen(true)}
-                    data-tutorial="dashboard.quickActions.watchlist"
-                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
-                  >
-                    Watchlist
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAlertsModalOpen(true)}
-                    data-tutorial="dashboard.quickActions.createAlert"
-                    className="rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
-                  >
-                    Create Alert
-                  </button>
-                  <Link
-                    href="/referrals"
-                    data-tutorial="dashboard.quickActions.referrals"
-                    className="flex items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 py-2 text-center text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20"
-                  >
-                    Referrals
-                  </Link>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  disabled={!referralUrl}
-                  className="w-full rounded-lg border border-zinc-800/90 bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-zinc-100 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {copied ? "Referral Link Copied" : "Copy Referral Link"}
-                </button>
-              </div>
-            </PanelCard>
-          )}
+          {quickActionsBlock ? <div className="hidden lg:block">{quickActionsBlock}</div> : null}
 
           {(helpTier === "mod" || helpTier === "admin") && (
             <div data-tutorial="dashboard.modQueue">
@@ -4875,7 +4891,12 @@ export default function Home() {
             </div>
           )}
 
-          <PanelCard title="Watchlist" titleClassName="normal-case" data-tutorial="dashboard.homeWatchlist">
+          <PanelCard
+            title="Watchlist"
+            titleClassName="normal-case"
+            data-tutorial="dashboard.homeWatchlist"
+            className="min-w-0 max-w-full overflow-hidden"
+          >
             <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
               <span className="tabular-nums">
                 Saved{" "}
@@ -4958,7 +4979,11 @@ export default function Home() {
 
           <div data-tutorial="dashboard.homeRecentCalls">
           {widgetEnabled(widgets, "recent_calls") ? (
-            <PanelCard title="Recent calls" titleClassName="normal-case">
+            <PanelCard
+              title="Recent calls"
+              titleClassName="normal-case"
+              className="min-w-0 max-w-full overflow-hidden"
+            >
               <p className="mt-2 text-xs text-zinc-500">
                 Your last few verified calls.
               </p>
@@ -4975,10 +5000,10 @@ export default function Home() {
                   {recentCalls.slice(0, 6).map((call, i) => (
                     <li
                       key={`${call.token}-${String(call.time)}-${i}`}
-                      className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-1.5 text-zinc-300"
+                      className="flex flex-col gap-2 py-2.5 first:pt-1.5 text-zinc-300 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2"
                     >
                       <span
-                        className="min-w-0 font-medium text-zinc-100"
+                        className="min-w-0 max-w-full font-medium text-zinc-100 sm:flex-1"
                         title={homeRecentCallSummary(call)}
                       >
                         <span className="flex min-w-0 items-start gap-2">
@@ -5011,7 +5036,7 @@ export default function Home() {
                           ) : null}
                         </span>
                       </span>
-                      <span className="ml-auto flex shrink-0 items-center gap-2 text-zinc-500">
+                      <span className="flex shrink-0 flex-wrap items-center gap-2 self-end text-zinc-500 sm:ml-auto sm:self-auto">
                         <button
                           type="button"
                           onClick={() =>
