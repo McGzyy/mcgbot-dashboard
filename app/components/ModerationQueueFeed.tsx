@@ -210,7 +210,14 @@ function callSubject(c: ModQueueCallApproval): string {
   return sym || shortAddr(c.contractAddress);
 }
 
-export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "full" }) {
+export function ModerationQueueFeed({
+  mode = "preview",
+  hideWhenEmpty = false,
+}: {
+  mode?: "preview" | "full";
+  /** When `mode` is `preview`, omit the entire panel if the queue loaded with nothing pending (no flash while loading). */
+  hideWhenEmpty?: boolean;
+}) {
   const { data: session } = useSession();
   const [data, setData] = useState<ModQueuePayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -450,6 +457,11 @@ export function ModerationQueueFeed({ mode = "preview" }: { mode?: "preview" | "
 
   function devShell() {
     return "rounded-xl border border-violet-500/25 bg-gradient-to-br from-violet-950/30 via-zinc-950/80 to-zinc-950 p-4 shadow-sm shadow-black/30";
+  }
+
+  if (mode === "preview" && hideWhenEmpty) {
+    if (loading) return null;
+    if (!err && total === 0) return null;
   }
 
   return (

@@ -11,6 +11,7 @@ import { AddToWatchlistModal } from "./components/AddToWatchlistModal";
 import { DashboardAlertsModal } from "./components/DashboardAlertsModal";
 import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
 import { DashboardChatPanel } from "./components/DashboardChatPanel";
+import { HodlDashboardDock } from "./components/HodlDashboardDock";
 import { PanelCard, CARD_HOVER } from "./components/PanelCard";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { FollowButton } from "./components/FollowButton";
@@ -4555,6 +4556,8 @@ export default function Home() {
   const showTrendingWidget = widgetEnabled(widgets, "trending");
 
   return (
+    <>
+      <HodlDashboardDock />
     <div className="mx-auto max-w-[1200px] px-1 sm:px-0" data-tutorial="dashboard.tutorialWelcome">
       <div className="space-y-8" data-tutorial="dashboard.pageIntro">
       <div className="mb-8" data-tutorial="dashboard.performanceChart">
@@ -4845,6 +4848,12 @@ export default function Home() {
             </PanelCard>
           )}
 
+          {(helpTier === "mod" || helpTier === "admin") && (
+            <div data-tutorial="dashboard.modQueue">
+              <ModQueueHomePanel hideWhenEmpty />
+            </div>
+          )}
+
           <PanelCard title="Watchlist" titleClassName="normal-case" data-tutorial="dashboard.homeWatchlist">
             <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
               <span className="tabular-nums">
@@ -4925,12 +4934,6 @@ export default function Home() {
           </PanelCard>
 
           {showTrendingWidget ? <TrendingPanel /> : null}
-
-          {(helpTier === "mod" || helpTier === "admin") && (
-            <div data-tutorial="dashboard.modQueue">
-              <ModQueueHomePanel />
-            </div>
-          )}
 
           <div data-tutorial="dashboard.homeRecentCalls">
           {widgetEnabled(widgets, "recent_calls") ? (
@@ -5156,6 +5159,6 @@ export default function Home() {
           </div>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }
