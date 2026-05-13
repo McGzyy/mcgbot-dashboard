@@ -473,8 +473,8 @@ export function TopBar() {
     <>
       <header ref={topBarRef} className={`sticky top-0 z-50 ${dashboardChrome.topBar}`} role="banner">
       {/* TOP ROW (existing header content) */}
-      <div className="flex items-center justify-between gap-2 px-3 py-1.5 sm:px-6 sm:py-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-2 px-3 py-1.5 sm:px-6 sm:py-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={() => setMobileSidebarOpen(true)}
@@ -498,9 +498,22 @@ export function TopBar() {
               <path d="M4 19V5M8 19V9M12 19v-6M16 19v-3M20 19V11" strokeLinecap="round" />
             </svg>
           </button>
+          {canTip ? (
+            <button
+              type="button"
+              onClick={() => setTipOpen(true)}
+              data-tutorial="nav.tipMobile"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 sm:hidden"
+              aria-label="Tip McGBot"
+            >
+              <span className="text-sm font-black leading-none" aria-hidden>
+                ◎
+              </span>
+            </button>
+          ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
           {status === "loading" ? (
             <div className="h-9 w-24 animate-pulse rounded-md bg-zinc-800/80" />
           ) : (
@@ -516,29 +529,18 @@ export function TopBar() {
                 Analyze CA
               </button>
               {canTip ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setTipOpen(true)}
-                    data-tutorial="nav.tip"
-                    className="hidden h-9 items-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15 sm:inline-flex"
-                  >
-                    Tip McGBot
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTipOpen(true)}
-                    data-tutorial="nav.tipMobile"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 sm:hidden"
-                    aria-label="Tip McGBot"
-                  >
-                    <span className="text-sm font-black leading-none" aria-hidden>
-                      ◎
-                    </span>
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => setTipOpen(true)}
+                  data-tutorial="nav.tip"
+                  className="hidden h-9 items-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-100/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15 sm:inline-flex"
+                >
+                  Tip McGBot
+                </button>
               ) : null}
-              <LinkedWalletCluster />
+              <div className="min-w-0 max-sm:max-w-[min(11rem,calc(100vw-12.5rem))] sm:max-w-none">
+                <LinkedWalletCluster />
+              </div>
               <div className="relative" ref={notifRef} data-tutorial="nav.notifications">
                 <button
                   type="button"
