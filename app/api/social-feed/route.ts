@@ -13,9 +13,18 @@ export type SocialFeedItem = {
   categoryOther?: string | null;
   authorName: string;
   authorHandle: string;
+  authorAvatarUrl?: string | null;
+  authorVerified?: boolean;
   postedAtLabel: string;
   text: string;
+  /** @deprecated Prefer structured counts; kept for mocks / old rows. */
   metricLabel?: string;
+  likeCount?: number | null;
+  replyCount?: number | null;
+  retweetCount?: number | null;
+  quoteCount?: number | null;
+  impressionCount?: number | null;
+  tweetUrl?: string | null;
 };
 
 function formatPostedAtLabel(iso: string): string {
@@ -54,7 +63,9 @@ export async function GET(request: Request) {
 
   const { data: posts, error: pErr } = await db
     .from("social_feed_posts")
-    .select("id, source_id, external_id, text, posted_at, like_count, author_name, author_handle")
+    .select(
+      "id, source_id, external_id, text, posted_at, like_count, reply_count, retweet_count, quote_count, impression_count, author_name, author_handle, author_avatar_url, author_verified"
+    )
     .order("posted_at", { ascending: false })
     .limit(200);
 
@@ -125,8 +136,14 @@ export async function GET(request: Request) {
       text: string;
       posted_at: string;
       like_count: number | null;
+      reply_count?: number | null;
+      retweet_count?: number | null;
+      quote_count?: number | null;
+      impression_count?: number | null;
       author_name: string | null;
       author_handle: string;
+      author_avatar_url?: string | null;
+      author_verified?: boolean | null;
     };
     const src = sourceMap.get(String(row.source_id));
     if (!src || !src.active) continue;
@@ -136,11 +153,22 @@ export async function GET(request: Request) {
     if (category !== "all" && categorySlug !== category) continue;
 
     const handleClean = src.handle.replace(/^@/, "").toLowerCase();
-    const authorHandle = `@${(row.author_handle || handleClean).replace(/^@/, "")}`;
+    const handleNoAt = (row.author_handle || handleClean).replace(/^@/, "").toLowerCase();
+    const authorHandle = `@${handleNoAt}`;
     const authorName =
       (typeof row.author_name === "string" && row.author_name.trim()) ||
       (src.display_name && src.display_name.trim()) ||
       handleClean;
+
+    const avatar =
+      typeof row.author_avatar_url === "string" && row.author_avatar_url.startsWith("http")
+        ? row.author_avatar_url
+        : null;
+
+    const tweetUrl =
+      src.platform === "x" && row.external_id
+        ? `https://x.com/${encodeURIComponent(handleNoAt)}/status/${encodeURIComponent(row.external_id)}`
+        : null;
 
     rows.push({
       id: `${src.platform}-${row.external_id}`,
@@ -149,9 +177,17 @@ export async function GET(request: Request) {
       categoryOther,
       authorName,
       authorHandle,
+      authorAvatarUrl: avatar,
+      authorVerified: Boolean(row.author_verified),
       postedAtLabel: formatPostedAtLabel(row.posted_at),
       text: typeof row.text === "string" ? row.text : "",
       metricLabel: formatLikeMetric(row.like_count),
+      likeCount: row.like_count,
+      replyCount: row.reply_count ?? null,
+      retweetCount: row.retweet_count ?? null,
+      quoteCount: row.quote_count ?? null,
+      impressionCount: row.impression_count ?? null,
+      tweetUrl,
     });
   }
 

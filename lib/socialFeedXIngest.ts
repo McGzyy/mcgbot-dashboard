@@ -4,11 +4,26 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const X_API_V2 = "https://api.x.com/2";
 
+type XUserLite = {
+  id: string;
+  name: string;
+  username: string;
+  profile_image_url?: string;
+  verified?: boolean;
+};
+
 type XTweet = {
   id: string;
   text: string;
   created_at?: string;
-  public_metrics?: { like_count?: number };
+  author_id?: string;
+  public_metrics?: {
+    like_count?: number;
+    reply_count?: number;
+    retweet_count?: number;
+    quote_count?: number;
+    impression_count?: number;
+  };
 };
 
 function bearerToken(): string | null {
@@ -29,6 +44,12 @@ function xApiErrorsPayload(json: unknown): string {
   } catch {
     return "";
   }
+}
+
+/** Prefer a larger square avatar when X returns `_normal`. */
+function sharpenTwitterAvatar(url: string | null | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+  return url.replace(/_normal\.(jpe?g|png|webp)$/i, "_200x200.$1");
 }
 
 async function xGetJson(url: string, bearer: string): Promise<{ ok: boolean; json: unknown; status: number }> {
@@ -64,10 +85,37 @@ async function resolveXUserId(handle: string, bearer: string): Promise<string | 
   return typeof id === "string" ? id : null;
 }
 
-async function fetchRecentTweets(userId: string, bearer: string): Promise<XTweet[]> {
+function parseUsersIncludes(json: unknown): Map<string, XUserLite> {
+  const map = new Map<string, XUserLite>();
+  if (!json || typeof json !== "object") return map;
+  const users = (json as { includes?: { users?: unknown[] } }).includes?.users;
+  if (!Array.isArray(users)) return map;
+  for (const raw of users) {
+    if (!raw || typeof raw !== "object") continue;
+    const u = raw as Record<string, unknown>;
+    const id = typeof u.id === "string" ? u.id : "";
+    const username = typeof u.username === "string" ? u.username : "";
+    if (!id || !username) continue;
+    map.set(id, {
+      id,
+      name: typeof u.name === "string" ? u.name : username,
+      username,
+      profile_image_url: typeof u.profile_image_url === "string" ? u.profile_image_url : undefined,
+      verified: u.verified === true,
+    });
+  }
+  return map;
+}
+
+async function fetchRecentTweets(
+  userId: string,
+  bearer: string
+): Promise<{ tweets: XTweet[]; usersById: Map<string, XUserLite> }> {
   const u = new URL(`${X_API_V2}/users/${encodeURIComponent(userId)}/tweets`);
   u.searchParams.set("max_results", "15");
-  u.searchParams.set("tweet.fields", "created_at,public_metrics");
+  u.searchParams.set("tweet.fields", "created_at,public_metrics,author_id");
+  u.searchParams.set("expansions", "author_id");
+  u.searchParams.set("user.fields", "profile_image_url,name,username,verified");
   u.searchParams.set("exclude", "retweets");
   const { ok, json, status } = await xGetJson(u.toString(), bearer);
   if (!ok || !json || typeof json !== "object") {
@@ -79,10 +127,12 @@ async function fetchRecentTweets(userId: string, bearer: string): Promise<XTweet
       status,
       detail || JSON.stringify(json).slice(0, 200)
     );
-    return [];
+    return { tweets: [], usersById: new Map() };
   }
   const data = (json as { data?: XTweet[] }).data;
-  return Array.isArray(data) ? data : [];
+  const tweets = Array.isArray(data) ? data : [];
+  const usersById = parseUsersIncludes(json);
+  return { tweets, usersById };
 }
 
 let lastRefreshAt = 0;
@@ -131,7 +181,13 @@ export async function maybeRefreshSocialFeedFromX(db: SupabaseClient): Promise<v
     posted_at: string;
     author_name: string | null;
     author_handle: string;
+    author_avatar_url: string | null;
+    author_verified: boolean;
     like_count: number | null;
+    reply_count: number | null;
+    retweet_count: number | null;
+    quote_count: number | null;
+    impression_count: number | null;
   }> = [];
 
   for (const s of sources ?? []) {
@@ -149,23 +205,41 @@ export async function maybeRefreshSocialFeedFromX(db: SupabaseClient): Promise<v
       continue;
     }
 
-    const tweets = await fetchRecentTweets(userId, bearer);
-    const authorHandle = handle.replace(/^@/, "").toLowerCase();
+    const { tweets, usersById } = await fetchRecentTweets(userId, bearer);
+    const fallbackHandle = handle.replace(/^@/, "").toLowerCase();
 
     for (const t of tweets) {
       const id = t.id != null ? String(t.id) : "";
       const text = typeof t.text === "string" ? t.text : "";
       const postedAt = typeof t.created_at === "string" ? t.created_at : new Date().toISOString();
       if (!id || !text) continue;
-      const likes = t.public_metrics?.like_count;
+
+      const aid = typeof t.author_id === "string" ? t.author_id : "";
+      const author = aid ? usersById.get(aid) : undefined;
+      const pm = t.public_metrics;
+
+      const pick = (n: unknown): number | null => {
+        if (typeof n === "number" && Number.isFinite(n) && n >= 0) return Math.round(n);
+        return null;
+      };
+
+      const authorHandleRaw = (author?.username ?? fallbackHandle).replace(/^@/, "").toLowerCase();
+      const avatar = sharpenTwitterAvatar(author?.profile_image_url ?? null);
+
       rows.push({
         source_id: sourceId,
         external_id: id,
         text,
         posted_at: postedAt,
-        author_name: displayName,
-        author_handle: authorHandle,
-        like_count: typeof likes === "number" && Number.isFinite(likes) ? likes : null,
+        author_name: (author?.name && author.name.trim()) || displayName,
+        author_handle: authorHandleRaw,
+        author_avatar_url: avatar,
+        author_verified: Boolean(author?.verified),
+        like_count: pick(pm?.like_count),
+        reply_count: pick(pm?.reply_count),
+        retweet_count: pick(pm?.retweet_count),
+        quote_count: pick(pm?.quote_count),
+        impression_count: pick(pm?.impression_count),
       });
     }
   }

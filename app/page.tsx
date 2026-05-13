@@ -648,15 +648,41 @@ type SocialFeedItem = {
   categoryOther?: string | null;
   authorName: string;
   authorHandle: string;
+  authorAvatarUrl?: string | null;
+  authorVerified?: boolean;
   postedAtLabel: string;
   text: string;
+  /** Legacy single chip (mocks / old API). */
   metricLabel?: string;
+  likeCount?: number | null;
+  replyCount?: number | null;
+  retweetCount?: number | null;
+  quoteCount?: number | null;
+  impressionCount?: number | null;
+  tweetUrl?: string | null;
 };
 
 function socialPlatformPillClasses(p: SocialPlatform): string {
   return p === "x"
     ? "border-zinc-700/60 bg-zinc-900/40 text-zinc-200"
     : "border-fuchsia-500/25 bg-fuchsia-500/10 text-fuchsia-200";
+}
+
+function formatSocialEngagement(n: number | null | undefined): string | null {
+  if (n == null || !Number.isFinite(n) || n < 0) return null;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
+  if (n >= 10_000) return `${Math.round(n / 1000)}K`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`.replace(/\.0K$/, "K");
+  return String(Math.round(n));
+}
+
+function optSocialNumber(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim()) {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
 }
 
 const SOCIAL_FEED_RAW: Array<{
@@ -667,6 +693,12 @@ const SOCIAL_FEED_RAW: Array<{
   postedAtLabel: string;
   text: string;
   metricLabel?: string;
+  authorAvatarUrl?: string;
+  authorVerified?: boolean;
+  likeCount?: number;
+  replyCount?: number;
+  retweetCount?: number;
+  impressionCount?: number | null;
 }> = [
   {
     id: "x-1",
@@ -675,7 +707,12 @@ const SOCIAL_FEED_RAW: Array<{
     authorHandle: "@onchainradar",
     postedAtLabel: "12m",
     text: "SOL memecoin rotation picking up again. Watch for liquidity returning to midcaps — narratives are shifting fast.",
-    metricLabel: "4.2K",
+    authorAvatarUrl: "https://api.dicebear.com/9.x/notionists/png?seed=onchainradar&size=128",
+    authorVerified: true,
+    likeCount: 4200,
+    replyCount: 118,
+    retweetCount: 412,
+    impressionCount: 52000,
   },
   {
     id: "ig-1",
@@ -872,12 +909,6 @@ const SOCIAL_TEXT_POOL: string[] = [
   "When attention shifts, charts usually front-run the narrative.",
 ];
 
-function socialMetricLabel(): string {
-  const v = 500 + Math.floor(Math.random() * 25000);
-  if (v >= 1000) return `${(v / 1000).toFixed(v >= 10000 ? 1 : 2)}K`.replace(/\.0K$/, "K");
-  return String(v);
-}
-
 function makeNewSocialPost(forcePlatform?: SocialPlatform): SocialFeedItem {
   const pool = forcePlatform
     ? SOCIAL_AUTHOR_POOL.filter((a) => a.platform === forcePlatform)
@@ -891,9 +922,14 @@ function makeNewSocialPost(forcePlatform?: SocialPlatform): SocialFeedItem {
     categoryOther: author.categorySlug === "other" ? "Live sample" : null,
     authorName: author.authorName,
     authorHandle: author.authorHandle,
+    authorAvatarUrl: `https://api.dicebear.com/9.x/notionists/png?seed=${encodeURIComponent(author.authorHandle)}&size=128`,
+    authorVerified: author.platform === "x" && Math.random() > 0.55,
     postedAtLabel: "now",
     text,
-    metricLabel: socialMetricLabel(),
+    likeCount: 400 + Math.floor(Math.random() * 12000),
+    replyCount: Math.floor(Math.random() * 180),
+    retweetCount: Math.floor(Math.random() * 90),
+    impressionCount: Math.random() > 0.25 ? Math.floor(Math.random() * 80000) : null,
   };
 }
 
@@ -2360,6 +2396,199 @@ function FollowingFeedPanel() {
   );
 }
 
+function SocialFeedMetricPill({
+  label,
+  icon,
+  value,
+}: {
+  label: string;
+  icon: ReactNode;
+  value: string;
+}) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[11px] font-medium tabular-nums text-zinc-300"
+      title={label}
+    >
+      <span className="text-zinc-500" aria-hidden>
+        {icon}
+      </span>
+      {value}
+    </span>
+  );
+}
+
+function SocialFeedPostRow({
+  item,
+  compact,
+  flash,
+}: {
+  item: SocialFeedItem;
+  compact: boolean;
+  flash: boolean;
+}) {
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const initial = item.authorName.trim().charAt(0).toUpperCase() || "?";
+  const avatarSrc =
+    typeof item.authorAvatarUrl === "string" &&
+    item.authorAvatarUrl.startsWith("http") &&
+    !avatarFailed
+      ? item.authorAvatarUrl
+      : null;
+
+  const likes = formatSocialEngagement(item.likeCount ?? null);
+  const replies = formatSocialEngagement(item.replyCount ?? null);
+  const retweets = formatSocialEngagement(item.retweetCount ?? null);
+  const views = formatSocialEngagement(item.impressionCount ?? null);
+  const hasStructured =
+    likes != null || replies != null || retweets != null || views != null;
+  const legacyChip = !hasStructured && item.metricLabel;
+
+  const textCls = compact
+    ? "mt-2 line-clamp-3 text-[13px] leading-snug text-zinc-200"
+    : "mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-100";
+
+  return (
+    <li
+      className={`rounded-xl border bg-gradient-to-b from-zinc-900/55 to-zinc-950/90 p-3 shadow-sm shadow-black/25 transition-colors sm:p-3.5 ${
+        flash
+          ? "border-[color:var(--accent)]/40 ring-1 ring-[color:var(--accent)]/25"
+          : "border-zinc-800/75 hover:border-zinc-700/85 hover:from-zinc-900/70"
+      }`}
+    >
+      <div className="flex gap-3">
+        <div className="relative shrink-0">
+          {avatarSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarSrc}
+              alt=""
+              width={44}
+              height={44}
+              className="h-11 w-11 rounded-full border border-zinc-700/60 bg-zinc-900 object-cover ring-2 ring-black/30"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              onError={() => setAvatarFailed(true)}
+            />
+          ) : (
+            <div
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-700/60 bg-gradient-to-br from-zinc-700/80 to-zinc-900 text-sm font-bold text-zinc-200 ring-2 ring-black/30"
+              aria-hidden
+            >
+              {initial}
+            </div>
+          )}
+          <span
+            className={`absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border text-[9px] font-bold ${socialPlatformPillClasses(
+              item.platform
+            )}`}
+            title={item.platform === "x" ? "X" : "Instagram"}
+          >
+            {item.platform === "x" ? (
+              <span className="font-sans text-[10px] font-bold leading-none">X</span>
+            ) : (
+              <span className="text-[8px] font-bold leading-none">IG</span>
+            )}
+          </span>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="truncate text-sm font-semibold text-zinc-50">{item.authorName}</span>
+            {item.authorVerified && item.platform === "x" ? (
+              <span className="inline-flex shrink-0 text-sky-400" title="Verified" aria-label="Verified account">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg>
+              </span>
+            ) : null}
+            <span className="truncate text-xs text-zinc-500">{item.authorHandle}</span>
+            <span className="text-xs text-zinc-600">·</span>
+            <span className="text-xs tabular-nums text-zinc-500">{item.postedAtLabel}</span>
+          </div>
+
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex max-w-[12rem] truncate rounded-md border border-zinc-700/50 bg-zinc-900/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+              {formatSocialFeedCategoryLabel(item.categorySlug, item.categoryOther)}
+            </span>
+          </div>
+
+          <p className={textCls}>{item.text}</p>
+
+          {(hasStructured || legacyChip) && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-zinc-800/60 pt-2">
+              {likes != null ? (
+                <SocialFeedMetricPill
+                  label="Likes"
+                  value={likes}
+                  icon={
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <path d="M12 21s-7-4.35-10-9.5C-.5 6.5 3.5 3 7.5 3c2.35 0 4.23 1.5 4.5 3.5C12.27 4.5 14.15 3 16.5 3 20.5 3 24.5 6.5 22 11.5 19 16.65 12 21 12 21z" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  }
+                />
+              ) : null}
+              {replies != null ? (
+                <SocialFeedMetricPill
+                  label="Replies"
+                  value={replies}
+                  icon={
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <path d="M21 15a4 4 0 0 1-4 4H8l-5 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  }
+                />
+              ) : null}
+              {retweets != null ? (
+                <SocialFeedMetricPill
+                  label="Reposts"
+                  value={retweets}
+                  icon={
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  }
+                />
+              ) : null}
+              {views != null ? (
+                <SocialFeedMetricPill
+                  label="Views (when exposed by X API)"
+                  value={views}
+                  icon={
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" strokeLinecap="round" strokeLinejoin="round" />
+                      <circle cx="12" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  }
+                />
+              ) : null}
+              {legacyChip ? (
+                <span className="rounded-full border border-zinc-700/60 bg-zinc-900/50 px-2 py-0.5 text-[11px] font-medium tabular-nums text-zinc-300">
+                  {item.metricLabel}
+                </span>
+              ) : null}
+            </div>
+          )}
+
+          {item.tweetUrl ? (
+            <a
+              href={item.tweetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-sky-400/90 transition hover:text-sky-300"
+            >
+              View on X
+              <span className="text-xs" aria-hidden>
+                ↗
+              </span>
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </li>
+  );
+}
+
 function SocialsFeedPanel() {
   const { data: session, status } = useSession();
   const [tab, setTab] = useState<"all" | SocialFeedCategorySlug>("all");
@@ -2423,6 +2652,14 @@ function SocialsFeedPanel() {
           const categorySlug =
             parseSocialFeedCategorySlug(o.categorySlug ?? o.category_slug ?? o.category) ?? "other";
           const categoryOther = normalizeCategoryOther(o.categoryOther ?? o.category_other);
+          const avatarRaw =
+            (typeof o.authorAvatarUrl === "string" && o.authorAvatarUrl) ||
+            (typeof o.author_avatar_url === "string" && o.author_avatar_url) ||
+            "";
+          const tweetUrl =
+            (typeof o.tweetUrl === "string" && o.tweetUrl) ||
+            (typeof o.tweet_url === "string" && o.tweet_url) ||
+            null;
           parsed.push({
             id,
             platform: (platform as SocialFeedItem["platform"]) || "x",
@@ -2430,9 +2667,17 @@ function SocialsFeedPanel() {
             categoryOther,
             authorName,
             authorHandle,
+            authorAvatarUrl: avatarRaw.startsWith("http") ? avatarRaw : null,
+            authorVerified: Boolean(o.authorVerified ?? o.author_verified),
             postedAtLabel,
             text,
             metricLabel: typeof o.metricLabel === "string" ? o.metricLabel : undefined,
+            likeCount: optSocialNumber(o.likeCount ?? o.like_count),
+            replyCount: optSocialNumber(o.replyCount ?? o.reply_count),
+            retweetCount: optSocialNumber(o.retweetCount ?? o.retweet_count),
+            quoteCount: optSocialNumber(o.quoteCount ?? o.quote_count),
+            impressionCount: optSocialNumber(o.impressionCount ?? o.impression_count),
+            tweetUrl,
           });
         }
         setItems(parsed);
@@ -2457,68 +2702,41 @@ function SocialsFeedPanel() {
     return items.filter((r) => r.categorySlug === tab);
   }, [items, tab]);
 
-  const renderFeedList = (compact: boolean) => {
-    const textCls = compact
-      ? "mt-1 line-clamp-2 text-sm text-zinc-200"
-      : "mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-200";
-    return (
-      <>
-        {rows.length === 0 ? (
-          <div className="flex h-full min-h-[12rem] items-center justify-center px-3 py-10">
-            <div className="text-center">
-              <p className="text-sm font-semibold text-zinc-200">No posts yet</p>
-              <p className="mt-1 text-xs text-zinc-500">This feed is wired — waiting on sources.</p>
-            </div>
+  const renderFeedList = (compact: boolean) => (
+    <>
+      {rows.length === 0 ? (
+        <div className="flex h-full min-h-[12rem] flex-col items-center justify-center px-4 py-12">
+          <div className="rounded-full border border-zinc-800 bg-zinc-900/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            Feed
           </div>
-        ) : (
-          <ul className="space-y-1">
-            {rows.map((item) => (
-              <li
-                key={item.id}
-                className={`${terminalPage.denseInsetRow} ${
-                  flashId === item.id ? "ring-1 ring-[color:var(--accent)]/35 bg-zinc-900/35" : ""
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${socialPlatformPillClasses(
-                          item.platform
-                        )}`}
-                      >
-                        {item.platform === "x" ? "X" : "IG"}
-                      </span>
-                      <span className="inline-flex max-w-[10rem] truncate rounded-full border border-zinc-600/40 bg-zinc-900/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-                        {formatSocialFeedCategoryLabel(item.categorySlug, item.categoryOther)}
-                      </span>
-                      <span className="truncate text-sm font-semibold text-zinc-100">
-                        {item.authorName}
-                      </span>
-                      <span className="text-xs text-zinc-500">{item.authorHandle}</span>
-                      <span className="text-xs text-zinc-600">•</span>
-                      <span className="text-xs tabular-nums text-zinc-500">{item.postedAtLabel}</span>
-                    </div>
-                    <p className={textCls}>{item.text}</p>
-                  </div>
-
-                  {item.metricLabel ? (
-                    <span className="shrink-0 rounded-full border border-zinc-700/60 bg-zinc-900/40 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-zinc-200">
-                      {item.metricLabel}
-                    </span>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </>
-    );
-  };
+          <p className="mt-4 text-sm font-semibold text-zinc-200">No posts yet</p>
+          <p className="mt-1 max-w-xs text-center text-xs leading-relaxed text-zinc-500">
+            When sources are connected and synced, posts appear here with avatars and engagement.
+          </p>
+        </div>
+      ) : (
+        <ul className={compact ? "space-y-2.5 pr-0.5" : "space-y-3"}>
+          {rows.map((item) => (
+            <SocialFeedPostRow
+              key={item.id}
+              item={item}
+              compact={compact}
+              flash={flashId === item.id}
+            />
+          ))}
+        </ul>
+      )}
+    </>
+  );
 
   return (
     <>
-      <PanelCard title="Social Feed" titleClassName="normal-case">
+      <PanelCard
+        title="Social Feed"
+        titleClassName="normal-case"
+        className="relative overflow-hidden"
+      >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-sky-500/25 via-[color:var(--accent)]/20 to-transparent" />
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <div className="flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
             <button
