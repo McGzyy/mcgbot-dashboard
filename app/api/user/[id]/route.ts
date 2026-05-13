@@ -9,6 +9,7 @@ import {
   isMissingColumnPostgrestError,
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
+import { fetchHonorRolePresenceBatch } from "@/lib/badgeDiscordHonorGate";
 import {
   computeCallPerformanceUserStats,
   pickLatestUsername,
@@ -251,6 +252,20 @@ export async function GET(
     const keyStats = computeKeyStats(statsRows);
     const callDistribution = computeCallDistribution(statsRows);
 
+    const dbTrustedPro = Boolean((userRow as { trusted_pro?: unknown })?.trusted_pro);
+    const dbIsTopCaller = Boolean((userRow as { is_top_caller?: unknown })?.is_top_caller);
+
+    let isTrustedProPublic = dbTrustedPro;
+    let isTopCallerPublic = dbIsTopCaller;
+    const honorPresenceMap = await fetchHonorRolePresenceBatch([discordId]);
+    if (honorPresenceMap) {
+      const pres = honorPresenceMap.get(discordId);
+      if (pres) {
+        isTrustedProPublic = dbTrustedPro && pres.hasTrustedProRole;
+        isTopCallerPublic = dbIsTopCaller && pres.hasTopCallerRole;
+      }
+    }
+
     const payload = {
       discordId,
       /** Latest handle-style name from call rows (Discord username / legacy). */
@@ -259,9 +274,9 @@ export async function GET(
       displayName,
       /** Discord CDN avatar from last sign-in when stored. */
       avatarUrl: rowAv || null,
-      /** Current monthly title holder (`users.is_top_caller`); repeat wins still come from `user_badges` on the client. */
-      isTopCaller: Boolean((userRow as { is_top_caller?: unknown })?.is_top_caller),
-      isTrustedPro: Boolean((userRow as any)?.trusted_pro),
+      /** Current monthly title holder (`users.is_top_caller`), only true when they also have the Top Caller Discord role. */
+      isTopCaller: isTopCallerPublic,
+      isTrustedPro: isTrustedProPublic,
       created_at: userRow?.created_at ?? null,
       bio:
         userRow?.bio == null

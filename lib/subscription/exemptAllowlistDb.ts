@@ -15,7 +15,8 @@ export function isValidDiscordSnowflake(id: string): boolean {
   return SNOWFLAKE.test(id.trim());
 }
 
-function isRowCurrentlyExempt(exemptUntil: string | null): boolean {
+/** True when the allowlist row still grants exemption (no end date, invalid date, or future end). */
+export function isAllowlistExemptionCurrentlyActive(exemptUntil: string | null): boolean {
   if (exemptUntil == null || String(exemptUntil).trim() === "") return true;
   const t = Date.parse(exemptUntil);
   if (!Number.isFinite(t)) return true;
@@ -34,7 +35,7 @@ export async function isDiscordIdInExemptAllowlist(discordId: string): Promise<b
     .maybeSingle();
   if (error || !data) return false;
   const row = data as { exempt_until?: string | null };
-  return isRowCurrentlyExempt(row.exempt_until ?? null);
+  return isAllowlistExemptionCurrentlyActive(row.exempt_until ?? null);
 }
 
 export async function listExemptAllowlist(): Promise<ExemptAllowlistRow[]> {
@@ -147,4 +148,22 @@ export async function removeExemptAllowlistEntry(discordId: string): Promise<boo
     return false;
   }
   return Boolean(data?.discord_id);
+}
+
+/** Timed exemptions whose `exempt_until` is in the past (row may still exist for admin UI). */
+export async function listDiscordIdsWithExpiredTimedExemption(): Promise<string[]> {
+  const db = getSupabaseAdmin();
+  if (!db) return [];
+  const nowIso = new Date().toISOString();
+  const { data, error } = await db
+    .from("subscription_exempt_allowlist")
+    .select("discord_id")
+    .not("exempt_until", "is", null)
+    .lt("exempt_until", nowIso);
+  if (error) {
+    console.error("[exemptAllowlist] list expired timed", error);
+    return [];
+  }
+  if (!data?.length) return [];
+  return (data as { discord_id: string }[]).map((r) => r.discord_id.trim()).filter(Boolean);
 }

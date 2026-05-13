@@ -4,6 +4,7 @@ import DiscordProvider from "next-auth/providers/discord";
 import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
+import { discordTrustedProRoleId } from "@/lib/discordHonorRoleIds";
 import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
 import { discordVerificationGateFromRoleIds } from "@/lib/discordVerificationGate";
@@ -82,12 +83,12 @@ export const authOptions: NextAuthOptions = {
             ? user.image.trim().slice(0, 800)
             : discordAvatarUrlFromDiscordProfile({ id: user.id, avatar: null });
 
-        const TRUSTED_PRO_ROLE_ID = "1490638667386191884";
+        const trustedProRoleId = discordTrustedProRoleId();
         let trustedPro: boolean | null = null;
         try {
           const roles = await getDiscordGuildMemberRoleIds(user.id);
           if (roles) {
-            trustedPro = roles.includes(TRUSTED_PRO_ROLE_ID);
+            trustedPro = roles.includes(trustedProRoleId);
           }
         } catch {
           trustedPro = null;

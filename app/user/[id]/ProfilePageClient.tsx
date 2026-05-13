@@ -1632,8 +1632,9 @@ export default function ProfilePageClient() {
         : false;
 
   const topCallerTimes = parseTopCallerTimesFromBadges(badges);
-  const isCurrentMonthlyTopCaller = Boolean(profile?.isTopCaller);
-  const showTopCallerChip = isCurrentMonthlyTopCaller || topCallerTimes > 0;
+  /** Honor chips follow `/api/user/.../badges`, which only includes these when the Discord roles are present. */
+  const showTopCallerChip = topCallerTimes > 0;
+  const showTrustedProBadgeChip = badges.includes("trusted_pro");
   const isTrustedPro = Boolean(profile?.isTrustedPro);
 
   const bannerUrl = profile?.banner_url?.trim() || "";
@@ -1843,7 +1844,7 @@ export default function ProfilePageClient() {
                           ) : null}
                         </span>
                       ) : null}
-                      {!loading && isTrustedPro ? (
+                      {!loading && showTrustedProBadgeChip ? (
                         <span className="inline-flex shrink-0 items-center rounded-full border border-violet-500/35 bg-gradient-to-r from-violet-950/90 to-indigo-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-100 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.45),0_0_28px_-12px_rgba(139,92,246,0.32)]">
                           Trusted Pro
                         </span>

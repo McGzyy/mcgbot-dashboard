@@ -1,3 +1,4 @@
+import { fetchHonorRolePresenceBatch, filterHonorBadgeTokens } from "@/lib/badgeDiscordHonorGate";
 import { topCallerBadgeToken } from "@/lib/topCallerBadgeDisplay";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -66,6 +67,14 @@ export async function POST(req: Request) {
       out[uid].push(topCallerBadgeToken(n));
     } else {
       out[uid].push(badge);
+    }
+  }
+
+  const presenceMap = await fetchHonorRolePresenceBatch(ids);
+  if (presenceMap) {
+    for (const id of ids) {
+      const pres = presenceMap.get(id);
+      if (pres) out[id] = filterHonorBadgeTokens(out[id] ?? [], pres);
     }
   }
 

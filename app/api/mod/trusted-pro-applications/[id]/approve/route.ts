@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireDashboardStaff } from "@/lib/staffGate";
+import { grantTrustedProDiscordRoleAndBadgeRow } from "@/lib/trustedProApprovalSideEffects";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,6 +80,8 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
       console.error("[mod/tp-apps/approve] update user:", userRes.error);
       return Response.json({ success: false, error: "Failed to grant Trusted Pro" }, { status: 500 });
     }
+
+    await grantTrustedProDiscordRoleAndBadgeRow(db, applicant);
 
     return Response.json({ success: true });
   } catch (e) {

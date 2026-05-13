@@ -1,8 +1,13 @@
 import { requireDashboardAdmin } from "@/lib/adminGate";
+import {
+  grantSubscriptionExemptDiscordRole,
+  revokeSubscriptionExemptDiscordRole,
+} from "@/lib/discordSubscriptionExemptRole";
 import { invalidateLiveDashboardAccessCache } from "@/lib/dashboardGate";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import type { ExemptAllowlistRow } from "@/lib/subscription/exemptAllowlistDb";
 import {
+  isAllowlistExemptionCurrentlyActive,
   isValidDiscordSnowflake,
   listExemptAllowlist,
   removeExemptAllowlistEntry,
@@ -12,6 +17,17 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+async function syncSubscriptionExemptDiscordRoleForAllowlist(
+  discordId: string,
+  exemptUntilIso: string | null
+): Promise<void> {
+  if (isAllowlistExemptionCurrentlyActive(exemptUntilIso)) {
+    await grantSubscriptionExemptDiscordRole(discordId);
+  } else {
+    await revokeSubscriptionExemptDiscordRole(discordId);
+  }
+}
 
 function idSet(raw: string | undefined): string[] {
   if (!raw?.trim()) return [];
@@ -136,6 +152,7 @@ export async function POST(req: Request) {
     return Response.json({ success: false, error: "Could not save. Check Supabase table / exempt_until column." }, { status: 500 });
   }
   invalidateLiveDashboardAccessCache(discordId);
+  await syncSubscriptionExemptDiscordRoleForAllowlist(discordId, exemptUntilIso);
   const raw = await listExemptAllowlist();
   const rows = raw.map(enrichAllowlistRow);
   return Response.json({ success: true, rows });
@@ -185,6 +202,7 @@ export async function PATCH(req: Request) {
     return Response.json({ success: false, error: "Entry not found or could not update." }, { status: 404 });
   }
   invalidateLiveDashboardAccessCache(discordId);
+  await syncSubscriptionExemptDiscordRoleForAllowlist(discordId, exemptUntilIso);
   const raw = await listExemptAllowlist();
   const rows = raw.map(enrichAllowlistRow);
   return Response.json({ success: true, rows });
@@ -212,6 +230,7 @@ export async function DELETE(req: Request) {
     return Response.json({ success: false, error: "Entry not found or could not remove." }, { status: 404 });
   }
   invalidateLiveDashboardAccessCache(discordId);
+  await revokeSubscriptionExemptDiscordRole(discordId);
   const raw = await listExemptAllowlist();
   const rows = raw.map(enrichAllowlistRow);
   return Response.json({ success: true, rows });

@@ -1,3 +1,4 @@
+import { fetchHonorRolePresenceBatch, filterHonorBadgeTokens } from "@/lib/badgeDiscordHonorGate";
 import {
   looksLikeDiscordSnowflake,
   resolveDiscordIdFromProfileRouteParam,
@@ -61,6 +62,15 @@ export async function GET(
       tokens.push(topCallerBadgeToken(n));
     } else {
       tokens.push(badge);
+    }
+  }
+
+  const presenceMap = await fetchHonorRolePresenceBatch([discordId]);
+  if (presenceMap) {
+    const pres = presenceMap.get(discordId);
+    if (pres) {
+      const filtered = filterHonorBadgeTokens(tokens, pres);
+      return Response.json(filtered);
     }
   }
 

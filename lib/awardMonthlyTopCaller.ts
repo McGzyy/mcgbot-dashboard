@@ -7,6 +7,7 @@ import {
 } from "@/lib/callPerformanceLeaderboard";
 import { closedTrophyWindowUtcMs } from "@/lib/leaderboardTimeWindows";
 import { getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
+import { grantTopCallerDiscordRole } from "@/lib/discordHonorRoles";
 import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
 import { TOP_CALLER_BADGE_KEY } from "@/lib/topCallerBadgeDisplay";
 
@@ -148,6 +149,8 @@ export async function awardMonthlyTopCallerBadge(
   }
 
   await supabase.from("users").update({ is_top_caller: true }).eq("discord_id", winnerId);
+
+  await grantTopCallerDiscordRole(winnerId);
 
   return {
     periodStartMs,
