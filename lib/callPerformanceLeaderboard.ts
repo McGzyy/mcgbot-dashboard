@@ -4,6 +4,7 @@ import {
   isCallPerformanceRowEligibleForStats,
 } from "@/lib/callPerformanceDashboardVisibility";
 import {
+  rolling24HoursStartUtcMs,
   rollingSevenDaysStartUtcMs,
   startOfCalendarDayUtcMs,
 } from "@/lib/leaderboardTimeWindows";
@@ -134,11 +135,15 @@ export function rankTopN(
   }));
 }
 
-/** Minimum `call_time` for /api/leaderboard GET (rankings vs today strip). */
+/** Minimum `call_time` for /api/leaderboard GET (rankings vs dashboard strip). */
 export function minCallTimeMsForLeaderboardPeriod(
   period: string | null,
   nowMs: number
 ): number {
+  // Dashboard "Top Performers" strip matches Rolling 24h badge.
+  if (period === "rolling24h") {
+    return rolling24HoursStartUtcMs(nowMs);
+  }
   if (period === "today") {
     return startOfCalendarDayUtcMs(nowMs);
   }

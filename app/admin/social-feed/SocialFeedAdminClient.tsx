@@ -11,6 +11,10 @@ import {
   parseSocialFeedCategorySlug,
   type SocialFeedCategorySlug,
 } from "@/lib/socialFeedCategories";
+import {
+  normalizeSocialSourceHandleInput,
+  socialSourceHandleHasName,
+} from "@/lib/socialSourceHandleInput";
 
 type SubmissionRow = {
   id: string;
@@ -196,7 +200,7 @@ export function SocialFeedAdminClient() {
     setEditErr(null);
     setEditSource(s);
     setEditPlatform(s.platform);
-    setEditHandle(s.handle.startsWith("@") ? s.handle : `@${s.handle}`);
+    setEditHandle(normalizeSocialSourceHandleInput(s.handle));
     setEditDisplayName(s.displayName ?? "");
     setEditCategorySlug(parseSocialFeedCategorySlug(s.category) ?? "crypto");
     setEditCategoryOther(s.categoryOther ?? "");
@@ -554,9 +558,16 @@ export function SocialFeedAdminClient() {
                     Handle
                     <input
                       value={editHandle}
-                      onChange={(e) => setEditHandle(e.target.value)}
+                      onChange={(e) =>
+                        setEditHandle(normalizeSocialSourceHandleInput(e.target.value))
+                      }
+                      onFocus={() => {
+                        if (!editHandle) setEditHandle("@");
+                      }}
                       disabled={editBusy}
+                      placeholder="username"
                       className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
+                      autoComplete="off"
                     />
                   </label>
                   <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
@@ -603,7 +614,7 @@ export function SocialFeedAdminClient() {
                     onClick={() => void saveEdit()}
                     disabled={
                       editBusy ||
-                      !editHandle.trim() ||
+                      !socialSourceHandleHasName(editHandle) ||
                       (editCategorySlug === "other" && editCategoryOther.trim().length < 2)
                     }
                     className="rounded-lg border border-emerald-500/40 bg-emerald-950/25 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-950/40 disabled:opacity-50"

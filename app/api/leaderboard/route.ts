@@ -20,7 +20,8 @@ import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSy
 // WEEKLY LEADER = resets every Monday 00:00 UTC → GET /api/leaderboard/weekly-leader
 // MONTHLY LEADER = resets first day of month 00:00 UTC → GET /api/leaderboard/monthly-leader
 // RANKINGS = rolling window (last 7 days) UTC — this handler when `period` is omitted or `week`
-// `period=today` = calls with call_time >= 00:00 UTC current calendar day (dashboard top performers)
+// `period=rolling24h` = last 24h UTC (dashboard Top Performers strip; matches UI badge)
+// `period=today` = calls with call_time >= 00:00 UTC current calendar day (legacy / other clients)
 
 export async function GET(request: Request) {
   try {

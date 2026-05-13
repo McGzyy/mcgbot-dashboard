@@ -39,6 +39,11 @@ export function rollingSevenDaysStartUtcMs(nowMs: number = Date.now()): number {
   return nowMs - 7 * 24 * 60 * 60 * 1000;
 }
 
+/** Rolling 24 hours ending now (UTC epoch ms start, inclusive). */
+export function rolling24HoursStartUtcMs(nowMs: number = Date.now()): number {
+  return nowMs - 24 * 60 * 60 * 1000;
+}
+
 /** UTC start of the trophy period (same cutoffs as daily / weekly / monthly leaderboards). */
 export function periodStartMsForTrophyTimeframe(
   timeframe: "daily" | "weekly" | "monthly",

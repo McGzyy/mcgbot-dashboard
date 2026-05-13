@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   aggregateCallPerformanceRows,
+  type AggregatedLeader,
   fetchCallPerformanceForSource,
   filterRowsByCallTimeWindow,
   rankTopN,
@@ -25,6 +26,57 @@ export type AwardTrophiesResult = {
   error: Error | null;
 };
 
+export type ClosedTrophyLeaderboardResult = {
+  periodStartMs: number;
+  endMsExclusive: number;
+  top3: Array<AggregatedLeader & { rank: number }>;
+  error: Error | null;
+};
+
+/**
+ * Same ranking window as trophy awards, without writing `user_trophies`.
+ * Used by X digest cron and tests.
+ */
+export async function computeClosedTrophyLeaderboardTop3(
+  supabase: SupabaseClient,
+  timeframe: TrophyTimeframe,
+  options?: { nowMs?: number; source?: string }
+): Promise<ClosedTrophyLeaderboardResult> {
+  const nowMs = options?.nowMs ?? Date.now();
+  const source = options?.source ?? "user";
+  const window = closedTrophyWindowUtcMs(timeframe, nowMs);
+  if (!window) {
+    return {
+      periodStartMs: 0,
+      endMsExclusive: 0,
+      top3: [],
+      error: new Error("Could not resolve trophy window"),
+    };
+  }
+  const { periodStartMs, endMsExclusive } = window;
+
+  const [{ rows, error: fetchErr }, cutoverMs, excludedDiscordIds] = await Promise.all([
+    fetchCallPerformanceForSource(supabase, source),
+    getStatsCutoverUtcMs(),
+    fetchDiscordIdsExcludedFromLeaderboards(),
+  ]);
+  if (fetchErr) {
+    return {
+      periodStartMs,
+      endMsExclusive,
+      top3: [],
+      error: fetchErr,
+    };
+  }
+
+  const minMs = mergeStatsCutoverIntoMin(periodStartMs, cutoverMs);
+  const filtered = filterRowsByCallTimeWindow(rows, minMs, endMsExclusive);
+  const aggregated = aggregateCallPerformanceRows(filtered, excludedDiscordIds);
+  const top3 = rankTopN(aggregated, 3);
+
+  return { periodStartMs, endMsExclusive, top3, error: null };
+}
+
 /**
  * Inserts top-3 leaderboard trophies for the **last completed** UTC period
  * (calendar day / Monday week / calendar month). Uses the same `call_time`
@@ -39,37 +91,16 @@ export async function awardTrophies(
   timeframe: TrophyTimeframe,
   options?: { nowMs?: number; source?: string }
 ): Promise<AwardTrophiesResult> {
-  const nowMs = options?.nowMs ?? Date.now();
-  const source = options?.source ?? "user";
-  const window = closedTrophyWindowUtcMs(timeframe, nowMs);
-  if (!window) {
+  const computed = await computeClosedTrophyLeaderboardTop3(supabase, timeframe, options);
+  if (computed.error) {
     return {
-      periodStartMs: 0,
+      periodStartMs: computed.periodStartMs,
       inserted: 0,
       leaders: [],
-      error: new Error("Could not resolve trophy window"),
+      error: computed.error,
     };
   }
-  const { periodStartMs, endMsExclusive } = window;
-
-  const [{ rows, error: fetchErr }, cutoverMs, excludedDiscordIds] = await Promise.all([
-    fetchCallPerformanceForSource(supabase, source),
-    getStatsCutoverUtcMs(),
-    fetchDiscordIdsExcludedFromLeaderboards(),
-  ]);
-  if (fetchErr) {
-    return {
-      periodStartMs,
-      inserted: 0,
-      leaders: [],
-      error: fetchErr,
-    };
-  }
-
-  const minMs = mergeStatsCutoverIntoMin(periodStartMs, cutoverMs);
-  const filtered = filterRowsByCallTimeWindow(rows, minMs, endMsExclusive);
-  const aggregated = aggregateCallPerformanceRows(filtered, excludedDiscordIds);
-  const top3 = rankTopN(aggregated, 3);
+  const { periodStartMs, top3 } = computed;
 
   const leaders: AwardTrophiesLeader[] = top3.map((u) => ({
     userId: u.discordId,

@@ -49,6 +49,10 @@ import {
   parseSocialFeedCategorySlug,
   type SocialFeedCategorySlug,
 } from "@/lib/socialFeedCategories";
+import {
+  normalizeSocialSourceHandleInput,
+  socialSourceHandleHasName,
+} from "@/lib/socialSourceHandleInput";
 
 const REF_BASE = "https://mcgbot.xyz/ref";
 
@@ -1854,7 +1858,7 @@ function TopPerformersPanel({
                 No calls in the last 24 hours yet.
               </p>
               <p className="mt-0.5 text-xs text-zinc-500">
-                First solid call today will claim the #1 spot.
+                First solid call in this window will claim the #1 spot.
               </p>
             </div>
           </div>
@@ -1914,7 +1918,7 @@ function TopPerformersPanel({
   );
 
   return (
-    <section className="mb-8">
+    <section className="min-w-0">
       <PanelCard
         title="🔥 Top Performers Today"
         titleClassName="normal-case"
@@ -2568,15 +2572,16 @@ function SocialsFeedPanel() {
       {expanded
         ? createPortal(
             <div className="fixed inset-0 z-[60]">
+              <div className={terminalUi.portalBackdropDim} aria-hidden />
               <div
-                className={terminalUi.portalBackdropDim}
-                onClick={() => closeExpanded()}
-                aria-hidden
-              />
-              <div className={terminalUi.portalFrameScroll}>
+                className={terminalUi.portalFrameScroll}
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) closeExpanded();
+                }}
+              >
                 <div
                   className={`${terminalUi.modalPanel5xl} flex max-h-[min(92dvh,900px)] flex-col`}
-                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <div className={terminalUi.modalSubHeaderBar}>
                     <div className="min-w-0 flex-1">
@@ -2771,10 +2776,16 @@ function SocialsFeedPanel() {
                       Handle
                       <input
                         value={submitHandle}
-                        onChange={(e) => setSubmitHandle(e.target.value)}
+                        onChange={(e) =>
+                          setSubmitHandle(normalizeSocialSourceHandleInput(e.target.value))
+                        }
+                        onFocus={() => {
+                          if (!submitHandle) setSubmitHandle("@");
+                        }}
                         disabled={submitBusy}
-                        placeholder="@account"
+                        placeholder="username"
                         className={`${terminalUi.formInput} mt-1`}
+                        autoComplete="off"
                       />
                     </label>
                   </div>
@@ -2804,7 +2815,7 @@ function SocialsFeedPanel() {
                       type="button"
                       disabled={
                         submitBusy ||
-                        !submitHandle.trim() ||
+                        !socialSourceHandleHasName(submitHandle) ||
                         !submitSourceName.trim() ||
                         (submitCategorySlug === "other" && submitCategoryOther.trim().length < 2) ||
                         submitRationale.trim().length < 8
@@ -3742,7 +3753,7 @@ export default function Home() {
       setTopPerformersLoading(true);
     }
 
-    fetch("/api/leaderboard?type=user&period=today")
+    fetch("/api/leaderboard?type=user&period=rolling24h")
       .then((res) => (res.ok ? res.json() : null))
       .then((json: unknown) => {
         if (cancelled || !Array.isArray(json)) {
@@ -4317,7 +4328,7 @@ export default function Home() {
       </section>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-5">
           <div data-tutorial="dashboard.activityFeed">
           {widgetEnabled(widgets, "activity") && (
             <div className="min-h-[420px]">
