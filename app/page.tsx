@@ -1807,6 +1807,7 @@ function TrendingPanel() {
                           "noopener,noreferrer"
                         )
                       }
+                      title={`Open on ${row.source}`}
                       className={terminalPage.denseInsetRowButton}
                     >
                       <div className="min-w-0 flex-1">
@@ -1826,10 +1827,10 @@ function TrendingPanel() {
                               #{i + 1}
                             </span>
                           )}
-                          <span className="min-w-0 truncate text-sm font-semibold text-zinc-100">
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-100">
                             {row.symbol}
                           </span>
-                          <span className="rounded-full border border-zinc-800/70 bg-zinc-900/30 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
+                          <span className="hidden shrink-0 rounded-full border border-zinc-800/70 bg-zinc-900/30 px-2 py-0.5 text-[10px] font-semibold text-zinc-400 sm:inline-flex">
                             {row.source}
                           </span>
                         </div>
@@ -2215,6 +2216,21 @@ function activityFeedRowTintClass(item: ActivityItem): string {
   return "bg-zinc-900/35 hover:bg-zinc-800/55";
 }
 
+/** Card chrome on small screens (Top Performers–style); paired with `activityFeedRowTintClass` on `sm+`. */
+function activityFeedMobileCardClass(item: ActivityItem): string {
+  if (item.type === "win") {
+    return "max-sm:rounded-xl max-sm:border max-sm:border-amber-500/40 max-sm:bg-amber-500/10 max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
+  }
+  if (item.type === "call") {
+    const src = (item.callSource ?? "user").toLowerCase();
+    if (src === "bot") {
+      return "max-sm:rounded-xl max-sm:border max-sm:border-violet-500/40 max-sm:bg-violet-500/10 max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
+    }
+    return "max-sm:rounded-xl max-sm:border max-sm:border-sky-500/40 max-sm:bg-sky-500/10 max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
+  }
+  return "max-sm:rounded-xl max-sm:border max-sm:border-zinc-700/60 max-sm:bg-zinc-950/90 max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
+}
+
 function ActivityFeedPanel({
   feedMode,
   setFeedMode,
@@ -2359,27 +2375,28 @@ function ActivityFeedPanel({
             </p>
           </div>
         ) : (
-          <ul className="text-sm">
+          <ul className="space-y-2.5 text-sm sm:space-y-0">
             {filteredActivity.map((item, i) => {
               const rowMint = (viewerId ?? "").trim() ? resolveActivityMint(item) : null;
               return (
             <li
               key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
-              className="dashboard-feed-item border-b border-zinc-800/90 last:border-b-0"
+              className="dashboard-feed-item max-sm:list-none sm:border-b sm:border-zinc-800/90 sm:last:border-b-0"
               style={{ animationDelay: `${i * 70}ms` }}
             >
               <div className="group relative">
                 <div
-                  className={`absolute bottom-1 left-0 top-1 w-[2px] rounded-full transition-opacity ${
+                  className={`absolute bottom-1 left-0 top-1 hidden w-[2px] rounded-full transition-opacity sm:block ${
                     item.type === "win"
                       ? "bg-[color:var(--accent)]/45 opacity-90"
                       : "bg-cyan-400/35 opacity-0 group-hover:opacity-80"
                   }`}
                 />
-                  <div className="pl-3">
+                  <div className="pl-0 sm:pl-3">
                   <div
-                    className={`flex items-start gap-2 rounded-lg px-3 py-2 transition-all duration-150 ${activityFeedRowTintClass(item)}`}
+                    className={`flex flex-col gap-2 transition-all duration-150 sm:flex-row sm:items-start sm:gap-2 sm:rounded-lg sm:px-3 sm:py-2 ${activityFeedMobileCardClass(item)} ${activityFeedRowTintClass(item)} ${TOP_PERFORMER_ROW_INTERACTIVE}`}
                   >
+                    <div className="flex shrink-0 items-start gap-2">
                     <FollowButton
                       targetDiscordId={item.discordId}
                       following={followingIds.has(item.discordId)}
@@ -2397,11 +2414,12 @@ function ActivityFeedPanel({
                       />
                     ) : null}
                     <span
-                      className="mt-0.5 flex w-8 shrink-0 justify-center text-base leading-none opacity-[0.88]"
+                      className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-base leading-none opacity-[0.88]"
                       aria-hidden
                     >
                       {item.type === "win" ? "🔥" : "⚡"}
                     </span>
+                    </div>
                     <div
                       role="button"
                       tabIndex={0}
@@ -2412,9 +2430,9 @@ function ActivityFeedPanel({
                           setSelectedActivity(item);
                         }
                       }}
-                      className="flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-3 rounded-md border-0 bg-transparent py-0 text-left text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                      className="flex min-w-0 flex-1 cursor-pointer flex-col gap-2 rounded-md border-0 bg-transparent py-0 text-left text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 sm:flex-row sm:items-start sm:justify-between sm:gap-3"
                     >
-                      <span className="min-w-0 text-zinc-200">
+                      <span className="min-w-0 max-w-full text-zinc-200 max-sm:block max-sm:break-words max-sm:text-[13px] max-sm:leading-snug sm:text-sm">
                         {renderActivityFeedLine(
                           item,
                           viewerId,
@@ -2422,7 +2440,7 @@ function ActivityFeedPanel({
                           (badgesByUser ?? {})[item.discordId.trim()] ?? []
                         )}
                       </span>
-                      <span className="flex shrink-0 items-center gap-1">
+                      <span className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:border-t max-sm:border-zinc-800/50 max-sm:pt-2 sm:justify-start">
                         {Number.isFinite(item.multiple) && item.multiple > 0 ? (
                           <span className="font-semibold tabular-nums text-[color:var(--accent)]">
                             {item.multiple.toFixed(1)}x
