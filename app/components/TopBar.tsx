@@ -801,7 +801,73 @@ export function TopBar() {
           <div className={dashboardChrome.marketStripTopRule} aria-hidden />
           <div className={dashboardChrome.marketStripBackdrop} aria-hidden />
           <div className="relative z-10 px-3 py-1.5 text-[10px] leading-snug sm:px-6 sm:py-2 sm:text-xs">
-            <div className="flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-1.5 sm:gap-x-3">
+            {/* Mobile: single line — totals + SOL (no “Updated” here; saves a wrap on narrow phones). */}
+            <div
+              className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-2 sm:hidden"
+              aria-label={
+                userCounts
+                  ? `Total users ${formatCount(userCounts.totalUsers)}, online ${formatCount(userCounts.onlineUsers)}${
+                      market
+                        ? `, SOL ${formatSolUsd(market.solPrice)} ${formatPctChange(market.change24h)}`
+                        : ""
+                    }`
+                  : undefined
+              }
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-1 text-zinc-500">
+                {userCountsLoading && !userCounts ? (
+                  <span className="inline-flex h-6 min-w-[7rem] flex-1 max-w-[11rem] animate-pulse rounded-md border border-zinc-800/70 bg-zinc-950/35" />
+                ) : userCounts ? (
+                  <>
+                    <span className="shrink-0 font-semibold tracking-wide text-zinc-500">Tot</span>
+                    <span className="shrink-0 font-semibold tabular-nums text-zinc-100">
+                      {formatCount(userCounts.totalUsers)}
+                    </span>
+                    <span className="shrink-0 px-0.5 text-zinc-600" aria-hidden>
+                      ·
+                    </span>
+                    <span
+                      className="h-1 w-1 shrink-0 rounded-full bg-[color:var(--accent)] shadow-[0_0_0_2px_rgba(34,197,94,0.12)]"
+                      aria-hidden
+                    />
+                    <span className="shrink-0 font-semibold tracking-wide text-zinc-500">On</span>
+                    <span className="shrink-0 font-semibold tabular-nums text-zinc-100">
+                      {formatCount(userCounts.onlineUsers)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="truncate text-zinc-600">Users unavailable</span>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center justify-end">
+                {marketLoading ? (
+                  <span className="whitespace-nowrap text-zinc-600">SOL …</span>
+                ) : market ? (
+                  <span
+                    className={[
+                      "flex max-w-[min(52vw,11.5rem)] items-center gap-0.5 truncate rounded-md border border-transparent px-1 py-0.5 text-[10px] font-semibold tabular-nums leading-none transition-colors duration-300",
+                      market.change24h >= 0 ? "text-[color:var(--accent)]" : "text-red-400",
+                      priceFlash === "up"
+                        ? "bg-[color:var(--accent)]/10 border-[color:var(--accent)]/20"
+                        : priceFlash === "down"
+                          ? "bg-red-500/10 border-red-500/20"
+                          : "bg-zinc-900/55 border-zinc-800/55",
+                    ].join(" ")}
+                    title={`Updated ${marketUpdatedLabel}`}
+                  >
+                    <span className="shrink-0">{market.change24h >= 0 ? "▲" : "▼"}</span>
+                    <span className="min-w-0 truncate">
+                      SOL {formatSolUsd(market.solPrice)}{" "}
+                      <span className="opacity-90">{formatPctChange(market.change24h)}</span>
+                    </span>
+                  </span>
+                ) : (
+                  <span className="whitespace-nowrap text-zinc-600">SOL —</span>
+                )}
+              </div>
+            </div>
+
+            <div className="hidden w-full flex-wrap items-center justify-between gap-x-2 gap-y-1.5 sm:flex sm:gap-x-3">
               <div className="flex shrink-0 items-center gap-2 text-zinc-500">
                 {userCountsLoading && !userCounts ? (
                   <div className="flex items-center gap-2">
@@ -831,31 +897,31 @@ export function TopBar() {
                 </div>
               ) : market ? (
                 <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5 text-zinc-500">
-                <span
-                  className={[
-                    "flex shrink-0 items-center gap-1 rounded-md border border-transparent px-1.5 py-1 font-semibold tabular-nums transition-colors duration-300",
-                    market.change24h >= 0 ? "text-[color:var(--accent)]" : "text-red-400",
-                    priceFlash === "up"
-                      ? "bg-[color:var(--accent)]/10 border-[color:var(--accent)]/20"
-                      : priceFlash === "down"
-                        ? "bg-red-500/10 border-red-500/20"
-                        : "bg-zinc-900/55 border-zinc-800/55",
-                  ].join(" ")}
-                >
-                  <span>{market.change24h >= 0 ? "▲" : "▼"}</span>
-                  <span>
-                    SOL {formatSolUsd(market.solPrice)} ({formatPctChange(market.change24h)})
+                  <span
+                    className={[
+                      "flex shrink-0 items-center gap-1 rounded-md border border-transparent px-1.5 py-1 font-semibold tabular-nums transition-colors duration-300",
+                      market.change24h >= 0 ? "text-[color:var(--accent)]" : "text-red-400",
+                      priceFlash === "up"
+                        ? "bg-[color:var(--accent)]/10 border-[color:var(--accent)]/20"
+                        : priceFlash === "down"
+                          ? "bg-red-500/10 border-red-500/20"
+                          : "bg-zinc-900/55 border-zinc-800/55",
+                    ].join(" ")}
+                  >
+                    <span>{market.change24h >= 0 ? "▲" : "▼"}</span>
+                    <span>
+                      SOL {formatSolUsd(market.solPrice)} ({formatPctChange(market.change24h)})
+                    </span>
                   </span>
-                </span>
 
-                <span className="hidden text-zinc-600 sm:inline" aria-hidden>
-                  |
-                </span>
+                  <span className="hidden text-zinc-600 sm:inline" aria-hidden>
+                    |
+                  </span>
 
-                <span className="hidden min-[380px]:inline shrink-0 text-zinc-500 sm:inline">
-                  Updated{" "}
-                  <span className="font-medium tabular-nums text-zinc-300">{marketUpdatedLabel}</span>
-                </span>
+                  <span className="hidden min-[380px]:inline shrink-0 text-zinc-500 sm:inline">
+                    Updated{" "}
+                    <span className="font-medium tabular-nums text-zinc-300">{marketUpdatedLabel}</span>
+                  </span>
                 </div>
               ) : (
                 <div className="flex justify-end">
