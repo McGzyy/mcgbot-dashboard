@@ -538,9 +538,7 @@ export function TopBar() {
                   Tip McGBot
                 </button>
               ) : null}
-              <div className="min-w-0 max-sm:max-w-[min(11rem,calc(100vw-12.5rem))] sm:max-w-none">
-                <LinkedWalletCluster />
-              </div>
+              <LinkedWalletCluster />
               <div className="relative" ref={notifRef} data-tutorial="nav.notifications">
                 <button
                   type="button"

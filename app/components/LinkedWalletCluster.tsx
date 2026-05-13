@@ -26,6 +26,24 @@ function formatSol(n: number | null): string {
 
 type Balances = { sol: number | null; usdc: number | null };
 
+function WalletStripIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className ?? "h-4 w-4 shrink-0 text-violet-300/90"}
+      aria-hidden
+    >
+      <path d="M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1-6 0H5.25A2.25 2.25 0 0 0 3 12m18 0v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6m18 0V9M12 8.25h.008v.008H12V8.25Z" />
+    </svg>
+  );
+}
+
 export function LinkedWalletCluster() {
   const { status } = useSession();
   const { linked, loading: linkLoading } = useDashboardWallet();
@@ -103,6 +121,24 @@ export function LinkedWalletCluster() {
   const stripSol =
     linked && balances && !balLoading ? formatSol(balances.sol) : null;
 
+  const walletAriaLabel = (() => {
+    const parts: string[] = ["Wallet"];
+    if (linked?.walletPubkey) parts.push(stripLabel);
+    if (stripSol != null) parts.push(`${stripSol} SOL`);
+    else if (linked && balLoading) parts.push("loading balance");
+    else if (linked) parts.push("balance unavailable");
+    else if (connected && adapterPk) parts.push("adapter connected");
+    parts.push("open panel");
+    return parts.join(" · ");
+  })();
+
+  const mobileBalanceLine = (() => {
+    if (!linked) return "—";
+    if (balLoading) return "…";
+    if (stripSol != null) return `${stripSol} SOL`;
+    return "—";
+  })();
+
   return (
     <div className="relative shrink-0" ref={wrapRef}>
       <button
@@ -114,30 +150,41 @@ export function LinkedWalletCluster() {
             return next;
           });
         }}
-        className={`flex max-w-[11rem] items-center gap-2 rounded-lg border border-zinc-800/70 bg-zinc-950/40 px-2 py-1 text-left transition hover:border-zinc-600 hover:bg-zinc-900/50 sm:max-w-[14rem] sm:px-2.5 ${terminalSurface.insetEdge}`}
+        aria-label={walletAriaLabel}
+        className={`flex h-9 max-w-[11rem] items-center gap-2 rounded-lg border border-zinc-800/70 bg-zinc-950/40 px-2 text-left transition hover:border-zinc-600 hover:bg-zinc-900/50 max-sm:max-w-none max-sm:gap-1.5 max-sm:px-2 sm:max-w-[14rem] sm:px-2.5 ${terminalSurface.insetEdge}`}
         aria-expanded={open}
         aria-haspopup="dialog"
       >
-        <span
-          className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400/80 shadow-[0_0_8px_rgba(167,139,250,0.35)]"
-          aria-hidden
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-            {linkLoading ? "…" : linked ? "Wallet" : "Solana"}
-          </p>
-          <p className="truncate text-[11px] font-semibold tabular-nums text-zinc-100 sm:text-xs">
-            {stripSol != null && !open ? (
-              <>
-                <span className="text-zinc-300">{stripLabel}</span>
-                <span className="mx-1 text-zinc-600">·</span>
-                <span className="text-emerald-200/95">{stripSol} SOL</span>
-              </>
-            ) : (
-              <span className="text-zinc-200">{stripLabel}</span>
-            )}
-          </p>
-        </div>
+        {/* Mobile: icon + SOL only (no address — room for multi-wallet later). */}
+        <span className="flex min-w-0 items-center gap-1.5 sm:hidden">
+          <WalletStripIcon />
+          <span className="min-w-0 truncate text-[11px] font-semibold tabular-nums text-emerald-200/95">
+            {mobileBalanceLine}
+          </span>
+        </span>
+
+        <span className="hidden min-w-0 flex-1 items-center gap-2 sm:flex">
+          <span
+            className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400/80 shadow-[0_0_8px_rgba(167,139,250,0.35)]"
+            aria-hidden
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+              {linkLoading ? "…" : linked ? "Wallet" : "Solana"}
+            </p>
+            <p className="truncate text-xs font-semibold tabular-nums text-zinc-100">
+              {stripSol != null && !open ? (
+                <>
+                  <span className="text-zinc-300">{stripLabel}</span>
+                  <span className="mx-1 text-zinc-600">·</span>
+                  <span className="text-emerald-200/95">{stripSol} SOL</span>
+                </>
+              ) : (
+                <span className="text-zinc-200">{stripLabel}</span>
+              )}
+            </p>
+          </div>
+        </span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
