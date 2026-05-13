@@ -84,7 +84,7 @@ export async function getSiteOperationalState(): Promise<SiteOperationalState> {
         announcement_message_mobile: row.announcement_message_mobile,
         announcement_hide_on_mobile: row.announcement_hide_on_mobile === true,
         announcement_allow_user_dismiss: row.announcement_allow_user_dismiss === true,
-        announcement_content_version: computeAnnouncementContentVersion({
+        announcement_content_version: await computeAnnouncementContentVersion({
           announcement_enabled: row.announcement_enabled === true,
           announcement_message: row.announcement_message,
           announcement_message_mobile: row.announcement_message_mobile,

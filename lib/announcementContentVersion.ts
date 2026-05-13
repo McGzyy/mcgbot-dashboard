@@ -1,5 +1,3 @@
-import { createHash } from "crypto";
-
 export type AnnouncementVersionSource = {
   announcement_enabled: boolean;
   announcement_message: string | null;
@@ -12,8 +10,10 @@ export type AnnouncementVersionSource = {
   announcement_visible_until: string | null;
 };
 
-/** Stable id for localStorage: changes when any announcement-facing field changes. */
-export function computeAnnouncementContentVersion(i: AnnouncementVersionSource): string {
+/** Stable id for localStorage: changes when any announcement-facing field changes. Uses Web Crypto (Edge + Node). */
+export async function computeAnnouncementContentVersion(
+  i: AnnouncementVersionSource
+): Promise<string> {
   const parts = [
     i.announcement_enabled ? "1" : "0",
     i.announcement_message ?? "",
@@ -25,5 +25,11 @@ export function computeAnnouncementContentVersion(i: AnnouncementVersionSource):
     i.announcement_visible_from ?? "",
     i.announcement_visible_until ?? "",
   ];
-  return createHash("sha256").update(parts.join("\u001f"), "utf8").digest("hex").slice(0, 24);
+  const payload = parts.join("\u001f");
+  const data = new TextEncoder().encode(payload);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 24);
 }
