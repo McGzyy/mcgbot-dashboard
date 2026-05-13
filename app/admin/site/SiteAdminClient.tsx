@@ -25,6 +25,9 @@ type AppSettings = {
   announcement_message: string | null;
   announcement_cta_label: string | null;
   announcement_cta_url: string | null;
+  announcement_message_mobile: string | null;
+  announcement_hide_on_mobile: boolean;
+  announcement_allow_user_dismiss: boolean;
   /** ISO UTC; optional start of visibility window. */
   announcement_visible_from: string | null;
   /** ISO UTC; bar hides when server time reaches this instant. */
@@ -77,6 +80,10 @@ function mergeAppSettingsFromApi(row: AppSettings): AppSettings {
     stripe_test_price_id: typeof row.stripe_test_price_id === "string" ? row.stripe_test_price_id : null,
     stripe_test_plan_id: typeof row.stripe_test_plan_id === "string" ? row.stripe_test_plan_id : null,
     tutorial_auto_start_enabled: row.tutorial_auto_start_enabled !== false,
+    announcement_message_mobile:
+      typeof row.announcement_message_mobile === "string" ? row.announcement_message_mobile : null,
+    announcement_hide_on_mobile: row.announcement_hide_on_mobile === true,
+    announcement_allow_user_dismiss: row.announcement_allow_user_dismiss === true,
   };
 }
 
@@ -201,6 +208,9 @@ export function SiteAdminClient() {
           public_signups_paused: settings.public_signups_paused,
           announcement_enabled: settings.announcement_enabled,
           announcement_message: settings.announcement_message,
+          announcement_message_mobile: settings.announcement_message_mobile,
+          announcement_hide_on_mobile: settings.announcement_hide_on_mobile,
+          announcement_allow_user_dismiss: settings.announcement_allow_user_dismiss,
           announcement_cta_label: settings.announcement_cta_label,
           announcement_cta_url: settings.announcement_cta_url,
           announcement_visible_from: settings.announcement_visible_from,
@@ -609,6 +619,60 @@ export function SiteAdminClient() {
                     placeholder="e.g. Leaderboard reset tonight 00:00 UTC — good luck."
                     className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
                   />
+                </label>
+
+                <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Mobile message (optional)
+                  <textarea
+                    value={settings.announcement_message_mobile ?? ""}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, announcement_message_mobile: e.target.value } : s))
+                    }
+                    rows={2}
+                    placeholder="Shorter copy for phones; leave empty to reuse the main message on mobile."
+                    className="mt-2 w-full resize-y rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:outline-none focus:ring-1 focus:ring-red-500/30"
+                  />
+                  <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-zinc-600">
+                    Desktop still uses “Message” above. When “Hide on mobile” is on, the bar does not appear on small
+                    screens regardless of this field.
+                  </span>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-red-600 focus:ring-red-500/50"
+                    checked={settings.announcement_hide_on_mobile}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, announcement_hide_on_mobile: e.target.checked } : s))
+                    }
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-white">Hide on mobile</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      Do not show this banner below the small breakpoint (phones in portrait). Desktop and tablet
+                      widths still show it when enabled and scheduled.
+                    </span>
+                  </span>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-red-600 focus:ring-red-500/50"
+                    checked={settings.announcement_allow_user_dismiss}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, announcement_allow_user_dismiss: e.target.checked } : s))
+                    }
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-white">Allow user dismiss</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      Shows a close control on the bar. Dismissal is stored in the browser (localStorage) and survives
+                      navigation until you change this announcement or its schedule. Turning this off shows the bar
+                      again for everyone until they dismiss a future dismissible run.
+                    </span>
+                  </span>
                 </label>
 
                 <div className="grid gap-3 md:grid-cols-2">

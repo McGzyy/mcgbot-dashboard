@@ -347,7 +347,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
     <section
       className={
         isDock
-          ? `relative overflow-hidden rounded-t-2xl border-x-0 border-b-0 border-t border-zinc-800/55 bg-gradient-to-b from-zinc-950/95 to-zinc-950/85 ${terminalSurface.insetEdge}`
+          ? `relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-2xl border-x-0 border-b-0 border-t border-zinc-800/55 bg-gradient-to-b from-zinc-950/95 to-zinc-950/85 ${terminalSurface.insetEdge}`
           : `relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-b from-zinc-950/80 via-zinc-950/40 to-black/80 shadow-[0_0_0_1px_rgba(39,39,42,0.35)] ${terminalSurface.insetEdge}`
       }
     >
@@ -378,7 +378,13 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
         </div>
       ) : null}
 
-      <div className="flex flex-col lg:flex-row lg:items-stretch">
+      <div
+        className={
+          isDock
+            ? "flex min-h-0 flex-1 flex-col lg:flex-row lg:items-stretch"
+            : "flex flex-col lg:flex-row lg:items-stretch"
+        }
+      >
         <div
           {...(panelDataTutorial ? { "data-tutorial": panelDataTutorial } : {})}
           className="flex min-h-0 min-w-0 flex-1 flex-col"
@@ -435,7 +441,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
             }}
             className={
               isDock
-                ? "max-h-[min(30vh,260px)] min-h-[120px] flex-1 overflow-y-auto px-3 py-2 sm:px-4"
+                ? "min-h-0 flex-1 overflow-y-auto px-3 py-2 sm:px-4"
                 : "max-h-[min(70vh,720px)] min-h-[280px] flex-1 overflow-y-auto px-3 py-3 sm:px-5"
             }
           >
@@ -555,7 +561,7 @@ export function DashboardChatPanel(props: DashboardChatPanelProps) {
           </div>
 
           <div
-            className={`border-t border-zinc-800/55 bg-black/25 ${isDock ? "px-3 py-2 sm:px-4" : "px-3 py-3 sm:px-5"}`}
+            className={`shrink-0 border-t border-zinc-800/55 bg-black/25 ${isDock ? "px-3 py-2 sm:px-4" : "px-3 py-3 sm:px-5"}`}
           >
             {sendError ? (
               <p className="mb-2 text-xs font-medium text-rose-300/90">{sendError}</p>

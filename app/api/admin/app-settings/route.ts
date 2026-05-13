@@ -96,6 +96,16 @@ export async function PATCH(req: Request) {
     patch.announcement_cta_url =
       o.announcement_cta_url == null ? null : String(o.announcement_cta_url);
   }
+  if ("announcement_message_mobile" in o) {
+    patch.announcement_message_mobile =
+      o.announcement_message_mobile == null ? null : String(o.announcement_message_mobile);
+  }
+  if (typeof o.announcement_hide_on_mobile === "boolean") {
+    patch.announcement_hide_on_mobile = o.announcement_hide_on_mobile;
+  }
+  if (typeof o.announcement_allow_user_dismiss === "boolean") {
+    patch.announcement_allow_user_dismiss = o.announcement_allow_user_dismiss;
+  }
   if ("announcement_visible_from" in o) {
     const raw = o.announcement_visible_from;
     if (raw == null || raw === "") {

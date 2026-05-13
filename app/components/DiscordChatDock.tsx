@@ -136,7 +136,7 @@ export function DiscordChatDock() {
           {expanded ? (
             <div
               id="discord-chat-dock-panel"
-              className="relative max-h-[min(52vh,540px)] min-h-0 overflow-hidden border-b border-zinc-800/60"
+              className="relative flex min-h-0 flex-col overflow-hidden border-b border-zinc-800/60 max-sm:h-[min(88dvh,calc(100svh-3.5rem))] sm:h-[min(52vh,540px)] sm:max-h-[min(52vh,540px)]"
             >
               <button
                 type="button"

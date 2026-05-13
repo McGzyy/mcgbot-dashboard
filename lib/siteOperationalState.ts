@@ -1,3 +1,4 @@
+import { computeAnnouncementContentVersion } from "@/lib/announcementContentVersion";
 import { getDashboardAdminSettings } from "@/lib/dashboardAdminSettingsDb";
 import { isAnnouncementWithinSchedule } from "@/lib/announcementSchedule";
 
@@ -8,6 +9,14 @@ export type SiteOperationalState = {
   public_signups_paused: boolean;
   announcement_enabled: boolean;
   announcement_message: string | null;
+  /** Optional shorter copy for narrow viewports (Tailwind below `sm`); empty means reuse `announcement_message` on small screens. */
+  announcement_message_mobile: string | null;
+  /** When true, bar is hidden below the `sm` breakpoint. */
+  announcement_hide_on_mobile: boolean;
+  /** When true, clients may show dismiss; use with `announcement_content_version` in localStorage. */
+  announcement_allow_user_dismiss: boolean;
+  /** Hash of announcement-facing fields; bump when copy/schedule/dismiss policy changes. */
+  announcement_content_version: string;
   announcement_cta_label: string | null;
   announcement_cta_url: string | null;
   paywall_title: string | null;
@@ -30,6 +39,10 @@ function defaults(): SiteOperationalState {
     public_signups_paused: false,
     announcement_enabled: false,
     announcement_message: null,
+    announcement_message_mobile: null,
+    announcement_hide_on_mobile: false,
+    announcement_allow_user_dismiss: false,
+    announcement_content_version: "",
     announcement_cta_label: null,
     announcement_cta_url: null,
     paywall_title: null,
@@ -68,6 +81,20 @@ export async function getSiteOperationalState(): Promise<SiteOperationalState> {
           return Boolean(raw && msg && inWindow);
         })(),
         announcement_message: row.announcement_message,
+        announcement_message_mobile: row.announcement_message_mobile,
+        announcement_hide_on_mobile: row.announcement_hide_on_mobile === true,
+        announcement_allow_user_dismiss: row.announcement_allow_user_dismiss === true,
+        announcement_content_version: computeAnnouncementContentVersion({
+          announcement_enabled: row.announcement_enabled === true,
+          announcement_message: row.announcement_message,
+          announcement_message_mobile: row.announcement_message_mobile,
+          announcement_hide_on_mobile: row.announcement_hide_on_mobile === true,
+          announcement_allow_user_dismiss: row.announcement_allow_user_dismiss === true,
+          announcement_cta_label: row.announcement_cta_label,
+          announcement_cta_url: row.announcement_cta_url,
+          announcement_visible_from: row.announcement_visible_from,
+          announcement_visible_until: row.announcement_visible_until,
+        }),
         announcement_cta_label: (row as any).announcement_cta_label ?? null,
         announcement_cta_url: (row as any).announcement_cta_url ?? null,
         paywall_title: row.paywall_title,

@@ -10,6 +10,12 @@ export type DashboardAdminSettingsRow = {
   announcement_message: string | null;
   announcement_cta_label: string | null;
   announcement_cta_url: string | null;
+  /** Shorter copy for viewports below `sm`; empty/null reuses `announcement_message` on mobile. */
+  announcement_message_mobile: string | null;
+  /** When true, announcement bar is not rendered below the `sm` breakpoint. */
+  announcement_hide_on_mobile: boolean;
+  /** When true, clients may offer dismiss; persistence uses `announcement_content_version` from site-flags. */
+  announcement_allow_user_dismiss: boolean;
   /** UTC instant: bar hidden until this time (inclusive). Null = no start bound. */
   announcement_visible_from: string | null;
   /** UTC instant: bar hidden when now >= this time. Null = no end bound. */
@@ -52,6 +58,9 @@ function defaultRow(): DashboardAdminSettingsRow {
     announcement_message: null,
     announcement_cta_label: null,
     announcement_cta_url: null,
+    announcement_message_mobile: null,
+    announcement_hide_on_mobile: false,
+    announcement_allow_user_dismiss: false,
     announcement_visible_from: null,
     announcement_visible_until: null,
     paywall_title: null,
@@ -102,6 +111,14 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
       typeof (r as any).announcement_cta_url === "string"
         ? String((r as any).announcement_cta_url)
         : null,
+    announcement_message_mobile:
+      typeof (r as { announcement_message_mobile?: unknown }).announcement_message_mobile === "string"
+        ? String((r as { announcement_message_mobile: string }).announcement_message_mobile)
+        : null,
+    announcement_hide_on_mobile:
+      (r as { announcement_hide_on_mobile?: unknown }).announcement_hide_on_mobile === true,
+    announcement_allow_user_dismiss:
+      (r as { announcement_allow_user_dismiss?: unknown }).announcement_allow_user_dismiss === true,
     announcement_visible_from:
       typeof (r as { announcement_visible_from?: unknown }).announcement_visible_from === "string"
         ? String((r as { announcement_visible_from?: string }).announcement_visible_from).trim() || null
@@ -168,6 +185,9 @@ export async function patchDashboardAdminSettings(input: {
   announcement_message?: string | null;
   announcement_cta_label?: string | null;
   announcement_cta_url?: string | null;
+  announcement_message_mobile?: string | null;
+  announcement_hide_on_mobile?: boolean;
+  announcement_allow_user_dismiss?: boolean;
   announcement_visible_from?: string | null;
   announcement_visible_until?: string | null;
   paywall_title?: string | null;
@@ -225,6 +245,17 @@ export async function patchDashboardAdminSettings(input: {
     const raw = input.announcement_cta_url;
     next.announcement_cta_url =
       raw == null || !String(raw).trim() ? null : String(raw).trim().slice(0, 500);
+  }
+  if ("announcement_message_mobile" in input) {
+    const raw = input.announcement_message_mobile;
+    next.announcement_message_mobile =
+      raw == null || !String(raw).trim() ? null : String(raw).trim().slice(0, 2000);
+  }
+  if (typeof input.announcement_hide_on_mobile === "boolean") {
+    next.announcement_hide_on_mobile = input.announcement_hide_on_mobile;
+  }
+  if (typeof input.announcement_allow_user_dismiss === "boolean") {
+    next.announcement_allow_user_dismiss = input.announcement_allow_user_dismiss;
   }
   if ("announcement_visible_from" in input) {
     const v = input.announcement_visible_from;
@@ -295,6 +326,9 @@ export async function patchDashboardAdminSettings(input: {
         announcement_message: next.announcement_message,
         announcement_cta_label: next.announcement_cta_label,
         announcement_cta_url: next.announcement_cta_url,
+        announcement_message_mobile: next.announcement_message_mobile,
+        announcement_hide_on_mobile: next.announcement_hide_on_mobile,
+        announcement_allow_user_dismiss: next.announcement_allow_user_dismiss,
         announcement_visible_from: next.announcement_visible_from,
         announcement_visible_until: next.announcement_visible_until,
         paywall_title: next.paywall_title,
