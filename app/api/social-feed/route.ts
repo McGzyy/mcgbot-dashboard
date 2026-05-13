@@ -170,6 +170,18 @@ export async function GET(request: Request) {
         ? `https://x.com/${encodeURIComponent(handleNoAt)}/status/${encodeURIComponent(row.external_id)}`
         : null;
 
+    const like = row.like_count;
+    const reply = row.reply_count ?? null;
+    const retweet = row.retweet_count ?? null;
+    const quote = row.quote_count ?? null;
+    const impression = row.impression_count ?? null;
+    const hasStructured =
+      (typeof like === "number" && Number.isFinite(like)) ||
+      (typeof reply === "number" && Number.isFinite(reply)) ||
+      (typeof retweet === "number" && Number.isFinite(retweet)) ||
+      (typeof quote === "number" && Number.isFinite(quote)) ||
+      (typeof impression === "number" && Number.isFinite(impression));
+
     rows.push({
       id: `${src.platform}-${row.external_id}`,
       platform: src.platform,
@@ -181,12 +193,12 @@ export async function GET(request: Request) {
       authorVerified: Boolean(row.author_verified),
       postedAtLabel: formatPostedAtLabel(row.posted_at),
       text: typeof row.text === "string" ? row.text : "",
-      metricLabel: formatLikeMetric(row.like_count),
+      metricLabel: hasStructured ? undefined : formatLikeMetric(row.like_count),
       likeCount: row.like_count,
-      replyCount: row.reply_count ?? null,
-      retweetCount: row.retweet_count ?? null,
-      quoteCount: row.quote_count ?? null,
-      impressionCount: row.impression_count ?? null,
+      replyCount: reply,
+      retweetCount: retweet,
+      quoteCount: quote,
+      impressionCount: impression,
       tweetUrl,
     });
   }

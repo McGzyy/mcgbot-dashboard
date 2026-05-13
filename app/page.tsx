@@ -676,6 +676,134 @@ function formatSocialEngagement(n: number | null | undefined): string | null {
   return String(Math.round(n));
 }
 
+/** Split post body into text + https URL segments (trailing punctuation trimmed from URLs). */
+function splitTextWithUrls(text: string): Array<{ type: "text" | "url"; value: string }> {
+  const re = /(https?:\/\/[^\s]+)/gi;
+  const parts: Array<{ type: "text" | "url"; value: string }> = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) {
+      parts.push({ type: "text", value: text.slice(last, m.index) });
+    }
+    let href = (m[1] ?? m[0]).replace(/[),.;:!?]+$/g, "");
+    parts.push({ type: "url", value: href });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) {
+    parts.push({ type: "text", value: text.slice(last) });
+  }
+  if (parts.length === 0) {
+    parts.push({ type: "text", value: text });
+  }
+  return parts;
+}
+
+function firstHttpsUrl(text: string): string | null {
+  const m = text.match(/(https?:\/\/[^\s]+)/i);
+  if (!m?.[0]) return null;
+  return m[0].replace(/[),.;:!?]+$/g, "");
+}
+
+function SocialFeedTweetText({
+  text,
+  className,
+}: {
+  text: string;
+  className: string;
+}) {
+  const segments = useMemo(() => splitTextWithUrls(text), [text]);
+  return (
+    <p className={className}>
+      {segments.map((seg, i) =>
+        seg.type === "url" ? (
+          <a
+            key={`u-${i}-${seg.value.slice(0, 24)}`}
+            href={seg.value}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="break-all text-sky-400/95 underline decoration-sky-500/35 underline-offset-2 transition hover:text-sky-300 hover:decoration-sky-400/60"
+          >
+            {seg.value}
+          </a>
+        ) : (
+          <span key={`t-${i}`}>{seg.value}</span>
+        )
+      )}
+    </p>
+  );
+}
+
+function SocialFeedFirstLinkPreview({ url, compact }: { url: string; compact: boolean }) {
+  let host = "";
+  let path = "";
+  try {
+    const u = new URL(url);
+    host = u.hostname.replace(/^www\./, "");
+    path = (u.pathname + u.search).replace(/\/$/, "") || "/";
+    if (path.length > 48) path = `${path.slice(0, 46)}…`;
+  } catch {
+    return null;
+  }
+  const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`mt-2 flex w-full max-w-full items-stretch gap-3 overflow-hidden rounded-lg border border-zinc-700/50 bg-zinc-900/35 text-left transition hover:border-sky-500/25 hover:bg-zinc-900/55 ${
+        compact ? "py-2 pl-2 pr-2.5" : "py-2.5 pl-2.5 pr-3"
+      }`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={favicon}
+        alt=""
+        width={32}
+        height={32}
+        className="mt-0.5 h-8 w-8 shrink-0 rounded-md border border-zinc-700/50 bg-zinc-950 object-contain"
+        loading="lazy"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[11px] font-semibold text-zinc-200">{host}</span>
+        <span className="mt-0.5 block truncate text-[10px] leading-snug text-zinc-500">{path}</span>
+        <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-sky-400/90">
+          Open link
+          <span aria-hidden>↗</span>
+        </span>
+      </span>
+    </a>
+  );
+}
+
+function SocialFeedSkeletonRow({ compact }: { compact: boolean }) {
+  return (
+    <li className="rounded-xl border border-zinc-800/60 bg-zinc-950/50 p-3 sm:p-3.5">
+      <div className="flex animate-pulse gap-3">
+        <div className="h-11 w-11 shrink-0 rounded-full bg-zinc-800/90 ring-2 ring-black/20" />
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="h-3.5 w-32 rounded-md bg-zinc-800/80" />
+            <div className="h-3 w-14 rounded-md bg-zinc-800/50" />
+          </div>
+          <div className="h-5 w-24 rounded-md bg-zinc-800/40" />
+          <div className="space-y-2 pt-0.5">
+            <div className="h-3 w-full rounded bg-zinc-800/35" />
+            <div className="h-3 w-[92%] rounded bg-zinc-800/30" />
+            {!compact ? <div className="h-3 w-[70%] rounded bg-zinc-800/25" /> : null}
+          </div>
+          <div className="flex gap-3 border-t border-zinc-800/40 pt-2">
+            <div className="h-3 w-10 rounded bg-zinc-800/40" />
+            <div className="h-3 w-10 rounded bg-zinc-800/35" />
+            <div className="h-3 w-10 rounded bg-zinc-800/30" />
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+}
+
 function optSocialNumber(v: unknown): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string" && v.trim()) {
@@ -698,6 +826,7 @@ const SOCIAL_FEED_RAW: Array<{
   likeCount?: number;
   replyCount?: number;
   retweetCount?: number;
+  quoteCount?: number;
   impressionCount?: number | null;
 }> = [
   {
@@ -712,6 +841,7 @@ const SOCIAL_FEED_RAW: Array<{
     likeCount: 4200,
     replyCount: 118,
     retweetCount: 412,
+    quoteCount: 64,
     impressionCount: 52000,
   },
   {
@@ -729,8 +859,14 @@ const SOCIAL_FEED_RAW: Array<{
     authorName: "Dex Pulse",
     authorHandle: "@dexpulse",
     postedAtLabel: "1h",
-    text: "Trending pairs: volume spikes on SOL with improving depth. If you’re scanning, focus on liquidity + holder distribution.",
-    metricLabel: "2.1K",
+    text: "Trending pairs: volume spikes on SOL with improving depth. If you’re scanning, focus on liquidity + holder distribution — https://dexscreener.com/solana",
+    authorAvatarUrl: "https://api.dicebear.com/9.x/notionists/png?seed=dexpulse&size=128",
+    authorVerified: true,
+    likeCount: 2100,
+    replyCount: 44,
+    retweetCount: 89,
+    quoteCount: 12,
+    impressionCount: 31000,
   },
   {
     id: "x-3",
@@ -929,6 +1065,7 @@ function makeNewSocialPost(forcePlatform?: SocialPlatform): SocialFeedItem {
     likeCount: 400 + Math.floor(Math.random() * 12000),
     replyCount: Math.floor(Math.random() * 180),
     retweetCount: Math.floor(Math.random() * 90),
+    quoteCount: Math.floor(Math.random() * 40),
     impressionCount: Math.random() > 0.25 ? Math.floor(Math.random() * 80000) : null,
   };
 }
@@ -2439,14 +2576,21 @@ function SocialFeedPostRow({
   const likes = formatSocialEngagement(item.likeCount ?? null);
   const replies = formatSocialEngagement(item.replyCount ?? null);
   const retweets = formatSocialEngagement(item.retweetCount ?? null);
+  const quotes = formatSocialEngagement(item.quoteCount ?? null);
   const views = formatSocialEngagement(item.impressionCount ?? null);
   const hasStructured =
-    likes != null || replies != null || retweets != null || views != null;
+    likes != null ||
+    replies != null ||
+    retweets != null ||
+    quotes != null ||
+    views != null;
   const legacyChip = !hasStructured && item.metricLabel;
 
   const textCls = compact
     ? "mt-2 line-clamp-3 text-[13px] leading-snug text-zinc-200"
     : "mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-100";
+
+  const linkPreviewUrl = firstHttpsUrl(item.text);
 
   return (
     <li
@@ -2513,7 +2657,11 @@ function SocialFeedPostRow({
             </span>
           </div>
 
-          <p className={textCls}>{item.text}</p>
+          <SocialFeedTweetText text={item.text} className={textCls} />
+
+          {linkPreviewUrl && linkPreviewUrl !== item.tweetUrl ? (
+            <SocialFeedFirstLinkPreview url={linkPreviewUrl} compact={compact} />
+          ) : null}
 
           {(hasStructured || legacyChip) && (
             <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-zinc-800/60 pt-2">
@@ -2546,6 +2694,18 @@ function SocialFeedPostRow({
                   icon={
                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                       <path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  }
+                />
+              ) : null}
+              {quotes != null ? (
+                <SocialFeedMetricPill
+                  label="Quotes"
+                  value={quotes}
+                  icon={
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1-1 1z" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   }
                 />
@@ -2702,9 +2862,20 @@ function SocialsFeedPanel() {
     return items.filter((r) => r.categorySlug === tab);
   }, [items, tab]);
 
-  const renderFeedList = (compact: boolean) => (
-    <>
-      {rows.length === 0 ? (
+  const renderFeedList = (compact: boolean) => {
+    if (loading && rows.length === 0) {
+      const n = compact ? 5 : 6;
+      return (
+        <ul className={compact ? "space-y-2.5 pr-0.5" : "space-y-3"} aria-busy="true" aria-label="Loading feed">
+          {Array.from({ length: n }, (_, i) => (
+            <SocialFeedSkeletonRow key={`social-sk-${i}`} compact={compact} />
+          ))}
+        </ul>
+      );
+    }
+
+    if (rows.length === 0) {
+      return (
         <div className="flex h-full min-h-[12rem] flex-col items-center justify-center px-4 py-12">
           <div className="rounded-full border border-zinc-800 bg-zinc-900/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
             Feed
@@ -2714,8 +2885,23 @@ function SocialsFeedPanel() {
             When sources are connected and synced, posts appear here with avatars and engagement.
           </p>
         </div>
-      ) : (
-        <ul className={compact ? "space-y-2.5 pr-0.5" : "space-y-3"}>
+      );
+    }
+
+    return (
+      <div className="relative">
+        {loading ? (
+          <div className="pointer-events-none absolute inset-x-0 -top-1 z-10 flex justify-center">
+            <div className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-200 shadow-md shadow-black/30">
+              Syncing…
+            </div>
+          </div>
+        ) : null}
+        <ul
+          className={`${compact ? "space-y-2.5 pr-0.5" : "space-y-3"} transition-opacity duration-200 ${
+            loading ? "opacity-[0.78]" : "opacity-100"
+          }`}
+        >
           {rows.map((item) => (
             <SocialFeedPostRow
               key={item.id}
@@ -2725,9 +2911,9 @@ function SocialsFeedPanel() {
             />
           ))}
         </ul>
-      )}
-    </>
-  );
+      </div>
+    );
+  };
 
   return (
     <>
@@ -2783,7 +2969,9 @@ function SocialsFeedPanel() {
         <div
           className={`mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
         >
-          <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">{renderFeedList(true)}</div>
+          <div className="min-h-[20rem] h-[min(34rem,calc(100dvh-12rem))] overflow-y-auto pr-1 no-scrollbar">
+            {renderFeedList(true)}
+          </div>
         </div>
       </PanelCard>
 
@@ -4588,8 +4776,6 @@ export default function Home() {
               <DashboardChatPanel feed="dashboard" dashboardChannel="general" pollMs={12000} />
             </div>
           )}
-
-          {showTrendingWidget ? <TrendingPanel /> : null}
         </div>
 
         <div
@@ -4737,6 +4923,8 @@ export default function Home() {
               </Link>
             </div>
           </PanelCard>
+
+          {showTrendingWidget ? <TrendingPanel /> : null}
 
           {(helpTier === "mod" || helpTier === "admin") && (
             <div data-tutorial="dashboard.modQueue">
