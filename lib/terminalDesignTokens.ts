@@ -78,8 +78,9 @@ export const terminalUi = {
   modalBackdropCenterZ50: "fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6",
   modalCloseIconBtn:
     "flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800/90 bg-zinc-950 text-zinc-300 transition hover:bg-zinc-900/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25",
+  /** `text-base` below `sm` avoids iOS input-zoom that can leave the page scaled after modals close. */
   formInput:
-    "w-full rounded-lg border border-zinc-800/90 bg-[color:var(--mcg-page)] px-3 py-2 text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60",
+    "w-full rounded-lg border border-zinc-800/90 bg-[color:var(--mcg-page)] px-3 py-2 text-base sm:text-sm text-zinc-200 outline-none ring-[color:var(--accent)]/20 focus:ring-2 disabled:opacity-60",
   secondaryButtonSm:
     "rounded-md border border-zinc-800/90 bg-zinc-950 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-900/40 disabled:opacity-60",
   choiceRow:

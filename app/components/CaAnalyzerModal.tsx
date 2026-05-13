@@ -216,6 +216,16 @@ export function CaAnalyzerModal({ open, onClose }: { open: boolean; onClose: () 
   const [faSolNote, setFaSolNote] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  const closeModal = useCallback(() => {
+    if (typeof document !== "undefined") {
+      const a = document.activeElement;
+      if (a instanceof HTMLElement && a.closest('[role="dialog"]')) {
+        a.blur();
+      }
+    }
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
     if (open) {
       setCa("");
@@ -283,7 +293,7 @@ export function CaAnalyzerModal({ open, onClose }: { open: boolean; onClose: () 
       aria-modal="true"
       aria-label="CA Analyzer"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) closeModal();
       }}
     >
       <div className={terminalUi.modalPanel3xlWide}>
@@ -296,7 +306,7 @@ export function CaAnalyzerModal({ open, onClose }: { open: boolean; onClose: () 
               dashboard call, outside signal, and your watchlist flags — without submitting a call.
             </p>
           </div>
-          <button type="button" onClick={onClose} className={terminalUi.modalCloseIconBtn} aria-label="Close">
+          <button type="button" onClick={closeModal} className={terminalUi.modalCloseIconBtn} aria-label="Close">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -333,7 +343,7 @@ export function CaAnalyzerModal({ open, onClose }: { open: boolean; onClose: () 
             />
           </div>
           <div className="flex shrink-0 justify-end gap-2">
-            <button type="button" onClick={onClose} className={terminalUi.secondaryButtonSm} disabled={loading}>
+            <button type="button" onClick={closeModal} className={terminalUi.secondaryButtonSm} disabled={loading}>
               Close
             </button>
             <button
