@@ -56,7 +56,7 @@ export const terminalPage = {
 /** Flyouts, menus, modals, and form controls that should match TopBar / PanelCard chrome. */
 export const terminalUi = {
   notificationsPanel:
-    `absolute right-0 z-50 mt-2 max-h-[min(24rem,70dvh)] w-[min(20rem,calc(100vw-1.25rem))] overflow-y-auto rounded-xl ${raisedSurface} shadow-xl sm:w-80`,
+    `absolute right-0 z-50 mt-2 max-h-[min(24rem,70dvh)] w-[min(20rem,calc(100vw-1.25rem))] overflow-y-auto rounded-xl ${raisedSurface} shadow-xl sm:w-80 max-sm:fixed max-sm:left-auto max-sm:right-3 max-sm:mt-0 max-sm:top-[calc(var(--dashboard-topbar-height,5.5rem)+0.5rem)] max-sm:z-[130] max-sm:w-[min(20rem,calc(100vw-1.5rem))]`,
   notificationsList: "divide-y divide-zinc-800/90",
   accountMenu: `absolute right-0 top-full z-50 mt-2 min-w-[220px] rounded-lg ${raisedSurface} py-1 shadow-lg`,
   menuSectionRule: "my-1 border-t border-zinc-800/90",

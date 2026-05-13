@@ -539,7 +539,7 @@ export function TopBar() {
                 </button>
               ) : null}
               <LinkedWalletCluster />
-              <div className="relative" ref={notifRef} data-tutorial="nav.notifications">
+              <div className="relative w-fit shrink-0" ref={notifRef} data-tutorial="nav.notifications">
                 <button
                   type="button"
                   onClick={() => {
@@ -637,7 +637,7 @@ export function TopBar() {
               </div>
 
               {session ? (
-              <div className="relative" ref={menuRef} data-tutorial="nav.userMenu">
+              <div className="relative w-fit shrink-0" ref={menuRef} data-tutorial="nav.userMenu">
                   <button
                     type="button"
                     onClick={() => {

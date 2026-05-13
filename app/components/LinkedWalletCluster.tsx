@@ -33,13 +33,15 @@ function WalletStripIcon({ className }: { className?: string }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={className ?? "h-4 w-4 shrink-0 text-violet-300/90"}
+      className={className ?? "h-4 w-4 shrink-0 text-violet-300/95"}
       aria-hidden
     >
-      <path d="M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1-6 0H5.25A2.25 2.25 0 0 0 3 12m18 0v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6m18 0V9M12 8.25h.008v.008H12V8.25Z" />
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M3 11h18" />
+      <path d="M7 11V9a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" />
     </svg>
   );
 }
@@ -140,7 +142,7 @@ export function LinkedWalletCluster() {
   })();
 
   return (
-    <div className="relative shrink-0" ref={wrapRef}>
+    <div className="relative w-fit shrink-0" ref={wrapRef}>
       <button
         type="button"
         onClick={() => {
@@ -200,7 +202,7 @@ export function LinkedWalletCluster() {
 
       {open ? (
         <div
-          className="absolute right-0 z-[130] mt-2 w-[min(20rem,calc(100vw-1.25rem))] rounded-xl border border-zinc-800/90 bg-zinc-950 p-4 shadow-xl shadow-black/50 ring-1 ring-zinc-800/40"
+          className="absolute right-0 z-[130] mt-2 w-[min(20rem,calc(100vw-1.25rem))] rounded-xl border border-zinc-800/90 bg-zinc-950 p-4 shadow-xl shadow-black/50 ring-1 ring-zinc-800/40 max-sm:fixed max-sm:left-auto max-sm:right-3 max-sm:mt-0 max-sm:top-[calc(var(--dashboard-topbar-height,5.5rem)+0.5rem)] max-sm:z-[140] max-sm:w-[min(20rem,calc(100vw-1.5rem))]"
           role="dialog"
           aria-label="Linked wallet"
         >
