@@ -4,7 +4,7 @@ import { DashboardChatPanel } from "@/app/components/DashboardChatPanel";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const STORAGE_KEY = "mcg_discord_chat_dock_expanded";
 
@@ -52,6 +52,7 @@ export function DiscordChatDock() {
   const { status } = useSession();
   const [expanded, setExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const shellRef = useRef<HTMLDivElement>(null);
 
   const shouldRenderDock =
     mounted &&
@@ -87,15 +88,32 @@ export function DiscordChatDock() {
     return () => window.removeEventListener("keydown", onKey);
   }, [expanded, setExpandedPersist]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement;
     if (!shouldRenderDock) {
       root.style.removeProperty("--mcg-dock-stack");
       return;
     }
-    const stack = expanded ? "calc(min(52vh, 540px) + 3.25rem)" : "4.125rem";
-    root.style.setProperty("--mcg-dock-stack", stack);
+    const apply = () => {
+      const el = shellRef.current;
+      if (!el) return;
+      const h = Math.ceil(el.getBoundingClientRect().height);
+      root.style.setProperty("--mcg-dock-stack", `${h}px`);
+    };
+    apply();
+    const raf = window.requestAnimationFrame(apply);
+    const el = shellRef.current;
+    if (!el) {
+      window.cancelAnimationFrame(raf);
+      return () => root.style.removeProperty("--mcg-dock-stack");
+    }
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    window.addEventListener("resize", apply);
     return () => {
+      window.cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener("resize", apply);
       root.style.removeProperty("--mcg-dock-stack");
     };
   }, [shouldRenderDock, expanded]);
@@ -107,11 +125,14 @@ export function DiscordChatDock() {
 
   return (
     <div
-      className="pointer-events-none fixed bottom-0 left-0 right-0 z-[45] flex justify-center px-2 pb-[max(0.6rem,calc(0.2rem+env(safe-area-inset-bottom)))] sm:px-4 sm:pb-[max(0.45rem,env(safe-area-inset-bottom))] lg:left-[min(18rem,88vw)] lg:justify-end lg:pr-8"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-[45] flex justify-center px-0 pb-0 sm:px-4 lg:left-[min(18rem,88vw)] lg:justify-end lg:pr-6"
       aria-live="polite"
     >
-      <div className="pointer-events-auto w-full max-w-lg lg:max-w-md">
-        <div className="overflow-hidden rounded-t-2xl border border-b-0 border-zinc-700/70 bg-zinc-950/96 shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.55)] backdrop-blur-md">
+      <div
+        ref={shellRef}
+        className="pointer-events-auto w-full max-w-lg border-x border-zinc-800/80 bg-zinc-950/96 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.55)] backdrop-blur-md sm:max-w-lg sm:rounded-t-2xl sm:border sm:border-b-0 sm:border-zinc-700/70 lg:max-w-md"
+      >
+        <div className="overflow-hidden sm:rounded-t-2xl">
           {expanded ? (
             <div
               id="discord-chat-dock-panel"

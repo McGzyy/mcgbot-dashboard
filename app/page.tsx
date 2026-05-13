@@ -2096,7 +2096,7 @@ function TopPerformersPanel({
       <PanelCard
         title="🔥 Top Performers Today"
         titleClassName="normal-case"
-        className="relative overflow-hidden"
+        className="relative min-w-0 overflow-x-auto"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-yellow-500/35 via-[color:var(--accent)]/35 to-transparent" />
         {topPerformersLoading ? (
@@ -2123,8 +2123,8 @@ function TopPerformersPanel({
                   key={row.discordId}
                   className={`${v.row} ${TOP_PERFORMER_ROW_INTERACTIVE}`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                       <span
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${v.badge}`}
                       >
@@ -2135,7 +2135,7 @@ function TopPerformersPanel({
                           discordId: row.discordId,
                           displayName: label,
                         })}
-                        className={v.nameLink}
+                        className={`min-w-0 flex-1 truncate ${v.nameLink}`}
                       >
                         {label}
                       </Link>
@@ -2298,35 +2298,37 @@ function ActivityFeedPanel({
 
   return (
     <PanelCard title="Live Activity">
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+      <div className="mt-2 flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar sm:gap-2">
         {(
           [
-            { id: "all" as const, label: "All" },
-            { id: "me" as const, label: "My Activity" },
-            { id: "milestones" as const, label: "Milestones" },
-            { id: "calls" as const, label: "Calls" },
-            { id: "following" as const, label: "Following" },
+            { id: "all" as const, label: "All", short: "All" },
+            { id: "me" as const, label: "My Activity", short: "Mine" },
+            { id: "milestones" as const, label: "Milestones", short: "Wins" },
+            { id: "calls" as const, label: "Calls", short: "Calls" },
+            { id: "following" as const, label: "Following", short: "Follow" },
           ] as const
-        ).map(({ id, label }) => {
+        ).map(({ id, label, short }) => {
           const active = feedMode === id;
           return (
             <button
               key={id}
               type="button"
               onClick={() => setFeedMode(id)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              title={label}
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm ${
                 active
                   ? "bg-zinc-700 text-zinc-50"
                   : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
               }`}
             >
-              {label}
+              <span className="sm:hidden">{short}</span>
+              <span className="hidden sm:inline">{label}</span>
             </button>
           );
         })}
-        <div className="ml-auto hidden items-center gap-2 text-[11px] text-zinc-500 sm:flex">
+        <div className="ml-auto flex shrink-0 items-center gap-2 text-[11px] text-zinc-500">
           <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)] opacity-80" aria-hidden />
-          LIVE
+          <span className="hidden sm:inline">LIVE</span>
         </div>
       </div>
 
@@ -2943,12 +2945,12 @@ function SocialsFeedPanel() {
         className="relative overflow-hidden"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-sky-500/25 via-[color:var(--accent)]/20 to-transparent" />
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
+        <div className="mt-2 flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 no-scrollbar">
+          <div className="flex shrink-0 flex-nowrap items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
             <button
               type="button"
               onClick={() => setTab("all")}
-              className={`rounded-md px-2 py-1 text-xs transition-all ${
+              className={`shrink-0 rounded-md px-2 py-1 text-xs transition-all ${
                 tab === "all"
                   ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
                   : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
@@ -2961,7 +2963,7 @@ function SocialsFeedPanel() {
                 key={opt.id}
                 type="button"
                 onClick={() => setTab(opt.id)}
-                className={`max-w-[7.5rem] truncate rounded-md px-2 py-1 text-xs transition-all ${
+                className={`max-w-[7.5rem] shrink-0 truncate rounded-md px-2 py-1 text-xs transition-all ${
                   tab === opt.id
                     ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
                     : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
@@ -2972,14 +2974,14 @@ function SocialsFeedPanel() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="text-[11px] text-zinc-500">
-              {loading ? "Loading…" : "Live • feed wired"}
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <div className="hidden whitespace-nowrap text-[11px] text-zinc-500 md:block">
+              {loading ? "Loading…" : "Live · feed wired"}
             </div>
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55"
+              className="shrink-0 rounded-lg border border-zinc-700/70 bg-zinc-950/40 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-950/55 sm:px-3"
             >
               Expand
             </button>
@@ -3052,15 +3054,15 @@ function SocialsFeedPanel() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 border-b border-zinc-800/70 px-4 py-2.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto border-b border-zinc-800/70 px-4 py-2.5 no-scrollbar">
+                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
                       Filter
                     </span>
-                    <div className="flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
+                    <div className="flex shrink-0 flex-nowrap items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
                       <button
                         type="button"
                         onClick={() => setTab("all")}
-                        className={`rounded-md px-2.5 py-1 text-xs transition-all ${
+                        className={`shrink-0 rounded-md px-2.5 py-1 text-xs transition-all ${
                           tab === "all"
                             ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
                             : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
@@ -3073,7 +3075,7 @@ function SocialsFeedPanel() {
                           key={opt.id}
                           type="button"
                           onClick={() => setTab(opt.id)}
-                          className={`max-w-[8rem] truncate rounded-md px-2.5 py-1 text-xs transition-all ${
+                          className={`max-w-[8rem] shrink-0 truncate rounded-md px-2.5 py-1 text-xs transition-all ${
                             tab === opt.id
                               ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
                               : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
