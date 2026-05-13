@@ -93,7 +93,7 @@ export function DiscordChatDock() {
       root.style.removeProperty("--mcg-dock-stack");
       return;
     }
-    const stack = expanded ? "calc(min(52vh, 540px) + 3.25rem)" : "3.75rem";
+    const stack = expanded ? "calc(min(52vh, 540px) + 3.25rem)" : "4.125rem";
     root.style.setProperty("--mcg-dock-stack", stack);
     return () => {
       root.style.removeProperty("--mcg-dock-stack");
@@ -107,7 +107,7 @@ export function DiscordChatDock() {
 
   return (
     <div
-      className="pointer-events-none fixed bottom-0 left-0 right-0 z-[45] flex justify-center px-2 pb-[max(0.35rem,env(safe-area-inset-bottom))] sm:px-4 lg:left-[min(18rem,88vw)] lg:justify-end lg:pr-8"
+      className="pointer-events-none fixed bottom-0 left-0 right-0 z-[45] flex justify-center px-2 pb-[max(0.6rem,calc(0.2rem+env(safe-area-inset-bottom)))] sm:px-4 sm:pb-[max(0.45rem,env(safe-area-inset-bottom))] lg:left-[min(18rem,88vw)] lg:justify-end lg:pr-8"
       aria-live="polite"
     >
       <div className="pointer-events-auto w-full max-w-lg lg:max-w-md">
@@ -145,10 +145,10 @@ export function DiscordChatDock() {
               <ChevronIcon expanded={expanded} />
               <ChatGlyph />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-zinc-100">
+                <span className="block text-sm font-semibold text-zinc-100 sm:truncate">
                   {expanded ? "Hide quick chat" : "Quick chat"}
                 </span>
-                <span className="block truncate text-[11px] text-zinc-500">
+                <span className="block line-clamp-2 text-[11px] text-zinc-500 sm:truncate">
                   {expanded ? "Escape to close" : "Post to Discord without leaving this page"}
                 </span>
               </span>

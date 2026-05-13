@@ -2767,6 +2767,7 @@ function SocialsFeedPanel() {
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState<string | null>(null);
+  const prevFeedTopId = useRef<string | null>(null);
 
   const tier = (session?.user as { helpTier?: string } | undefined)?.helpTier;
   const isAdmin = status === "authenticated" && tier === "admin";
@@ -2790,71 +2791,89 @@ function SocialsFeedPanel() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    fetch(`/api/social-feed?category=${encodeURIComponent(tab)}`, { credentials: "same-origin" })
-      .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
-      .then(({ ok, json }) => {
-        if (cancelled) return;
-        const rowsRaw =
-          ok && json && typeof json === "object" && Array.isArray((json as any).rows)
-            ? ((json as any).rows as unknown[])
-            : [];
-        const parsed: SocialFeedItem[] = [];
-        for (const r of rowsRaw) {
-          if (!r || typeof r !== "object") continue;
-          const o = r as Record<string, unknown>;
-          const id = typeof o.id === "string" ? o.id.trim() : "";
-          const platform = typeof o.platform === "string" ? o.platform : "";
-          const authorName = typeof o.authorName === "string" ? o.authorName.trim() : "";
-          const authorHandle = typeof o.authorHandle === "string" ? o.authorHandle.trim() : "";
-          const postedAtLabel = typeof o.postedAtLabel === "string" ? o.postedAtLabel.trim() : "";
-          const text = typeof o.text === "string" ? o.text.trim() : "";
-          if (!id || !authorName || !postedAtLabel || !text) continue;
-          const categorySlug =
-            parseSocialFeedCategorySlug(o.categorySlug ?? o.category_slug ?? o.category) ?? "other";
-          const categoryOther = normalizeCategoryOther(o.categoryOther ?? o.category_other);
-          const avatarRaw =
-            (typeof o.authorAvatarUrl === "string" && o.authorAvatarUrl) ||
-            (typeof o.author_avatar_url === "string" && o.author_avatar_url) ||
-            "";
-          const tweetUrl =
-            (typeof o.tweetUrl === "string" && o.tweetUrl) ||
-            (typeof o.tweet_url === "string" && o.tweet_url) ||
-            null;
-          parsed.push({
-            id,
-            platform: (platform as SocialFeedItem["platform"]) || "x",
-            categorySlug,
-            categoryOther,
-            authorName,
-            authorHandle,
-            authorAvatarUrl: avatarRaw.startsWith("http") ? avatarRaw : null,
-            authorVerified: Boolean(o.authorVerified ?? o.author_verified),
-            postedAtLabel,
-            text,
-            metricLabel: typeof o.metricLabel === "string" ? o.metricLabel : undefined,
-            likeCount: optSocialNumber(o.likeCount ?? o.like_count),
-            replyCount: optSocialNumber(o.replyCount ?? o.reply_count),
-            retweetCount: optSocialNumber(o.retweetCount ?? o.retweet_count),
-            quoteCount: optSocialNumber(o.quoteCount ?? o.quote_count),
-            impressionCount: optSocialNumber(o.impressionCount ?? o.impression_count),
-            tweetUrl,
-          });
-        }
-        setItems(parsed);
-        if (parsed.length > 0) {
-          setFlashId(parsed[0].id);
-          window.setTimeout(() => setFlashId(null), 900);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setItems([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    const POLL_MS = 45_000;
+    prevFeedTopId.current = null;
+
+    const load = () => {
+      setLoading(true);
+      fetch(`/api/social-feed?category=${encodeURIComponent(tab)}`, { credentials: "same-origin" })
+        .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
+        .then(({ ok, json }) => {
+          if (cancelled) return;
+          const rowsRaw =
+            ok && json && typeof json === "object" && Array.isArray((json as any).rows)
+              ? ((json as any).rows as unknown[])
+              : [];
+          const parsed: SocialFeedItem[] = [];
+          for (const r of rowsRaw) {
+            if (!r || typeof r !== "object") continue;
+            const o = r as Record<string, unknown>;
+            const id = typeof o.id === "string" ? o.id.trim() : "";
+            const platform = typeof o.platform === "string" ? o.platform : "";
+            const authorName = typeof o.authorName === "string" ? o.authorName.trim() : "";
+            const authorHandle = typeof o.authorHandle === "string" ? o.authorHandle.trim() : "";
+            const postedAtLabel = typeof o.postedAtLabel === "string" ? o.postedAtLabel.trim() : "";
+            const text = typeof o.text === "string" ? o.text.trim() : "";
+            if (!id || !authorName || !postedAtLabel || !text) continue;
+            const categorySlug =
+              parseSocialFeedCategorySlug(o.categorySlug ?? o.category_slug ?? o.category) ?? "other";
+            const categoryOther = normalizeCategoryOther(o.categoryOther ?? o.category_other);
+            const avatarRaw =
+              (typeof o.authorAvatarUrl === "string" && o.authorAvatarUrl) ||
+              (typeof o.author_avatar_url === "string" && o.author_avatar_url) ||
+              "";
+            const tweetUrl =
+              (typeof o.tweetUrl === "string" && o.tweetUrl) ||
+              (typeof o.tweet_url === "string" && o.tweet_url) ||
+              null;
+            parsed.push({
+              id,
+              platform: (platform as SocialFeedItem["platform"]) || "x",
+              categorySlug,
+              categoryOther,
+              authorName,
+              authorHandle,
+              authorAvatarUrl: avatarRaw.startsWith("http") ? avatarRaw : null,
+              authorVerified: Boolean(o.authorVerified ?? o.author_verified),
+              postedAtLabel,
+              text,
+              metricLabel: typeof o.metricLabel === "string" ? o.metricLabel : undefined,
+              likeCount: optSocialNumber(o.likeCount ?? o.like_count),
+              replyCount: optSocialNumber(o.replyCount ?? o.reply_count),
+              retweetCount: optSocialNumber(o.retweetCount ?? o.retweet_count),
+              quoteCount: optSocialNumber(o.quoteCount ?? o.quote_count),
+              impressionCount: optSocialNumber(o.impressionCount ?? o.impression_count),
+              tweetUrl,
+            });
+          }
+          setItems(parsed);
+          const topId = parsed[0]?.id ?? null;
+          if (topId && topId !== prevFeedTopId.current) {
+            prevFeedTopId.current = topId;
+            setFlashId(topId);
+            window.setTimeout(() => setFlashId(null), 900);
+          } else if (!topId) {
+            prevFeedTopId.current = null;
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setItems([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+
+    load();
+    const interval = window.setInterval(() => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      load();
+    }, POLL_MS);
+
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
     };
   }, [tab]);
 
@@ -4558,7 +4577,7 @@ export default function Home() {
   return (
     <div className="contents">
       <HodlDashboardDock />
-      <div className="mx-auto max-w-[1200px] px-1 sm:px-0" data-tutorial="dashboard.tutorialWelcome">
+      <div className="mx-auto max-w-[1200px] px-3 sm:px-2 md:px-0" data-tutorial="dashboard.tutorialWelcome">
       <div className="space-y-8" data-tutorial="dashboard.pageIntro">
       <div className="mb-8" data-tutorial="dashboard.performanceChart">
         <PerformanceChart refreshNonce={homeDataRefreshNonce} />

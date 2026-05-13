@@ -130,7 +130,7 @@ export function FixItTicketLauncher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed z-[60] max-w-[calc(100vw-2.5rem)] rounded-2xl border border-amber-500/35 bg-gradient-to-br from-amber-500/20 via-zinc-950/95 to-zinc-950 px-4 py-3 text-left shadow-[0_12px_40px_-12px_rgba(0,0,0,0.85)] shadow-amber-900/20 backdrop-blur-md transition hover:border-amber-400/50 hover:from-amber-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 bottom-[calc(1.25rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] right-5 sm:bottom-[calc(1.5rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] sm:right-6"
+        className="fixed z-[60] max-w-[11.25rem] rounded-2xl border border-amber-500/35 bg-gradient-to-br from-amber-500/20 via-zinc-950/95 to-zinc-950 px-3 py-2.5 text-left shadow-[0_12px_40px_-12px_rgba(0,0,0,0.85)] shadow-amber-900/20 backdrop-blur-md transition hover:border-amber-400/50 hover:from-amber-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 bottom-[calc(1rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] left-3 right-auto sm:max-w-[calc(100vw-2.5rem)] sm:px-4 sm:py-3 sm:bottom-[calc(1.35rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] lg:left-auto lg:right-6"
         aria-haspopup="dialog"
         aria-expanded={open}
       >

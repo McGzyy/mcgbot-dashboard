@@ -17,7 +17,11 @@ export function MainShell({ children }: { children: ReactNode }) {
       <div className={dashboardChrome.mainStage}>
         <div className={`${dashboardChrome.mainGlow} absolute inset-0`} aria-hidden />
         <div className={`${dashboardChrome.mainGrid} absolute inset-0`} aria-hidden />
-        <div className={`${dashboardChrome.contentWell} pb-16 sm:pb-20`}>{children}</div>
+        <div
+          className={`${dashboardChrome.contentWell} pb-[calc(5.25rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] sm:pb-[calc(5.75rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))]`}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

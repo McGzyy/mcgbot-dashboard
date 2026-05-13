@@ -651,8 +651,8 @@ export function ModerationQueueFeed({
 
       {err ? (
         <div className="mt-3 space-y-2">
-          <p className="text-sm leading-relaxed text-red-400/90">{err}</p>
-          {errHint ? <p className="text-xs leading-relaxed text-zinc-500">{errHint}</p> : null}
+          <p className="break-words text-sm leading-relaxed text-red-400/90">{err}</p>
+          {errHint ? <p className="break-words text-xs leading-relaxed text-zinc-500">{errHint}</p> : null}
         </div>
       ) : loading ? (
         <div className="mt-4 animate-pulse space-y-2">

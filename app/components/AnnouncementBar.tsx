@@ -84,7 +84,7 @@ export function AnnouncementBar({
     "sticky top-0 z-40 shrink-0 border-b border-sky-500/25 bg-gradient-to-r from-sky-950/95 via-sky-900/40 to-zinc-950 px-4 py-2.5 text-center text-[13px] leading-snug text-sky-100/95 shadow-[inset_0_1px_0_0_rgba(56,189,248,0.12),0_8px_24px_-12px_rgba(0,0,0,0.45)] backdrop-blur-md";
 
   const insetInnerShell =
-    "relative z-[1] w-full min-w-0 overflow-hidden rounded-lg border border-red-500/35 bg-gradient-to-r from-red-950/90 via-red-950/45 to-zinc-950/95 py-2.5 pl-3 pr-3 text-[13px] leading-none text-red-50/95 shadow-[inset_0_1px_0_0_rgba(248,113,113,0.2),0_0_32px_-8px_rgba(220,38,38,0.35),0_10px_28px_-12px_rgba(0,0,0,0.55)] backdrop-blur-md";
+    "relative z-[1] w-full min-w-0 overflow-hidden rounded-lg border border-red-500/35 bg-gradient-to-r from-red-950/90 via-red-950/45 to-zinc-950/95 py-2.5 pl-3 pr-3 text-red-50/95 shadow-[inset_0_1px_0_0_rgba(248,113,113,0.2),0_0_32px_-8px_rgba(220,38,38,0.35),0_10px_28px_-12px_rgba(0,0,0,0.55)] backdrop-blur-md";
 
   const dotClass =
     variant === "bare"
@@ -101,7 +101,7 @@ export function AnnouncementBar({
       className={
         variant === "bare"
           ? "inline-flex max-w-4xl items-start justify-center gap-3"
-          : "flex w-full min-w-0 items-center justify-center gap-2.5 sm:gap-3"
+          : "flex w-full min-w-0 items-start justify-center gap-2.5 sm:items-center sm:gap-3"
       }
     >
       <span className={dotClass} aria-hidden />
@@ -110,7 +110,7 @@ export function AnnouncementBar({
         className={
           variant === "bare"
             ? "text-pretty"
-            : "min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-center [scrollbar-width:thin] [scrollbar-color:rgba(248,113,113,0.35)_transparent] [&::-webkit-scrollbar]:h-1"
+            : "min-w-0 flex-1 text-balance break-words px-0.5 text-center text-[13px] leading-snug sm:overflow-x-auto sm:whitespace-nowrap sm:leading-none sm:[scrollbar-width:thin] sm:[scrollbar-color:rgba(248,113,113,0.35)_transparent] sm:[&::-webkit-scrollbar]:h-1"
         }
       >
         {payload.message}

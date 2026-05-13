@@ -108,7 +108,7 @@ export function HodlDashboardDock() {
 
   return createPortal(
     <div
-      className="pointer-events-none fixed inset-x-0 top-0 z-[28] flex justify-end p-2 pt-[4.75rem] sm:p-3 sm:pt-[5rem] min-[1100px]:pr-[max(0.75rem,calc((100vw-1200px)/2+0.5rem)))]"
+      className="pointer-events-none fixed inset-x-0 top-0 z-[28] hidden min-[1024px]:flex justify-end p-2 pt-[4.75rem] sm:p-3 sm:pt-[5rem] min-[1100px]:pr-[max(0.75rem,calc((100vw-1200px)/2+0.5rem)))]"
       aria-hidden={false}
     >
       <aside
