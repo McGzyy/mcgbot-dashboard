@@ -1,4 +1,8 @@
 import { requireDashboardAdmin } from "@/lib/adminGate";
+import {
+  fetchOutsideSourceCallStatsMap,
+  mergeOutsideSourceCallStats,
+} from "@/lib/outsideXSourceCallStats";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -39,5 +43,10 @@ export async function GET(request: Request) {
     return Response.json({ error: "Failed to load sources" }, { status: 500 });
   }
 
-  return Response.json({ success: true, sources: Array.isArray(data) ? data : [] });
+  const rows = Array.isArray(data) ? data : [];
+  const ids = rows.map((r) => (r as { id?: string }).id).filter((x): x is string => typeof x === "string");
+  const statsMap = await fetchOutsideSourceCallStatsMap(db, ids);
+  const merged = mergeOutsideSourceCallStats(rows as { id: string }[], statsMap);
+
+  return Response.json({ success: true, sources: merged });
 }

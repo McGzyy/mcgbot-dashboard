@@ -14,6 +14,8 @@ type SourceRow = {
   suspension_review_pending: boolean;
   created_at: string;
   updated_at: string;
+  primary_call_count: number;
+  avg_peak_multiple: number | null;
 };
 
 type RowDraft = {
@@ -147,7 +149,12 @@ export function OutsideXSourcesAdminClient() {
             <Link href="/outside-calls" className="text-cyan-400/90 underline-offset-2 hover:underline">
               Outside Calls
             </Link>
-            . Quick add still uses the + control on that page.
+            . Quick add still uses the + control on that page.{" "}
+            <span className="text-zinc-500">
+              <strong className="font-medium text-zinc-400">Calls</strong> counts primary tape rows per monitor;{" "}
+              <strong className="font-medium text-zinc-400">Avg peak ×</strong> is the mean peak ATH multiple tracked
+              for those calls (rows still at 0× are excluded until the trust worker records a peak).
+            </span>
           </>
         }
       />
@@ -192,12 +199,18 @@ export function OutsideXSourcesAdminClient() {
         ) : sources.length === 0 ? (
           <div className="p-8 text-center text-sm text-zinc-500">No monitors in this filter.</div>
         ) : (
-          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[920px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-zinc-800/90 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                 <th className="px-4 py-3">X handle</th>
                 <th className="px-4 py-3">Display name</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right" title="Primary outside_calls rows for this monitor">
+                  Calls
+                </th>
+                <th className="px-4 py-3 text-right" title="Mean trust_max_ath_multiple for primaries with a recorded peak above 0">
+                  Avg peak ×
+                </th>
                 <th className="px-4 py-3">Trust</th>
                 <th className="px-4 py-3">Updated</th>
                 <th className="px-4 py-3 text-right">Actions</th>
@@ -260,6 +273,17 @@ export function OutsideXSourcesAdminClient() {
                       {r.suspension_review_pending ? (
                         <p className="mt-1 text-[11px] text-amber-400/80">Suspension review pending (trust system)</p>
                       ) : null}
+                    </td>
+                    <td className="px-4 py-3 align-middle text-right tabular-nums text-zinc-300">
+                      {typeof r.primary_call_count === "number" ? r.primary_call_count : 0}
+                    </td>
+                    <td className="px-4 py-3 align-middle text-right tabular-nums text-zinc-300">
+                      {r.avg_peak_multiple != null &&
+                      typeof r.avg_peak_multiple === "number" &&
+                      Number.isFinite(r.avg_peak_multiple) &&
+                      r.avg_peak_multiple > 0
+                        ? `${r.avg_peak_multiple.toFixed(2)}x`
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 align-middle tabular-nums text-zinc-400">{r.trust_score}</td>
                     <td className="px-4 py-3 align-middle text-xs text-zinc-500">

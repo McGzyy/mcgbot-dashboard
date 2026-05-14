@@ -1,6 +1,7 @@
 import { requireDashboardAdmin } from "@/lib/adminGate";
 import { OUTSIDE_X_MAX_ACTIVE_SOURCES } from "@/lib/outsideXCalls/constants";
 import { countActiveOutsideXSources } from "@/lib/outsideXCalls/activeSourcesCount";
+import { fetchOutsideSourceCallStatsMap, mergeOutsideSourceCallStats } from "@/lib/outsideXSourceCallStats";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -162,5 +163,12 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     return Response.json({ error: "Update failed" }, { status: 500 });
   }
 
-  return Response.json({ success: true, source: updated });
+  if (!updated || typeof updated !== "object") {
+    return Response.json({ error: "Update returned no row" }, { status: 500 });
+  }
+
+  const statsMap = await fetchOutsideSourceCallStatsMap(db, [id]);
+  const [withStats] = mergeOutsideSourceCallStats([updated as { id: string }], statsMap);
+
+  return Response.json({ success: true, source: withStats });
 }
