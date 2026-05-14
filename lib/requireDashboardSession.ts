@@ -2,9 +2,10 @@ import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export async function requireAuthenticatedDiscordId():
+export async function requireAuthenticatedDiscordId(): Promise<
   | { ok: true; discordId: string; session: Session }
-  | { ok: false; response: Response } {
+  | { ok: false; response: Response }
+> {
   const session = await getServerSession(authOptions);
   const discordId = session?.user?.id?.trim() ?? "";
   if (!session || !discordId) {
@@ -13,9 +14,10 @@ export async function requireAuthenticatedDiscordId():
   return { ok: true, discordId, session };
 }
 
-export async function requireDashboardSession():
+export async function requireDashboardSession(): Promise<
   | { ok: true; discordId: string; session: NonNullable<Awaited<ReturnType<typeof getServerSession>>> }
-  | { ok: false; response: Response } {
+  | { ok: false; response: Response }
+> {
   const r = await requireAuthenticatedDiscordId();
   if (!r.ok) return r;
   const s = r.session;
