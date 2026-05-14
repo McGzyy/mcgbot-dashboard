@@ -20,6 +20,8 @@ type CallRow = {
   tweet_id: string | null;
   x_post_url: string | null;
   posted_at: string;
+  signal_ticker?: string | null;
+  mint_resolution?: string | null;
   outside_x_sources: SourceRow | SourceRow[] | null;
 };
 
@@ -50,6 +52,8 @@ export async function GET(request: Request) {
       tweet_id,
       x_post_url,
       posted_at,
+      signal_ticker,
+      mint_resolution,
       outside_x_sources (
         display_name,
         x_handle_normalized,
@@ -80,6 +84,8 @@ export async function GET(request: Request) {
         tweetId: r.tweet_id,
         xPostUrl: r.x_post_url,
         postedAt: r.posted_at,
+        signalTicker: r.signal_ticker ?? null,
+        mintResolution: r.mint_resolution ?? null,
         source: {
           displayName: src.display_name ?? "",
           xHandle: src.x_handle_normalized ?? "",

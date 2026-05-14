@@ -15,6 +15,8 @@ type FeedCall = {
   tweetId: string | null;
   xPostUrl: string | null;
   postedAt: string;
+  signalTicker?: string | null;
+  mintResolution?: string | null;
   source: { displayName: string; xHandle: string; trustScore: number | null };
 };
 
@@ -293,6 +295,14 @@ export function OutsideCallsClient() {
                           ) : null}
                         </p>
                         <p className="mt-1 font-mono text-xs text-zinc-400">{c.mint}</p>
+                        {c.signalTicker ? (
+                          <p className="mt-0.5 text-[10px] text-zinc-500">
+                            From <span className="font-mono text-zinc-400">${c.signalTicker}</span>
+                            {c.mintResolution ? (
+                              <span className="text-zinc-600"> · {c.mintResolution.replace(/_/g, " ")}</span>
+                            ) : null}
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
                         <span className="text-[10px] text-zinc-500">{formatRelativeTime(c.postedAt)}</span>
