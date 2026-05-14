@@ -757,7 +757,7 @@ function SocialFeedFirstLinkPreview({ url, compact }: { url: string; compact: bo
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`mt-2 flex w-full max-w-full items-stretch gap-3 overflow-hidden rounded-lg border border-zinc-700/50 bg-zinc-900/35 text-left transition hover:border-sky-500/25 hover:bg-zinc-900/55 ${
+      className={`mt-1.5 flex w-full max-w-full items-stretch gap-3 overflow-hidden rounded-lg border border-zinc-700/50 bg-zinc-900/35 text-left transition hover:border-sky-500/25 hover:bg-zinc-900/55 ${
         compact ? "py-2 pl-2 pr-2.5" : "py-2.5 pl-2.5 pr-3"
       }`}
     >
@@ -784,21 +784,23 @@ function SocialFeedFirstLinkPreview({ url, compact }: { url: string; compact: bo
 
 function SocialFeedSkeletonRow({ compact }: { compact: boolean }) {
   return (
-    <li className="rounded-xl border border-zinc-800/60 bg-zinc-950/50 p-3 sm:p-3.5">
+    <li className="rounded-xl border border-zinc-800/60 bg-zinc-950/50 p-2.5 sm:p-3">
       <div className="flex animate-pulse gap-3">
         <div className="h-11 w-11 shrink-0 rounded-full bg-zinc-800/90 ring-2 ring-black/20" />
-        <div className="min-w-0 flex-1 space-y-2.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="h-3.5 w-32 rounded-md bg-zinc-800/80" />
-            <div className="h-3 w-14 rounded-md bg-zinc-800/50" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <div className="h-3.5 w-32 rounded-md bg-zinc-800/80" />
+              <div className="h-3 w-14 rounded-md bg-zinc-800/50" />
+            </div>
+            <div className="h-4 w-[4.5rem] shrink-0 rounded-md bg-zinc-800/45" />
           </div>
-          <div className="h-5 w-24 rounded-md bg-zinc-800/40" />
           <div className="space-y-2 pt-0.5">
             <div className="h-3 w-full rounded bg-zinc-800/35" />
             <div className="h-3 w-[92%] rounded bg-zinc-800/30" />
             {!compact ? <div className="h-3 w-[70%] rounded bg-zinc-800/25" /> : null}
           </div>
-          <div className="flex gap-3 border-t border-zinc-800/40 pt-2">
+          <div className="flex gap-3 border-t border-zinc-800/40 pt-1.5">
             <div className="h-3 w-10 rounded bg-zinc-800/40" />
             <div className="h-3 w-10 rounded bg-zinc-800/35" />
             <div className="h-3 w-10 rounded bg-zinc-800/30" />
@@ -2665,14 +2667,14 @@ function SocialFeedPostRow({
   const legacyChip = !hasStructured && item.metricLabel;
 
   const textCls = compact
-    ? "mt-2 line-clamp-3 text-[13px] leading-snug text-zinc-200"
-    : "mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-100";
+    ? "mt-1.5 line-clamp-3 text-[13px] leading-snug text-zinc-200"
+    : "mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-100";
 
   const linkPreviewUrl = firstHttpsUrl(item.text);
 
   return (
     <li
-      className={`rounded-xl border bg-gradient-to-b from-zinc-900/55 to-zinc-950/90 p-3 shadow-sm shadow-black/25 transition-colors sm:p-3.5 ${
+      className={`rounded-xl border bg-gradient-to-b from-zinc-900/55 to-zinc-950/90 p-2.5 shadow-sm shadow-black/25 transition-colors sm:p-3 ${
         flash
           ? "border-[color:var(--accent)]/40 ring-1 ring-[color:var(--accent)]/25"
           : "border-zinc-800/75 hover:border-zinc-700/85 hover:from-zinc-900/70"
@@ -2715,22 +2717,24 @@ function SocialFeedPostRow({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <span className="truncate text-sm font-semibold text-zinc-50">{item.authorName}</span>
-            {item.authorVerified && item.platform === "x" ? (
-              <span className="inline-flex shrink-0 text-sky-400" title="Verified" aria-label="Verified account">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                </svg>
-              </span>
-            ) : null}
-            <span className="truncate text-xs text-zinc-500">{item.authorHandle}</span>
-            <span className="text-xs text-zinc-600">·</span>
-            <span className="text-xs tabular-nums text-zinc-500">{item.postedAtLabel}</span>
-          </div>
-
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <span className="inline-flex max-w-[12rem] truncate rounded-md border border-zinc-700/50 bg-zinc-900/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="truncate text-sm font-semibold text-zinc-50">{item.authorName}</span>
+              {item.authorVerified && item.platform === "x" ? (
+                <span className="inline-flex shrink-0 text-sky-400" title="Verified" aria-label="Verified account">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                  </svg>
+                </span>
+              ) : null}
+              <span className="truncate text-xs text-zinc-500">{item.authorHandle}</span>
+              <span className="text-xs text-zinc-600">·</span>
+              <span className="text-xs tabular-nums text-zinc-500">{item.postedAtLabel}</span>
+            </div>
+            <span
+              className="inline-flex max-w-[min(11rem,40vw)] shrink-0 truncate rounded-md border border-zinc-700/50 bg-zinc-900/50 px-1.5 py-0.5 text-[9px] font-medium uppercase leading-tight tracking-wide text-zinc-400 sm:max-w-[13rem] sm:px-2 sm:text-[10px]"
+              title={formatSocialFeedCategoryLabel(item.categorySlug, item.categoryOther)}
+            >
               {formatSocialFeedCategoryLabel(item.categorySlug, item.categoryOther)}
             </span>
           </div>
@@ -2742,7 +2746,7 @@ function SocialFeedPostRow({
           ) : null}
 
           {(hasStructured || legacyChip) && (
-            <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-zinc-800/60 pt-2">
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-zinc-800/60 pt-1.5 sm:gap-x-4 sm:pt-2">
               {likes != null ? (
                 <SocialFeedMetricPill
                   label="Likes"
@@ -2813,7 +2817,7 @@ function SocialFeedPostRow({
               href={item.tweetUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-sky-400/90 transition hover:text-sky-300"
+              className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-sky-400/90 transition hover:text-sky-300"
             >
               View on X
               <span className="text-xs" aria-hidden>

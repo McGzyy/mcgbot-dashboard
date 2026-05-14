@@ -7,7 +7,7 @@ import { TopBar } from "./TopBar";
 
 export function MainShell({ children }: { children: ReactNode }) {
   return (
-    <div className="relative z-0 flex min-h-screen min-w-0 flex-1 flex-col">
+    <div className="relative flex min-h-screen min-w-0 flex-1 flex-col">
       <TopBar />
       {/*
         Announcement must stay OUTSIDE mainStage: that region uses overflow-x-hidden, which breaks

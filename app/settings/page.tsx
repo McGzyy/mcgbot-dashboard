@@ -1832,7 +1832,7 @@ function SettingsPageInner() {
       </div>
     </div>
 
-    <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+var(--mcg-dock-stack,0px))] left-0 right-0 z-[50] flex items-center justify-between gap-3 border-t border-zinc-800/80 bg-zinc-950/95 py-3.5 pl-4 pr-4 shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.75)] backdrop-blur-md sm:px-6 sm:pl-44 lg:left-64">
+    <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+var(--mcg-dock-stack,0px))] left-0 right-0 z-[65] flex items-center justify-between gap-3 border-t border-zinc-800/80 bg-zinc-950/95 py-3.5 pl-4 pr-4 shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.75)] backdrop-blur-md sm:px-6 sm:pl-44 lg:left-64 lg:pr-[max(1.5rem,13rem)]">
       <p className="hidden min-w-0 flex-1 truncate text-xs text-zinc-500 sm:block">
         Unsaved changes apply after you save. X linking updates immediately when you connect.
       </p>
@@ -1859,7 +1859,7 @@ function SettingsPageInner() {
 
     {showToast ? (
       <div
-        className="fixed bottom-[calc(5rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] right-4 z-[55] rounded-lg bg-emerald-500/90 px-4 py-2 text-sm text-white shadow-lg animate-fade-in sm:right-6"
+        className="fixed bottom-[calc(5rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] right-4 z-[72] rounded-lg bg-emerald-500/90 px-4 py-2 text-sm text-white shadow-lg animate-fade-in sm:right-6"
         role="status"
         aria-live="polite"
       >
