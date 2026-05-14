@@ -77,7 +77,10 @@ const TRENDING_TOKENS_MOCK = [
 ] as const;
 
 type TrendingTokenRow = {
+  /** Ticker / short symbol (e.g. from pair base token). */
   symbol: string;
+  /** Full token name when the API provides it (Dexscreener-style `baseToken.name`). */
+  name?: string | null;
   mint: string;
   imageUrl?: string | null;
   priceUsd: number;
@@ -1688,6 +1691,13 @@ function TrendingPanel() {
           const symbol = typeof o.symbol === "string" ? o.symbol.trim() : "";
           const mint = typeof o.mint === "string" ? o.mint.trim() : "";
           if (!symbol || !mint) continue;
+          const nameRaw =
+            typeof o.name === "string"
+              ? o.name.trim()
+              : typeof o.tokenName === "string"
+                ? o.tokenName.trim()
+                : "";
+          const name = nameRaw.length > 0 ? nameRaw : null;
           const imageUrl =
             typeof (o as { imageUrl?: unknown }).imageUrl === "string" &&
             String((o as { imageUrl?: unknown }).imageUrl).startsWith("http")
@@ -1695,6 +1705,7 @@ function TrendingPanel() {
               : null;
           parsed.push({
             symbol,
+            name,
             mint,
             imageUrl,
             priceUsd: Number(o.priceUsd ?? 0) || 0,
@@ -1814,6 +1825,12 @@ function TrendingPanel() {
             <ul className="space-y-1">
               {rows.map((row, i) => {
                 const positive = row.changePct >= 0;
+                const displayName = (row.name && row.name.trim()) || row.symbol;
+                const showTickerSub =
+                  row.name &&
+                  row.name.trim() !== "" &&
+                  row.symbol.trim() !== "" &&
+                  row.name.trim().toLowerCase() !== row.symbol.trim().toLowerCase();
                 return (
                   <li key={`${row.symbol}-${row.mint}-${i}`}>
                     <button
@@ -1827,7 +1844,7 @@ function TrendingPanel() {
                           "noopener,noreferrer"
                         )
                       }
-                      title={`Open on ${row.source}`}
+                      title={`${displayName} — open on Dexscreener`}
                       className={terminalPage.denseInsetRowButton}
                     >
                       <div className="min-w-0 flex-1">
@@ -1836,7 +1853,7 @@ function TrendingPanel() {
                             <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md border border-zinc-800/70 bg-zinc-950">
                               <img
                                 src={row.imageUrl}
-                                alt={row.symbol}
+                                alt={displayName}
                                 className="h-full w-full object-cover"
                                 loading="lazy"
                                 referrerPolicy="no-referrer"
@@ -1848,13 +1865,13 @@ function TrendingPanel() {
                             </span>
                           )}
                           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-100">
-                            {row.symbol}
-                          </span>
-                          <span className="hidden shrink-0 rounded-full border border-zinc-800/70 bg-zinc-900/30 px-2 py-0.5 text-[10px] font-semibold text-zinc-400 sm:inline-flex">
-                            {row.source}
+                            {displayName}
                           </span>
                         </div>
                         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+                          {showTickerSub ? (
+                            <span className="font-mono text-zinc-400">${row.symbol}</span>
+                          ) : null}
                           <span className="tabular-nums">
                             CA{" "}
                             <span className="font-mono text-zinc-400">
