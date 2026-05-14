@@ -466,6 +466,7 @@ export function ModerationQueueFeed({
 
   return (
     <div
+      data-tutorial={mode === "preview" ? "dashboard.modQueue" : undefined}
       className={`relative overflow-hidden rounded-xl border px-4 py-3 backdrop-blur-sm ${terminalSurface.panelCard} ${CARD_HOVER}`}
     >
       {hasItems ? (

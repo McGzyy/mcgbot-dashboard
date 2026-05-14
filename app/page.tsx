@@ -4904,9 +4904,7 @@ export default function Home() {
           {quickActionsBlock ? <div className="hidden lg:block">{quickActionsBlock}</div> : null}
 
           {(helpTier === "mod" || helpTier === "admin") && (
-            <div data-tutorial="dashboard.modQueue">
-              <ModQueueHomePanel hideWhenEmpty />
-            </div>
+            <ModQueueHomePanel hideWhenEmpty />
           )}
 
           <PanelCard
