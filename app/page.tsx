@@ -2799,6 +2799,8 @@ function SocialsFeedPanel() {
   const tier = (session?.user as { helpTier?: string } | undefined)?.helpTier;
   const isAdmin = status === "authenticated" && tier === "admin";
   const canRequestSource = status === "authenticated" && session?.user?.hasDashboardAccess === true;
+  /** Shorter for admins (immediate add); members need enough context for triage. */
+  const submitRationaleMinLen = isAdmin ? 4 : 8;
 
   const closeExpanded = useCallback(() => {
     setExpanded(false);
@@ -3245,6 +3247,9 @@ function SocialsFeedPanel() {
 
                   <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                     Why add this to the feed?
+                    <span className="ml-1 font-normal normal-case text-zinc-600">
+                      (min. {submitRationaleMinLen} characters{isAdmin ? " for admin add" : ""})
+                    </span>
                     <textarea
                       value={submitRationale}
                       onChange={(e) => setSubmitRationale(e.target.value)}
@@ -3253,6 +3258,18 @@ function SocialsFeedPanel() {
                       placeholder="Short note for reviewers (signal quality, relevance, etc.)"
                       className={`${terminalUi.formInput} mt-1 min-h-[5.5rem] resize-y`}
                     />
+                    <span
+                      className={`mt-1 block text-[11px] tabular-nums ${
+                        submitRationale.trim().length >= submitRationaleMinLen
+                          ? "text-zinc-600"
+                          : "text-amber-300/90"
+                      }`}
+                    >
+                      {submitRationale.trim().length}/{submitRationaleMinLen}
+                      {submitRationale.trim().length < submitRationaleMinLen
+                        ? " — a bit more detail unlocks the button."
+                        : " — ready to submit."}
+                    </span>
                   </label>
 
                   <div className="flex flex-wrap items-center justify-end gap-2 border-t border-zinc-800/70 pt-3">
@@ -3271,7 +3288,7 @@ function SocialsFeedPanel() {
                         !socialSourceHandleHasName(submitHandle) ||
                         !submitSourceName.trim() ||
                         (submitCategorySlug === "other" && submitCategoryOther.trim().length < 2) ||
-                        submitRationale.trim().length < 8
+                        submitRationale.trim().length < submitRationaleMinLen
                       }
                       onClick={() => {
                         void (async () => {
