@@ -757,8 +757,8 @@ function SocialFeedFirstLinkPreview({ url, compact }: { url: string; compact: bo
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`mt-1.5 flex w-full max-w-full items-stretch gap-3 overflow-hidden rounded-lg border border-zinc-700/50 bg-zinc-900/35 text-left transition hover:border-sky-500/25 hover:bg-zinc-900/55 ${
-        compact ? "py-2 pl-2 pr-2.5" : "py-2.5 pl-2.5 pr-3"
+      className={`mt-1.5 flex w-full max-w-full items-stretch gap-2.5 overflow-hidden rounded-lg border border-zinc-800/60 bg-zinc-950/40 text-left transition hover:border-zinc-600/50 hover:bg-zinc-900/50 sm:gap-3 ${
+        compact ? "py-1.5 pl-2 pr-2.5" : "py-2 pl-2.5 pr-3"
       }`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -767,13 +767,13 @@ function SocialFeedFirstLinkPreview({ url, compact }: { url: string; compact: bo
         alt=""
         width={32}
         height={32}
-        className="mt-0.5 h-8 w-8 shrink-0 rounded-md border border-zinc-700/50 bg-zinc-950 object-contain"
+        className="mt-0.5 h-7 w-7 shrink-0 rounded-md border border-zinc-800/80 bg-zinc-950 object-contain sm:h-8 sm:w-8"
         loading="lazy"
       />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[11px] font-semibold text-zinc-200">{host}</span>
+        <span className="min-w-0 flex-1">
+        <span className="block truncate text-[11px] font-semibold tracking-tight text-zinc-100">{host}</span>
         <span className="mt-0.5 block truncate text-[10px] leading-snug text-zinc-500">{path}</span>
-        <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-sky-400/90">
+        <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-sky-400/85">
           Open link
           <span aria-hidden>↗</span>
         </span>
@@ -800,10 +800,13 @@ function SocialFeedSkeletonRow({ compact }: { compact: boolean }) {
             <div className="h-3 w-[92%] rounded bg-zinc-800/30" />
             {!compact ? <div className="h-3 w-[70%] rounded bg-zinc-800/25" /> : null}
           </div>
-          <div className="flex gap-3 border-t border-zinc-800/40 pt-1.5">
-            <div className="h-3 w-10 rounded bg-zinc-800/40" />
-            <div className="h-3 w-10 rounded bg-zinc-800/35" />
-            <div className="h-3 w-10 rounded bg-zinc-800/30" />
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/40 pt-1.5">
+            <div className="flex flex-wrap gap-3">
+              <div className="h-3 w-10 rounded bg-zinc-800/40" />
+              <div className="h-3 w-10 rounded bg-zinc-800/35" />
+              <div className="h-3 w-10 rounded bg-zinc-800/30" />
+            </div>
+            <div className="h-6 w-[5.5rem] shrink-0 rounded-md bg-zinc-800/45" />
           </div>
         </div>
       </div>
@@ -2624,10 +2627,10 @@ function SocialFeedMetricPill({
 }) {
   return (
     <span
-      className="inline-flex items-center gap-1 text-[11px] font-medium tabular-nums text-zinc-300"
+      className="inline-flex items-center gap-1 text-[11px] font-medium tabular-nums text-zinc-400"
       title={label}
     >
-      <span className="text-zinc-500" aria-hidden>
+      <span className="text-zinc-600" aria-hidden>
         {icon}
       </span>
       {value}
@@ -2665,6 +2668,9 @@ function SocialFeedPostRow({
     quotes != null ||
     views != null;
   const legacyChip = !hasStructured && item.metricLabel;
+  const showMetrics = hasStructured || Boolean(legacyChip);
+  const showPostLink = Boolean(item.tweetUrl?.trim());
+  const showFooter = showMetrics || showPostLink;
 
   const textCls = compact
     ? "mt-1.5 line-clamp-3 text-[13px] leading-snug text-zinc-200"
@@ -2674,10 +2680,10 @@ function SocialFeedPostRow({
 
   return (
     <li
-      className={`rounded-xl border bg-gradient-to-b from-zinc-900/55 to-zinc-950/90 p-2.5 shadow-sm shadow-black/25 transition-colors sm:p-3 ${
+      className={`rounded-xl border bg-gradient-to-b from-zinc-900/40 to-zinc-950/95 p-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)] transition-colors sm:p-3 ${
         flash
           ? "border-[color:var(--accent)]/40 ring-1 ring-[color:var(--accent)]/25"
-          : "border-zinc-800/75 hover:border-zinc-700/85 hover:from-zinc-900/70"
+          : "border-zinc-800/50 hover:border-zinc-700/70 hover:from-zinc-900/55"
       }`}
     >
       <div className="flex gap-3">
@@ -2732,7 +2738,7 @@ function SocialFeedPostRow({
               <span className="text-xs tabular-nums text-zinc-500">{item.postedAtLabel}</span>
             </div>
             <span
-              className="inline-flex max-w-[min(11rem,40vw)] shrink-0 truncate rounded-md border border-zinc-700/50 bg-zinc-900/50 px-1.5 py-0.5 text-[9px] font-medium uppercase leading-tight tracking-wide text-zinc-400 sm:max-w-[13rem] sm:px-2 sm:text-[10px]"
+              className="inline-flex max-w-[min(11rem,40vw)] shrink-0 truncate rounded-md border border-zinc-600/35 bg-zinc-800/25 px-1.5 py-0.5 text-[9px] font-medium uppercase leading-tight tracking-wide text-zinc-500 sm:max-w-[13rem] sm:px-2 sm:text-[10px]"
               title={formatSocialFeedCategoryLabel(item.categorySlug, item.categoryOther)}
             >
               {formatSocialFeedCategoryLabel(item.categorySlug, item.categoryOther)}
@@ -2745,85 +2751,100 @@ function SocialFeedPostRow({
             <SocialFeedFirstLinkPreview url={linkPreviewUrl} compact={compact} />
           ) : null}
 
-          {(hasStructured || legacyChip) && (
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-zinc-800/60 pt-1.5 sm:gap-x-4 sm:pt-2">
-              {likes != null ? (
-                <SocialFeedMetricPill
-                  label="Likes"
-                  value={likes}
-                  icon={
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                      <path d="M12 21s-7-4.35-10-9.5C-.5 6.5 3.5 3 7.5 3c2.35 0 4.23 1.5 4.5 3.5C12.27 4.5 14.15 3 16.5 3 20.5 3 24.5 6.5 22 11.5 19 16.65 12 21 12 21z" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  }
-                />
+          {showFooter ? (
+            <div
+              className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-zinc-800/50 pt-1.5 sm:gap-x-4 sm:pt-2 ${
+                showMetrics && showPostLink ? "justify-between" : showPostLink ? "justify-end" : ""
+              }`}
+            >
+              {showMetrics ? (
+                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 sm:gap-x-4">
+                  {likes != null ? (
+                    <SocialFeedMetricPill
+                      label="Likes"
+                      value={likes}
+                      icon={
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <path d="M12 21s-7-4.35-10-9.5C-.5 6.5 3.5 3 7.5 3c2.35 0 4.23 1.5 4.5 3.5C12.27 4.5 14.15 3 16.5 3 20.5 3 24.5 6.5 22 11.5 19 16.65 12 21 12 21z" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      }
+                    />
+                  ) : null}
+                  {replies != null ? (
+                    <SocialFeedMetricPill
+                      label="Replies"
+                      value={replies}
+                      icon={
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <path d="M21 15a4 4 0 0 1-4 4H8l-5 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      }
+                    />
+                  ) : null}
+                  {retweets != null ? (
+                    <SocialFeedMetricPill
+                      label="Reposts"
+                      value={retweets}
+                      icon={
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      }
+                    />
+                  ) : null}
+                  {quotes != null ? (
+                    <SocialFeedMetricPill
+                      label="Quotes"
+                      value={quotes}
+                      icon={
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1-1 1z" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      }
+                    />
+                  ) : null}
+                  {views != null ? (
+                    <SocialFeedMetricPill
+                      label="Views (when exposed by X API)"
+                      value={views}
+                      icon={
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" strokeLinecap="round" strokeLinejoin="round" />
+                          <circle cx="12" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      }
+                    />
+                  ) : null}
+                  {legacyChip ? (
+                    <span className="rounded-full border border-zinc-700/50 bg-zinc-900/40 px-2 py-0.5 text-[11px] font-medium tabular-nums text-zinc-400">
+                      {item.metricLabel}
+                    </span>
+                  ) : null}
+                </div>
               ) : null}
-              {replies != null ? (
-                <SocialFeedMetricPill
-                  label="Replies"
-                  value={replies}
-                  icon={
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                      <path d="M21 15a4 4 0 0 1-4 4H8l-5 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  }
-                />
-              ) : null}
-              {retweets != null ? (
-                <SocialFeedMetricPill
-                  label="Reposts"
-                  value={retweets}
-                  icon={
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                      <path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  }
-                />
-              ) : null}
-              {quotes != null ? (
-                <SocialFeedMetricPill
-                  label="Quotes"
-                  value={quotes}
-                  icon={
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                      <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1-1 1z" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  }
-                />
-              ) : null}
-              {views != null ? (
-                <SocialFeedMetricPill
-                  label="Views (when exposed by X API)"
-                  value={views}
-                  icon={
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" strokeLinecap="round" strokeLinejoin="round" />
-                      <circle cx="12" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  }
-                />
-              ) : null}
-              {legacyChip ? (
-                <span className="rounded-full border border-zinc-700/60 bg-zinc-900/50 px-2 py-0.5 text-[11px] font-medium tabular-nums text-zinc-300">
-                  {item.metricLabel}
-                </span>
+              {showPostLink && item.tweetUrl ? (
+                <a
+                  href={item.tweetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-zinc-700/40 bg-zinc-900/30 px-2 py-1 text-[11px] font-medium text-sky-400/95 transition hover:border-sky-500/30 hover:bg-sky-500/10 hover:text-sky-300"
+                >
+                  {item.platform === "x" ? (
+                    <span
+                      className="flex h-4 w-4 items-center justify-center rounded-full bg-zinc-950 font-sans text-[9px] font-bold leading-none text-zinc-100 ring-1 ring-zinc-600/60"
+                      aria-hidden
+                    >
+                      X
+                    </span>
+                  ) : null}
+                  <span>{item.platform === "x" ? "View on X" : "View post"}</span>
+                  <span className="text-[10px] opacity-80" aria-hidden>
+                    ↗
+                  </span>
+                </a>
               ) : null}
             </div>
-          )}
-
-          {item.tweetUrl ? (
-            <a
-              href={item.tweetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-sky-400/90 transition hover:text-sky-300"
-            >
-              View on X
-              <span className="text-xs" aria-hidden>
-                ↗
-              </span>
-            </a>
           ) : null}
         </div>
       </div>
