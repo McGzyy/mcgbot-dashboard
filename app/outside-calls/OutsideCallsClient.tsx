@@ -1,6 +1,7 @@
 "use client";
 
 import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
+import { normalizeXHandle } from "@/lib/outsideXCalls/normalizeXHandle";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -25,6 +26,40 @@ function isSolanaMint(ca: string): boolean {
 function xProfileUrl(handle: string): string {
   const h = handle.trim().replace(/^@/, "");
   return `https://x.com/${encodeURIComponent(h)}`;
+}
+
+function OutsideXHandleControl({
+  value,
+  onChange,
+  ringFocusClass,
+  placeholder = "username",
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  ringFocusClass: string;
+  placeholder?: string;
+}) {
+  return (
+    <div
+      className={`mt-1 flex w-full overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900/80 focus-within:ring-2 ${ringFocusClass}`}
+    >
+      <span
+        className="flex shrink-0 select-none items-center border-r border-zinc-700 bg-zinc-950/90 px-3 py-2 text-sm font-medium text-zinc-500"
+        aria-hidden
+      >
+        @
+      </span>
+      <input
+        value={value}
+        onChange={(e) => onChange(normalizeXHandle(e.target.value))}
+        placeholder={placeholder}
+        className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600"
+        autoComplete="off"
+        spellCheck={false}
+        inputMode="text"
+      />
+    </div>
+  );
 }
 
 export function OutsideCallsClient() {
@@ -306,13 +341,15 @@ export function OutsideCallsClient() {
             </p>
             <label className="mt-4 block text-xs font-semibold text-zinc-400">
               X handle
-              <input
+              <OutsideXHandleControl
                 value={xHandle}
-                onChange={(e) => setXHandle(e.target.value)}
+                onChange={setXHandle}
+                ringFocusClass="ring-cyan-500/30"
                 placeholder="elonmusk"
-                className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan-500/30 focus:ring-2"
-                autoComplete="off"
               />
+              <span className="mt-1 block text-[10px] font-normal text-zinc-600">
+                Type the username only — the @ is always shown and is not stored twice.
+              </span>
             </label>
             <label className="mt-3 block text-xs font-semibold text-zinc-400">
               Display name (for the tape)
@@ -393,13 +430,14 @@ export function OutsideCallsClient() {
             {adminErr ? <p className="mt-3 text-sm text-red-300/90">{adminErr}</p> : null}
             <label className="mt-4 block text-xs font-semibold text-zinc-400">
               X handle
-              <input
+              <OutsideXHandleControl
                 value={xHandle}
-                onChange={(e) => setXHandle(e.target.value)}
-                placeholder="handle"
-                className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 outline-none ring-amber-500/30 focus:ring-2"
-                autoComplete="off"
+                onChange={setXHandle}
+                ringFocusClass="ring-amber-500/30"
               />
+              <span className="mt-1 block text-[10px] font-normal text-zinc-600">
+                Username only — leading @ is visual; stored normalized without @.
+              </span>
             </label>
             <label className="mt-3 block text-xs font-semibold text-zinc-400">
               Display name (tape label)
@@ -421,7 +459,7 @@ export function OutsideCallsClient() {
               </button>
               <button
                 type="button"
-                disabled={adminBusy}
+                disabled={adminBusy || !xHandle || displayName.trim().length < 2}
                 onClick={() => void adminAddSource()}
                 className="rounded-lg border border-amber-500/45 bg-amber-950/40 px-4 py-2 text-sm font-semibold text-amber-50 hover:bg-amber-900/45 disabled:opacity-50"
               >

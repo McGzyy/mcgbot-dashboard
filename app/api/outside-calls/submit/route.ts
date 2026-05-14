@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   const handle = normalizeXHandle(rawHandle);
   if (!isValidXHandleNormalized(handle)) {
     return Response.json(
-      { error: "Invalid X handle", hint: "Use 1–15 letters, numbers, or underscores (without @)." },
+      { error: "Invalid X handle", hint: "Use 1–15 letters, numbers, or underscores. You can include @ when typing; it is stripped before save." },
       { status: 400 }
     );
   }
