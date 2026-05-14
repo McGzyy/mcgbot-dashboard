@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { terminalUi } from "@/lib/terminalDesignTokens";
+import { parseOutsideActivityLineText } from "@/lib/outsideActivityFeedFormat";
 
 export type ActivityPopupItem = {
   text: string;
@@ -13,6 +14,8 @@ export type ActivityPopupItem = {
   tokenTicker?: string | null;
   /** Parsed from `New Call - … called Name ($TICK)` when present. */
   tokenName?: string | null;
+  /** Original X post when present (e.g. outside monitor rows). */
+  xPostUrl?: string | null;
 };
 
 type ActivityPopupProps = {
@@ -114,7 +117,8 @@ export function ActivityPopup({
 
   const mint = (item.contractAddress ?? "").trim();
   const mintOk = SOLANA_MINT_RE.test(mint);
-  const parsed = parseCallActivityHeadline(item.text);
+  const outsideParsed = parseOutsideActivityLineText(item.text);
+  const parsedCall = parseCallActivityHeadline(item.text);
   const ticker = (item.tokenTicker ?? "").trim();
 
   return (
@@ -136,13 +140,19 @@ export function ActivityPopup({
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400/85">McGBot Terminal</p>
             <h2 id="activity-popup-title" className="mt-1 text-base font-semibold tracking-tight text-white">
-              {parsed ? "New call" : "Activity"}
+              {outsideParsed ? "Outside call" : parsedCall ? "New call" : "Activity"}
             </h2>
-            {parsed ? (
+            {outsideParsed ? (
               <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                <span className="font-medium text-zinc-100">{parsed.caller}</span>
+                <span className="font-medium text-emerald-300/75">{outsideParsed.tapeLabel}</span>
+                <span className="text-zinc-500"> (@{outsideParsed.xHandle || "unknown"})</span>
+                <span className="text-zinc-500"> flagged this contract from X.</span>
+              </p>
+            ) : parsedCall ? (
+              <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+                <span className="font-medium text-zinc-100">{parsedCall.caller}</span>
                 <span className="text-zinc-500"> called </span>
-                <span className="text-zinc-200">{parsed.tail}</span>
+                <span className="text-zinc-200">{parsedCall.tail}</span>
               </p>
             ) : (
               <p className="mt-2 text-sm leading-relaxed text-zinc-300">{item.text}</p>
@@ -244,6 +254,16 @@ export function ActivityPopup({
               >
                 Dexscreener →
               </Link>
+              {outsideParsed && (item.xPostUrl ?? "").trim() ? (
+                <Link
+                  href={(item.xPostUrl ?? "").trim()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1.5 inline-flex text-xs font-semibold text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
+                >
+                  View X post →
+                </Link>
+              ) : null}
             </div>
           </div>
         ) : null}

@@ -189,6 +189,18 @@ export function OutsideCallsClient() {
               Live tape of <span className="text-zinc-300">individual CAs</span> detected from allow-listed X monitors
               (one row per call). Echo rows show when a second source posts the same contract; only the primary row ties
               into milestone-style tracking. Ingestion runs server-side once a monitor is approved.
+              {isAdmin ? (
+                <>
+                  {" "}
+                  <Link
+                    href="/admin/outside-x-sources"
+                    className="text-amber-200/90 underline-offset-2 hover:underline"
+                  >
+                    Manage monitors in Admin
+                  </Link>
+                  .
+                </>
+              ) : null}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">

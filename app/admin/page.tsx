@@ -54,6 +54,12 @@ export default function AdminOverviewPage() {
           hint="Read env · Write Supabase"
         />
         <OverviewCard
+          href="/admin/outside-x-sources"
+          title="Outside X monitors"
+          subtitle="Allow-listed X accounts for the Outside Calls tape — edit labels, suspend, or mark removed (frees capacity)."
+          hint="Writes · Supabase"
+        />
+        <OverviewCard
           href="/admin/treasury"
           title="Treasury hub"
           subtitle="SOL treasuries, Stripe balance, membership mix, SOL invoice log, tips, and voucher pool."

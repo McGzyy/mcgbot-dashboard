@@ -15,6 +15,7 @@ import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerform
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
+import { buildOutsideActivityLineText } from "@/lib/outsideActivityFeedFormat";
 
 export async function GET(request: Request) {
   try {
@@ -310,7 +311,113 @@ export async function GET(request: Request) {
       };
     });
 
-    return Response.json(events);
+    type OutsideCallActivityRow = {
+      id: string;
+      mint: string;
+      call_role: string;
+      tweet_id: string | null;
+      x_post_url: string | null;
+      posted_at: string;
+      outside_x_sources:
+        | {
+            display_name?: string | null;
+            x_handle_normalized?: string | null;
+            status?: string | null;
+          }
+        | Array<{
+            display_name?: string | null;
+            x_handle_normalized?: string | null;
+            status?: string | null;
+          }>
+        | null;
+    };
+
+    const activityTimeMs = (t: unknown): number => {
+      if (t instanceof Date) return t.getTime();
+      const s = typeof t === "string" ? t : t != null ? String(t) : "";
+      const ms = Date.parse(s);
+      return Number.isFinite(ms) ? ms : 0;
+    };
+
+    type ActivityApiRow = (typeof events)[number] & { outside_call_id?: string };
+    let payload: ActivityApiRow[] = events;
+
+    if (supabaseAdmin && mode !== "following") {
+      const { data: ocData, error: ocErr } = await supabaseAdmin
+        .from("outside_calls")
+        .select(
+          `
+          id,
+          mint,
+          call_role,
+          tweet_id,
+          x_post_url,
+          posted_at,
+          outside_x_sources (
+            display_name,
+            x_handle_normalized,
+            status
+          )
+        `
+        )
+        .eq("call_role", "primary")
+        .order("posted_at", { ascending: false })
+        .limit(30);
+
+      if (!ocErr && Array.isArray(ocData)) {
+        const outsideEvents = (ocData as OutsideCallActivityRow[])
+          .map((r) => {
+            const srcRaw = r.outside_x_sources;
+            const src = Array.isArray(srcRaw) ? srcRaw[0] : srcRaw;
+            if (!src || String(src.status ?? "").trim().toLowerCase() !== "active") {
+              return null;
+            }
+            const mint = typeof r.mint === "string" ? r.mint.trim() : "";
+            if (!mint) return null;
+            const tape =
+              typeof src.display_name === "string" && src.display_name.trim() !== ""
+                ? src.display_name.trim()
+                : "Monitor";
+            const handle =
+              typeof src.x_handle_normalized === "string" && src.x_handle_normalized.trim() !== ""
+                ? src.x_handle_normalized.trim()
+                : "";
+            const link_chart = `https://dexscreener.com/solana/${mint}`;
+            const xu =
+              typeof r.x_post_url === "string" && r.x_post_url.trim() !== ""
+                ? r.x_post_url.trim()
+                : null;
+            return {
+              type: "call" as const,
+              text: buildOutsideActivityLineText({
+                tapeLabel: tape,
+                xHandle: handle,
+                mint,
+              }),
+              callSource: "outside",
+              username: handle || "unknown",
+              displayName: tape,
+              userAvatarUrl: null as string | null,
+              time: r.posted_at,
+              link_chart,
+              link_post: xu,
+              multiple: 1,
+              discordId: "",
+              tokenImageUrl: null as string | null,
+              outside_call_id: r.id,
+            };
+          })
+          .filter((x): x is NonNullable<typeof x> => x != null);
+
+        payload = [...events, ...outsideEvents]
+          .sort((a, b) => activityTimeMs(b.time) - activityTimeMs(a.time))
+          .slice(0, 40) as ActivityApiRow[];
+      } else if (ocErr) {
+        console.error("[activity API] outside_calls:", ocErr);
+      }
+    }
+
+    return Response.json(payload);
   } catch (e) {
     console.error("[activity API] GET:", e);
     return Response.json(

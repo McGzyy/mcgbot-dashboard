@@ -28,6 +28,7 @@ import {
   formatNameAndTickerLine,
   multipleClass,
 } from "@/lib/callDisplayFormat";
+import { parseOutsideActivityLineText } from "@/lib/outsideActivityFeedFormat";
 import { useDashboardHelpRole } from "./hooks/useDashboardHelpRole";
 import { userProfileHref } from "@/lib/userProfileHref";
 import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
@@ -1088,6 +1089,8 @@ type ActivityItem = {
   multiple: number;
   discordId: string;
   tokenImageUrl?: string | null;
+  /** Stable id for merged `outside_calls` rows (dedupe / list keys). */
+  outsideCallId?: string;
 };
 
 function activityLineLabel(item: ActivityItem): string {
@@ -1309,6 +1312,21 @@ function renderActivityFeedLine(
   badges: string[] = []
 ): ReactNode {
   const dex = item.link_chart ?? "";
+  const outsideParsed = parseOutsideActivityLineText(item.text);
+  if (item.type === "call" && outsideParsed) {
+    const { tapeLabel, xHandle, mint } = outsideParsed;
+    const chartLink = dex || `https://dexscreener.com/solana/${encodeURIComponent(mint)}`;
+    return (
+      <>
+        <span className="text-zinc-500">Outside call</span>
+        {" — "}
+        <span className="text-emerald-400/70">{tapeLabel}</span>
+        <span className="text-zinc-500"> (@{xHandle || "unknown"})</span>
+        {" · "}
+        {renderTextSegmentWithCa(mint, chartLink)}
+      </>
+    );
+  }
   const lineLabel = activityLineLabel(item);
   const apiName = item.username.trim();
   const name = viewerDisplayName(
@@ -1456,6 +1474,8 @@ function renderActivityFeedLine(
 const ACTIVITY_BIG_CALL_NOTIFY_MIN = 3;
 
 function activityItemDedupeKey(item: ActivityItem): string {
+  const oc = item.outsideCallId?.trim();
+  if (oc) return `outside::${oc}`;
   const chart = (item.link_chart ?? "").trim();
   return `${callTimeMs(item.time)}::${item.discordId.trim()}::${item.type}::${chart}`;
 }
@@ -2204,14 +2224,17 @@ type ActivityFeedPanelProps = {
 
 function activityFeedRowTintClass(item: ActivityItem): string {
   if (item.type === "win") {
-    return "bg-amber-400/[0.11] ring-1 ring-inset ring-amber-400/[0.17] hover:bg-amber-400/[0.15]";
+    return "bg-amber-400/[0.08] ring-1 ring-inset ring-amber-400/[0.12] hover:bg-amber-400/[0.11]";
   }
   if (item.type === "call") {
     const src = (item.callSource ?? "user").toLowerCase();
-    if (src === "bot") {
-      return "bg-violet-500/[0.11] ring-1 ring-inset ring-violet-500/[0.19] hover:bg-violet-500/[0.15]";
+    if (src === "outside") {
+      return "bg-emerald-500/[0.06] ring-1 ring-inset ring-emerald-500/[0.11] hover:bg-emerald-500/[0.09]";
     }
-    return "bg-sky-500/[0.09] ring-1 ring-inset ring-sky-500/[0.15] hover:bg-sky-500/[0.13]";
+    if (src === "bot") {
+      return "bg-violet-500/[0.08] ring-1 ring-inset ring-violet-500/[0.13] hover:bg-violet-500/[0.11]";
+    }
+    return "bg-sky-500/[0.06] ring-1 ring-inset ring-sky-500/[0.10] hover:bg-sky-500/[0.095]";
   }
   return "bg-zinc-900/35 hover:bg-zinc-800/55";
 }
@@ -2219,14 +2242,17 @@ function activityFeedRowTintClass(item: ActivityItem): string {
 /** Card chrome on small screens (Top Performers–style); paired with `activityFeedRowTintClass` on `sm+`. */
 function activityFeedMobileCardClass(item: ActivityItem): string {
   if (item.type === "win") {
-    return "max-sm:rounded-xl max-sm:border max-sm:border-amber-500/40 max-sm:bg-amber-500/10 max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
+    return "max-sm:rounded-xl max-sm:border max-sm:border-amber-500/28 max-sm:bg-amber-500/[0.07] max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
   }
   if (item.type === "call") {
     const src = (item.callSource ?? "user").toLowerCase();
-    if (src === "bot") {
-      return "max-sm:rounded-xl max-sm:border max-sm:border-violet-500/40 max-sm:bg-violet-500/10 max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
+    if (src === "outside") {
+      return "max-sm:rounded-xl max-sm:border max-sm:border-emerald-500/28 max-sm:bg-emerald-500/[0.07] max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
     }
-    return "max-sm:rounded-xl max-sm:border max-sm:border-sky-500/40 max-sm:bg-sky-500/10 max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
+    if (src === "bot") {
+      return "max-sm:rounded-xl max-sm:border max-sm:border-violet-500/28 max-sm:bg-violet-500/[0.08] max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
+    }
+    return "max-sm:rounded-xl max-sm:border max-sm:border-sky-500/28 max-sm:bg-sky-500/[0.07] max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
   }
   return "max-sm:rounded-xl max-sm:border max-sm:border-zinc-700/60 max-sm:bg-zinc-950/90 max-sm:px-4 max-sm:py-3 max-sm:shadow-sm max-sm:shadow-black/20 max-sm:ring-0";
 }
@@ -2378,9 +2404,12 @@ function ActivityFeedPanel({
           <ul className="space-y-2.5 text-sm sm:space-y-0">
             {filteredActivity.map((item, i) => {
               const rowMint = (viewerId ?? "").trim() ? resolveActivityMint(item) : null;
+              const rowKey = item.outsideCallId?.trim()
+                ? `oc-${item.outsideCallId.trim()}`
+                : `${String(item.time)}-${i}-${item.text.slice(0, 24)}`;
               return (
             <li
-              key={`${String(item.time)}-${i}-${item.text.slice(0, 24)}`}
+              key={rowKey}
               className="dashboard-feed-item max-sm:list-none sm:border-b sm:border-zinc-800/90 sm:last:border-b-0"
               style={{ animationDelay: `${i * 70}ms` }}
             >
@@ -2486,21 +2515,25 @@ function ActivityFeedPanel({
         <span className="font-semibold uppercase tracking-wide text-zinc-600">Key</span>
         <span className="flex items-center gap-1.5">
           <span
-            className="h-2 w-2 shrink-0 rounded-sm bg-amber-400/85 ring-1 ring-amber-400/35"
+            className="h-2 w-2 shrink-0 rounded-sm bg-amber-400/55 ring-1 ring-amber-400/22"
             aria-hidden
           />
           Milestone
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 shrink-0 rounded-sm bg-sky-400/80 ring-1 ring-sky-400/35" aria-hidden />
+          <span className="h-2 w-2 shrink-0 rounded-sm bg-sky-400/50 ring-1 ring-sky-400/20" aria-hidden />
           User call
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 shrink-0 rounded-sm bg-violet-400/85 ring-1 ring-violet-400/35" aria-hidden />
+          <span className="h-2 w-2 shrink-0 rounded-sm bg-violet-400/50 ring-1 ring-violet-400/22" aria-hidden />
           Bot call
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 shrink-0 rounded-sm bg-zinc-600/90 ring-1 ring-zinc-500/30" aria-hidden />
+          <span className="h-2 w-2 shrink-0 rounded-sm bg-emerald-400/45 ring-1 ring-emerald-400/18" aria-hidden />
+          Outside call
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 shrink-0 rounded-sm bg-zinc-600/60 ring-1 ring-zinc-500/22" aria-hidden />
           Other
         </span>
       </div>
@@ -3949,6 +3982,11 @@ export default function Home() {
             typeof csRaw === "string" && csRaw.trim() !== ""
               ? csRaw.trim().toLowerCase()
               : undefined;
+          const outsideIdRaw = o.outside_call_id ?? o.outsideCallId;
+          const outsideCallId =
+            typeof outsideIdRaw === "string" && outsideIdRaw.trim() !== ""
+              ? outsideIdRaw.trim()
+              : undefined;
           parsedAll.push({
             type: o.type,
             text,
@@ -3962,6 +4000,7 @@ export default function Home() {
             multiple,
             discordId,
             tokenImageUrl,
+            outsideCallId,
           });
         }
 
@@ -4384,6 +4423,7 @@ export default function Home() {
       tokenImageUrl: selectedActivity.tokenImageUrl ?? null,
       tokenTicker,
       tokenName,
+      xPostUrl: selectedActivity.link_post,
     };
   }, [selectedActivity]);
 
