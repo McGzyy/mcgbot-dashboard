@@ -5086,94 +5086,113 @@ export default function Home() {
           <div data-tutorial="dashboard.homeRecentCalls">
           {widgetEnabled(widgets, "recent_calls") ? (
             <PanelCard
-              title="Recent calls"
+              titleSlotWide
+              title={<span className="text-zinc-100">Your Recent Calls</span>}
               titleClassName="normal-case"
-              className="min-w-0 max-w-full overflow-hidden"
-            >
-              <p className="mt-2 text-xs text-zinc-500">
-                Your last few verified calls.
-              </p>
-              {callsLoading && recentCalls.length === 0 ? (
-                <div className="flex min-h-[88px] items-center justify-center py-6">
-                  <p className="text-sm text-zinc-500">Loading calls...</p>
-                </div>
-              ) : recentCalls.length === 0 ? (
-                <div className="flex min-h-[88px] items-center justify-center py-6">
-                  <p className="text-sm text-zinc-500">No calls yet</p>
-                </div>
-              ) : (
-                <ul className="mt-3 space-y-0 divide-y divide-zinc-800/50 text-sm">
-                  {recentCalls.slice(0, 6).map((call, i) => (
-                    <li
-                      key={`${call.token}-${String(call.time)}-${i}`}
-                      className="flex flex-col gap-2 py-2.5 first:pt-1.5 text-zinc-300 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2"
-                    >
-                      <span
-                        className="min-w-0 max-w-full font-medium text-zinc-100 sm:flex-1"
-                        title={homeRecentCallSummary(call)}
-                      >
-                        <span className="flex min-w-0 items-start gap-2">
-                          {call.tokenImageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={call.tokenImageUrl}
-                              alt=""
-                              className="mt-0.5 h-7 w-7 shrink-0 rounded-md border border-zinc-700/50 object-cover"
-                              loading="lazy"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : null}
-                          <span className="min-w-0 flex-1 truncate text-zinc-100">
-                            {homeRecentCallSummary(call)}
-                          </span>
-                        </span>
-                        <span className="mt-0.5 inline-flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-                          <span
-                            className={`font-semibold tabular-nums ${multipleClass(
-                              call.multiple
-                            )}`}
-                          >
-                            {call.multiple.toFixed(1)}x
-                          </span>
-                          {call.excludedFromStats ? (
-                            <span className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
-                              Excluded
-                            </span>
-                          ) : null}
-                        </span>
-                      </span>
-                      <span className="flex shrink-0 flex-wrap items-center gap-2 self-end text-zinc-500 sm:ml-auto sm:self-auto">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openTokenChart({
-                              chain: "solana",
-                              contractAddress: call.token,
-                              tokenTicker: call.tokenTicker,
-                              tokenName: call.tokenName,
-                              tokenImageUrl: call.tokenImageUrl ?? null,
-                            })
-                          }
-                          className="rounded border border-zinc-700/80 bg-zinc-900/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200/90 transition hover:border-emerald-500/40 hover:bg-emerald-500/10"
-                          title="Live chart (TradingView)"
-                        >
-                          Chart
-                        </button>
-                        {formatJoinedAt(callTimeMs(call.time), nowMs)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="mt-3 flex items-center justify-between">
-                <p className="text-xs text-zinc-500">See the full list</p>
+              titleRight={
                 <Link
                   href="/calls"
-                  className="text-xs font-semibold text-zinc-200 hover:text-white"
+                  className="shrink-0 rounded-md border border-zinc-700/50 bg-zinc-900/30 px-2.5 py-1 text-[11px] font-semibold text-sky-400/95 transition hover:border-sky-500/35 hover:bg-sky-500/10 hover:text-sky-300"
                 >
-                  Open My Call Log →
+                  Full log →
                 </Link>
-              </div>
+              }
+              className="min-w-0 max-w-full overflow-hidden"
+            >
+              {callsLoading && recentCalls.length === 0 ? (
+                <div className="mt-3 flex min-h-[5.5rem] items-center justify-center rounded-xl border border-zinc-800/50 bg-zinc-950/30 px-3 py-6">
+                  <p className="text-sm text-zinc-500">Loading calls…</p>
+                </div>
+              ) : recentCalls.length === 0 ? (
+                <div className="mt-3 flex min-h-[5.5rem] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800/60 bg-zinc-950/20 px-3 py-8 text-center">
+                  <p className="text-sm font-medium text-zinc-300">No calls yet</p>
+                  <p className="mt-1 max-w-[14rem] text-xs leading-relaxed text-zinc-500">
+                    Verified rows show here after you log calls from the terminal.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  className={`mt-3 rounded-xl border border-zinc-800/55 bg-zinc-950/35 p-1 sm:p-1.5 ${terminalSurface.insetEdgeSoft}`}
+                >
+                  <ul className="divide-y divide-zinc-800/45">
+                    {recentCalls.slice(0, 6).map((call, i) => {
+                      const tMs = callTimeMs(call.time);
+                      const timeFull = formatJoinedAt(tMs, nowMs);
+                      const timeShort = formatJoinedAt(tMs, nowMs, "compact");
+                      const summary = homeRecentCallSummary(call);
+                      return (
+                        <li key={`${call.token}-${String(call.time)}-${i}`}>
+                          <div className="flex items-center gap-2 py-2 pl-1 pr-1 sm:gap-2.5 sm:py-2 sm:pl-1.5 sm:pr-2">
+                            {call.tokenImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={call.tokenImageUrl}
+                                alt=""
+                                className="h-8 w-8 shrink-0 rounded-lg border border-zinc-800/70 bg-zinc-950 object-cover ring-1 ring-black/20"
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <span
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800/70 bg-zinc-900/80 text-[10px] font-bold text-zinc-500"
+                                aria-hidden
+                              >
+                                —
+                              </span>
+                            )}
+                            <p
+                              className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-zinc-100"
+                              title={summary}
+                            >
+                              {summary}
+                            </p>
+                            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                              {call.excludedFromStats ? (
+                                <span
+                                  className="max-w-[2.75rem] truncate rounded border border-red-500/25 bg-red-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-200/90"
+                                  title="Excluded from stats"
+                                >
+                                  Excl.
+                                </span>
+                              ) : null}
+                              <span
+                                className={`rounded-md border border-zinc-800/80 bg-black/30 px-2 py-0.5 text-xs font-bold tabular-nums shadow-inner shadow-black/20 ${multipleClass(
+                                  call.multiple
+                                )}`}
+                              >
+                                {call.multiple.toFixed(1)}×
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openTokenChart({
+                                    chain: "solana",
+                                    contractAddress: call.token,
+                                    tokenTicker: call.tokenTicker,
+                                    tokenName: call.tokenName,
+                                    tokenImageUrl: call.tokenImageUrl ?? null,
+                                  })
+                                }
+                                className="rounded-md border border-emerald-500/25 bg-emerald-500/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-300/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15"
+                                title="Live chart (TradingView)"
+                              >
+                                Chart
+                              </button>
+                              <time
+                                className="w-9 shrink-0 text-right text-[10px] font-medium tabular-nums text-zinc-500 sm:w-11 sm:text-[11px]"
+                                dateTime={Number.isFinite(tMs) && tMs > 0 ? new Date(tMs).toISOString() : undefined}
+                                title={timeFull}
+                              >
+                                {timeShort}
+                              </time>
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
             </PanelCard>
           ) : null}
           </div>
