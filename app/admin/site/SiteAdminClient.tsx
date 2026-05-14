@@ -121,6 +121,10 @@ export function SiteAdminClient() {
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveOk, setSaveOk] = useState<string | null>(null);
   const [forceLogoutBusy, setForceLogoutBusy] = useState(false);
+  const [totpResetDiscordId, setTotpResetDiscordId] = useState("");
+  const [totpResetBusy, setTotpResetBusy] = useState(false);
+  const [totpResetErr, setTotpResetErr] = useState<string | null>(null);
+  const [totpResetOk, setTotpResetOk] = useState<string | null>(null);
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
@@ -279,6 +283,36 @@ export function SiteAdminClient() {
       setForceLogoutBusy(false);
     }
   }, []);
+
+  const resetUserDashboardTotp = useCallback(async () => {
+    const id = totpResetDiscordId.trim();
+    if (!/^[1-9]\d{9,21}$/.test(id)) {
+      setTotpResetErr("Enter a valid Discord user id (numeric snowflake, 10–22 digits).");
+      setTotpResetOk(null);
+      return;
+    }
+    setTotpResetBusy(true);
+    setTotpResetErr(null);
+    setTotpResetOk(null);
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/totp-reset`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || json.success !== true) {
+        setTotpResetErr(typeof json.error === "string" ? json.error : "Reset failed.");
+        return;
+      }
+      setTotpResetOk(
+        "Cleared dashboard TOTP, recovery codes, throttle, and session proofs for that user. Their session token may still show 2FA for a short time until it refreshes; signing out and back in applies immediately."
+      );
+    } catch {
+      setTotpResetErr("Network error.");
+    } finally {
+      setTotpResetBusy(false);
+    }
+  }, [totpResetDiscordId]);
 
   const int = data?.integrations ?? {};
   const dep = data?.deployment;
@@ -587,6 +621,36 @@ export function SiteAdminClient() {
                 >
                   {forceLogoutBusy ? "Applying…" : "Force logout — all users"}
                 </button>
+              </SettingsSection>
+
+              <SettingsSection
+                kicker="Support"
+                title="Clear user dashboard 2FA"
+                description="Removes TOTP secrets, recovery codes, verification throttle, and pending session proofs for one Discord account. Use when someone is locked out of the dashboard."
+              >
+                <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Discord user id (snowflake)
+                  <input
+                    value={totpResetDiscordId}
+                    onChange={(e) => {
+                      setTotpResetDiscordId(e.target.value);
+                      setTotpResetErr(null);
+                      setTotpResetOk(null);
+                    }}
+                    placeholder="e.g. 123456789012345678"
+                    className="mt-2 w-full rounded-xl border border-zinc-700 bg-black/50 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={totpResetBusy}
+                  onClick={() => void resetUserDashboardTotp()}
+                  className="mt-3 rounded-xl border border-amber-500/45 bg-amber-950/35 px-4 py-2.5 text-sm font-semibold text-amber-100 transition hover:border-amber-400/55 hover:bg-amber-950/50 disabled:opacity-50"
+                >
+                  {totpResetBusy ? "Clearing…" : "Clear dashboard 2FA for this user"}
+                </button>
+                {totpResetErr ? <p className="mt-2 text-sm text-red-400/90">{totpResetErr}</p> : null}
+                {totpResetOk ? <p className="mt-2 text-sm text-emerald-300/90">{totpResetOk}</p> : null}
               </SettingsSection>
 
               <SettingsSection

@@ -129,6 +129,7 @@ export const authOptions: NextAuthOptions = {
         if (user.name) token.name = user.name;
         if (user.image) token.picture = user.image;
         delete (token as { totpSatisfiedAt?: number }).totpSatisfiedAt;
+        delete (token as { totpTrustExpiresAt?: number }).totpTrustExpiresAt;
       } else {
         const tokEp = (token as { sessionInvalidationEpoch?: unknown }).sessionInvalidationEpoch;
         const bound =
@@ -174,7 +175,7 @@ export const authOptions: NextAuthOptions = {
               refreshGuildGate?: boolean;
               /** Forces subscription + Discord guild gate refresh (e.g. after join or transient API errors). */
               refreshAccess?: boolean;
-              /** One-time id from POST /api/me/totp/verify-session — consumed server-side, then sets totpSatisfiedAt. */
+              /** One-time id from POST /api/me/totp/verify-session — consumed server-side; may set totp trust window. */
               totpProof?: string;
             })
           : null;
@@ -339,8 +340,14 @@ export const authOptions: NextAuthOptions = {
           : "";
       if (discordId && proofRaw && /^[0-9a-f-]{36}$/i.test(proofRaw)) {
         const consumed = await consumeTotpSessionProof(discordId, proofRaw);
-        if (consumed) {
-          (token as { totpSatisfiedAt?: number }).totpSatisfiedAt = Date.now();
+        if (consumed.ok) {
+          if (consumed.trustExpiresAtMs != null && consumed.trustExpiresAtMs > Date.now()) {
+            (token as { totpTrustExpiresAt?: number }).totpTrustExpiresAt = consumed.trustExpiresAtMs;
+            delete (token as { totpSatisfiedAt?: number }).totpSatisfiedAt;
+          } else {
+            (token as { totpSatisfiedAt?: number }).totpSatisfiedAt = Date.now();
+            delete (token as { totpTrustExpiresAt?: number }).totpTrustExpiresAt;
+          }
         }
       }
 
@@ -376,8 +383,11 @@ export const authOptions: NextAuthOptions = {
       const guildAllowsDashboard =
         staffSubscriptionBypass || (token as any).discordInGuild !== false;
       const totpEnabled = (token as { totpEnabled?: boolean }).totpEnabled === true;
-      const totpSatisfied =
-        !totpEnabled || typeof (token as { totpSatisfiedAt?: unknown }).totpSatisfiedAt === "number";
+      const trustMs = (token as { totpTrustExpiresAt?: unknown }).totpTrustExpiresAt;
+      const trustOk = typeof trustMs === "number" && Number.isFinite(trustMs) && trustMs > Date.now();
+      const satisfiedAt = (token as { totpSatisfiedAt?: unknown }).totpSatisfiedAt;
+      const sessionTotpOk = typeof satisfiedAt === "number" && Number.isFinite(satisfiedAt);
+      const totpSatisfied = !totpEnabled || sessionTotpOk || trustOk;
       (session.user as { pendingTotpVerification?: boolean }).pendingTotpVerification =
         totpEnabled && !totpSatisfied;
       session.user.hasDashboardAccess =

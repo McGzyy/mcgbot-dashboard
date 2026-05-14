@@ -1,8 +1,9 @@
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 export async function requireAuthenticatedDiscordId():
-  | { ok: true; discordId: string; session: Awaited<ReturnType<typeof getServerSession>> }
+  | { ok: true; discordId: string; session: Session }
   | { ok: false; response: Response } {
   const session = await getServerSession(authOptions);
   const discordId = session?.user?.id?.trim() ?? "";

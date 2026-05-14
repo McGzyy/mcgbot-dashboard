@@ -21,5 +21,5 @@ export async function POST(request: Request) {
   if (!res.ok) {
     return Response.json({ success: false, error: res.error }, { status: 400 });
   }
-  return Response.json({ success: true });
+  return Response.json({ success: true, recoveryCodes: res.recoveryCodes });
 }

@@ -21,6 +21,14 @@ function discordSignInSafe() {
   void signIn("discord", { callbackUrl: "/" });
 }
 
+/** 6-digit TOTP or 10-char hex recovery code (case-insensitive). */
+function isValidTotpOrRecoveryInput(raw: string): boolean {
+  const totp = raw.replace(/\s/g, "");
+  if (/^\d{6}$/.test(totp)) return true;
+  const recovery = raw.replace(/[\s-]/g, "").toUpperCase();
+  return /^[0-9A-F]{10}$/.test(recovery);
+}
+
 const DEFAULT_WIDGETS: WidgetsEnabled = {
   market: true,
   live_tracked_calls: true,
@@ -291,12 +299,16 @@ function SettingsPageInner() {
     configured: boolean;
     enabled: boolean;
     pendingSetup: boolean;
+    unusedRecoveryCount: number;
   } | null>(null);
   const [totpEnroll, setTotpEnroll] = useState<{ secret: string; otpauthUrl: string } | null>(null);
   const [totpBusy, setTotpBusy] = useState(false);
   const [totpErr, setTotpErr] = useState<string | null>(null);
   const [totpFinishCode, setTotpFinishCode] = useState("");
   const [totpDisableCode, setTotpDisableCode] = useState("");
+  const [totpRecoveryCodes, setTotpRecoveryCodes] = useState<string[] | null>(null);
+
+  useEffect(() => {
     let cancelled = false;
     setSettingsLoading(true);
     setLoadError(null);
@@ -426,6 +438,7 @@ function SettingsPageInner() {
           configured?: boolean;
           enabled?: boolean;
           pendingSetup?: boolean;
+          unusedRecoveryCount?: number;
         };
         if (cancelled) return;
         if (!res.ok || j.success !== true) {
@@ -436,6 +449,7 @@ function SettingsPageInner() {
           configured: j.configured === true,
           enabled: j.enabled === true,
           pendingSetup: j.pendingSetup === true,
+          unusedRecoveryCount: typeof j.unusedRecoveryCount === "number" ? j.unusedRecoveryCount : 0,
         });
       } catch {
         if (!cancelled) setTotpStatus(null);
@@ -691,6 +705,7 @@ function SettingsPageInner() {
         configured?: boolean;
         enabled?: boolean;
         pendingSetup?: boolean;
+        unusedRecoveryCount?: number;
       };
       if (!res.ok || j.success !== true) {
         setTotpStatus(null);
@@ -700,6 +715,7 @@ function SettingsPageInner() {
         configured: j.configured === true,
         enabled: j.enabled === true,
         pendingSetup: j.pendingSetup === true,
+        unusedRecoveryCount: typeof j.unusedRecoveryCount === "number" ? j.unusedRecoveryCount : 0,
       });
     } catch {
       setTotpStatus(null);
@@ -726,6 +742,7 @@ function SettingsPageInner() {
       }
       setTotpEnroll({ secret: j.secret, otpauthUrl: j.otpauthUrl });
       setTotpFinishCode("");
+      setTotpRecoveryCodes(null);
       await refreshTotpStatus();
     } catch {
       setTotpErr("Network error.");
@@ -744,11 +761,19 @@ function SettingsPageInner() {
         credentials: "same-origin",
         body: JSON.stringify({ code: totpFinishCode }),
       });
-      const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        recoveryCodes?: unknown;
+      };
       if (!res.ok || !j.success) {
         setTotpErr(typeof j.error === "string" ? j.error : "Could not enable TOTP.");
         return;
       }
+      const rc = Array.isArray(j.recoveryCodes)
+        ? j.recoveryCodes.filter((x): x is string => typeof x === "string" && x.length > 0)
+        : [];
+      setTotpRecoveryCodes(rc.length > 0 ? rc : null);
       setTotpEnroll(null);
       setTotpFinishCode("");
       await refreshTotpStatus();
@@ -791,6 +816,7 @@ function SettingsPageInner() {
         return;
       }
       setTotpDisableCode("");
+      setTotpRecoveryCodes(null);
       await refreshTotpStatus();
       await update({ refreshAccess: true });
     } catch {
@@ -799,6 +825,39 @@ function SettingsPageInner() {
       setTotpBusy(false);
     }
   }, [refreshTotpStatus, totpDisableCode, update]);
+
+  const regenerateTotpRecoveryCodes = useCallback(async () => {
+    const ok = window.confirm(
+      "Generate new recovery codes? Any unused codes you saved earlier will stop working."
+    );
+    if (!ok) return;
+    setTotpErr(null);
+    setTotpBusy(true);
+    try {
+      const res = await fetch("/api/me/totp/recovery-codes", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        codes?: unknown;
+        error?: string;
+      };
+      const codes = Array.isArray(j.codes)
+        ? j.codes.filter((x): x is string => typeof x === "string" && x.length > 0)
+        : [];
+      if (!res.ok || !j.success || codes.length === 0) {
+        setTotpErr(typeof j.error === "string" ? j.error : "Could not generate recovery codes.");
+        return;
+      }
+      setTotpRecoveryCodes(codes);
+      await refreshTotpStatus();
+    } catch {
+      setTotpErr("Network error.");
+    } finally {
+      setTotpBusy(false);
+    }
+  }, [refreshTotpStatus]);
 
   const handleSave = useCallback(async () => {
     setSaveState("saving");
@@ -1187,21 +1246,62 @@ function SettingsPageInner() {
                 Authenticator 2FA is <span className="font-semibold">on</span> for this account.
               </p>
               <div className="rounded-xl border border-zinc-800/80 bg-black/25 p-4 sm:p-5">
+                <p className="text-sm font-medium text-zinc-100">Recovery codes</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  One-time backup codes if you lose your phone. You currently have{" "}
+                  <span className="font-mono text-zinc-300">{totpStatus.unusedRecoveryCount}</span> unused{" "}
+                  {totpStatus.unusedRecoveryCount === 1 ? "code" : "codes"}.
+                </p>
+                <button
+                  type="button"
+                  disabled={totpBusy}
+                  onClick={() => void regenerateTotpRecoveryCodes()}
+                  className="mt-3 rounded-lg border border-zinc-600 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-800 disabled:opacity-40"
+                >
+                  {totpBusy ? "Working…" : "Generate new recovery codes"}
+                </button>
+              </div>
+              {totpRecoveryCodes && totpRecoveryCodes.length > 0 ? (
+                <div className="rounded-xl border border-amber-500/40 bg-amber-950/25 p-4 sm:p-5">
+                  <p className="text-sm font-semibold text-amber-100">Save these codes somewhere safe</p>
+                  <p className="mt-1 text-xs text-amber-200/85">
+                    This is the only time we show them. Each code works once. Generating new codes invalidates any
+                    unused old codes.
+                  </p>
+                  <ul className="mt-3 columns-2 gap-x-6 font-mono text-[11px] leading-relaxed text-amber-50 sm:text-xs">
+                    {totpRecoveryCodes.map((c, idx) => (
+                      <li key={`${idx}-${c}`} className="break-all">
+                        {c}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => setTotpRecoveryCodes(null)}
+                    className="mt-4 rounded-lg bg-amber-600/90 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-500"
+                  >
+                    I saved these codes
+                  </button>
+                </div>
+              ) : null}
+              <div className="rounded-xl border border-zinc-800/80 bg-black/25 p-4 sm:p-5">
                 <p className="text-sm font-medium text-zinc-100">Disable 2FA</p>
-                <p className="mt-1 text-xs text-zinc-500">Enter a current 6-digit code from your app.</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Enter a current 6-digit code from your app, or a one-time recovery code.
+                </p>
                 <input
                   type="text"
-                  inputMode="numeric"
+                  inputMode="text"
                   autoComplete="one-time-code"
-                  maxLength={12}
+                  maxLength={14}
                   value={totpDisableCode}
                   onChange={(e) => setTotpDisableCode(e.target.value)}
                   className="mt-3 w-full max-w-xs rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 font-mono text-sm text-zinc-100 outline-none focus:border-zinc-500"
-                  placeholder="000000"
+                  placeholder="000000 or recovery code"
                 />
                 <button
                   type="button"
-                  disabled={totpBusy || totpDisableCode.replace(/\s/g, "").length < 6}
+                  disabled={totpBusy || !isValidTotpOrRecoveryInput(totpDisableCode)}
                   onClick={() => void submitTotpDisable()}
                   className="mt-3 rounded-lg border border-red-500/40 bg-red-950/25 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-900/35 disabled:opacity-40"
                 >
