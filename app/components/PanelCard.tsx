@@ -38,15 +38,13 @@ export function PanelCard({
         className={`flex gap-3 ${titleSlotWide ? "min-w-0 items-center justify-between" : "items-start justify-between"}`}
       >
         <h2
-          className={`min-w-0 text-sm font-semibold tracking-wide text-zinc-400 ${
-            titleSlotWide ? "shrink-0" : "flex-1"
-          } ${titleClassName ?? "uppercase"}`}
+          className={`min-w-0 flex-1 text-sm font-semibold tracking-wide text-zinc-400 ${titleClassName ?? "uppercase"}`}
         >
           {title}
         </h2>
         {titleRight ? (
           <div
-            className={`flex items-center gap-1 ${titleSlotWide ? "min-w-0 flex-1 justify-end" : "shrink-0 pt-0.5"}`}
+            className={`flex items-center gap-1 ${titleSlotWide ? "shrink-0 justify-end" : "shrink-0 pt-0.5"}`}
           >
             {titleRight}
           </div>

@@ -152,7 +152,7 @@ export function getUserTutorialSteps(tier: HelpTier, ctx?: TutorialStepContext):
       section: "dashboard",
       target: sel("dashboard.trending"),
       route: "/",
-      title: "Trending tokens",
+      title: "Trending coins",
       content: "Heat snapshot of what the terminal is watching right now.",
       /**
        * No custom window scroll: scrolling this step was stretching/breaking the shell. No overlay: full-page SVG

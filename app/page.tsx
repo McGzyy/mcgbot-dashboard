@@ -1740,13 +1740,13 @@ function TrendingPanel() {
     <PanelCard
       titleSlotWide
       title={
-        <span className="inline-flex flex-wrap items-baseline gap-x-1">
-          <span className="text-zinc-100">Trending Tokens</span>
+        <span className="flex min-w-0 flex-wrap items-baseline gap-x-1">
+          <span className="text-zinc-100">Trending Coins</span>
           <span className="text-zinc-600" aria-hidden>
             ·
           </span>
           <span className="font-semibold tabular-nums text-sky-400/90 drop-shadow-[0_0_8px_rgba(56,189,248,0.35)]">
-            Solana
+            SOL
           </span>
         </span>
       }
@@ -1769,7 +1769,7 @@ function TrendingPanel() {
     >
       <div className="mt-3 max-w-full overflow-x-auto overscroll-x-contain">
         <div
-          className={`mt-3 min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
+          className={`min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
         >
         <div className="px-2 pb-2 text-[10px] uppercase tracking-wider text-zinc-600 sm:text-[11px]">
           <div className="grid min-w-[16rem] grid-cols-[minmax(0,1fr)_minmax(0,4.25rem)_minmax(0,4.25rem)] items-center gap-1.5 sm:min-w-0 sm:grid-cols-[minmax(0,1.2fr)_auto_auto] sm:gap-3">
