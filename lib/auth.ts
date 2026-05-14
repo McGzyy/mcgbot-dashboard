@@ -10,6 +10,7 @@ import { isDiscordGuildMember } from "@/lib/discordGuildMember";
 import { discordVerificationGateFromRoleIds } from "@/lib/discordVerificationGate";
 import { getSessionInvalidationEpochCached } from "@/lib/sessionInvalidationEpoch";
 import { syncGuildMembershipToUsers } from "@/lib/guildMembershipSync";
+import { consumeTotpSessionProof } from "@/lib/totpSessionProof";
 
 /** Discord CDN avatar; custom avatar or default embed sprite from snowflake. */
 function discordAvatarUrlFromDiscordProfile(p: {
@@ -127,6 +128,7 @@ export const authOptions: NextAuthOptions = {
         token.discord_id = user.id;
         if (user.name) token.name = user.name;
         if (user.image) token.picture = user.image;
+        delete (token as { totpSatisfiedAt?: number }).totpSatisfiedAt;
       } else {
         const tokEp = (token as { sessionInvalidationEpoch?: unknown }).sessionInvalidationEpoch;
         const bound =
@@ -172,6 +174,8 @@ export const authOptions: NextAuthOptions = {
               refreshGuildGate?: boolean;
               /** Forces subscription + Discord guild gate refresh (e.g. after join or transient API errors). */
               refreshAccess?: boolean;
+              /** One-time id from POST /api/me/totp/verify-session — consumed server-side, then sets totpSatisfiedAt. */
+              totpProof?: string;
             })
           : null;
       const refreshAccessAll = Boolean(sessionObj?.refreshAccess);
@@ -189,7 +193,8 @@ export const authOptions: NextAuthOptions = {
         (!("subscriptionActiveUntil" in token) ||
           !("subscriptionExempt" in token) ||
           typeof token.helpTier !== "string" ||
-          typeof token.canModerate !== "boolean");
+          typeof token.canModerate !== "boolean" ||
+          !("totpEnabled" in token));
 
       const shouldRefreshAccess =
         Boolean(user) ||
@@ -242,7 +247,7 @@ export const authOptions: NextAuthOptions = {
             sb
               ? sb
                   .from("users")
-                  .select("trusted_pro, created_at, copy_trade_access_state")
+                  .select("trusted_pro, created_at, copy_trade_access_state, totp_enabled")
                   .eq("discord_id", discordId)
                   .maybeSingle()
               : Promise.resolve({ data: null as Record<string, unknown> | null, error: null }),
@@ -264,6 +269,7 @@ export const authOptions: NextAuthOptions = {
           const cts = urow?.copy_trade_access_state;
           (token as { copyTradeAccessState?: string }).copyTradeAccessState =
             cts === "pending" || cts === "approved" || cts === "denied" || cts === "none" ? String(cts) : "none";
+          (token as { totpEnabled?: boolean }).totpEnabled = urow?.totp_enabled === true;
         } catch (e) {
           console.error("[auth] subscription/staff refresh:", e);
           // Do not demote staff or wipe subscription fields on transient DB/network errors.
@@ -325,6 +331,19 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
+      const proofRaw =
+        trigger === "update" &&
+        sessionObj &&
+        typeof sessionObj.totpProof === "string"
+          ? sessionObj.totpProof.trim()
+          : "";
+      if (discordId && proofRaw && /^[0-9a-f-]{36}$/i.test(proofRaw)) {
+        const consumed = await consumeTotpSessionProof(discordId, proofRaw);
+        if (consumed) {
+          (token as { totpSatisfiedAt?: number }).totpSatisfiedAt = Date.now();
+        }
+      }
+
       return token;
     },
 
@@ -356,10 +375,16 @@ export const authOptions: NextAuthOptions = {
       // Staff can always use tools even if a transient Discord member lookup returned 404.
       const guildAllowsDashboard =
         staffSubscriptionBypass || (token as any).discordInGuild !== false;
+      const totpEnabled = (token as { totpEnabled?: boolean }).totpEnabled === true;
+      const totpSatisfied =
+        !totpEnabled || typeof (token as { totpSatisfiedAt?: unknown }).totpSatisfiedAt === "number";
+      (session.user as { pendingTotpVerification?: boolean }).pendingTotpVerification =
+        totpEnabled && !totpSatisfied;
       session.user.hasDashboardAccess =
         (staffSubscriptionBypass || exempt || session.user.hasActiveSubscription) &&
         guildAllowsDashboard &&
-        !effectiveNeedsVerification;
+        !effectiveNeedsVerification &&
+        totpSatisfied;
       const tier = token.helpTier;
       session.user.helpTier =
         tier === "admin" || tier === "mod" || tier === "user" ? tier : "user";

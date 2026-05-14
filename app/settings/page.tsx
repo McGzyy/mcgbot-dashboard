@@ -99,6 +99,7 @@ const SECONDARY_DASHBOARD_WIDGET_TOGGLES: {
 
 const SETTINGS_NAV = [
   { href: "#notifications", label: "Notifications" },
+  { href: "#security", label: "Security" },
   { href: "#account", label: "Account & X" },
   { href: "#public-profile", label: "Public profile" },
   { href: "#dashboard", label: "Home layout" },
@@ -246,7 +247,7 @@ function ToggleRow({
 }
 
 function SettingsPageInner() {
-  const { status } = useSession();
+  const { status, update } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -286,7 +287,16 @@ function SettingsPageInner() {
   const [referralBusy, setReferralBusy] = useState(false);
   const [referralMsg, setReferralMsg] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [totpStatus, setTotpStatus] = useState<{
+    configured: boolean;
+    enabled: boolean;
+    pendingSetup: boolean;
+  } | null>(null);
+  const [totpEnroll, setTotpEnroll] = useState<{ secret: string; otpauthUrl: string } | null>(null);
+  const [totpBusy, setTotpBusy] = useState(false);
+  const [totpErr, setTotpErr] = useState<string | null>(null);
+  const [totpFinishCode, setTotpFinishCode] = useState("");
+  const [totpDisableCode, setTotpDisableCode] = useState("");
     let cancelled = false;
     setSettingsLoading(true);
     setLoadError(null);
@@ -401,6 +411,40 @@ function SettingsPageInner() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setTotpStatus(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/totp/status", { credentials: "same-origin" });
+        const j = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          configured?: boolean;
+          enabled?: boolean;
+          pendingSetup?: boolean;
+        };
+        if (cancelled) return;
+        if (!res.ok || j.success !== true) {
+          setTotpStatus(null);
+          return;
+        }
+        setTotpStatus({
+          configured: j.configured === true,
+          enabled: j.enabled === true,
+          pendingSetup: j.pendingSetup === true,
+        });
+      } catch {
+        if (!cancelled) setTotpStatus(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   useEffect(() => {
     const x = searchParams.get("x");
@@ -639,6 +683,123 @@ function SettingsPageInner() {
     }
   }, [referralBusy, refreshReferralSlug]);
 
+  const refreshTotpStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/me/totp/status", { credentials: "same-origin" });
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        configured?: boolean;
+        enabled?: boolean;
+        pendingSetup?: boolean;
+      };
+      if (!res.ok || j.success !== true) {
+        setTotpStatus(null);
+        return;
+      }
+      setTotpStatus({
+        configured: j.configured === true,
+        enabled: j.enabled === true,
+        pendingSetup: j.pendingSetup === true,
+      });
+    } catch {
+      setTotpStatus(null);
+    }
+  }, []);
+
+  const startTotpEnroll = useCallback(async () => {
+    setTotpErr(null);
+    setTotpBusy(true);
+    try {
+      const res = await fetch("/api/me/totp/enroll-start", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        secret?: string;
+        otpauthUrl?: string;
+        error?: string;
+      };
+      if (!res.ok || !j.success || typeof j.secret !== "string" || typeof j.otpauthUrl !== "string") {
+        setTotpErr(typeof j.error === "string" ? j.error : "Could not start setup.");
+        return;
+      }
+      setTotpEnroll({ secret: j.secret, otpauthUrl: j.otpauthUrl });
+      setTotpFinishCode("");
+      await refreshTotpStatus();
+    } catch {
+      setTotpErr("Network error.");
+    } finally {
+      setTotpBusy(false);
+    }
+  }, [refreshTotpStatus]);
+
+  const finishTotpEnroll = useCallback(async () => {
+    setTotpErr(null);
+    setTotpBusy(true);
+    try {
+      const res = await fetch("/api/me/totp/enroll-finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ code: totpFinishCode }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || !j.success) {
+        setTotpErr(typeof j.error === "string" ? j.error : "Could not enable TOTP.");
+        return;
+      }
+      setTotpEnroll(null);
+      setTotpFinishCode("");
+      await refreshTotpStatus();
+      await update({ refreshAccess: true });
+    } catch {
+      setTotpErr("Network error.");
+    } finally {
+      setTotpBusy(false);
+    }
+  }, [refreshTotpStatus, totpFinishCode, update]);
+
+  const cancelTotpEnroll = useCallback(async () => {
+    setTotpErr(null);
+    setTotpBusy(true);
+    try {
+      await fetch("/api/me/totp/enroll-cancel", { method: "POST", credentials: "same-origin" });
+      setTotpEnroll(null);
+      setTotpFinishCode("");
+      await refreshTotpStatus();
+    } catch {
+      setTotpErr("Could not cancel enrollment.");
+    } finally {
+      setTotpBusy(false);
+    }
+  }, [refreshTotpStatus]);
+
+  const submitTotpDisable = useCallback(async () => {
+    setTotpErr(null);
+    setTotpBusy(true);
+    try {
+      const res = await fetch("/api/me/totp/disable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ code: totpDisableCode }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || !j.success) {
+        setTotpErr(typeof j.error === "string" ? j.error : "Could not disable TOTP.");
+        return;
+      }
+      setTotpDisableCode("");
+      await refreshTotpStatus();
+      await update({ refreshAccess: true });
+    } catch {
+      setTotpErr("Network error.");
+    } finally {
+      setTotpBusy(false);
+    }
+  }, [refreshTotpStatus, totpDisableCode, update]);
+
   const handleSave = useCallback(async () => {
     setSaveState("saving");
     setSaveMessage(null);
@@ -767,7 +928,7 @@ function SettingsPageInner() {
 
   return (
     <>
-    <div className="mx-auto max-w-6xl pb-28">
+    <div className="mx-auto max-w-6xl pb-[calc(7rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))]">
       <div className="lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-x-10 xl:grid-cols-[12.5rem_minmax(0,1fr)] xl:gap-x-12">
         <aside className="mb-6 hidden lg:block">
           <nav
@@ -1005,6 +1166,147 @@ function SettingsPageInner() {
           </div>
         </div>
       </SettingsSection>
+      </div>
+
+      <div data-tutorial="settings.security">
+        <SettingsSection
+          id="security"
+          title="Security"
+          description="Add an authenticator app as a second step after Discord. Each new Discord sign-in asks for a fresh code."
+        >
+          {totpStatus == null ? (
+            <p className="text-sm text-zinc-500">Loading…</p>
+          ) : !totpStatus.configured ? (
+            <p className="text-sm text-zinc-400">
+              Two-step verification is not available on this deployment yet (missing{" "}
+              <code className="rounded bg-zinc-900 px-1 py-0.5 text-[11px]">TOTP_ENCRYPTION_KEY</code>).
+            </p>
+          ) : totpStatus.enabled ? (
+            <div className="space-y-4">
+              <p className="text-sm text-emerald-200/90">
+                Authenticator 2FA is <span className="font-semibold">on</span> for this account.
+              </p>
+              <div className="rounded-xl border border-zinc-800/80 bg-black/25 p-4 sm:p-5">
+                <p className="text-sm font-medium text-zinc-100">Disable 2FA</p>
+                <p className="mt-1 text-xs text-zinc-500">Enter a current 6-digit code from your app.</p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={12}
+                  value={totpDisableCode}
+                  onChange={(e) => setTotpDisableCode(e.target.value)}
+                  className="mt-3 w-full max-w-xs rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 font-mono text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                  placeholder="000000"
+                />
+                <button
+                  type="button"
+                  disabled={totpBusy || totpDisableCode.replace(/\s/g, "").length < 6}
+                  onClick={() => void submitTotpDisable()}
+                  className="mt-3 rounded-lg border border-red-500/40 bg-red-950/25 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-900/35 disabled:opacity-40"
+                >
+                  {totpBusy ? "Working…" : "Turn off authenticator 2FA"}
+                </button>
+              </div>
+            </div>
+          ) : totpEnroll ? (
+            <div className="space-y-4">
+              <p className="text-sm text-zinc-300">
+                Scan the QR in your authenticator app, or enter the secret manually. Then confirm with a 6-digit code.
+              </p>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                <div className="shrink-0 rounded-xl border border-zinc-800 bg-white p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=168x168&data=${encodeURIComponent(totpEnroll.otpauthUrl)}`}
+                    width={168}
+                    height={168}
+                    alt="Authenticator QR code"
+                    className="h-[168px] w-[168px]"
+                  />
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Secret (manual entry)</p>
+                  <code className="block break-all rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 font-mono text-xs text-zinc-200">
+                    {totpEnroll.secret}
+                  </code>
+                </div>
+              </div>
+              <div>
+                <label htmlFor="totp-finish" className="text-sm font-medium text-zinc-100">
+                  Confirmation code
+                </label>
+                <input
+                  id="totp-finish"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={12}
+                  value={totpFinishCode}
+                  onChange={(e) => setTotpFinishCode(e.target.value)}
+                  className="mt-2 w-full max-w-xs rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 font-mono text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                  placeholder="000000"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={totpBusy || totpFinishCode.replace(/\s/g, "").length < 6}
+                  onClick={() => void finishTotpEnroll()}
+                  className="rounded-lg bg-gradient-to-r from-cyan-600 to-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-950/25 disabled:opacity-40"
+                >
+                  {totpBusy ? "Saving…" : "Confirm & enable"}
+                </button>
+                <button
+                  type="button"
+                  disabled={totpBusy}
+                  onClick={() => void cancelTotpEnroll()}
+                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+                >
+                  Cancel setup
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {totpStatus.pendingSetup ? (
+                <p className="text-sm text-amber-200/90">
+                  Setup was started but not finished. Continue below or cancel the pending secret.
+                </p>
+              ) : (
+                <p className="text-sm text-zinc-400">
+                  Protect this account with a time-based code from any standard authenticator app (Google Authenticator,
+                  Authy, 1Password, etc.).
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={totpBusy}
+                  onClick={() => void startTotpEnroll()}
+                  className="rounded-lg bg-gradient-to-r from-cyan-600 to-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-950/25 disabled:opacity-40"
+                >
+                  {totpBusy ? "Working…" : totpStatus.pendingSetup ? "Continue setup" : "Set up authenticator"}
+                </button>
+                {totpStatus.pendingSetup ? (
+                  <button
+                    type="button"
+                    disabled={totpBusy}
+                    onClick={() => void cancelTotpEnroll()}
+                    className="rounded-lg border border-zinc-600 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+                  >
+                    Clear pending setup
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          )}
+          {totpErr ? (
+            <p className="mt-3 text-sm text-red-300" role="alert">
+              {totpErr}
+            </p>
+          ) : null}
+        </SettingsSection>
       </div>
 
       <div data-tutorial="settings.account">
@@ -1430,7 +1732,7 @@ function SettingsPageInner() {
       </div>
     </div>
 
-    <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between gap-3 border-t border-zinc-800/80 bg-zinc-950/95 px-4 py-3.5 shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.75)] backdrop-blur-md sm:px-6 lg:left-64">
+    <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+var(--mcg-dock-stack,0px))] left-0 right-0 z-[50] flex items-center justify-between gap-3 border-t border-zinc-800/80 bg-zinc-950/95 py-3.5 pl-4 pr-4 shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.75)] backdrop-blur-md sm:px-6 sm:pl-44 lg:left-64">
       <p className="hidden min-w-0 flex-1 truncate text-xs text-zinc-500 sm:block">
         Unsaved changes apply after you save. X linking updates immediately when you connect.
       </p>
@@ -1457,7 +1759,7 @@ function SettingsPageInner() {
 
     {showToast ? (
       <div
-        className="fixed bottom-24 right-4 z-50 rounded-lg bg-emerald-500/90 px-4 py-2 text-sm text-white shadow-lg animate-fade-in sm:bottom-20 sm:right-6"
+        className="fixed bottom-[calc(5rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] right-4 z-[55] rounded-lg bg-emerald-500/90 px-4 py-2 text-sm text-white shadow-lg animate-fade-in sm:right-6"
         role="status"
         aria-live="polite"
       >

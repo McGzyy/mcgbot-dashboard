@@ -23,6 +23,19 @@ export function AppChrome({ children }: { children: ReactNode }) {
     pathname.startsWith("/join/verify") ||
     pathname.startsWith("/auth");
 
+  // Optional app TOTP after Discord — must complete before other dashboard routes.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const needsDiscord = Boolean((session?.user as { discordNeedsVerification?: boolean } | undefined)?.discordNeedsVerification);
+    if (needsDiscord) return;
+    const pending = Boolean(
+      (session?.user as { pendingTotpVerification?: boolean } | undefined)?.pendingTotpVerification
+    );
+    if (!pending) return;
+    if (pathname.startsWith("/auth/totp")) return;
+    router.replace("/auth/totp");
+  }, [pathname, router, session?.user, status]);
+
   // If the user is signed in but Discord marks them unverified, route them to the verify-required page.
   useEffect(() => {
     if (status !== "authenticated") return;
