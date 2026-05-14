@@ -18,7 +18,7 @@ export async function GET() {
 
   const { data, error } = await db
     .from("social_feed_sources")
-    .select("id, platform, handle, display_name, active, category, x_exclude_replies")
+    .select("id, platform, handle, display_name, active, category, category_other, x_exclude_replies")
     .order("platform", { ascending: true })
     .order("handle", { ascending: true });
 
