@@ -1669,22 +1669,14 @@ function NotesPanel() {
 function TrendingPanel() {
   const [timeframe, setTimeframe] = useState<"5m" | "1h" | "24h">("1h");
   const [apiRows, setApiRows] = useState<TrendingTokenRow[]>([]);
-  const [apiLoading, setApiLoading] = useState(true);
-  const [apiHealth, setApiHealth] = useState<Record<string, { ok: boolean; count: number; error?: string }> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setApiLoading(true);
     const tf = timeframe;
     fetch(`/api/trending?timeframe=${encodeURIComponent(tf)}`, { credentials: "same-origin" })
       .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
       .then(({ ok, json }) => {
         if (cancelled) return;
-        setApiHealth(
-          ok && json && typeof json === "object" && (json as any).health && typeof (json as any).health === "object"
-            ? ((json as any).health as Record<string, { ok: boolean; count: number; error?: string }>)
-            : null
-        );
         const rowsRaw =
           ok && json && typeof json === "object" && Array.isArray((json as any).rows)
             ? ((json as any).rows as unknown[])
@@ -1728,11 +1720,7 @@ function TrendingPanel() {
       .catch(() => {
         if (!cancelled) {
           setApiRows([]);
-          setApiHealth(null);
         }
-      })
-      .finally(() => {
-        if (!cancelled) setApiLoading(false);
       });
     return () => {
       cancelled = true;
@@ -1750,59 +1738,36 @@ function TrendingPanel() {
 
   return (
     <PanelCard
-      title="Trending Tokens"
+      titleSlotWide
+      title={
+        <span className="inline-flex flex-wrap items-baseline gap-x-1">
+          <span className="text-zinc-100">Trending Tokens</span>
+          <span className="text-zinc-600" aria-hidden>
+            ·
+          </span>
+          <span className="font-semibold tabular-nums text-sky-400/90 drop-shadow-[0_0_8px_rgba(56,189,248,0.35)]">
+            Solana
+          </span>
+        </span>
+      }
       titleClassName="normal-case"
+      titleRight={
+        <div className="flex shrink-0 items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
+          <button type="button" onClick={() => setTimeframe("5m")} className={chipClass(timeframe === "5m")}>
+            5m
+          </button>
+          <button type="button" onClick={() => setTimeframe("1h")} className={chipClass(timeframe === "1h")}>
+            1h
+          </button>
+          <button type="button" onClick={() => setTimeframe("24h")} className={chipClass(timeframe === "24h")}>
+            24h
+          </button>
+        </div>
+      }
       data-tutorial="dashboard.trending"
       className="min-w-0 max-w-full"
     >
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
-            <button
-              type="button"
-              onClick={() => setTimeframe("5m")}
-              className={chipClass(timeframe === "5m")}
-            >
-              5m
-            </button>
-            <button
-              type="button"
-              onClick={() => setTimeframe("1h")}
-              className={chipClass(timeframe === "1h")}
-            >
-              1h
-            </button>
-            <button
-              type="button"
-              onClick={() => setTimeframe("24h")}
-              className={chipClass(timeframe === "24h")}
-            >
-              24h
-            </button>
-          </div>
-
-          <p className="text-[11px] font-medium text-zinc-500">
-            Dexscreener · boosted Solana
-          </p>
-        </div>
-
-        <div className="hidden min-w-0 truncate text-[11px] text-zinc-500 sm:block">
-          {apiLoading
-            ? "Loading…"
-            : apiHealth
-              ? Object.entries(apiHealth)
-                  .map(([k, v]) => {
-                    if (v.ok) return `${k} ✓ (${v.count})`;
-                    const msg = String(v.error ?? "unavailable").replace(/^Error:\s*/i, "");
-                    const short = msg.length > 48 ? `${msg.slice(0, 46)}…` : msg;
-                    return `${k}: ${short}`;
-                  })
-                  .join(" • ")
-              : "Live • feed wired"}
-        </div>
-      </div>
-
-      <div className="max-w-full overflow-x-auto overscroll-x-contain">
+      <div className="mt-3 max-w-full overflow-x-auto overscroll-x-contain">
         <div
           className={`mt-3 min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
         >
