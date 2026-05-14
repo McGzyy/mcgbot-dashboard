@@ -7,6 +7,7 @@ import { invalidateSiteOperationalStateCache } from "@/lib/siteOperationalState"
 import { clearSessionInvalidationEpochCache } from "@/lib/sessionInvalidationEpoch";
 import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
 import { assertAnnouncementScheduleOrder } from "@/lib/announcementSchedule";
+import { mergeDigestFormat } from "@/lib/xDigestTweetFormat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -265,6 +266,19 @@ export async function PATCH(req: Request) {
   }
   if (typeof o.tutorial_auto_start_enabled === "boolean") {
     patch.tutorial_auto_start_enabled = o.tutorial_auto_start_enabled;
+  }
+  if ("x_leaderboard_digest_format" in o) {
+    const raw = o.x_leaderboard_digest_format;
+    if (raw == null) {
+      patch.x_leaderboard_digest_format = null;
+    } else if (typeof raw === "object" && !Array.isArray(raw)) {
+      patch.x_leaderboard_digest_format = mergeDigestFormat(raw);
+    } else {
+      return Response.json(
+        { success: false, error: "x_leaderboard_digest_format must be a JSON object or null." },
+        { status: 400 }
+      );
+    }
   }
 
   if ("announcement_visible_from" in patch || "announcement_visible_until" in patch) {

@@ -1,6 +1,8 @@
 import { postTweetTextOAuth1a } from "@/lib/xPosterTweetTextOAuth1a";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { runXLeaderboardDigestCron } from "@/lib/xLeaderboardDigestCron";
+import { getDashboardAdminSettings } from "@/lib/dashboardAdminSettingsDb";
+import { mergeDigestFormat } from "@/lib/xDigestTweetFormat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +26,10 @@ export async function POST(request: Request) {
     return Response.json({ success: false, error: "Database not configured" }, { status: 503 });
   }
 
-  const result = await runXLeaderboardDigestCron(db, postTweetTextOAuth1a);
+  const settings = await getDashboardAdminSettings();
+  const digestFormat = mergeDigestFormat(settings?.x_leaderboard_digest_format ?? null);
+
+  const result = await runXLeaderboardDigestCron(db, postTweetTextOAuth1a, { digestFormat });
   return Response.json({ success: true, ...result });
 }
 

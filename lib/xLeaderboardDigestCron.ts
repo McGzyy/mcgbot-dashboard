@@ -8,6 +8,10 @@ import {
   effectiveDigestUtcHour,
   effectiveWeeklyUtcWeekday,
 } from "@/lib/xLeaderboardDigestSchedule";
+import {
+  formatDigestTweet,
+  type XLeaderboardDigestFormat,
+} from "@/lib/xDigestTweetFormat";
 
 function envFlag(v: string | undefined): boolean {
   if (v == null) return false;
@@ -22,27 +26,6 @@ function siteBaseUrl(): string {
     process.env.NEXTAUTH_URL?.trim() ||
     "";
   return raw.replace(/\/+$/, "");
-}
-
-function formatDigestTweet(
-  kind: TrophyTimeframe,
-  periodStartMs: number,
-  rows: { rank: number; username: string; avgX: number }[]
-): string {
-  const y = new Date(periodStartMs);
-  const dateTag = `${y.getUTCFullYear()}-${String(y.getUTCMonth() + 1).padStart(2, "0")}-${String(y.getUTCDate()).padStart(2, "0")}`;
-  const head =
-    kind === "daily"
-      ? `📊 McGBot daily leaderboard (${dateTag} UTC)`
-      : kind === "weekly"
-        ? `📊 McGBot weekly leaderboard (week of ${dateTag} UTC)`
-        : `📊 McGBot monthly leaderboard (${dateTag} UTC)`;
-  const body = rows
-    .map((r) => `#${r.rank} ${r.username.replace(/\s+/g, " ").slice(0, 18)} ${r.avgX.toFixed(1)}x avg`)
-    .join(" · ");
-  const base = siteBaseUrl();
-  const tail = base ? `\n${base}/leaderboard` : "";
-  return `${head}\n${body}${tail}`.slice(0, 280);
 }
 
 type CreatePostFn = (
@@ -108,7 +91,7 @@ export type XLeaderboardDigestCronResult = {
 export async function runXLeaderboardDigestCron(
   db: SupabaseClient,
   createPost: CreatePostFn,
-  options?: { nowMs?: number }
+  options?: { nowMs?: number; digestFormat?: XLeaderboardDigestFormat | null }
 ): Promise<XLeaderboardDigestCronResult> {
   const posts: XLeaderboardDigestCronResult["posts"] = [];
 
@@ -180,7 +163,9 @@ export async function runXLeaderboardDigestCron(
         rank: r.rank,
         username: r.username || r.discordId,
         avgX: r.avgX,
-      }))
+      })),
+      options?.digestFormat ?? null,
+      siteBaseUrl()
     );
 
     const result = await createPost(text, null);

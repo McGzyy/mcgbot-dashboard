@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AdminPanel, AdminMetric } from "@/app/admin/_components/adminUi";
-import { AdminXStatusPanel } from "@/app/admin/_components/AdminXStatusPanel";
 import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { adminChrome } from "@/lib/roleTierStyles";
 
@@ -380,11 +379,6 @@ export function SiteAdminClient() {
             )}
           </AdminPanel>
         </div>
-      </div>
-
-      <div>
-        <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">X leaderboard digests</h3>
-        <AdminXStatusPanel />
       </div>
 
       <SettingsSection

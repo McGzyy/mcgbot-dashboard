@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { AdminOverviewStats } from "@/app/admin/_components/AdminOverviewStats";
-import { AdminXStatusPanel } from "@/app/admin/_components/AdminXStatusPanel";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import { adminChrome } from "@/lib/roleTierStyles";
 
@@ -47,9 +46,13 @@ export default function AdminOverviewPage() {
 
       <AdminOverviewStats data-tutorial="admin.stats" />
 
-      <AdminXStatusPanel />
-
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <OverviewCard
+          href="/admin/x-digests"
+          title="X leaderboard digests"
+          subtitle="Cron schedule (Pacific + UTC), OAuth status, and editable tweet templates for dashboard-posted digests."
+          hint="Read env · Write Supabase"
+        />
         <OverviewCard
           href="/admin/treasury"
           title="Treasury hub"

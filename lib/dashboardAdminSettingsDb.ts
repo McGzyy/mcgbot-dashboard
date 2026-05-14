@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import type { XLeaderboardDigestFormat } from "@/lib/xDigestTweetFormat";
 
 export type DashboardAdminSettingsRow = {
   id: number;
@@ -42,6 +43,8 @@ export type DashboardAdminSettingsRow = {
   stripe_test_plan_id: string | null;
   /** When false, skip auto-opening the Joyride tour for first-time caller-tier users. */
   tutorial_auto_start_enabled: boolean;
+  /** Optional X digest tweet templates (jsonb); null = use built-in defaults. */
+  x_leaderboard_digest_format: unknown | null;
   updated_at: string;
   updated_by_discord_id: string | null;
 };
@@ -77,6 +80,7 @@ function defaultRow(): DashboardAdminSettingsRow {
     stripe_test_price_id: null,
     stripe_test_plan_id: null,
     tutorial_auto_start_enabled: true,
+    x_leaderboard_digest_format: null,
     updated_at: now,
     updated_by_discord_id: null,
   };
@@ -171,6 +175,11 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
         : null,
     tutorial_auto_start_enabled:
       (r as { tutorial_auto_start_enabled?: unknown }).tutorial_auto_start_enabled !== false,
+    x_leaderboard_digest_format: (() => {
+      const v = (r as { x_leaderboard_digest_format?: unknown }).x_leaderboard_digest_format;
+      if (v == null || typeof v !== "object") return null;
+      return v as Record<string, unknown>;
+    })(),
     updated_at: typeof r.updated_at === "string" ? r.updated_at : new Date().toISOString(),
     updated_by_discord_id: typeof r.updated_by_discord_id === "string" ? r.updated_by_discord_id : null,
   };
@@ -203,6 +212,7 @@ export async function patchDashboardAdminSettings(input: {
   stripe_test_price_id?: string | null;
   stripe_test_plan_id?: string | null;
   tutorial_auto_start_enabled?: boolean;
+  x_leaderboard_digest_format?: XLeaderboardDigestFormat | null;
   updatedByDiscordId: string;
 }): Promise<DashboardAdminSettingsRow | null> {
   const db = getSupabaseAdmin();
@@ -313,6 +323,10 @@ export async function patchDashboardAdminSettings(input: {
   if (typeof input.tutorial_auto_start_enabled === "boolean") {
     next.tutorial_auto_start_enabled = input.tutorial_auto_start_enabled;
   }
+  if ("x_leaderboard_digest_format" in input) {
+    next.x_leaderboard_digest_format =
+      input.x_leaderboard_digest_format == null ? null : { ...input.x_leaderboard_digest_format };
+  }
   const { data, error } = await db
     .from("dashboard_admin_settings")
     .upsert(
@@ -345,6 +359,7 @@ export async function patchDashboardAdminSettings(input: {
         stripe_test_price_id: next.stripe_test_price_id,
         stripe_test_plan_id: next.stripe_test_plan_id,
         tutorial_auto_start_enabled: next.tutorial_auto_start_enabled,
+        x_leaderboard_digest_format: next.x_leaderboard_digest_format,
         updated_at: next.updated_at,
         updated_by_discord_id: next.updated_by_discord_id,
       },

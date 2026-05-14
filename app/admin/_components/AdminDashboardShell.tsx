@@ -126,6 +126,16 @@ const NAV_GROUPS: NavGroup[] = [
           </svg>
         ),
       },
+      {
+        href: "/admin/x-digests",
+        label: "X digests",
+        description: "Schedule, status & tweet copy",
+        icon: (a) => (
+          <svg className={`h-4 w-4 ${a ? adminChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 4.5h4.5m4.5 0h.008v.008H15V12.75zm-9 4.5h9m-9-9h10.5a2.25 2.25 0 012.25 2.25v6.75a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 16.5V8.25A2.25 2.25 0 016.75 6z" />
+          </svg>
+        ),
+      },
     ],
   },
   {

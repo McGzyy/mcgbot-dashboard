@@ -9,16 +9,20 @@ type XDigestScheduleInfo = {
   vercelCronDescription: string;
   digestUtcHour: number;
   digestWindowLabel: string;
+  digestWindowLabelPacific: string;
   nextDigestHourWindowStartIso: string;
+  nextDigestHourWindowStartPacific: string;
   digestHourActiveNow: boolean;
   weeklyUtcWeekday: number;
   weeklyUtcWeekdayLabel: string;
   monthlyRunsOn: string;
+  utcEnvReminder: string;
 };
 
 type XStatus = {
   success: boolean;
   nowUtc?: string;
+  nowPacific?: string;
   x?: {
     digestEnabled: boolean | null;
     dailyEnabled: boolean | null;
@@ -90,8 +94,21 @@ export function AdminXStatusPanel() {
             bot host, not this route.
           </p>
         </div>
-        <p className="text-[11px] tabular-nums text-zinc-600">
-          {loading ? "…" : data?.nowUtc ? `UTC ${String(data.nowUtc).slice(11, 16)}` : "—"}
+        <p className="text-right text-[11px] leading-snug tabular-nums text-zinc-600">
+          {loading ? (
+            "…"
+          ) : (
+            <>
+              {data?.nowPacific ? (
+                <span className="block font-medium text-zinc-300">{data.nowPacific}</span>
+              ) : null}
+              {data?.nowUtc ? (
+                <span className="block text-zinc-600">{String(data.nowUtc).slice(0, 16).replace("T", " ")} UTC</span>
+              ) : (
+                "—"
+              )}
+            </>
+          )}
         </p>
       </div>
 
@@ -112,7 +129,7 @@ export function AdminXStatusPanel() {
         />
         <AdminMetric label="Digest enabled" value={fmtBool(x?.digestEnabled)} tone={x?.digestEnabled ? "ok" : "warn"} />
         <AdminMetric
-          label="Digest UTC hour (effective)"
+          label="Digest hour (Vercel env = UTC)"
           value={x?.schedule?.digestUtcHour ?? x?.digestUtcHour ?? "—"}
         />
         <AdminMetric label="Daily (env raw)" value={fmtBool(x?.dailyEnabled)} />
@@ -136,8 +153,8 @@ export function AdminXStatusPanel() {
               <span className="text-zinc-600"> — {x.schedule.vercelCronDescription}</span>
             </li>
             <li>
-              <span className="text-zinc-500">Post window: </span>
-              <span className="font-medium text-zinc-200">{x.schedule.digestWindowLabel}</span>
+              <span className="text-zinc-500">Post window (Pacific): </span>
+              <span className="font-medium text-zinc-200">{x.schedule.digestWindowLabelPacific}</span>
               {x.schedule.digestHourActiveNow ? (
                 <span className="ml-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
                   Active now
@@ -145,14 +162,23 @@ export function AdminXStatusPanel() {
               ) : null}
             </li>
             <li>
-              <span className="text-zinc-500">Next window starts (UTC): </span>
-              <span className="tabular-nums text-zinc-200">{x.schedule.nextDigestHourWindowStartIso}</span>
+              <span className="text-zinc-500">Same window (UTC): </span>
+              <span className="font-medium text-zinc-300">{x.schedule.digestWindowLabel}</span>
             </li>
+            <li>
+              <span className="text-zinc-500">Next run start — Pacific: </span>
+              <span className="text-zinc-200">{x.schedule.nextDigestHourWindowStartPacific}</span>
+            </li>
+            <li>
+              <span className="text-zinc-500">Next run start — UTC: </span>
+              <span className="tabular-nums text-zinc-300">{x.schedule.nextDigestHourWindowStartIso}</span>
+            </li>
+            <li className="text-[11px] text-zinc-600">{x.schedule.utcEnvReminder}</li>
             <li>
               <span className="text-zinc-500">Weekly leaderboard digest: </span>
               same post window, only on <span className="text-zinc-200">{x.schedule.weeklyUtcWeekdayLabel}</span>{" "}
-              (UTC <span className="tabular-nums">{x.schedule.weeklyUtcWeekday}</span> = JS{" "}
-              <span className="font-mono text-[10px]">getUTCDay</span>).
+              (UTC weekday index <span className="tabular-nums">{x.schedule.weeklyUtcWeekday}</span> —{" "}
+              <span className="font-mono text-[10px]">Date#getUTCDay</span> in code).
             </li>
             <li>
               <span className="text-zinc-500">Monthly: </span>
