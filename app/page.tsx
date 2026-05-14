@@ -3042,43 +3042,54 @@ function SocialsFeedPanel() {
   return (
     <>
       <PanelCard
-        title="Social Feed"
-        titleClassName="normal-case"
-        className="relative min-w-0 max-w-full overflow-hidden"
-      >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-sky-500/25 via-[color:var(--accent)]/20 to-transparent" />
-        <div className="mt-2 flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 no-scrollbar">
-          <div className="flex shrink-0 flex-nowrap items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
-            <button
-              type="button"
-              onClick={() => setTab("all")}
-              className={`shrink-0 rounded-md px-2 py-1 text-xs transition-all ${
-                tab === "all"
-                  ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
-                  : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
+        titleSlotWide
+        title={
+          <span className="inline-flex flex-wrap items-baseline gap-x-1">
+            <span className="text-zinc-100">Social Feed</span>
+            <span className="text-zinc-600" aria-hidden>
+              ·
+            </span>
+            <span
+              className={`font-semibold tabular-nums text-emerald-400/95 drop-shadow-[0_0_10px_rgba(52,211,153,0.55)] ${
+                loading ? "animate-pulse" : ""
               }`}
             >
-              All
-            </button>
-            {SOCIAL_FEED_CATEGORY_OPTIONS.filter((o) => o.inFeedTabs).map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => setTab(opt.id)}
-                className={`max-w-[7.5rem] shrink-0 truncate rounded-md px-2 py-1 text-xs transition-all ${
-                  tab === opt.id
-                    ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
-                    : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
-                }`}
-                title={opt.label}
-              >
-                {opt.short}
-              </button>
-            ))}
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <div className="hidden whitespace-nowrap text-[11px] text-zinc-500 md:block">
-              {loading ? "Loading…" : "Live · feed wired"}
+              Live
+            </span>
+          </span>
+        }
+        titleClassName="normal-case"
+        titleRight={
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <div className="no-scrollbar flex min-w-0 max-w-[min(100%,52vw)] flex-1 justify-end overflow-x-auto sm:max-w-none">
+              <div className="flex shrink-0 flex-nowrap items-center gap-1 rounded-lg border border-zinc-800/70 bg-zinc-900/35 p-1">
+                <button
+                  type="button"
+                  onClick={() => setTab("all")}
+                  className={`shrink-0 rounded-md px-2 py-1 text-xs transition-all ${
+                    tab === "all"
+                      ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
+                      : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
+                  }`}
+                >
+                  All
+                </button>
+                {SOCIAL_FEED_CATEGORY_OPTIONS.filter((o) => o.inFeedTabs).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setTab(opt.id)}
+                    className={`max-w-[7.5rem] shrink-0 truncate rounded-md px-2 py-1 text-xs transition-all ${
+                      tab === opt.id
+                        ? "border border-zinc-500/30 bg-zinc-500/10 font-semibold text-zinc-100"
+                        : "text-zinc-500 hover:bg-zinc-800/40 hover:text-white"
+                    }`}
+                    title={opt.label}
+                  >
+                    {opt.short}
+                  </button>
+                ))}
+              </div>
             </div>
             <button
               type="button"
@@ -3088,7 +3099,10 @@ function SocialsFeedPanel() {
               Expand
             </button>
           </div>
-        </div>
+        }
+        className="relative min-w-0 max-w-full overflow-hidden"
+      >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-sky-500/25 via-[color:var(--accent)]/20 to-transparent" />
 
         <div
           className={`mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
@@ -3115,9 +3129,21 @@ function SocialsFeedPanel() {
                 >
                   <div className={terminalUi.modalSubHeaderBar}>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-zinc-200">Social Feed</p>
-                      <p className="text-[11px] text-zinc-500">
-                        Live posts{canRequestSource ? " · suggest a new source with the button" : ""}
+                      <p className="inline-flex flex-wrap items-baseline gap-x-1 text-xs font-semibold">
+                        <span className="text-zinc-200">Social Feed</span>
+                        <span className="text-zinc-600" aria-hidden>
+                          ·
+                        </span>
+                        <span
+                          className={`tabular-nums text-emerald-400/95 drop-shadow-[0_0_10px_rgba(52,211,153,0.55)] ${
+                            loading ? "animate-pulse" : ""
+                          }`}
+                        >
+                          Live
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-zinc-500">
+                        Curated posts{canRequestSource ? " · suggest a new source with the button" : ""}
                         {isAdmin ? (
                           <>
                             {" "}
@@ -3188,8 +3214,8 @@ function SocialsFeedPanel() {
                         </button>
                       ))}
                     </div>
-                    <span className="text-[11px] text-zinc-500">
-                      {loading ? "Loading…" : "Live • feed wired"}
+                    <span className="ml-auto shrink-0 text-[11px] text-zinc-500">
+                      {loading ? "Loading…" : null}
                     </span>
                   </div>
 
