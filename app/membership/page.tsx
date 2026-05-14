@@ -144,7 +144,7 @@ export default function MembershipPage() {
         if (cancelled) return;
         if (res.ok && json.success) {
           setPollNote("Payment confirmed. Activating your session…");
-          await update({ refreshSubscription: true });
+          await update({ refreshAccess: true });
         } else if (!json.success) {
           setCheckoutError(membershipPaywallUserMessage(res.status, json, "stripe_verify_session"));
         }
@@ -178,7 +178,7 @@ export default function MembershipPage() {
         if (cancelled || !res.ok) return;
         if (json.success && json.active) {
           setPollNote("You have access. Refreshing your session…");
-          await update({ refreshSubscription: true });
+          await update({ refreshAccess: true });
         }
       } catch {
         /* ignore */
@@ -439,7 +439,7 @@ export default function MembershipPage() {
 
       if (json.activated === true && json.via === "voucher") {
         setPollNote("Access granted. Refreshing your session…");
-        await update({ refreshSubscription: true });
+        await update({ refreshAccess: true });
         return;
       }
 
@@ -522,7 +522,7 @@ export default function MembershipPage() {
         setPollNote("Complimentary access activated. Refreshing your session…");
         setComplimentaryCode("");
         setShowComplimentary(false);
-        await update({ refreshSubscription: true });
+        await update({ refreshAccess: true });
         return;
       }
       setRedeemError(membershipPaywallUserMessage(res.status, json, "complimentary_redeem"));
@@ -675,7 +675,7 @@ export default function MembershipPage() {
         solTestDisabled={!checkoutAllowed}
         onSolActivated={async () => {
           setPollNote("Payment confirmed. Activating your session…");
-          await update({ refreshSubscription: true });
+          await update({ refreshAccess: true });
         }}
       />
       <div className="pointer-events-none fixed inset-0 -z-10">
@@ -814,7 +814,10 @@ export default function MembershipPage() {
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <button
                 type="button"
-                onClick={() => setGuildGateRetry((n) => n + 1)}
+                onClick={() => {
+                  void update({ refreshAccess: true });
+                  setGuildGateRetry((n) => n + 1);
+                }}
                 className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-100 px-5 text-sm font-bold text-zinc-950 transition hover:bg-white"
               >
                 Retry check
@@ -849,7 +852,10 @@ export default function MembershipPage() {
               </a>
               <button
                 type="button"
-                onClick={() => setGuildGateRetry((n) => n + 1)}
+                onClick={() => {
+                  void update({ refreshAccess: true });
+                  setGuildGateRetry((n) => n + 1);
+                }}
                 className="inline-flex h-11 items-center justify-center rounded-xl border border-amber-300/40 bg-amber-500/5 px-5 text-sm font-semibold text-amber-50 transition hover:bg-amber-500/15"
               >
                 Retry check
@@ -878,7 +884,10 @@ export default function MembershipPage() {
               </Link>
               <button
                 type="button"
-                onClick={() => setGuildGateRetry((n) => n + 1)}
+                onClick={() => {
+                  void update({ refreshAccess: true });
+                  setGuildGateRetry((n) => n + 1);
+                }}
                 className="inline-flex h-11 items-center justify-center rounded-xl border border-violet-300/35 bg-violet-500/10 px-5 text-sm font-semibold text-violet-50 transition hover:bg-violet-500/20"
               >
                 Retry check
@@ -1042,7 +1051,7 @@ export default function MembershipPage() {
                   selectedPlanSlug={selectedSlug}
                   onActivated={async () => {
                     setPollNote("Payment confirmed. Activating your session…");
-                    await update({ refreshSubscription: true });
+                    await update({ refreshAccess: true });
                   }}
                 />
               </div>

@@ -165,8 +165,20 @@ export const authOptions: NextAuthOptions = {
         token.discord_id = fromSub;
       }
       const discordId = (fromExplicit || fromSub).trim();
-      const sessionObj = session && typeof session === "object" ? (session as { refreshSubscription?: boolean }) : null;
-      const refreshSubscriptionFlag = Boolean(sessionObj?.refreshSubscription);
+      const sessionObj =
+        session && typeof session === "object"
+          ? (session as {
+              refreshSubscription?: boolean;
+              refreshGuildGate?: boolean;
+              /** Forces subscription + Discord guild gate refresh (e.g. after join or transient API errors). */
+              refreshAccess?: boolean;
+            })
+          : null;
+      const refreshAccessAll = Boolean(sessionObj?.refreshAccess);
+      const refreshSubscriptionFlag =
+        Boolean(sessionObj?.refreshSubscription) || refreshAccessAll;
+      const refreshGuildFromUpdate =
+        Boolean(sessionObj?.refreshGuildGate) || refreshAccessAll;
       const SUB_REFRESH_MS = 3 * 60 * 1000;
       const lastRefresh =
         typeof token.subscriptionRefreshAt === "number" ? token.subscriptionRefreshAt : 0;
@@ -187,6 +199,8 @@ export const authOptions: NextAuthOptions = {
 
       // Discord guild membership + verification gate (checked frequently so kicked/banned users lose access fast).
       const GUILD_REFRESH_MS = 55 * 1000;
+      /** After a definitive "not in guild", re-check sooner so transient Discord/API glitches clear without a new login. */
+      const GUILD_REFRESH_MS_AFTER_FALSE = 15 * 1000;
       const guildLastRefresh =
         typeof (token as any).discordGuildRefreshAt === "number"
           ? (token as any).discordGuildRefreshAt
@@ -195,9 +209,16 @@ export const authOptions: NextAuthOptions = {
         Boolean(discordId) &&
         (typeof (token as any).discordInGuild !== "boolean" ||
           typeof (token as any).discordNeedsVerification !== "boolean");
+      const guildStaleMs =
+        (token as any).discordInGuild === false ? GUILD_REFRESH_MS_AFTER_FALSE : GUILD_REFRESH_MS;
       const guildGateStale =
-        Boolean(discordId) && Date.now() - guildLastRefresh > GUILD_REFRESH_MS;
-      const shouldRefreshGuildGate = Boolean(discordId) && (guildGateMissing || guildGateStale || Boolean(user));
+        Boolean(discordId) && Date.now() - guildLastRefresh > guildStaleMs;
+      const shouldRefreshGuildGate =
+        Boolean(discordId) &&
+        (guildGateMissing ||
+          guildGateStale ||
+          Boolean(user) ||
+          (trigger === "update" && refreshGuildFromUpdate));
 
       if (discordId && shouldRefreshAccess) {
         const prevTier =
@@ -332,9 +353,12 @@ export const authOptions: NextAuthOptions = {
       const rawNeedsVerification = (token as any).discordNeedsVerification === true;
       const effectiveNeedsVerification = rawNeedsVerification && !staffVerificationBypass;
       const staffSubscriptionBypass = helpTierOk === "admin" || helpTierOk === "mod";
+      // Staff can always use tools even if a transient Discord member lookup returned 404.
+      const guildAllowsDashboard =
+        staffSubscriptionBypass || (token as any).discordInGuild !== false;
       session.user.hasDashboardAccess =
         (staffSubscriptionBypass || exempt || session.user.hasActiveSubscription) &&
-        (token as any).discordInGuild !== false &&
+        guildAllowsDashboard &&
         !effectiveNeedsVerification;
       const tier = token.helpTier;
       session.user.helpTier =

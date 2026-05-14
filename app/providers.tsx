@@ -1,6 +1,7 @@
 "use client";
 
 import { HelpHotkey } from "@/app/components/HelpHotkey";
+import { SessionGateRecovery } from "@/app/components/SessionGateRecovery";
 import { SolanaWalletProviders } from "@/app/components/SolanaWalletProviders";
 import { NotificationToasts } from "@/app/components/NotificationToasts";
 import { DashboardWalletProvider } from "@/app/contexts/DashboardWalletContext";
@@ -20,6 +21,7 @@ export function Providers({
 }) {
   return (
     <SessionProvider refetchInterval={45} session={session ?? undefined}>
+      <SessionGateRecovery />
       <SolanaWalletProviders>
         <DashboardWalletProvider>
           <VoiceSessionProvider>
