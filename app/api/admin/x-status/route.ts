@@ -1,4 +1,8 @@
 import { requireDashboardAdmin } from "@/lib/adminGate";
+import {
+  buildXDigestScheduleInfo,
+  digestKindEnabled,
+} from "@/lib/xLeaderboardDigestSchedule";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,14 +28,26 @@ export async function GET() {
   const gate = await requireDashboardAdmin();
   if (!gate.ok) return gate.response;
 
+  const nowMs = Date.now();
+  const digestMaster = flag(process.env.X_LEADERBOARD_DIGEST_ENABLED);
+  const masterOn = digestMaster === true;
+  const schedule = buildXDigestScheduleInfo(nowMs, {
+    X_LEADERBOARD_DIGEST_UTC_HOUR: process.env.X_LEADERBOARD_DIGEST_UTC_HOUR,
+    X_LEADERBOARD_WEEKLY_UTC_WEEKDAY: process.env.X_LEADERBOARD_WEEKLY_UTC_WEEKDAY,
+  });
+
   return Response.json({
     success: true,
     nowUtc: new Date().toISOString(),
     x: {
-      digestEnabled: flag(process.env.X_LEADERBOARD_DIGEST_ENABLED),
+      digestEnabled: digestMaster,
       dailyEnabled: flag(process.env.X_LEADERBOARD_DAILY_DIGEST_ENABLED),
       weeklyEnabled: flag(process.env.X_LEADERBOARD_WEEKLY_DIGEST_ENABLED),
       monthlyEnabled: flag(process.env.X_LEADERBOARD_MONTHLY_DIGEST_ENABLED),
+      /** When master digest is on, unset per-kind vars count as on. */
+      dailyEffective: masterOn && digestKindEnabled(process.env.X_LEADERBOARD_DAILY_DIGEST_ENABLED),
+      weeklyEffective: masterOn && digestKindEnabled(process.env.X_LEADERBOARD_WEEKLY_DIGEST_ENABLED),
+      monthlyEffective: masterOn && digestKindEnabled(process.env.X_LEADERBOARD_MONTHLY_DIGEST_ENABLED),
       digestUtcHour: num(process.env.X_LEADERBOARD_DIGEST_UTC_HOUR),
       weeklyUtcWeekday: num(process.env.X_LEADERBOARD_WEEKLY_UTC_WEEKDAY),
       weeklyStatsSnapshotEnabled: flag(process.env.X_WEEKLY_STATS_SNAPSHOT_ENABLED),
@@ -44,6 +60,8 @@ export async function GET() {
           String(process.env.X_ACCESS_TOKEN_SECRET || "").trim()
       ),
       botUsername: String(process.env.X_BOT_USERNAME || "").trim() || null,
+      cronSecretConfigured: Boolean(String(process.env.CRON_SECRET ?? "").trim()),
+      schedule,
     },
   });
 }

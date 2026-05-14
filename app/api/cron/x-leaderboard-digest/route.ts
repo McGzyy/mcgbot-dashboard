@@ -1,5 +1,5 @@
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { postTweetTextOAuth1a } from "@/lib/xPosterTweetTextOAuth1a";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { runXLeaderboardDigestCron } from "@/lib/xLeaderboardDigestCron";
 
 export const runtime = "nodejs";
@@ -21,14 +21,10 @@ export async function POST(request: Request) {
 
   const db = getSupabaseAdmin();
   if (!db) {
-    return Response.json(
-      { success: false, error: "Database not configured" },
-      { status: 503 }
-    );
+    return Response.json({ success: false, error: "Database not configured" }, { status: 503 });
   }
 
   const result = await runXLeaderboardDigestCron(db, postTweetTextOAuth1a);
-
   return Response.json({ success: true, ...result });
 }
 

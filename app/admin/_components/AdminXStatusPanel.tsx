@@ -3,6 +3,19 @@
 import { useEffect, useState } from "react";
 import { AdminMetric, AdminPanel } from "@/app/admin/_components/adminUi";
 
+type XDigestScheduleInfo = {
+  vercelCronPath: string;
+  vercelCronExpression: string;
+  vercelCronDescription: string;
+  digestUtcHour: number;
+  digestWindowLabel: string;
+  nextDigestHourWindowStartIso: string;
+  digestHourActiveNow: boolean;
+  weeklyUtcWeekday: number;
+  weeklyUtcWeekdayLabel: string;
+  monthlyRunsOn: string;
+};
+
 type XStatus = {
   success: boolean;
   nowUtc?: string;
@@ -11,6 +24,9 @@ type XStatus = {
     dailyEnabled: boolean | null;
     weeklyEnabled: boolean | null;
     monthlyEnabled: boolean | null;
+    dailyEffective?: boolean;
+    weeklyEffective?: boolean;
+    monthlyEffective?: boolean;
     digestUtcHour: number | null;
     weeklyUtcWeekday: number | null;
     weeklyStatsSnapshotEnabled: boolean | null;
@@ -18,6 +34,8 @@ type XStatus = {
     weeklyStatsUtcWeekday: number | null;
     oauth1aConfigured: boolean;
     botUsername: string | null;
+    cronSecretConfigured?: boolean;
+    schedule?: XDigestScheduleInfo;
   };
   error?: string;
 };
@@ -63,7 +81,13 @@ export function AdminXStatusPanel() {
             X posting status
           </h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Flags are read from this web host’s env. The bot host must also have X creds + digest enabled.
+            Env from this Vercel deployment. Leaderboard digests are triggered by{" "}
+            <code className="rounded bg-black/40 px-1 font-mono text-[10px] text-zinc-400">
+              vercel.json
+            </code>{" "}
+            → <span className="font-mono text-[10px]">/api/cron/x-leaderboard-digest</span> (hourly), which only posts
+            during the digest UTC hour. Discord <span className="font-mono text-[10px]">!test*digest</span> uses the
+            bot host, not this route.
           </p>
         </div>
         <p className="text-[11px] tabular-nums text-zinc-600">
@@ -81,15 +105,62 @@ export function AdminXStatusPanel() {
           value={oauthOk ? "Configured" : "Missing"}
           tone={oauthOk ? "ok" : "bad"}
         />
+        <AdminMetric
+          label="CRON_SECRET"
+          value={x?.cronSecretConfigured ? "Set" : "Missing"}
+          tone={x?.cronSecretConfigured ? "ok" : "bad"}
+        />
         <AdminMetric label="Digest enabled" value={fmtBool(x?.digestEnabled)} tone={x?.digestEnabled ? "ok" : "warn"} />
-        <AdminMetric label="Digest UTC hour" value={x?.digestUtcHour ?? "—"} />
-        <AdminMetric label="Daily digest" value={fmtBool(x?.dailyEnabled)} />
-        <AdminMetric label="Weekly digest" value={fmtBool(x?.weeklyEnabled)} />
-        <AdminMetric label="Monthly digest" value={fmtBool(x?.monthlyEnabled)} />
+        <AdminMetric
+          label="Digest UTC hour (effective)"
+          value={x?.schedule?.digestUtcHour ?? x?.digestUtcHour ?? "—"}
+        />
+        <AdminMetric label="Daily (env raw)" value={fmtBool(x?.dailyEnabled)} />
+        <AdminMetric label="Daily (effective)" value={fmtBool(x?.dailyEffective)} tone={x?.dailyEffective ? "ok" : "warn"} />
+        <AdminMetric label="Weekly (env raw)" value={fmtBool(x?.weeklyEnabled)} />
+        <AdminMetric label="Weekly (effective)" value={fmtBool(x?.weeklyEffective)} />
+        <AdminMetric label="Monthly (env raw)" value={fmtBool(x?.monthlyEnabled)} />
+        <AdminMetric label="Monthly (effective)" value={fmtBool(x?.monthlyEffective)} />
+        <AdminMetric label="Weekly digest weekday" value={x?.schedule?.weeklyUtcWeekdayLabel ?? "—"} />
         <AdminMetric label="Weekly stats snapshot" value={fmtBool(x?.weeklyStatsSnapshotEnabled)} />
-        <AdminMetric label="Weekly UTC weekday" value={x?.weeklyUtcWeekday ?? "—"} />
         <AdminMetric label="Weekly stats weekday" value={x?.weeklyStatsUtcWeekday ?? "—"} />
       </div>
+
+      {x?.schedule ? (
+        <div className="mt-4 rounded-lg border border-zinc-800/70 bg-black/20 p-4">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Scheduled digest window</h3>
+          <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-zinc-400">
+            <li>
+              <span className="text-zinc-500">Cron: </span>
+              <span className="font-mono text-[11px] text-zinc-300">{x.schedule.vercelCronExpression}</span>
+              <span className="text-zinc-600"> — {x.schedule.vercelCronDescription}</span>
+            </li>
+            <li>
+              <span className="text-zinc-500">Post window: </span>
+              <span className="font-medium text-zinc-200">{x.schedule.digestWindowLabel}</span>
+              {x.schedule.digestHourActiveNow ? (
+                <span className="ml-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
+                  Active now
+                </span>
+              ) : null}
+            </li>
+            <li>
+              <span className="text-zinc-500">Next window starts (UTC): </span>
+              <span className="tabular-nums text-zinc-200">{x.schedule.nextDigestHourWindowStartIso}</span>
+            </li>
+            <li>
+              <span className="text-zinc-500">Weekly leaderboard digest: </span>
+              same post window, only on <span className="text-zinc-200">{x.schedule.weeklyUtcWeekdayLabel}</span>{" "}
+              (UTC <span className="tabular-nums">{x.schedule.weeklyUtcWeekday}</span> = JS{" "}
+              <span className="font-mono text-[10px]">getUTCDay</span>).
+            </li>
+            <li>
+              <span className="text-zinc-500">Monthly: </span>
+              {x.schedule.monthlyRunsOn}
+            </li>
+          </ul>
+        </div>
+      ) : null}
 
       {x?.botUsername ? (
         <p className="mt-4 text-[11px] text-zinc-600">

@@ -3,17 +3,16 @@ import {
   computeClosedTrophyLeaderboardTop3,
   type TrophyTimeframe,
 } from "@/lib/awardTrophies";
+import {
+  digestKindEnabled,
+  effectiveDigestUtcHour,
+  effectiveWeeklyUtcWeekday,
+} from "@/lib/xLeaderboardDigestSchedule";
 
 function envFlag(v: string | undefined): boolean {
   if (v == null) return false;
   const s = String(v).trim().toLowerCase();
   return ["1", "true", "yes", "on"].includes(s);
-}
-
-function envInt(v: string | undefined, fallback: number): number {
-  if (v == null || String(v).trim() === "") return fallback;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
 }
 
 function siteBaseUrl(): string {
@@ -126,23 +125,22 @@ export async function runXLeaderboardDigestCron(
     return { skipped: "OAuth 1.0a X posting env vars not all set", posts };
   }
 
-  const anyKind =
-    envFlag(process.env.X_LEADERBOARD_DAILY_DIGEST_ENABLED) ||
-    envFlag(process.env.X_LEADERBOARD_WEEKLY_DIGEST_ENABLED) ||
-    envFlag(process.env.X_LEADERBOARD_MONTHLY_DIGEST_ENABLED);
-  if (!anyKind) {
+  const dailyOn = digestKindEnabled(process.env.X_LEADERBOARD_DAILY_DIGEST_ENABLED);
+  const weeklyOn = digestKindEnabled(process.env.X_LEADERBOARD_WEEKLY_DIGEST_ENABLED);
+  const monthlyOn = digestKindEnabled(process.env.X_LEADERBOARD_MONTHLY_DIGEST_ENABLED);
+  if (!dailyOn && !weeklyOn && !monthlyOn) {
     return { skipped: "all digest kinds disabled (set *_DIGEST_ENABLED)", posts };
   }
 
   const nowMs = options?.nowMs ?? Date.now();
   const d = new Date(nowMs);
   const hour = d.getUTCHours();
-  const digestHour = envInt(process.env.X_LEADERBOARD_DIGEST_UTC_HOUR, 15);
+  const digestHour = effectiveDigestUtcHour(process.env.X_LEADERBOARD_DIGEST_UTC_HOUR);
   if (hour !== digestHour) {
     return { skipped: `not digest hour (UTC ${digestHour})`, posts };
   }
 
-  const weeklyDow = envInt(process.env.X_LEADERBOARD_WEEKLY_UTC_WEEKDAY, 1);
+  const weeklyDow = effectiveWeeklyUtcWeekday(process.env.X_LEADERBOARD_WEEKLY_UTC_WEEKDAY);
   const dom = d.getUTCDate();
   const dow = d.getUTCDay();
 
@@ -205,15 +203,15 @@ export async function runXLeaderboardDigestCron(
     });
   }
 
-  if (envFlag(process.env.X_LEADERBOARD_DAILY_DIGEST_ENABLED)) {
+  if (dailyOn) {
     await runOne("daily");
   }
 
-  if (envFlag(process.env.X_LEADERBOARD_WEEKLY_DIGEST_ENABLED) && dow === weeklyDow) {
+  if (weeklyOn && dow === weeklyDow) {
     await runOne("weekly");
   }
 
-  if (envFlag(process.env.X_LEADERBOARD_MONTHLY_DIGEST_ENABLED) && dom === 1) {
+  if (monthlyOn && dom === 1) {
     await runOne("monthly");
   }
 
