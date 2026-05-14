@@ -109,14 +109,19 @@ function parseUsersIncludes(json: unknown): Map<string, XUserLite> {
 
 async function fetchRecentTweets(
   userId: string,
-  bearer: string
+  bearer: string,
+  opts: { excludeReplies: boolean }
 ): Promise<{ tweets: XTweet[]; usersById: Map<string, XUserLite> }> {
   const u = new URL(`${X_API_V2}/users/${encodeURIComponent(userId)}/tweets`);
   u.searchParams.set("max_results", "15");
   u.searchParams.set("tweet.fields", "created_at,public_metrics,author_id");
   u.searchParams.set("expansions", "author_id");
   u.searchParams.set("user.fields", "profile_image_url,name,username,verified");
-  u.searchParams.set("exclude", "retweets");
+  const excludeParts = ["retweets"];
+  if (opts.excludeReplies) {
+    excludeParts.push("replies");
+  }
+  u.searchParams.set("exclude", excludeParts.join(","));
   const { ok, json, status } = await xGetJson(u.toString(), bearer);
   if (!ok || !json || typeof json !== "object") {
     const detail = xApiErrorsPayload(json);
@@ -164,7 +169,7 @@ export async function maybeRefreshSocialFeedFromX(db: SupabaseClient): Promise<v
 
   const { data: sources, error: srcErr } = await db
     .from("social_feed_sources")
-    .select("id, handle, display_name")
+    .select("id, handle, display_name, x_exclude_replies")
     .eq("active", true)
     .eq("platform", "x")
     .limit(40);
@@ -197,6 +202,7 @@ export async function maybeRefreshSocialFeedFromX(db: SupabaseClient): Promise<v
       typeof (s as { display_name?: string | null }).display_name === "string"
         ? (s as { display_name: string }).display_name.trim() || null
         : null;
+    const excludeReplies = Boolean((s as { x_exclude_replies?: boolean }).x_exclude_replies);
     if (!sourceId || !handle) continue;
 
     const userId = await resolveXUserId(handle, bearer);
@@ -205,7 +211,7 @@ export async function maybeRefreshSocialFeedFromX(db: SupabaseClient): Promise<v
       continue;
     }
 
-    const { tweets, usersById } = await fetchRecentTweets(userId, bearer);
+    const { tweets, usersById } = await fetchRecentTweets(userId, bearer, { excludeReplies });
     const fallbackHandle = handle.replace(/^@/, "").toLowerCase();
 
     for (const t of tweets) {

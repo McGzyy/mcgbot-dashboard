@@ -3,4 +3,3 @@ import { SocialFeedAdminClient } from "@/app/admin/social-feed/SocialFeedAdminCl
 export default function AdminSocialFeedPage() {
   return <SocialFeedAdminClient />;
 }
-
