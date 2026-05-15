@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import { WatchlistContractRowsSkeleton } from "@/app/components/dashboard/dashboardRouteSkeletons";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 type WatchlistPayload = {
@@ -273,13 +275,10 @@ export default function WatchlistPage() {
           </button>
         </div>
 
-        <div className="mt-4 space-y-2">
+        <div className={`relative mt-4 min-w-0 ${terminalSurface.dashboardListWell}`}>
+          <DashboardRefreshBar active={loading && list.length > 0} />
           {loading ? (
-            <div className="space-y-2">
-              <div className="h-12 w-full animate-pulse rounded-xl bg-zinc-900/40" />
-              <div className="h-12 w-full animate-pulse rounded-xl bg-zinc-900/30" />
-              <div className="h-12 w-full animate-pulse rounded-xl bg-zinc-900/25" />
-            </div>
+            <WatchlistContractRowsSkeleton />
           ) : list.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-800/80 bg-zinc-950/40 p-6 text-center">
               <p className="text-sm font-semibold text-zinc-200">No contracts yet</p>
@@ -288,14 +287,16 @@ export default function WatchlistPage() {
               </p>
             </div>
           ) : (
-            list.map((m) => (
+            <div className="space-y-2">
+            {list.map((m) => (
               <ContractAddressRow
                 key={`${scope}:${m}`}
                 contractAddress={m}
                 scope={scope}
                 onRemove={(mm, sc) => void submit("remove", mm, sc)}
               />
-            ))
+            ))}
+            </div>
           )}
         </div>
       </section>

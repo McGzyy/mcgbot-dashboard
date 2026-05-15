@@ -1,6 +1,8 @@
 "use client";
 
 import { formatCalledSnapshotLine } from "@/lib/callDisplayFormat";
+import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import { CallTapeTableSkeleton } from "@/app/components/dashboard/dashboardRouteSkeletons";
 import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
@@ -149,7 +151,8 @@ export default function CallTapePage() {
         <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">{err}</div>
       ) : null}
 
-      <div className={`mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ${terminalSurface.insetEdge}`}>
+      <div className={`relative mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ${terminalSurface.insetEdge}`}>
+        <DashboardRefreshBar active={loading && rows.length > 0} />
         <div className="overflow-x-auto">
           <table className="min-w-[720px] w-full text-left text-sm">
             <thead
@@ -168,11 +171,7 @@ export default function CallTapePage() {
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {loading && rows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-zinc-500">
-                    Loading…
-                  </td>
-                </tr>
+                <CallTapeTableSkeleton />
               ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-zinc-500">

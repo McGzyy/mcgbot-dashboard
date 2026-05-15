@@ -13,6 +13,12 @@ import { tokenChartLabel } from "@/lib/tradingViewEmbed";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
 import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
+import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import {
+  BotFeedListSkeleton,
+  LeaderboardUserTableSkeleton,
+  TopCallsPanelSkeleton,
+} from "@/app/components/dashboard/dashboardRouteSkeletons";
 
 type TimeframeId = "daily" | "weekly" | "monthly" | "all";
 
@@ -1074,9 +1080,7 @@ export default function LeaderboardPage() {
 
             <div className="space-y-1.5 pt-2">
               {loading ? (
-                <div className="flex items-center justify-center px-3 py-10">
-                  <p className="text-sm text-zinc-500">Loading…</p>
-                </div>
+                <LeaderboardUserTableSkeleton />
               ) : rows.length === 0 ? (
                 <div className="flex items-center justify-center px-3 py-10">
                   <div className="text-center">
@@ -1574,10 +1578,8 @@ export default function LeaderboardPage() {
                 })}
               </div>
             </div>
-            {indivLoading ? (
-              <div className="flex items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-950/10 px-3 py-12 ring-1 ring-emerald-500/10">
-                <p className="text-sm text-zinc-500">Loading…</p>
-              </div>
+            {indivLoading && indivRows.length === 0 ? (
+              <TopCallsPanelSkeleton tone="default" />
             ) : indivRows.length === 0 ? (
               <div className="flex items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-950/10 px-3 py-12 ring-1 ring-emerald-500/10">
                 <div className="text-center">
@@ -1588,7 +1590,10 @@ export default function LeaderboardPage() {
                 </div>
               </div>
             ) : (
-              <TopCallsList rows={indivRows} tone="default" onOpenChart={openIndivChart} />
+              <div className="relative">
+                <DashboardRefreshBar active={indivLoading && indivRows.length > 0} />
+                <TopCallsList rows={indivRows} tone="default" onOpenChart={openIndivChart} />
+              </div>
             )}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
               {Array.from({ length: indivPageCount }, (_, i) => i + 1).map((p) => {
@@ -1786,19 +1791,17 @@ export default function LeaderboardPage() {
                 Bot
               </span>
             </div>
-            <div className={`${terminalChrome.scrollYHidden} flex-1 rounded-xl border border-sky-500/10 bg-black/30 p-3`}>
+            <div className={`${terminalChrome.scrollYHidden} relative flex-1 rounded-xl border border-sky-500/10 bg-black/30 p-3`}>
+              <DashboardRefreshBar active={botFeedLoading && (botMilestones.length > 0 || botLiveActivity.length > 0)} />
               <ul className="space-y-0.5">
-                {!botFeedLoading && botMilestones.length === 0 ? (
+                {botFeedLoading ? (
+                  <BotFeedListSkeleton />
+                ) : botMilestones.length === 0 ? (
                   <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">
                     No entries yet
                   </li>
-                ) : null}
-                {botFeedLoading ? (
-                  <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">
-                    Loading…
-                  </li>
-                ) : null}
-                {botMilestones.map((row, idx) => (
+                ) : (
+                  botMilestones.map((row, idx) => (
                   <li
                     key={`${row.callCa || row.token}-${row.milestone}-${idx}`}
                     className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/10 bg-sky-950/10 px-3 py-1.5 transition-all duration-150 hover:bg-sky-950/35"
@@ -1857,7 +1860,8 @@ export default function LeaderboardPage() {
                       {row.ago}
                     </div>
                   </li>
-                ))}
+                  ))
+                )}
               </ul>
             </div>
           </div>
@@ -1882,19 +1886,17 @@ export default function LeaderboardPage() {
                 Bot
               </span>
             </div>
-            <div className={`${terminalChrome.scrollYHidden} flex-1 rounded-xl border border-sky-500/10 bg-black/30 p-3`}>
+            <div className={`${terminalChrome.scrollYHidden} relative flex-1 rounded-xl border border-sky-500/10 bg-black/30 p-3`}>
+              <DashboardRefreshBar active={botFeedLoading && (botMilestones.length > 0 || botLiveActivity.length > 0)} />
               <ul className="space-y-0.5">
-                {!botFeedLoading && botLiveActivity.length === 0 ? (
+                {botFeedLoading ? (
+                  <BotFeedListSkeleton />
+                ) : botLiveActivity.length === 0 ? (
                   <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">
                     No entries yet
                   </li>
-                ) : null}
-                {botFeedLoading ? (
-                  <li className="flex items-center justify-center px-3 py-10 text-sm text-zinc-500">
-                    Loading…
-                  </li>
-                ) : null}
-                {botLiveActivity.map((row, idx) => (
+                ) : (
+                  botLiveActivity.map((row, idx) => (
                   <li
                     key={`${row.callCa || row.token}-${row.ago}-${idx}`}
                     className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/10 bg-sky-950/10 px-3 py-1.5 transition-all duration-150 hover:bg-sky-950/35"
@@ -1946,7 +1948,8 @@ export default function LeaderboardPage() {
                       {row.ago}
                     </div>
                   </li>
-                ))}
+                  ))
+                )}
               </ul>
             </div>
           </div>
@@ -1996,10 +1999,8 @@ export default function LeaderboardPage() {
               <div className="flex items-center justify-center rounded-xl border border-sky-500/20 bg-sky-950/10 px-3 py-12 ring-1 ring-sky-500/10">
                 <p className="text-sm text-zinc-500">Sign in to view bot call rankings.</p>
               </div>
-            ) : mcgbotTopLoading ? (
-              <div className="flex items-center justify-center rounded-xl border border-sky-500/20 bg-sky-950/10 px-3 py-12 ring-1 ring-sky-500/10">
-                <p className="text-sm text-zinc-500">Loading…</p>
-              </div>
+            ) : mcgbotTopLoading && mcgbotTopRows.length === 0 ? (
+              <TopCallsPanelSkeleton tone="bot" />
             ) : mcgbotTopRows.length === 0 ? (
               <div className="flex items-center justify-center rounded-xl border border-sky-500/20 bg-sky-950/10 px-3 py-12 ring-1 ring-sky-500/10">
                 <div className="text-center">
@@ -2010,7 +2011,10 @@ export default function LeaderboardPage() {
                 </div>
               </div>
             ) : (
-              <TopCallsList rows={mcgbotTopRows} tone="bot" onOpenChart={openIndivChart} />
+              <div className="relative">
+                <DashboardRefreshBar active={mcgbotTopLoading && mcgbotTopRows.length > 0} />
+                <TopCallsList rows={mcgbotTopRows} tone="bot" onOpenChart={openIndivChart} />
+              </div>
             )}
           </div>
           {viewerDiscordId && mcgbotTopRows.length > 0 ? (

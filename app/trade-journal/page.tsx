@@ -11,6 +11,8 @@ import {
   type TradeJournalEditorState,
 } from "@/app/trade-journal/journalEditorModel";
 import { formatRelativeTime } from "@/lib/modUiUtils";
+import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import { TradeJournalCardSkeleton } from "@/app/components/dashboard/dashboardRouteSkeletons";
 import { terminalPage, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import type { TradeJournalRow } from "@/lib/tradeJournalDb";
 
@@ -327,8 +329,8 @@ export default function TradeJournalPage() {
           </div>
 
           {loading && entries.length === 0 ? (
-            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-950/40 px-6 py-16 text-center text-sm text-zinc-500">
-              Loading…
+            <div className={`relative min-w-0 ${terminalSurface.dashboardListWell}`}>
+              <TradeJournalCardSkeleton />
             </div>
           ) : entries.length === 0 ? (
             <div
@@ -338,7 +340,9 @@ export default function TradeJournalPage() {
               <p className="mt-2 text-xs text-zinc-500">Create your first entry to track setups, mistakes, and rules.</p>
               </div>
             ) : (
-            <ul className="space-y-4">
+            <div className={`relative min-w-0 ${terminalSurface.dashboardListWell}`}>
+              <DashboardRefreshBar active={loading && entries.length > 0} />
+              <ul className="space-y-4 p-1 sm:p-1.5">
               {entries.map((e) => (
                 <li
                   key={e.id}
@@ -447,6 +451,7 @@ export default function TradeJournalPage() {
                     </li>
               ))}
               </ul>
+            </div>
             )}
           </div>
 
