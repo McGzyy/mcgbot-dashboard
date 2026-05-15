@@ -4807,7 +4807,6 @@ export default function Home() {
 
   return (
     <div className="contents">
-      <HodlDashboardDock />
       <div
         className="mx-auto w-full min-w-0 max-w-[1200px] overflow-x-hidden px-3 sm:px-4 md:px-0"
         data-tutorial="dashboard.tutorialWelcome"
@@ -5048,6 +5047,8 @@ export default function Home() {
           {(helpTier === "mod" || helpTier === "admin") && (
             <ModQueueHomePanel hideWhenEmpty />
           )}
+
+          <HodlDashboardDock />
 
           <PanelCard
             title="Watchlist"

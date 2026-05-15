@@ -7,7 +7,6 @@ import { dexscreenerTokenUrl } from "@/lib/modUiUtils";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 
 type FeedRow = {
   id: string;
@@ -106,15 +105,9 @@ export function HodlDashboardDock() {
   if (loading) return null;
   if (count === 0) return null;
 
-  return createPortal(
-    <div
-      className="pointer-events-none fixed inset-x-0 top-0 z-[28] hidden min-[1024px]:flex justify-end p-2 pt-[4.75rem] sm:p-3 sm:pt-[5rem] min-[1100px]:pr-[max(0.75rem,calc((100vw-1200px)/2+0.5rem)))]"
-      aria-hidden={false}
-    >
-      <aside
-        className="pointer-events-auto w-[min(19.5rem,calc(100vw-1rem))] max-w-full shadow-lg shadow-black/40"
-        data-tutorial="dashboard.hodlDock"
-      >
+  return (
+    <div className="hidden min-w-0 max-w-full lg:block">
+      <aside className="w-full max-w-full" data-tutorial="dashboard.hodlDock">
         <PanelCard
           title="HODL"
           titleClassName="normal-case"
@@ -124,7 +117,7 @@ export function HodlDashboardDock() {
               {count} {count === 1 ? "coin" : "coins"}
             </span>
           }
-          className={`border-zinc-800/90 bg-zinc-950/90 ${terminalSurface.insetEdgeSoft}`}
+          className={`border-zinc-800/90 bg-zinc-950/90 shadow-lg shadow-black/40 ${terminalSurface.insetEdgeSoft}`}
         >
           <p className="mt-1 text-[11px] leading-snug text-zinc-500">
             Live & pending positions · 24h move
@@ -197,7 +190,6 @@ export function HodlDashboardDock() {
           </div>
         </PanelCard>
       </aside>
-    </div>,
-    document.body
+    </div>
   );
 }
