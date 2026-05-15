@@ -1656,6 +1656,61 @@ function widgetEnabled(
   return Boolean(widgets[key]);
 }
 
+/** Indeterminate top edge for polling / refetch (`animate-mcg-refresh` in tailwind.config). */
+function DashboardRefreshBar({ active }: { active: boolean }) {
+  if (!active) return null;
+  return (
+    <div
+      className="pointer-events-none absolute left-0 right-0 top-0 z-[5] h-[2px] overflow-hidden rounded-t-xl bg-zinc-800/50"
+      aria-hidden
+    >
+      <div className="h-full w-[42%] rounded-full bg-gradient-to-r from-transparent via-sky-400/70 to-transparent motion-reduce:animate-none animate-mcg-refresh" />
+    </div>
+  );
+}
+
+function TrendingSkeletonRows() {
+  return (
+    <ul className="space-y-1" aria-busy="true" aria-label="Loading trending tokens">
+      {Array.from({ length: 6 }, (_, i) => (
+        <li key={`trend-sk-${i}`}>
+          <div className="flex animate-pulse items-center gap-2 rounded-lg border border-zinc-800/90 bg-zinc-900/20 px-2 py-2 sm:gap-3 sm:px-3">
+            <div className="h-7 w-7 shrink-0 rounded-md bg-zinc-800/60" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-3.5 w-28 max-w-[60%] rounded bg-zinc-800/50" />
+              <div className="h-2.5 w-40 max-w-[85%] rounded bg-zinc-800/40" />
+            </div>
+            <div className="hidden h-8 w-14 shrink-0 rounded bg-zinc-800/40 sm:block" />
+            <div className="hidden h-8 w-14 shrink-0 rounded bg-zinc-800/35 sm:block" />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function HomeRecentCallsSkeleton() {
+  return (
+    <ul className="divide-y divide-zinc-800/45" aria-busy="true" aria-label="Loading recent calls">
+      {Array.from({ length: 5 }, (_, i) => (
+        <li key={`call-sk-${i}`}>
+          <div className="flex animate-pulse items-center gap-2 py-2 pl-1 pr-1 sm:gap-2.5 sm:py-2 sm:pl-1.5 sm:pr-2">
+            <div className="h-8 w-8 shrink-0 rounded-lg bg-zinc-800/55 ring-1 ring-black/15" />
+            <div className="min-w-0 flex-1 space-y-2 pr-2">
+              <div className="h-3.5 max-w-[88%] rounded bg-zinc-800/45" />
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+              <div className="h-5 w-9 rounded-md bg-zinc-800/40" />
+              <div className="h-6 w-11 rounded-md bg-zinc-800/40" />
+              <div className="h-6 w-9 rounded bg-zinc-800/35" />
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function NotesPanel() {
   return (
     <section className="mb-8">
@@ -1669,10 +1724,12 @@ function NotesPanel() {
 function TrendingPanel() {
   const [timeframe, setTimeframe] = useState<"5m" | "1h" | "24h">("1h");
   const [apiRows, setApiRows] = useState<TrendingTokenRow[]>([]);
+  const [trendingLoading, setTrendingLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     const tf = timeframe;
+    setTrendingLoading(true);
     fetch(`/api/trending?timeframe=${encodeURIComponent(tf)}`, { credentials: "same-origin" })
       .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
       .then(({ ok, json }) => {
@@ -1721,6 +1778,9 @@ function TrendingPanel() {
         if (!cancelled) {
           setApiRows([]);
         }
+      })
+      .finally(() => {
+        if (!cancelled) setTrendingLoading(false);
       });
     return () => {
       cancelled = true;
@@ -1768,9 +1828,8 @@ function TrendingPanel() {
       className="min-w-0 max-w-full"
     >
       <div className="mt-3 max-w-full overflow-x-auto overscroll-x-contain">
-        <div
-          className={`min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
-        >
+        <div className={`min-w-0 ${terminalSurface.dashboardListWell}`}>
+        <DashboardRefreshBar active={trendingLoading && rows.length > 0} />
         <div className="px-2 pb-2 text-[10px] uppercase tracking-wider text-zinc-600 sm:text-[11px]">
           <div className="grid min-w-[16rem] grid-cols-[minmax(0,1fr)_minmax(0,4.25rem)_minmax(0,4.25rem)] items-center gap-1.5 sm:min-w-0 sm:grid-cols-[minmax(0,1.2fr)_auto_auto] sm:gap-3">
             <span>Token</span>
@@ -1780,7 +1839,11 @@ function TrendingPanel() {
         </div>
 
         <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">
-          {rows.length === 0 ? (
+          {trendingLoading && rows.length === 0 ? (
+            <div className="px-1 pb-1 pt-0.5">
+              <TrendingSkeletonRows />
+            </div>
+          ) : rows.length === 0 ? (
             <div className="flex h-full items-center justify-center px-3 py-10">
               <div className="text-center">
                 <p className="text-sm font-semibold text-zinc-200">
@@ -1792,7 +1855,11 @@ function TrendingPanel() {
               </div>
             </div>
           ) : (
-            <ul className="space-y-1">
+            <ul
+              className={`space-y-1 transition-opacity duration-200 ${
+                trendingLoading ? "opacity-[0.86]" : "opacity-100"
+              }`}
+            >
               {rows.map((row, i) => {
                 const positive = row.changePct >= 0;
                 const displayName = (row.name && row.name.trim()) || row.symbol;
@@ -2978,29 +3045,20 @@ function SocialsFeedPanel() {
     }
 
     return (
-      <div className="relative">
-        {loading ? (
-          <div className="pointer-events-none absolute inset-x-0 -top-1 z-10 flex justify-center">
-            <div className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-200 shadow-md shadow-black/30">
-              Syncing…
-            </div>
-          </div>
-        ) : null}
-        <ul
-          className={`${compact ? "space-y-2.5 pr-0.5" : "space-y-3"} transition-opacity duration-200 ${
-            loading ? "opacity-[0.78]" : "opacity-100"
-          }`}
-        >
-          {rows.map((item) => (
-            <SocialFeedPostRow
-              key={item.id}
-              item={item}
-              compact={compact}
-              flash={flashId === item.id}
-            />
-          ))}
-        </ul>
-      </div>
+      <ul
+        className={`${compact ? "space-y-2.5 pr-0.5" : "space-y-3"} transition-opacity duration-200 ${
+          loading ? "opacity-[0.82]" : "opacity-100"
+        }`}
+      >
+        {rows.map((item) => (
+          <SocialFeedPostRow
+            key={item.id}
+            item={item}
+            compact={compact}
+            flash={flashId === item.id}
+          />
+        ))}
+      </ul>
     );
   };
 
@@ -3014,11 +3072,7 @@ function SocialsFeedPanel() {
             <span className="text-zinc-600" aria-hidden>
               ·
             </span>
-            <span
-              className={`font-semibold tabular-nums text-emerald-400/95 drop-shadow-[0_0_10px_rgba(52,211,153,0.55)] ${
-                loading ? "animate-pulse" : ""
-              }`}
-            >
+            <span className="font-semibold tabular-nums text-emerald-400/95 drop-shadow-[0_0_10px_rgba(52,211,153,0.55)]">
               Live
             </span>
           </span>
@@ -3069,9 +3123,8 @@ function SocialsFeedPanel() {
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-sky-500/25 via-[color:var(--accent)]/20 to-transparent" />
 
-        <div
-          className={`mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
-        >
+        <div className={`mt-3 ${terminalSurface.dashboardListWell}`}>
+          <DashboardRefreshBar active={loading && rows.length > 0} />
           <div className="min-h-[20rem] h-[min(34rem,calc(100dvh-12rem))] overflow-y-auto pr-1 no-scrollbar">
             {renderFeedList(true)}
           </div>
@@ -3099,11 +3152,7 @@ function SocialsFeedPanel() {
                         <span className="text-zinc-600" aria-hidden>
                           ·
                         </span>
-                        <span
-                          className={`tabular-nums text-emerald-400/95 drop-shadow-[0_0_10px_rgba(52,211,153,0.55)] ${
-                            loading ? "animate-pulse" : ""
-                          }`}
-                        >
+                        <span className="tabular-nums text-emerald-400/95 drop-shadow-[0_0_10px_rgba(52,211,153,0.55)]">
                           Live
                         </span>
                       </p>
@@ -3179,17 +3228,13 @@ function SocialsFeedPanel() {
                         </button>
                       ))}
                     </div>
-                    <span className="ml-auto shrink-0 text-[11px] text-zinc-500">
-                      {loading ? "Loading…" : null}
-                    </span>
                   </div>
 
                   <div
                     className={`min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 ${terminalChrome.scrollYHidden}`}
                   >
-                    <div
-                      className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
-                    >
+                    <div className={`${terminalSurface.dashboardListWell}`}>
+                      <DashboardRefreshBar active={loading && rows.length > 0} />
                       {renderFeedList(false)}
                     </div>
                   </div>
@@ -3819,6 +3864,7 @@ export default function Home() {
   const recentCallsRef = useRef<RecentCallRow[]>([]);
   recentCallsRef.current = recentCalls;
   const [callsLoading, setCallsLoading] = useState(true);
+  const [callsRefreshing, setCallsRefreshing] = useState(false);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [badgesByUser, setBadgesByUser] = useState<Record<string, string[]>>(
@@ -4168,11 +4214,13 @@ export default function Home() {
   useEffect(() => {
     if (!session?.user?.id?.trim()) {
       setCallsLoading(false);
+      setCallsRefreshing(false);
       setRecentCalls([]);
       return;
     }
 
     let cancelled = false;
+    setCallsRefreshing(true);
     if (recentCallsRef.current.length === 0) {
       setCallsLoading(true);
     }
@@ -4227,7 +4275,10 @@ export default function Home() {
         if (!cancelled) setRecentCalls([]);
       })
       .finally(() => {
-        if (!cancelled) setCallsLoading(false);
+        if (!cancelled) {
+          setCallsLoading(false);
+          setCallsRefreshing(false);
+        }
       });
 
     return () => {
@@ -5019,9 +5070,7 @@ export default function Home() {
                 </span>
               </span>
             </div>
-            <div
-              className={`mt-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
-            >
+            <div className={`mt-2 ${terminalSurface.dashboardListWell}`}>
               {watchlistLoading ? (
                 <div className="space-y-2 p-1">
                   <div className="h-9 animate-pulse rounded-lg bg-zinc-900/35" />
@@ -5092,7 +5141,7 @@ export default function Home() {
               titleRight={
                 <Link
                   href="/calls"
-                  className="shrink-0 rounded-md border border-zinc-700/50 bg-zinc-900/30 px-2.5 py-1 text-[11px] font-semibold text-sky-400/95 transition hover:border-sky-500/35 hover:bg-sky-500/10 hover:text-sky-300"
+                  className="shrink-0 rounded-md border border-zinc-800/80 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-zinc-500 transition hover:border-zinc-600/80 hover:bg-zinc-900/25 hover:text-zinc-200"
                 >
                   Full log →
                 </Link>
@@ -5100,8 +5149,8 @@ export default function Home() {
               className="min-w-0 max-w-full overflow-hidden"
             >
               {callsLoading && recentCalls.length === 0 ? (
-                <div className="mt-3 flex min-h-[5.5rem] items-center justify-center rounded-xl border border-zinc-800/50 bg-zinc-950/30 px-3 py-6">
-                  <p className="text-sm text-zinc-500">Loading calls…</p>
+                <div className={`mt-3 ${terminalSurface.dashboardListWell}`}>
+                  <HomeRecentCallsSkeleton />
                 </div>
               ) : recentCalls.length === 0 ? (
                 <div className="mt-3 flex min-h-[5.5rem] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800/60 bg-zinc-950/20 px-3 py-8 text-center">
@@ -5111,9 +5160,8 @@ export default function Home() {
                   </p>
                 </div>
               ) : (
-                <div
-                  className={`mt-3 rounded-xl border border-zinc-800/55 bg-zinc-950/35 p-1 sm:p-1.5 ${terminalSurface.insetEdgeSoft}`}
-                >
+                <div className={`mt-3 ${terminalSurface.dashboardListWell}`}>
+                  <DashboardRefreshBar active={callsRefreshing && recentCalls.length > 0} />
                   <ul className="divide-y divide-zinc-800/45">
                     {recentCalls.slice(0, 6).map((call, i) => {
                       const tMs = callTimeMs(call.time);

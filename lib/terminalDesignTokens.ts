@@ -39,6 +39,12 @@ export const terminalSurface = {
   insetEdgeAlt: "shadow-[inset_0_1px_0_rgba(63,63,70,0.22)]",
   /** Bot stats row on leaderboard — sky-tinted top edge. */
   botKpiInset: "shadow-[inset_0_1px_0_0_rgba(56,189,248,0.12)]",
+  /**
+   * Home dashboard inset lists (social, trending, recent calls) — same shell + top edge.
+   * Pair inner scroll with `relative` parent; optional `DashboardRefreshBar` clips inside `overflow-hidden`.
+   */
+  dashboardListWell:
+    "relative overflow-hidden rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.16)]",
 } as const;
 
 /** Page-level typography + stat primitives inside `contentWell` (incremental adoption). */
