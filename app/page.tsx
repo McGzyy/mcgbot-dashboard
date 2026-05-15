@@ -4902,8 +4902,8 @@ export default function Home() {
         data-tutorial="dashboard.tutorialWelcome"
       >
       <div className="space-y-8" data-tutorial="dashboard.pageIntro">
-      <div className="mb-8" data-tutorial="dashboard.performanceChart">
-        <PerformanceChart refreshNonce={homeDataRefreshNonce} />
+      <div className="mb-5" data-tutorial="dashboard.performanceChart">
+        <PerformanceChart compact refreshNonce={homeDataRefreshNonce} />
       </div>
 
       {quickActionsBlock ? (

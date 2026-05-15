@@ -40,6 +40,7 @@ type WinRateRow = {
 };
 
 const CHART_HEIGHT_PX = 224;
+const CHART_HEIGHT_COMPACT_PX = 158;
 
 /** Primary performance line */
 const PERF_LINE = "#22c55e";
@@ -169,13 +170,15 @@ function buildWinRateRows(raw: SliceRow[]): WinRateRow[] {
 }
 
 const gridStroke = "rgba(63,63,70,0.22)";
-const axisTick = { fill: "rgba(161,161,170,0.62)", fontSize: 11 };
 
 export default function PerformanceChart({
   refreshNonce = 0,
+  compact = false,
 }: {
   /** Bump from parent after submit-call etc. so charts refetch. */
   refreshNonce?: number;
+  /** Tighter padding + shorter charts (e.g. home dashboard hero). */
+  compact?: boolean;
 }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const { status } = useSession();
@@ -250,28 +253,96 @@ export default function PerformanceChart({
   const currentPerf = performanceData[lastIdx]?.multiplier ?? 0;
   const currentWin = winRateData[lastIdx]?.winRate ?? 0;
 
+  const pulseStats = useMemo(() => {
+    const meaningful = visibleSlice.filter(
+      (r) => r.calls > 0 || r.multiplier > 0 || r.winRate > 0,
+    );
+    if (meaningful.length === 0) {
+      return {
+        hasActivity: false as const,
+        totalCalls: 0,
+        peakLabel: "",
+        peakMult: 0,
+        winDelta: 0,
+      };
+    }
+    let peakMult = 0;
+    let peakLabel = "";
+    for (const r of visibleSlice) {
+      if (r.multiplier > peakMult) {
+        peakMult = r.multiplier;
+        peakLabel = r.originalName;
+      }
+    }
+    const totalCalls = visibleSlice.reduce((s, r) => s + r.calls, 0);
+    const firstWin = visibleSlice[0]?.winRate ?? 0;
+    const lastWin = visibleSlice[visibleSlice.length - 1]?.winRate ?? 0;
+    const winDelta = lastWin - firstWin;
+    return {
+      hasActivity: true as const,
+      totalCalls,
+      peakLabel,
+      peakMult,
+      winDelta,
+    };
+  }, [visibleSlice]);
+
+  const chartHeightPx = compact ? CHART_HEIGHT_COMPACT_PX : CHART_HEIGHT_PX;
+  const axisTickSize = compact ? 10 : 11;
+  const axisTickStyle = { fill: "rgba(161,161,170,0.62)", fontSize: axisTickSize };
+
   const gradPerfAvg = `perfAvgFill-${uid}`;
   const gradPerfBest = `perfBestFill-${uid}`;
   const gradWin = `winFill-${uid}`;
 
-  const chartMargin = { top: 10, right: 10, left: 0, bottom: 2 };
+  const chartMargin = compact
+    ? { top: 6, right: 6, left: 0, bottom: 0 }
+    : { top: 10, right: 10, left: 0, bottom: 2 };
+
+  const outerClass = compact
+    ? "relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-950/40 py-4 shadow-xl shadow-black/35 ring-1 ring-zinc-800/45 sm:py-5"
+    : "relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-950/40 py-7 shadow-2xl shadow-black/40 ring-1 ring-zinc-800/45 sm:py-8";
+
+  const headerGap = compact ? "gap-3 sm:gap-4" : "gap-4 sm:gap-6";
+  const titleClass = compact
+    ? "mt-1.5 text-base font-semibold tracking-tight text-white sm:text-lg"
+    : "mt-2 text-lg font-semibold tracking-tight text-white sm:text-xl";
+  const badgeRowClass = compact ? "mt-2 flex flex-wrap items-center gap-2 text-xs" : "mt-3 flex flex-wrap items-center gap-2 text-xs";
+  const gridClass = compact
+    ? "mt-4 grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2"
+    : "mt-6 grid min-w-0 grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2";
+  const innerPad = compact
+    ? `p-3 sm:p-4 ${terminalSurface.insetEdgeSoft}`
+    : `p-4 sm:p-5 ${terminalSurface.insetEdgeSoft}`;
+
+  const yAxisWidth = compact ? 32 : 38;
+  const rangeBtnPad = compact ? "px-1.5 py-0.5" : "px-2 py-1";
+
+  const winDriftLabel =
+    !pulseStats.hasActivity
+      ? "—"
+      : Math.abs(pulseStats.winDelta) < 0.5
+        ? "Flat"
+        : `${pulseStats.winDelta >= 0 ? "+" : ""}${Math.round(pulseStats.winDelta)} pts`;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-950/40 py-7 shadow-2xl shadow-black/40 ring-1 ring-zinc-800/45 sm:py-8">
+    <div className={outerClass}>
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,197,94,0.10),transparent_55%),radial-gradient(circle_at_85%_10%,rgba(45,212,191,0.08),transparent_60%)]"
         aria-hidden
       />
       <div className="relative mx-auto w-full max-w-[1200px] px-5 sm:px-6">
-        <div className="flex w-full flex-col gap-4 pr-0 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div
+          className={`flex w-full flex-col pr-0 sm:flex-row sm:items-start sm:justify-between ${headerGap}`}
+        >
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500">
-              Terminal performance
+              {compact ? "Live momentum" : "Terminal performance"}
             </p>
-            <h2 className="mt-2 text-lg font-semibold tracking-tight text-white sm:text-xl">
-              Your edge, quantified
+            <h2 className={titleClass}>
+              {compact ? "What your calls are doing" : "Your edge, quantified"}
             </h2>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <div className={badgeRowClass}>
               <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-200/90">
                 Avg&nbsp;<span className="tabular-nums text-emerald-100">{currentPerf.toFixed(1)}×</span>
               </span>
@@ -290,7 +361,7 @@ export default function PerformanceChart({
                 key={t}
                 type="button"
                 onClick={() => setRange(t)}
-                className={`rounded-md px-2 py-1 text-xs transition-all ${
+                className={`rounded-md text-xs transition-all ${rangeBtnPad} ${
                   range === t
                     ? "border border-emerald-500/25 bg-emerald-500/15 font-semibold text-emerald-200"
                     : "text-zinc-500 hover:bg-white/5 hover:text-zinc-100"
@@ -302,10 +373,54 @@ export default function PerformanceChart({
           </div>
         </div>
 
-        <div className="mt-6 grid min-w-0 grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
+        {compact && datasets !== null ? (
+          <div
+            className="mt-3 grid min-w-0 gap-2 sm:grid-cols-3"
+            aria-label="Momentum summary for the selected range"
+          >
+            {pulseStats.hasActivity ? (
+              <>
+                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Calls in view
+                  </div>
+                  <div className="mt-0.5 text-lg font-bold tabular-nums text-white">
+                    {pulseStats.totalCalls}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Hottest slice
+                  </div>
+                  <div className="mt-0.5 truncate text-sm font-semibold text-zinc-100">
+                    {pulseStats.peakLabel || "—"}
+                  </div>
+                  <div className="text-xs tabular-nums text-emerald-300/90">
+                    {pulseStats.peakMult > 0 ? `${pulseStats.peakMult.toFixed(1)}× avg` : "—"}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Win drift
+                  </div>
+                  <div className="mt-0.5 text-lg font-bold tabular-nums text-cyan-200/95">
+                    {winDriftLabel}
+                  </div>
+                  <div className="text-[10px] text-zinc-500">First → last in range</div>
+                </div>
+              </>
+            ) : (
+              <div className="sm:col-span-3 rounded-xl border border-dashed border-zinc-700/80 bg-black/20 px-3 py-2.5 text-xs leading-snug text-zinc-400">
+                No calls in this window yet. Submit a call to see your tape light up.
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        <div className={gridClass}>
         {/* Performance */}
         <div
-          className={`flex min-h-0 min-w-0 flex-col gap-2 rounded-2xl border border-zinc-800/55 bg-black/20 p-4 sm:p-5 ${terminalSurface.insetEdgeSoft}`}
+          className={`flex min-h-0 min-w-0 flex-col gap-2 rounded-2xl border border-zinc-800/55 bg-black/20 ${innerPad}`}
         >
           <div className="flex min-h-[2rem] items-center justify-between gap-3">
             <h3 className="shrink-0 text-xs font-semibold tracking-tight text-zinc-400">
@@ -328,9 +443,9 @@ export default function PerformanceChart({
 
           <div
             className="w-full min-w-0 shrink-0"
-            style={{ height: CHART_HEIGHT_PX, minHeight: CHART_HEIGHT_PX }}
+            style={{ height: chartHeightPx, minHeight: chartHeightPx }}
           >
-            <ResponsiveContainer width="100%" height={CHART_HEIGHT_PX}>
+            <ResponsiveContainer width="100%" height={chartHeightPx}>
               <ComposedChart data={performanceData} margin={chartMargin}>
                 <defs>
                   <linearGradient id={gradPerfBest} x1="0" y1="0" x2="0" y2="1">
@@ -346,15 +461,15 @@ export default function PerformanceChart({
                 <CartesianGrid stroke={gridStroke} strokeDasharray="2 8" />
                 <XAxis
                   dataKey="name"
-                  tick={axisTick}
+                  tick={axisTickStyle}
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
                   tickMargin={10}
                 />
                 <YAxis
-                  width={38}
-                  tick={axisTick}
+                  width={yAxisWidth}
+                  tick={axisTickStyle}
                   tickLine={false}
                   axisLine={false}
                   domain={["auto", "auto"]}
@@ -476,7 +591,7 @@ export default function PerformanceChart({
 
         {/* Win rate */}
         <div
-          className={`flex min-h-0 min-w-0 flex-col gap-2 rounded-2xl border border-zinc-800/55 bg-black/20 p-4 sm:p-5 ${terminalSurface.insetEdgeSoft}`}
+          className={`flex min-h-0 min-w-0 flex-col gap-2 rounded-2xl border border-zinc-800/55 bg-black/20 ${innerPad}`}
         >
           <div className="flex min-h-[2rem] items-center justify-between gap-3">
             <h3 className="shrink-0 text-xs font-semibold tracking-tight text-zinc-400">
@@ -491,9 +606,9 @@ export default function PerformanceChart({
 
           <div
             className="w-full min-w-0 shrink-0"
-            style={{ height: CHART_HEIGHT_PX, minHeight: CHART_HEIGHT_PX }}
+            style={{ height: chartHeightPx, minHeight: chartHeightPx }}
           >
-            <ResponsiveContainer width="100%" height={CHART_HEIGHT_PX}>
+            <ResponsiveContainer width="100%" height={chartHeightPx}>
               <ComposedChart data={winRateData} margin={chartMargin}>
                 <defs>
                   <linearGradient id={gradWin} x1="0" y1="0" x2="0" y2="1">
@@ -505,15 +620,15 @@ export default function PerformanceChart({
                 <CartesianGrid stroke={gridStroke} strokeDasharray="2 8" />
                 <XAxis
                   dataKey="name"
-                  tick={axisTick}
+                  tick={axisTickStyle}
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
                   tickMargin={10}
                 />
                 <YAxis
-                  width={38}
-                  tick={axisTick}
+                  width={yAxisWidth}
+                  tick={axisTickStyle}
                   tickLine={false}
                   axisLine={false}
                   domain={[0, 100]}
