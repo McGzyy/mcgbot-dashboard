@@ -238,12 +238,12 @@ export const authOptions: NextAuthOptions = {
             supabaseUrl && serviceKey
               ? createClient(supabaseUrl, serviceKey)
               : null;
-          const [end, exempt, helpTier, userRes] = await Promise.all([
+          const [end, exempt, helpTierRaw, userRes] = await Promise.all([
             getSubscriptionEnd(discordId),
             computeSubscriptionExempt(discordId),
             resolveHelpTierAsync(discordId).catch((e) => {
               console.warn("[auth] resolveHelpTierAsync:", e);
-              return "user" as const;
+              return null;
             }),
             sb
               ? sb
@@ -255,8 +255,16 @@ export const authOptions: NextAuthOptions = {
           ]);
           token.subscriptionActiveUntil = end;
           token.subscriptionExempt = exempt;
-          token.helpTier = helpTier;
-          token.canModerate = meetsModerationMinTier(helpTier);
+          // Never demote staff (or any known tier) to "user" on transient resolution failures — the
+          // inner .catch used to return "user", which made Promise.all succeed and skipped the outer catch.
+          const resolvedHelpTier =
+            helpTierRaw === "admin" || helpTierRaw === "mod" || helpTierRaw === "user"
+              ? helpTierRaw
+              : prevTier === "admin" || prevTier === "mod" || prevTier === "user"
+                ? prevTier
+                : "user";
+          token.helpTier = resolvedHelpTier;
+          token.canModerate = meetsModerationMinTier(resolvedHelpTier);
           token.subscriptionRefreshAt = Date.now();
 
           const ur = userRes as { data: Record<string, unknown> | null; error: { message?: string } | null };

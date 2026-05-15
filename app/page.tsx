@@ -1999,7 +1999,7 @@ function RankPanel({
   return (
     <div
       className={[
-        "group relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4",
+        "group relative flex w-full flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4",
         shellRing,
       ]
         .filter(Boolean)
@@ -4993,11 +4993,11 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="mb-6 grid min-w-0 max-w-full grid-cols-1 gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)] lg:items-start">
+      <div className="mb-6 grid min-w-0 max-w-full grid-cols-1 items-start gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)]">
         <div className="flex min-w-0 max-w-full flex-col gap-5 overflow-x-hidden">
           <div data-tutorial="dashboard.activityFeed">
           {widgetEnabled(widgets, "activity") && (
-            <div className="min-h-[420px] min-w-0 max-w-full overflow-x-hidden">
+            <div className="min-w-0 max-w-full overflow-x-hidden">
               <ActivityFeedPanel
                 feedMode={feedMode}
                 setFeedMode={setFeedMode}
@@ -5039,9 +5039,10 @@ export default function Home() {
         </div>
 
         <div
-          className="flex min-w-0 max-w-full flex-col gap-4 overflow-x-hidden lg:sticky lg:top-24 lg:z-10 lg:self-start"
+          className="min-w-0 max-w-full lg:sticky lg:top-24 lg:z-10 lg:self-start"
           data-tutorial="dashboard.sidebarColumn"
         >
+          <div className="flex min-w-0 max-w-full flex-col gap-4 overflow-x-hidden">
           {quickActionsBlock ? <div className="hidden lg:block">{quickActionsBlock}</div> : null}
 
           {(helpTier === "mod" || helpTier === "admin") && (
