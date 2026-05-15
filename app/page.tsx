@@ -2035,6 +2035,63 @@ function TrendingPanel() {
   );
 }
 
+function HeroLastCallMini({
+  recentCalls,
+  callsLoading,
+  nowMs,
+}: {
+  recentCalls: RecentCallRow[];
+  callsLoading: boolean;
+  nowMs: number;
+}) {
+  const call = recentCalls[0];
+  const headline = call ? homeLastCallHeadline(call) : "—";
+  const mult =
+    call && Number.isFinite(call.multiple) ? `${call.multiple.toFixed(1)}x` : "—";
+  const hint =
+    recentCalls.length === 0
+      ? callsLoading
+        ? "Loading…"
+        : "No calls yet"
+      : formatJoinedAt(callTimeMs(call!.time), nowMs);
+  const avatarSrc =
+    call != null
+      ? resolveTokenAvatarUrl({ tokenImageUrl: call.tokenImageUrl, mint: call.token })
+      : null;
+
+  return (
+    <div
+      className={`${terminalPage.statTile} relative flex min-h-[5.25rem] flex-col justify-between gap-0.5 p-2.5 sm:min-h-[5rem] sm:p-2.5`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+          Last call
+        </div>
+        {avatarSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarSrc}
+            alt=""
+            className="h-7 w-7 shrink-0 rounded-lg border border-zinc-700/50 object-cover ring-1 ring-white/[0.04]"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        ) : null}
+      </div>
+      <div
+        className="truncate text-[11px] font-medium text-zinc-300"
+        title={recentCalls.length === 0 ? undefined : headline}
+      >
+        {headline}
+      </div>
+      <div className="text-xl font-bold tabular-nums tracking-tight text-[color:var(--accent)] sm:text-[1.35rem]">
+        {mult}
+      </div>
+      <div className="line-clamp-1 text-[10px] leading-snug text-zinc-500">{hint}</div>
+    </div>
+  );
+}
+
 function HeroStatMini({
   label,
   value,
@@ -2086,7 +2143,7 @@ function ExtendedStatsPanel({
       className="min-w-0 max-w-full overflow-hidden"
     >
       <p className="mt-1 text-[11px] leading-snug text-zinc-500">
-        Depth stats; headline numbers live above your charts.
+        Depth stats; headline numbers are in At a glance.
       </p>
       <div className={`mt-2 ${wrapClass}`}>
         <div className={rowClass}>
@@ -4946,8 +5003,6 @@ export default function Home() {
     return { emoji: "🔥", className: "dashboard-fire-emoji" };
   }
 
-  const personalStatTileClass = `${terminalPage.statTile} flex flex-col gap-1 p-2.5 sm:p-3`;
-
   const streakDays = stats?.activeDaysStreak;
   const streakBadgeUi = streakBadge(streakDays ?? 0);
   const streakValue =
@@ -5062,17 +5117,34 @@ export default function Home() {
         data-tutorial="dashboard.tutorialWelcome"
       >
       <div className="space-y-8" data-tutorial="dashboard.pageIntro">
-      <div className="mb-4 min-w-0 space-y-2 overflow-x-hidden" data-tutorial="dashboard.heroMetrics">
+      <div className="mb-5" data-tutorial="dashboard.performanceChart">
+        <PerformanceChart compact refreshNonce={homeDataRefreshNonce} />
+      </div>
+
+      {quickActionsBlock ? (
+        <div className="mb-8 lg:hidden">{quickActionsBlock}</div>
+      ) : null}
+
+      <div
+        className="mb-6 min-w-0 space-y-2 overflow-x-hidden"
+        data-tutorial="dashboard.personalStats"
+      >
         <div>
-          <h2 className={`${terminalPage.sectionTitle} text-base sm:text-lg`}>At a glance</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className={`${terminalPage.sectionTitle} text-base sm:text-lg`}>At a glance</h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--accent)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]" aria-hidden />
+              LIVE
+            </span>
+          </div>
           <p className={`${terminalPage.sectionHint} text-[11px] sm:text-xs`}>
-            Headline numbers before your charts.
+            Key metrics from your recent activity.
           </p>
         </div>
         <div
           className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${
-            showRankWidget ? "lg:grid-cols-7" : "lg:grid-cols-5"
-          }`}
+            showRankWidget ? "lg:grid-cols-8" : "lg:grid-cols-6"
+          } ${smoothClass(statsRefreshing || statsLoading)}`}
         >
           {showRankWidget ? (
             <div className="col-span-2 min-w-0 sm:col-span-3 lg:col-span-2">
@@ -5110,75 +5182,15 @@ export default function Home() {
             value={stats === null ? "—" : stats.callsToday}
             hint={callsTodayDeltaLabel(stats)}
           />
-        </div>
-      </div>
-
-      <div className="mb-5" data-tutorial="dashboard.performanceChart">
-        <PerformanceChart compact refreshNonce={homeDataRefreshNonce} />
-      </div>
-
-      {quickActionsBlock ? (
-        <div className="mb-8 lg:hidden">{quickActionsBlock}</div>
-      ) : null}
-
-      <section className="mb-6 min-w-0 space-y-3 overflow-x-hidden" data-tutorial="dashboard.personalStats">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className={terminalPage.sectionTitle}>Personal Stats</h2>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--accent)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]" aria-hidden />
-              LIVE
-            </span>
-          </div>
-          <p className={terminalPage.sectionHint}>Your most recent verified call.</p>
-        </div>
-        <div
-          className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-2.5 sm:p-3 ${smoothClass(
-            statsRefreshing || statsLoading,
-          )}`}
-        >
-          <div className={personalStatTileClass}>
-            <div className="text-[10px] font-semibold tracking-wide text-zinc-300">LAST CALL</div>
-            <div className="mt-1 flex min-w-0 items-start justify-between gap-3">
-              <div
-                className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-200"
-                title={
-                  recentCalls.length === 0 ? undefined : homeLastCallHeadline(recentCalls[0])
-                }
-              >
-                {recentCalls.length === 0 ? "—" : homeLastCallHeadline(recentCalls[0])}
-              </div>
-              {(() => {
-                if (recentCalls.length === 0) return null;
-                const c = recentCalls[0]!;
-                const src =
-                  resolveTokenAvatarUrl({ tokenImageUrl: c.tokenImageUrl, mint: c.token }) ?? null;
-                if (!src) return null;
-                // eslint-disable-next-line @next/next/no-img-element
-                return (
-                  <img
-                    src={src}
-                    alt=""
-                    className="h-11 w-11 shrink-0 rounded-xl border border-zinc-700/50 object-cover shadow-md shadow-black/50 ring-1 ring-white/[0.04]"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                  />
-                );
-              })()}
-            </div>
-            <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
-              {recentCalls.length === 0 ? "—" : `${recentCalls[0].multiple.toFixed(1)}x`}
-            </div>
-            <div className="text-[10px] text-zinc-500">
-              {recentCalls.length === 0
-                ? callsLoading
-                  ? "Loading recent calls…"
-                  : "Waiting for your first call"
-                : formatJoinedAt(callTimeMs(recentCalls[0].time), nowMs)}
-            </div>
+          <div className="col-span-2 min-w-0 sm:col-span-1 lg:col-span-1">
+            <HeroLastCallMini
+              recentCalls={recentCalls}
+              callsLoading={callsLoading}
+              nowMs={nowMs}
+            />
           </div>
         </div>
-      </section>
+      </div>
 
       <div className="mb-6 lg:hidden">
         <ExtendedStatsPanel
