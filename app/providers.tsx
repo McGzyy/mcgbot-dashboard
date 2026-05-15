@@ -20,8 +20,10 @@ export function Providers({
   session: Session | null;
 }) {
   return (
-    {/* Default NextAuth refetch is 0 (off). ~3m balances fresh gates vs hammering JWT on flaky networks. */}
-    <SessionProvider refetchInterval={180} session={session ?? undefined}>
+    <SessionProvider
+      refetchInterval={180}
+      session={session ?? undefined}
+    >
       <SessionGateRecovery />
       <SolanaWalletProviders>
         <DashboardWalletProvider>
