@@ -1711,6 +1711,64 @@ function HomeRecentCallsSkeleton() {
   );
 }
 
+function ActivityFeedSkeleton() {
+  return (
+    <ul className="space-y-2.5 px-1 py-2 sm:space-y-2" aria-busy="true" aria-label="Loading activity">
+      {Array.from({ length: 8 }, (_, i) => (
+        <li key={`act-sk-${i}`}>
+          <div className="flex animate-pulse gap-2 rounded-lg border border-zinc-800/90 bg-zinc-900/20 px-3 py-2.5 sm:px-3 sm:py-2">
+            <div className="h-8 w-8 shrink-0 rounded-full bg-zinc-800/60" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-3 w-32 max-w-[55%] rounded bg-zinc-800/50" />
+              <div className="h-2.5 max-w-[95%] rounded bg-zinc-800/40" />
+              <div className="h-2.5 max-w-[78%] rounded bg-zinc-800/35" />
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function TopPerformersSkeletonRows() {
+  return (
+    <ul className="space-y-2" aria-busy="true" aria-label="Loading top performers">
+      {Array.from({ length: 3 }, (_, i) => (
+        <li key={`tp-sk-${i}`}>
+          <div className="flex animate-pulse items-center justify-between gap-3 rounded-xl border border-zinc-800/90 bg-zinc-900/20 px-4 py-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="h-8 w-8 shrink-0 rounded-full bg-zinc-800/55" />
+              <div className="h-3.5 w-36 max-w-[70%] rounded bg-zinc-800/50" />
+            </div>
+            <div className="shrink-0 space-y-2 text-right">
+              <div className="ml-auto h-4 w-14 rounded bg-zinc-800/40" />
+              <div className="ml-auto h-3 w-16 rounded bg-zinc-800/35" />
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function OpportunitiesSkeletonRows() {
+  return (
+    <ul className="space-y-1 py-0.5" aria-busy="true" aria-label="Loading opportunities">
+      {Array.from({ length: 5 }, (_, i) => (
+        <li key={`opp-sk-${i}`}>
+          <div className="flex animate-pulse items-start justify-between gap-3 rounded-lg border border-zinc-800/90 bg-zinc-900/20 px-3 py-2.5">
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-3.5 w-24 rounded bg-zinc-800/50" />
+              <div className="h-2.5 max-w-[92%] rounded bg-zinc-800/40" />
+            </div>
+            <div className="h-6 w-10 shrink-0 rounded bg-zinc-800/45" />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function NotesPanel() {
   return (
     <section className="mb-8">
@@ -2085,12 +2143,14 @@ function RankPanel({
 
 function TopPerformersPanel({
   topPerformersLoading,
+  topPerformersRefreshing,
   topPerformersToday,
   viewerId,
   viewerName,
   badgesByUser,
 }: {
   topPerformersLoading: boolean;
+  topPerformersRefreshing: boolean;
   topPerformersToday: TopPerformerTodayRow[];
   viewerId?: string;
   viewerName?: string | null;
@@ -2182,13 +2242,20 @@ function TopPerformersPanel({
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-yellow-500/35 via-[color:var(--accent)]/35 to-transparent" />
         {topPerformersLoading ? (
-          <div className="mt-3 flex min-h-[min(24rem,55vh)] items-center justify-center rounded-xl border border-zinc-900/80 bg-zinc-950/20">
-            <p className="text-sm text-zinc-500">Loading…</p>
+          <div className="relative mt-3 min-w-0">
+            <div className={`${terminalSurface.dashboardListWell}`}>
+              <div className="px-0.5 py-1">
+                <TopPerformersSkeletonRows />
+              </div>
+            </div>
           </div>
         ) : topPerformersToday.length === 0 ? (
           emptyState
         ) : (
-          <ul className="mt-3 space-y-2">
+          <div className="relative mt-3 min-w-0">
+            <div className={`${terminalSurface.dashboardListWell}`}>
+              <DashboardRefreshBar active={topPerformersRefreshing} />
+              <ul className="space-y-2 px-0.5 py-1">
             {topPerformersToday.map((row, index) => {
               const listPosition = index + 1;
               const isCurrentUser =
@@ -2255,7 +2322,9 @@ function TopPerformersPanel({
                 </li>
               );
             })}
-          </ul>
+              </ul>
+            </div>
+          </div>
         )}
       </PanelCard>
     </section>
@@ -2266,6 +2335,8 @@ type ActivityFeedPanelProps = {
   feedMode: "all" | "me" | "milestones" | "calls" | "following";
   setFeedMode: (m: "all" | "me" | "milestones" | "calls" | "following") => void;
   loadingActivity: boolean;
+  /** True while polling `/api/activity` when a prior snapshot exists (8s interval). */
+  activityRefreshing: boolean;
   activity: ActivityItem[];
   followingIds: Set<string>;
   setFollowing: (id: string, next: boolean) => void;
@@ -2315,6 +2386,7 @@ function ActivityFeedPanel({
   feedMode,
   setFeedMode,
   loadingActivity,
+  activityRefreshing,
   activity,
   followingIds,
   setFollowing,
@@ -2400,7 +2472,7 @@ function ActivityFeedPanel({
   );
 
   return (
-      <PanelCard title="Live Activity" className="min-w-0 max-w-full">
+      <PanelCard title="Live Activity" className="relative min-w-0 max-w-full">
       <div className="mt-2 flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar sm:gap-2">
         {(
           [
@@ -2435,11 +2507,13 @@ function ActivityFeedPanel({
         </div>
       </div>
 
-      <div className="mt-2 h-[300px] overflow-y-auto pr-1 text-sm no-scrollbar">
+      <div className={`relative mt-2 min-h-0 min-w-0 ${terminalSurface.dashboardListWell}`}>
+        <DashboardRefreshBar
+          active={activityRefreshing && !loadingActivity && activity.length > 0}
+        />
+        <div className="h-[300px] overflow-y-auto pr-1 text-sm no-scrollbar">
         {loadingActivity ? (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-zinc-500">Loading activity...</p>
-          </div>
+          <ActivityFeedSkeleton />
         ) : filteredActivity.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <p className="text-sm text-zinc-500">
@@ -2560,6 +2634,7 @@ function ActivityFeedPanel({
             })}
           </ul>
         )}
+        </div>
       </div>
 
       <div
@@ -3696,8 +3771,9 @@ function OpportunitiesPanel() {
       </div>
 
       <div
-        className={`mt-3 rounded-xl border border-zinc-900 bg-zinc-950/40 p-2 ${terminalSurface.insetEdgeSoft}`}
+        className={`relative mt-3 min-w-0 ${terminalSurface.dashboardListWell}`}
       >
+        <DashboardRefreshBar active={apiLoading && apiRows.length > 0} />
         <div className="px-2 pb-2 text-[11px] uppercase tracking-wider text-zinc-600">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <span>Setup</span>
@@ -3706,7 +3782,9 @@ function OpportunitiesPanel() {
         </div>
 
         <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">
-          {rows.length === 0 ? (
+          {apiLoading && rows.length === 0 ? (
+            <OpportunitiesSkeletonRows />
+          ) : rows.length === 0 ? (
             <div className="flex h-full items-center justify-center px-3 py-10">
               <div className="text-center">
                 <p className="text-sm font-semibold text-zinc-200">
@@ -3867,6 +3945,7 @@ export default function Home() {
   const [callsRefreshing, setCallsRefreshing] = useState(false);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
+  const [activityRefreshing, setActivityRefreshing] = useState(false);
   const [badgesByUser, setBadgesByUser] = useState<Record<string, string[]>>(
     {}
   );
@@ -3880,7 +3959,10 @@ export default function Home() {
   const [topPerformersToday, setTopPerformersToday] = useState<
     TopPerformerTodayRow[]
   >([]);
+  const topPerformersTodayRef = useRef<TopPerformerTodayRow[]>([]);
+  topPerformersTodayRef.current = topPerformersToday;
   const [topPerformersLoading, setTopPerformersLoading] = useState(true);
+  const [topPerformersRefreshing, setTopPerformersRefreshing] = useState(false);
   const [yourWeekRank, setYourWeekRank] = useState<number | null>(null);
   const [yourRankLoading, setYourRankLoading] = useState(true);
 
@@ -3891,6 +3973,7 @@ export default function Home() {
   const [watchlistPrivate, setWatchlistPrivate] = useState<string[]>([]);
   const [watchlistPublic, setWatchlistPublic] = useState<string[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(true);
+  const [watchlistRefreshing, setWatchlistRefreshing] = useState(false);
   const [watchlistUpdatedAt, setWatchlistUpdatedAt] = useState<number | null>(null);
   const [watchlistRefreshNonce, setWatchlistRefreshNonce] = useState(0);
   const [submitCallValue, setSubmitCallValue] = useState("");
@@ -4002,6 +4085,8 @@ export default function Home() {
 
   const loadActivity = useCallback(() => {
     void (async () => {
+      const hadSnapshot = activityAllSnapshotRef.current.length > 0;
+      if (hadSnapshot) setActivityRefreshing(true);
       try {
         const res = await fetch("/api/activity?mode=all");
         const data: unknown = await res.json();
@@ -4103,6 +4188,7 @@ export default function Home() {
         setActivity([]);
       } finally {
         setLoadingActivity(false);
+        setActivityRefreshing(false);
       }
     })();
   }, [addNotification, feedMode, followingIds, session?.user?.id]);
@@ -4299,6 +4385,9 @@ export default function Home() {
     if (addWatchlistOpen) return;
 
     let cancelled = false;
+    const hadSaved =
+      watchlistPrivate.length + watchlistPublic.length > 0 && !watchlistLoading;
+    if (hadSaved) setWatchlistRefreshing(true);
     setWatchlistLoading(true);
     fetch("/api/me/watchlist", { credentials: "same-origin" })
       .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
@@ -4322,7 +4411,10 @@ export default function Home() {
         }
       })
       .finally(() => {
-        if (!cancelled) setWatchlistLoading(false);
+        if (!cancelled) {
+          setWatchlistLoading(false);
+          setWatchlistRefreshing(false);
+        }
       });
 
     return () => {
@@ -4334,6 +4426,7 @@ export default function Home() {
     if (!session?.user?.id?.trim()) {
       setTopPerformersToday([]);
       setTopPerformersLoading(false);
+      setTopPerformersRefreshing(false);
       topPerformersBootstrapUserRef.current = null;
       return;
     }
@@ -4344,6 +4437,8 @@ export default function Home() {
     if (firstFetchForUser) {
       topPerformersBootstrapUserRef.current = uid;
       setTopPerformersLoading(true);
+    } else if (topPerformersTodayRef.current.length > 0) {
+      setTopPerformersRefreshing(true);
     }
 
     fetch("/api/leaderboard?type=user&period=rolling24h")
@@ -4384,7 +4479,10 @@ export default function Home() {
         if (!cancelled) setTopPerformersToday([]);
       })
       .finally(() => {
-        if (!cancelled) setTopPerformersLoading(false);
+        if (!cancelled) {
+          setTopPerformersLoading(false);
+          setTopPerformersRefreshing(false);
+        }
       });
 
     return () => {
@@ -4997,14 +5095,15 @@ export default function Home() {
       </section>
 
       <div className="mb-6 grid min-w-0 max-w-full grid-cols-1 items-start gap-4 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)]">
-        <div className="flex min-w-0 max-w-full flex-col gap-5 overflow-x-hidden">
+        <div className="flex min-w-0 max-w-full flex-col gap-5 overflow-x-clip">
           <div data-tutorial="dashboard.activityFeed">
           {widgetEnabled(widgets, "activity") && (
-            <div className="min-w-0 max-w-full overflow-x-hidden">
+            <div className="min-w-0 max-w-full overflow-x-clip">
               <ActivityFeedPanel
                 feedMode={feedMode}
                 setFeedMode={setFeedMode}
                 loadingActivity={loadingActivity}
+                activityRefreshing={activityRefreshing}
                 activity={activity}
                 followingIds={followingIds}
                 setFollowing={setFollowing}
@@ -5022,6 +5121,7 @@ export default function Home() {
           {widgetEnabled(widgets, "top_performers") && (
             <TopPerformersPanel
               topPerformersLoading={topPerformersLoading}
+              topPerformersRefreshing={topPerformersRefreshing}
               topPerformersToday={topPerformersToday}
               viewerId={session.user.id}
               viewerName={session.user.name}
@@ -5076,7 +5176,14 @@ export default function Home() {
                 </span>
               </span>
             </div>
-            <div className={`mt-2 ${terminalSurface.dashboardListWell}`}>
+            <div className={`relative mt-2 min-w-0 ${terminalSurface.dashboardListWell}`}>
+              <DashboardRefreshBar
+                active={
+                  watchlistRefreshing &&
+                  !watchlistLoading &&
+                  watchlistPrivate.length + watchlistPublic.length > 0
+                }
+              />
               {watchlistLoading ? (
                 <div className="space-y-2 p-1">
                   <div className="h-9 animate-pulse rounded-lg bg-zinc-900/35" />
