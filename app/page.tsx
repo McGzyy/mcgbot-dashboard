@@ -4743,7 +4743,11 @@ export default function Home() {
   const showTrendingWidget = widgetEnabled(widgets, "trending");
 
   const quickActionsBlock = widgetEnabled(widgets, "quick_actions") ? (
-    <PanelCard title="Quick Actions" data-tutorial="dashboard.quickActions">
+    <PanelCard
+      title="Quick Actions"
+      data-tutorial="dashboard.quickActions"
+      paddingClassName="px-4 pt-2.5 pb-3"
+    >
       <div className="mt-3 space-y-3">
         <button
           type="button"
@@ -4992,7 +4996,7 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="mb-6 grid min-w-0 max-w-full grid-cols-1 items-start gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)]">
+      <div className="mb-6 grid min-w-0 max-w-full grid-cols-1 items-start gap-4 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)]">
         <div className="flex min-w-0 max-w-full flex-col gap-5 overflow-x-hidden">
           <div data-tutorial="dashboard.activityFeed">
           {widgetEnabled(widgets, "activity") && (

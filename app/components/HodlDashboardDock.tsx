@@ -7,6 +7,7 @@ import { dexscreenerTokenUrl } from "@/lib/modUiUtils";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 type FeedRow = {
   id: string;
@@ -19,6 +20,9 @@ type FeedRow = {
   priceChangePctTf: number | null;
   price_change_pct: number | null;
 };
+
+/** Viewport wide enough for a fixed dock that sits only in the gutter past `max-w-[1200px]` home shell. */
+const FIXED_HODL_MQ = "(min-width: 1536px)";
 
 function shortMint(m: string): string {
   const s = m.trim();
@@ -51,12 +55,29 @@ function pnlTone(n: number | null | undefined): string {
   return "text-zinc-300";
 }
 
+function useWideFixedHodlDock() {
+  const [wide, setWide] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(FIXED_HODL_MQ).matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia(FIXED_HODL_MQ);
+    const apply = () => setWide(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  return wide;
+}
+
 export function HodlDashboardDock() {
   const { data: session, status } = useSession();
   const myId = session?.user?.id?.trim() ?? "";
   const [rows, setRows] = useState<FeedRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const wideFixedDock = useWideFixedHodlDock();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,90 +126,111 @@ export function HodlDashboardDock() {
   if (loading) return null;
   if (count === 0) return null;
 
-  return (
-    <div className="hidden min-w-0 max-w-full lg:block">
-      <aside className="w-full max-w-full" data-tutorial="dashboard.hodlDock">
-        <PanelCard
-          title="HODL"
-          titleClassName="normal-case"
-          paddingClassName="px-3 py-2.5 sm:px-3.5 sm:py-3"
-          titleRight={
-            <span className="rounded-full border border-zinc-700/80 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-bold tabular-nums text-zinc-300">
-              {count} {count === 1 ? "coin" : "coins"}
-            </span>
-          }
-          className={`border-zinc-800/90 bg-zinc-950/90 shadow-lg shadow-black/40 ${terminalSurface.insetEdgeSoft}`}
-        >
-          <p className="mt-1 text-[11px] leading-snug text-zinc-500">
-            Live & pending positions · 24h move
-          </p>
-          <ul
-            className="mt-2 space-y-2 overflow-y-auto pr-0.5 no-scrollbar"
-            style={
-              {
-                ["--hodl-n" as string]: String(count),
-                maxHeight:
-                  "min(calc(2.75rem + var(--hodl-n) * 4.35rem), min(46dvh, 26rem))",
-              } as CSSProperties
-            }
-          >
-            {myRows.map((r) => {
-              const sym = (r.token_symbol ?? "").trim() || shortMint(r.mint);
-              const pnl = r.priceChangePctTf ?? r.price_change_pct ?? null;
-              const dex = dexscreenerTokenUrl("solana", r.mint);
-              const pending = r.status === "pending_hold";
-              return (
-                <li
-                  key={r.id}
-                  className="rounded-lg border border-zinc-800/70 bg-zinc-900/35 px-2.5 py-2 sm:px-3"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="truncate text-sm font-semibold text-zinc-100">{sym}</span>
-                        {pending ? (
-                          <span className="shrink-0 rounded border border-amber-500/35 bg-amber-500/10 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-amber-200/90">
-                            Pending
-                          </span>
-                        ) : (
-                          <span className="shrink-0 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-emerald-200/90">
-                            Live
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-0.5 font-mono text-[10px] text-zinc-500">{shortMint(r.mint)}</p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className={`text-sm font-bold tabular-nums ${pnlTone(pnl)}`}>{formatPct(pnl)}</p>
-                      <p className="mt-0.5 text-[10px] font-medium text-zinc-500">24h</p>
-                    </div>
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-zinc-500">
-                    <span>
-                      Holding <span className="font-semibold text-zinc-300">{holdLabel(r.hold_since)}</span>
-                    </span>
-                    <a
-                      href={dex}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-semibold text-sky-400/90 hover:text-sky-300"
-                    >
-                      Chart ↗
-                    </a>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="mt-2 border-t border-zinc-800/60 pt-2">
-            <Link
-              href="/hodl"
-              className="text-[11px] font-semibold text-zinc-300 underline-offset-2 hover:text-white hover:underline"
+  const panel = (
+    <PanelCard
+      title="HODL"
+      titleClassName="normal-case"
+      paddingClassName="px-3 py-2.5 sm:px-3.5 sm:py-3"
+      titleRight={
+        <span className="rounded-full border border-zinc-700/80 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-bold tabular-nums text-zinc-300">
+          {count} {count === 1 ? "coin" : "coins"}
+        </span>
+      }
+      className={`border-zinc-800/90 bg-zinc-950/90 shadow-lg shadow-black/40 ${terminalSurface.insetEdgeSoft}`}
+    >
+      <p className="mt-1 text-[11px] leading-snug text-zinc-500">
+        Live & pending positions · 24h move
+      </p>
+      <ul
+        className="mt-2 space-y-2 overflow-y-auto pr-0.5 no-scrollbar"
+        style={
+          {
+            ["--hodl-n" as string]: String(count),
+            maxHeight:
+              "min(calc(2.75rem + var(--hodl-n) * 4.35rem), min(46dvh, 26rem))",
+          } as CSSProperties
+        }
+      >
+        {myRows.map((r) => {
+          const sym = (r.token_symbol ?? "").trim() || shortMint(r.mint);
+          const pnl = r.priceChangePctTf ?? r.price_change_pct ?? null;
+          const dex = dexscreenerTokenUrl("solana", r.mint);
+          const pending = r.status === "pending_hold";
+          return (
+            <li
+              key={r.id}
+              className="rounded-lg border border-zinc-800/70 bg-zinc-900/35 px-2.5 py-2 sm:px-3"
             >
-              Open HODL page →
-            </Link>
-          </div>
-        </PanelCard>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="truncate text-sm font-semibold text-zinc-100">{sym}</span>
+                    {pending ? (
+                      <span className="shrink-0 rounded border border-amber-500/35 bg-amber-500/10 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-amber-200/90">
+                        Pending
+                      </span>
+                    ) : (
+                      <span className="shrink-0 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-emerald-200/90">
+                        Live
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 font-mono text-[10px] text-zinc-500">{shortMint(r.mint)}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className={`text-sm font-bold tabular-nums ${pnlTone(pnl)}`}>{formatPct(pnl)}</p>
+                  <p className="mt-0.5 text-[10px] font-medium text-zinc-500">24h</p>
+                </div>
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-zinc-500">
+                <span>
+                  Holding <span className="font-semibold text-zinc-300">{holdLabel(r.hold_since)}</span>
+                </span>
+                <a
+                  href={dex}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-sky-400/90 hover:text-sky-300"
+                >
+                  Chart ↗
+                </a>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-2 border-t border-zinc-800/60 pt-2">
+        <Link
+          href="/hodl"
+          className="text-[11px] font-semibold text-zinc-300 underline-offset-2 hover:text-white hover:underline"
+        >
+          Open HODL page →
+        </Link>
+      </div>
+    </PanelCard>
+  );
+
+  if (wideFixedDock) {
+    return createPortal(
+      <div
+        className="pointer-events-none fixed inset-x-0 top-0 z-[22] hidden min-[1536px]:flex justify-end p-2 pt-[4.75rem] sm:p-3 sm:pt-[5rem]"
+        aria-hidden={false}
+      >
+        <aside
+          data-tutorial="dashboard.hodlDock"
+          className="pointer-events-auto min-h-0 min-w-0 w-full max-w-[min(19.5rem,calc((100vw-75rem)/2-0.75rem))]"
+        >
+          {panel}
+        </aside>
+      </div>,
+      document.body
+    );
+  }
+
+  return (
+    <div className="hidden min-w-0 max-w-full lg:block min-[1536px]:hidden">
+      <aside className="w-full max-w-full" data-tutorial="dashboard.hodlDock">
+        {panel}
       </aside>
     </div>
   );
