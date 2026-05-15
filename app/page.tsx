@@ -349,6 +349,37 @@ type MeStats = {
   totalCalls: number;
 };
 
+/** Mirrors `GET /api/me/leaderboard-rank` `byPeriod` keys (same windows as `/api/leaderboard`). */
+type HomeLeaderboardRankPeriod = "today" | "week" | "30d" | "all";
+
+type HomeLeaderboardRanks = Record<
+  HomeLeaderboardRankPeriod,
+  { rank: number | null; totalRanked: number }
+>;
+
+function parseHomeLeaderboardRanks(json: Record<string, unknown>): HomeLeaderboardRanks | null {
+  const bp = json.byPeriod;
+  if (!bp || typeof bp !== "object") return null;
+  const src = bp as Record<string, unknown>;
+  const out: Partial<HomeLeaderboardRanks> = {};
+  for (const k of ["today", "week", "30d", "all"] as const) {
+    const e = src[k];
+    if (!e || typeof e !== "object") return null;
+    const o = e as Record<string, unknown>;
+    const tr = o.totalRanked;
+    const totalRanked =
+      typeof tr === "number" && Number.isFinite(tr) && tr >= 0 ? Math.trunc(tr) : 0;
+    const rankRaw = o.rank;
+    let rank: number | null = null;
+    if (rankRaw !== null && rankRaw !== undefined) {
+      const n = typeof rankRaw === "number" ? rankRaw : Number(rankRaw);
+      if (Number.isFinite(n) && n > 0) rank = Math.trunc(n);
+    }
+    out[k] = { rank, totalRanked };
+  }
+  return out as HomeLeaderboardRanks;
+}
+
 function callsTodayDeltaLabel(stats: MeStats | null): ReactNode {
   if (stats === null) {
     return <span className="text-zinc-500">—</span>;
@@ -2004,48 +2035,152 @@ function TrendingPanel() {
   );
 }
 
+function HeroStatMini({
+  label,
+  value,
+  hint,
+  valueClassName,
+}: {
+  label: string;
+  value: ReactNode;
+  hint?: ReactNode;
+  /** Override default large tabular value (e.g. streak row). */
+  valueClassName?: string;
+}) {
+  const valueCls =
+    valueClassName ??
+    "text-xl font-bold tabular-nums tracking-tight text-[color:var(--accent)] sm:text-[1.35rem]";
+  return (
+    <div
+      className={`${terminalPage.statTile} flex min-h-[5.25rem] flex-col justify-between gap-0.5 p-2.5 sm:min-h-[5rem] sm:p-2.5`}
+    >
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+        {label}
+      </div>
+      <div className={valueCls}>{value}</div>
+      {hint ? (
+        <div className="line-clamp-2 text-[10px] leading-snug text-zinc-500">{hint}</div>
+      ) : null}
+    </div>
+  );
+}
+
+function ExtendedStatsPanel({
+  stats,
+  statsLoading,
+  statsRefreshing,
+}: {
+  stats: MeStats | null;
+  statsLoading: boolean;
+  statsRefreshing: boolean;
+}) {
+  const wrapClass = `rounded-xl border border-zinc-900 bg-zinc-950/40 p-3 sm:p-3.5 ${smoothClass(
+    statsRefreshing || statsLoading,
+  )}`;
+  const rowClass =
+    "flex items-center justify-between gap-3 border-b border-zinc-800/40 py-2.5 last:border-b-0 last:pb-0 first:pt-0";
+  return (
+    <PanelCard
+      title="More metrics"
+      titleClassName="normal-case"
+      className="min-w-0 max-w-full overflow-hidden"
+    >
+      <p className="mt-1 text-[11px] leading-snug text-zinc-500">
+        Depth stats; headline numbers live above your charts.
+      </p>
+      <div className={`mt-2 ${wrapClass}`}>
+        <div className={rowClass}>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+            Median X
+          </span>
+          <span className="text-lg font-bold tabular-nums text-[color:var(--accent)]">
+            {stats === null || (stats.medianX ?? 0) <= 0
+              ? "—"
+              : `${(stats.medianX ?? 0).toFixed(1)}x`}
+          </span>
+        </div>
+        <div className={rowClass}>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+            2× hit (30d)
+          </span>
+          <span className="text-lg font-bold tabular-nums text-[color:var(--accent)]">
+            {stats === null || (stats.bestX30d ?? 0) <= 0
+              ? "—"
+              : `${Math.round(stats.hitRate2x30d ?? 0)}%`}
+          </span>
+        </div>
+        <div className={rowClass}>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+            Best X (30d)
+          </span>
+          <span className="text-lg font-bold tabular-nums text-[color:var(--accent)]">
+            {stats === null || (stats.bestX30d ?? 0) <= 0
+              ? "—"
+              : `${(stats.bestX30d ?? 0).toFixed(1)}x`}
+          </span>
+        </div>
+      </div>
+    </PanelCard>
+  );
+}
+
 function RankPanel({
   yourRankLoading,
-  yourWeekRank,
+  ranksByPeriod,
   stats,
+  variant = "default",
 }: {
   yourRankLoading: boolean;
-  yourWeekRank: number | null;
+  ranksByPeriod: HomeLeaderboardRanks | null;
   stats: MeStats | null;
+  variant?: "default" | "compact";
 }) {
-  /** Same D / W / M / A control as `app/leaderboard/page.tsx` "Your Rank" card. */
-  const [range, setRange] = useState<"D" | "W" | "M" | "A">("D");
+  /** D / W / M / A — same idea as `app/leaderboard/page.tsx`; default **A** so idle days do not show as “unranked”. */
+  const [range, setRange] = useState<"D" | "W" | "M" | "A">("A");
 
-  const timeframeLabel =
-    {
-      D: "24h",
-      W: "7d",
-      M: "30d",
-      A: "All time",
-    }[range] ?? "24h";
+  const periodKey: HomeLeaderboardRankPeriod =
+    range === "D" ? "today" : range === "W" ? "week" : range === "M" ? "30d" : "all";
+
+  const entry = ranksByPeriod?.[periodKey];
+  const displayRank = entry?.rank ?? null;
+  const totalRanked = entry?.totalRanked ?? 0;
+
+  const boardLabel =
+    range === "D"
+      ? "Today (UTC)"
+      : range === "W"
+        ? "Rolling 7 days"
+        : range === "M"
+          ? "Rolling 30 days"
+          : "All-time";
 
   const emptyRankHint =
     range === "D"
-      ? "No rank today yet — keep calling to climb the daily board."
+      ? "No rank on today’s board yet — log a call to enter the daily ladder."
       : range === "W"
-        ? "No rank this week yet — user calls in the last 7 days earn a spot on the leaderboard."
+        ? "No rank in the last 7 days yet — rolling window matches the weekly leaderboard."
         : range === "M"
-          ? "No rank this month yet — sustained activity over the month counts toward placement."
-          : "No all-time placement yet — long-term callers earn a permanent ladder spot.";
+          ? "No rank in the last 30 days yet — sustained recent calls count here."
+          : "No all-time placement yet — verified calls across all time build your ladder spot.";
 
-  /** Weekly rank from API; shown for every range until multi-period API exists. */
-  const displayRank = yourWeekRank;
   const winRateLabel =
     stats === null || (stats.totalCalls ?? 0) <= 0
       ? "—"
       : `${stats.winRate.toFixed(0)}%`;
+
+  const compact = variant === "compact";
+  const shellPad = compact ? "p-3" : "p-4";
+  const minH = compact ? "min-h-[5.25rem]" : "min-h-[9rem]";
+  const rankSize = compact ? "text-3xl" : "text-4xl";
+  const tabPad = compact ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-0.5 text-xs";
 
   const shellRing = "";
 
   return (
     <div
       className={[
-        "group relative flex w-full flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4",
+        "group relative flex w-full flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30",
+        shellPad,
         shellRing,
       ]
         .filter(Boolean)
@@ -2054,9 +2189,11 @@ function RankPanel({
       <div className="pointer-events-none absolute inset-0 bg-zinc-500/5 opacity-35 blur-2xl transition-opacity duration-300 group-hover:opacity-55" />
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-        <div className="flex items-start justify-between gap-3">
-          <div className="text-sm text-zinc-400">Your Rank</div>
-          <div className="flex shrink-0 gap-1" role="tablist" aria-label="Rank period">
+        <div className="flex items-start justify-between gap-2">
+          <div className={compact ? "text-xs text-zinc-400" : "text-sm text-zinc-400"}>
+            Your rank
+          </div>
+          <div className="flex shrink-0 gap-0.5" role="tablist" aria-label="Rank period">
             {(["D", "W", "M", "A"] as const).map((t) => (
               <button
                 key={t}
@@ -2064,7 +2201,7 @@ function RankPanel({
                 role="tab"
                 aria-selected={range === t}
                 onClick={() => setRange(t)}
-                className={`rounded border px-2 py-0.5 text-xs transition ${
+                className={`rounded border transition ${tabPad} ${
                   range === t
                     ? "border-green-400 text-green-400"
                     : "border-zinc-700 text-zinc-400 hover:border-green-400"
@@ -2076,53 +2213,73 @@ function RankPanel({
           </div>
         </div>
 
-        <div className="mt-2 min-h-[9rem] flex-1">
-        {yourRankLoading ? (
-          <div className="flex h-full min-h-[9rem] flex-1 animate-pulse items-center justify-between gap-3" aria-busy="true">
-            <div className="space-y-2">
-              <div className="h-2 w-16 rounded bg-zinc-800" />
-              <div className="h-8 w-20 rounded bg-zinc-800/90" />
-              <div className="h-2 w-24 rounded bg-zinc-800/80" />
-            </div>
-            <div className="space-y-2 text-right">
-              <div className="ml-auto h-2 w-12 rounded bg-zinc-800" />
-              <div className="ml-auto h-5 w-10 rounded bg-zinc-800/90" />
-            </div>
-          </div>
-        ) : displayRank === null ? (
-          <p className="text-sm leading-relaxed text-zinc-400">{emptyRankHint}</p>
-        ) : (
-          <>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-                  GLOBAL RANK
-                </div>
-                <div className="mt-0.5 text-4xl font-bold tracking-tight text-white drop-shadow-[0_0_6px_rgba(34,197,94,0.3)]">
-                  #{displayRank}
-                </div>
-                <div className="mt-1 text-xs text-zinc-500">
-                  Rolling 7d callerboard
-                </div>
+        <div className={`mt-2 flex-1 ${minH}`}>
+          {yourRankLoading && ranksByPeriod === null ? (
+            <div
+              className={`flex h-full ${minH} flex-1 animate-pulse items-center justify-between gap-3`}
+              aria-busy="true"
+            >
+              <div className="space-y-2">
+                <div className="h-2 w-16 rounded bg-zinc-800" />
+                <div className="h-8 w-20 rounded bg-zinc-800/90" />
+                <div className="h-2 w-24 rounded bg-zinc-800/80" />
               </div>
-
-              <div className="text-right">
-                <div className="text-sm text-zinc-500">Win rate</div>
-                <div className="font-medium text-zinc-200">
-                  {winRateLabel}
-                </div>
+              <div className="space-y-2 text-right">
+                <div className="ml-auto h-2 w-12 rounded bg-zinc-800" />
+                <div className="ml-auto h-5 w-10 rounded bg-zinc-800/90" />
               </div>
             </div>
+          ) : displayRank === null ? (
+            <p className={compact ? "text-xs leading-relaxed text-zinc-400" : "text-sm leading-relaxed text-zinc-400"}>
+              {emptyRankHint}
+            </p>
+          ) : (
+            <>
+              <div className={`flex items-start justify-between gap-2 ${compact ? "" : "items-center"}`}>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                    Global
+                  </div>
+                  <div
+                    className={`mt-0.5 font-bold tracking-tight text-white drop-shadow-[0_0_6px_rgba(34,197,94,0.3)] tabular-nums ${rankSize}`}
+                  >
+                    #{displayRank}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-zinc-500">
+                    {boardLabel}
+                    {totalRanked > 0 ? (
+                      <span className="text-zinc-600">
+                        {" "}
+                        · {totalRanked.toLocaleString("en-US")} ranked
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
 
-            <div className="mt-2 text-xs text-zinc-500">
-              {stats === null
-                ? "—"
-                : range === "D"
-                  ? `${stats.callsToday} call${stats.callsToday === 1 ? "" : "s"} today • ${timeframeLabel}`
-                  : `${stats.totalCalls} verified call${stats.totalCalls === 1 ? "" : "s"} • same window as Personal Stats`}
-            </div>
-          </>
-        )}
+                {!compact ? (
+                  <div className="shrink-0 text-right">
+                    <div className="text-sm text-zinc-500">Win rate</div>
+                    <div className="font-medium text-zinc-200">{winRateLabel}</div>
+                  </div>
+                ) : (
+                  <div className="shrink-0 text-right">
+                    <div className="text-[10px] text-zinc-500">Win</div>
+                    <div className="text-sm font-semibold tabular-nums text-zinc-200">{winRateLabel}</div>
+                  </div>
+                )}
+              </div>
+
+              {!compact ? (
+                <div className="mt-2 text-xs text-zinc-500">
+                  {stats === null
+                    ? "—"
+                    : range === "D"
+                      ? `${stats.callsToday} call${stats.callsToday === 1 ? "" : "s"} today · ${boardLabel}`
+                      : `${stats.totalCalls} verified call${stats.totalCalls === 1 ? "" : "s"} all-time`}
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -3951,7 +4108,8 @@ export default function Home() {
   topPerformersTodayRef.current = topPerformersToday;
   const [topPerformersLoading, setTopPerformersLoading] = useState(true);
   const [topPerformersRefreshing, setTopPerformersRefreshing] = useState(false);
-  const [yourWeekRank, setYourWeekRank] = useState<number | null>(null);
+  const [yourLeaderboardRanks, setYourLeaderboardRanks] =
+    useState<HomeLeaderboardRanks | null>(null);
   const [yourRankLoading, setYourRankLoading] = useState(true);
 
   const [widgets, setWidgets] = useState<WidgetsEnabled | null>(null);
@@ -4514,7 +4672,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!session?.user?.id?.trim()) {
-      setYourWeekRank(null);
+      setYourLeaderboardRanks(null);
       setYourRankLoading(false);
       leaderboardRankBootstrapUserRef.current = null;
       return;
@@ -4532,21 +4690,23 @@ export default function Home() {
       .then((res) => (res.ok ? res.json() : null))
       .then((json: unknown) => {
         if (cancelled || !json || typeof json !== "object") {
-          // Keep previous rank if refresh fails; don’t “blink” to null.
           return;
         }
-        const o = json as Record<string, unknown>;
-        const rankRaw = o.rank;
-        const rank =
-          rankRaw === null || rankRaw === undefined
-            ? null
-            : typeof rankRaw === "number"
-              ? rankRaw
-              : Number(rankRaw);
-        if (!cancelled) {
-          const next =
-            rank !== null && Number.isFinite(rank) && rank > 0 ? rank : null;
-          setYourWeekRank((prev) => (prev === next ? prev : next));
+        const parsed = parseHomeLeaderboardRanks(json as Record<string, unknown>);
+        if (!cancelled && parsed) {
+          setYourLeaderboardRanks((prev) => {
+            if (!prev) return parsed;
+            const same =
+              prev.today.rank === parsed.today.rank &&
+              prev.today.totalRanked === parsed.today.totalRanked &&
+              prev.week.rank === parsed.week.rank &&
+              prev.week.totalRanked === parsed.week.totalRanked &&
+              prev["30d"].rank === parsed["30d"].rank &&
+              prev["30d"].totalRanked === parsed["30d"].totalRanked &&
+              prev.all.rank === parsed.all.rank &&
+              prev.all.totalRanked === parsed.all.totalRanked;
+            return same ? prev : parsed;
+          });
         }
       })
       .catch(() => {
@@ -4902,6 +5062,57 @@ export default function Home() {
         data-tutorial="dashboard.tutorialWelcome"
       >
       <div className="space-y-8" data-tutorial="dashboard.pageIntro">
+      <div className="mb-4 min-w-0 space-y-2 overflow-x-hidden" data-tutorial="dashboard.heroMetrics">
+        <div>
+          <h2 className={`${terminalPage.sectionTitle} text-base sm:text-lg`}>At a glance</h2>
+          <p className={`${terminalPage.sectionHint} text-[11px] sm:text-xs`}>
+            Headline numbers before your charts.
+          </p>
+        </div>
+        <div
+          className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${
+            showRankWidget ? "lg:grid-cols-7" : "lg:grid-cols-5"
+          }`}
+        >
+          {showRankWidget ? (
+            <div className="col-span-2 min-w-0 sm:col-span-3 lg:col-span-2">
+              <RankPanel
+                variant="compact"
+                yourRankLoading={yourRankLoading}
+                ranksByPeriod={yourLeaderboardRanks}
+                stats={stats}
+              />
+            </div>
+          ) : null}
+          <HeroStatMini
+            label="Avg X"
+            value={stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
+            hint="Mean ATH multiple"
+          />
+          <HeroStatMini
+            label="Win rate"
+            value={
+              stats === null || (stats.totalCalls ?? 0) <= 0 ? "—" : `${stats.winRate.toFixed(0)}%`
+            }
+          />
+          <HeroStatMini
+            label="Streak"
+            value={streakValue}
+            valueClassName="min-h-[2rem] text-sm font-semibold leading-snug text-zinc-100"
+          />
+          <HeroStatMini
+            label="Total calls"
+            value={stats === null ? "—" : stats.totalCalls.toLocaleString("en-US")}
+            hint="All time"
+          />
+          <HeroStatMini
+            label="Calls today"
+            value={stats === null ? "—" : stats.callsToday}
+            hint={callsTodayDeltaLabel(stats)}
+          />
+        </div>
+      </div>
+
       <div className="mb-5" data-tutorial="dashboard.performanceChart">
         <PerformanceChart compact refreshNonce={homeDataRefreshNonce} />
       </div>
@@ -4910,177 +5121,72 @@ export default function Home() {
         <div className="mb-8 lg:hidden">{quickActionsBlock}</div>
       ) : null}
 
-      <section className="mb-8 min-w-0 space-y-4 overflow-x-hidden" data-tutorial="dashboard.personalStats">
+      <section className="mb-6 min-w-0 space-y-3 overflow-x-hidden" data-tutorial="dashboard.personalStats">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className={terminalPage.sectionTitle}>
-              Personal Stats
-            </h2>
+            <h2 className={terminalPage.sectionTitle}>Personal Stats</h2>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--accent)]">
               <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]" aria-hidden />
               LIVE
             </span>
           </div>
-          <p className={terminalPage.sectionHint}>
-            Key metrics from your recent activity.
-          </p>
+          <p className={terminalPage.sectionHint}>Your most recent verified call.</p>
         </div>
         <div
-          className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-2.5 sm:p-3.5 ${smoothClass(
-            statsRefreshing || statsLoading
+          className={`rounded-xl border border-zinc-900 bg-zinc-950/40 p-2.5 sm:p-3 ${smoothClass(
+            statsRefreshing || statsLoading,
           )}`}
         >
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,1fr)] lg:items-stretch">
-            <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4">
-              <div className={personalStatTileClass}>
-                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
-                  AVG X
-                </div>
-                <div className="text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
-                  {stats === null ? "—" : `${stats.avgX.toFixed(1)}x`}
-                </div>
-                <div className="line-clamp-2 text-[10px] leading-snug text-zinc-500">
-                  Mean ATH multiple since your calls (peak ÷ entry MC)
-                </div>
+          <div className={personalStatTileClass}>
+            <div className="text-[10px] font-semibold tracking-wide text-zinc-300">LAST CALL</div>
+            <div className="mt-1 flex min-w-0 items-start justify-between gap-3">
+              <div
+                className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-200"
+                title={
+                  recentCalls.length === 0 ? undefined : homeLastCallHeadline(recentCalls[0])
+                }
+              >
+                {recentCalls.length === 0 ? "—" : homeLastCallHeadline(recentCalls[0])}
               </div>
-
-              <div className={personalStatTileClass}>
-                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
-                  WIN RATE
-                </div>
-                <div className="text-2xl font-bold tabular-nums tracking-tight text-[color:var(--accent)]">
-                  {stats === null || (stats.totalCalls ?? 0) <= 0 ? "—" : `${stats.winRate.toFixed(0)}%`}
-                </div>
-              </div>
-
-              <div className={personalStatTileClass}>
-                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
-                  STREAK
-                </div>
-                <div>
-                  {streakValue}
-                </div>
-              </div>
-
-              <div className={personalStatTileClass}>
-                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
-                  TOTAL CALLS
-                </div>
-                <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
-                  {stats === null ? "—" : stats.totalCalls.toLocaleString("en-US")}
-                </div>
-                <div className="text-[10px] text-zinc-500">All time</div>
-              </div>
-
-              <div className={personalStatTileClass}>
-                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
-                  MEDIAN X
-                </div>
-                <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
-                  {stats === null || (stats.medianX ?? 0) <= 0
-                    ? "—"
-                    : `${(stats.medianX ?? 0).toFixed(1)}x`}
-                </div>
-              </div>
-
-              <div className={personalStatTileClass}>
-                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
-                  2X HIT (30D)
-                </div>
-                <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
-                  {stats === null || (stats.bestX30d ?? 0) <= 0
-                    ? "—"
-                    : `${Math.round(stats.hitRate2x30d ?? 0)}%`}
-                </div>
-              </div>
-
-              <div className={personalStatTileClass}>
-                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
-                  BEST X (30D)
-                </div>
-                <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
-                  {stats === null || (stats.bestX30d ?? 0) <= 0
-                    ? "—"
-                    : `${(stats.bestX30d ?? 0).toFixed(1)}x`}
-                </div>
-              </div>
-
-              <div className={personalStatTileClass}>
-                <div className="text-[10px] font-semibold tracking-wide text-zinc-300">
-                  LAST CALL
-                </div>
-                <div className="flex min-w-0 items-start justify-between gap-3">
-                  <div
-                    className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-200"
-                    title={
-                      recentCalls.length === 0
-                        ? undefined
-                        : homeLastCallHeadline(recentCalls[0])
-                    }
-                  >
-                    {recentCalls.length === 0 ? "—" : homeLastCallHeadline(recentCalls[0])}
-                  </div>
-                  {(() => {
-                    if (recentCalls.length === 0) return null;
-                    const c = recentCalls[0]!;
-                    const src =
-                      resolveTokenAvatarUrl({ tokenImageUrl: c.tokenImageUrl, mint: c.token }) ??
-                      null;
-                    if (!src) return null;
-                    // eslint-disable-next-line @next/next/no-img-element
-                    return (
-                      <img
-                        src={src}
-                        alt=""
-                        className="h-11 w-11 shrink-0 rounded-xl border border-zinc-700/50 object-cover shadow-md shadow-black/50 ring-1 ring-white/[0.04]"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                      />
-                    );
-                  })()}
-                </div>
-                <div className="text-2xl font-bold tabular-nums text-[color:var(--accent)]">
-                  {recentCalls.length === 0
-                    ? "—"
-                    : `${recentCalls[0].multiple.toFixed(1)}x`}
-                </div>
-                <div className="text-[10px] text-zinc-500">
-                  {recentCalls.length === 0
-                    ? callsLoading
-                      ? "Loading recent calls…"
-                      : "Waiting for your first call"
-                    : formatJoinedAt(callTimeMs(recentCalls[0].time), nowMs)}
-                </div>
-              </div>
-            </div>
-
-            <>
-              <div className="mx-2 hidden w-px shrink-0 bg-zinc-800 lg:block" aria-hidden />
-              <div className="flex min-h-0 flex-col gap-4">
-                {showRankWidget ? (
-                  <RankPanel
-                    yourRankLoading={yourRankLoading}
-                    yourWeekRank={yourWeekRank}
-                    stats={stats}
+              {(() => {
+                if (recentCalls.length === 0) return null;
+                const c = recentCalls[0]!;
+                const src =
+                  resolveTokenAvatarUrl({ tokenImageUrl: c.tokenImageUrl, mint: c.token }) ?? null;
+                if (!src) return null;
+                // eslint-disable-next-line @next/next/no-img-element
+                return (
+                  <img
+                    src={src}
+                    alt=""
+                    className="h-11 w-11 shrink-0 rounded-xl border border-zinc-700/50 object-cover shadow-md shadow-black/50 ring-1 ring-white/[0.04]"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
                   />
-                ) : null}
-                <PanelCard
-                  title="Calls today"
-                  titleClassName="normal-case"
-                  className="flex w-full flex-col"
-                >
-                  <div className="mt-2 text-4xl font-bold tabular-nums tracking-tight text-zinc-50">
-                    {stats === null ? "—" : stats.callsToday}
-                  </div>
-                  <p className="mt-1.5 text-xs leading-snug">
-                    {callsTodayDeltaLabel(stats)}
-                  </p>
-                </PanelCard>
-              </div>
-            </>
+                );
+              })()}
+            </div>
+            <div className="mt-1 text-2xl font-bold tabular-nums text-[color:var(--accent)]">
+              {recentCalls.length === 0 ? "—" : `${recentCalls[0].multiple.toFixed(1)}x`}
+            </div>
+            <div className="text-[10px] text-zinc-500">
+              {recentCalls.length === 0
+                ? callsLoading
+                  ? "Loading recent calls…"
+                  : "Waiting for your first call"
+                : formatJoinedAt(callTimeMs(recentCalls[0].time), nowMs)}
+            </div>
           </div>
         </div>
       </section>
+
+      <div className="mb-6 lg:hidden">
+        <ExtendedStatsPanel
+          stats={stats}
+          statsLoading={statsLoading}
+          statsRefreshing={statsRefreshing}
+        />
+      </div>
 
       <div className="mb-6 grid min-w-0 max-w-full grid-cols-1 items-start gap-4 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)]">
         <div className="flex min-w-0 max-w-full flex-col gap-5 overflow-x-clip">
@@ -5135,6 +5241,14 @@ export default function Home() {
         >
           <div className="flex min-w-0 max-w-full flex-col gap-4 overflow-x-hidden">
           {quickActionsBlock ? <div className="hidden lg:block">{quickActionsBlock}</div> : null}
+
+          <div className="hidden lg:block">
+            <ExtendedStatsPanel
+              stats={stats}
+              statsLoading={statsLoading}
+              statsRefreshing={statsRefreshing}
+            />
+          </div>
 
           {(helpTier === "mod" || helpTier === "admin") && (
             <ModQueueHomePanel hideWhenEmpty />
