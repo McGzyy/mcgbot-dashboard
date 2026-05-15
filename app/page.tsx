@@ -2035,6 +2035,57 @@ function TrendingPanel() {
   );
 }
 
+/** Shared chrome for “At a glance” tiles — dense terminal, subtle top accent. */
+const ELITE_GLANCE_CARD =
+  "relative min-h-[5.25rem] overflow-hidden rounded-xl border border-zinc-700/75 bg-gradient-to-br from-zinc-900/95 via-zinc-950/75 to-zinc-950 p-2.5 shadow-[0_10px_40px_-14px_rgba(0,0,0,0.75),inset_0_1px_0_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-[color:var(--accent)]/30 before:to-transparent sm:min-h-[5.25rem] sm:p-3";
+
+function HeroCallVolumeElite({ stats }: { stats: MeStats | null }) {
+  const total =
+    stats === null ? "—" : stats.totalCalls.toLocaleString("en-US");
+  const today = stats === null ? "—" : String(stats.callsToday);
+  return (
+    <div className={`${ELITE_GLANCE_CARD} flex flex-col`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+          Call volume
+        </span>
+        <span className="rounded border border-zinc-700/80 bg-black/30 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
+          Verified
+        </span>
+      </div>
+      <div className="mt-2 grid min-h-0 flex-1 grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <div className="min-w-0">
+          <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
+            All-time
+          </div>
+          <div className="mt-0.5 truncate text-xl font-bold tabular-nums tracking-tight text-zinc-50 sm:text-2xl">
+            {total}
+          </div>
+        </div>
+        <div
+          className="h-10 w-px shrink-0 bg-gradient-to-b from-transparent via-zinc-500/35 to-transparent"
+          aria-hidden
+        />
+        <div className="min-w-0 text-right">
+          <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
+            Today
+          </div>
+          <div className="mt-0.5 text-xl font-bold tabular-nums tracking-tight text-[color:var(--accent)] sm:text-2xl">
+            {today}
+          </div>
+        </div>
+      </div>
+      <div className="mt-2 border-t border-zinc-800/70 pt-1.5 text-[10px] leading-snug text-zinc-500">
+        {stats === null ? (
+          <span className="text-zinc-600">—</span>
+        ) : (
+          callsTodayDeltaLabel(stats)
+        )}
+      </div>
+    </div>
+  );
+}
+
 function HeroLastCallMini({
   recentCalls,
   callsLoading,
@@ -2060,11 +2111,9 @@ function HeroLastCallMini({
       : null;
 
   return (
-    <div
-      className={`${terminalPage.statTile} relative flex min-h-[5.25rem] flex-col justify-between gap-0.5 p-2.5 sm:min-h-[5rem] sm:p-2.5`}
-    >
+    <div className={`${ELITE_GLANCE_CARD} flex flex-col justify-between gap-0.5`}>
       <div className="flex items-start justify-between gap-2">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+        <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
           Last call
         </div>
         {avatarSrc ? (
@@ -2084,10 +2133,12 @@ function HeroLastCallMini({
       >
         {headline}
       </div>
-      <div className="text-xl font-bold tabular-nums tracking-tight text-[color:var(--accent)] sm:text-[1.35rem]">
+      <div className="text-xl font-bold tabular-nums tracking-tight text-[color:var(--accent)] sm:text-2xl">
         {mult}
       </div>
-      <div className="line-clamp-1 text-[10px] leading-snug text-zinc-500">{hint}</div>
+      <div className="line-clamp-1 border-t border-zinc-800/60 pt-1.5 text-[10px] leading-snug text-zinc-500">
+        {hint}
+      </div>
     </div>
   );
 }
@@ -2106,17 +2157,17 @@ function HeroStatMini({
 }) {
   const valueCls =
     valueClassName ??
-    "text-xl font-bold tabular-nums tracking-tight text-[color:var(--accent)] sm:text-[1.35rem]";
+    "text-xl font-bold tabular-nums tracking-tight text-[color:var(--accent)] sm:text-2xl";
   return (
-    <div
-      className={`${terminalPage.statTile} flex min-h-[5.25rem] flex-col justify-between gap-0.5 p-2.5 sm:min-h-[5rem] sm:p-2.5`}
-    >
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+    <div className={`${ELITE_GLANCE_CARD} flex flex-col justify-between gap-1`}>
+      <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
         {label}
       </div>
       <div className={valueCls}>{value}</div>
       {hint ? (
-        <div className="line-clamp-2 text-[10px] leading-snug text-zinc-500">{hint}</div>
+        <div className="line-clamp-2 border-t border-zinc-800/60 pt-1.5 text-[10px] leading-snug text-zinc-500">
+          {hint}
+        </div>
       ) : null}
     </div>
   );
@@ -2226,28 +2277,38 @@ function RankPanel({
       : `${stats.winRate.toFixed(0)}%`;
 
   const compact = variant === "compact";
-  const shellPad = compact ? "p-3" : "p-4";
+  const shellPad = compact ? "" : "p-4";
   const minH = compact ? "min-h-[5.25rem]" : "min-h-[9rem]";
   const rankSize = compact ? "text-3xl" : "text-4xl";
   const tabPad = compact ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-0.5 text-xs";
 
   const shellRing = "";
 
-  return (
-    <div
-      className={[
+  const shellClass = compact
+    ? `${ELITE_GLANCE_CARD} flex w-full flex-col`
+    : [
         "group relative flex w-full flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30",
         shellPad,
         shellRing,
       ]
         .filter(Boolean)
-        .join(" ")}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-zinc-500/5 opacity-35 blur-2xl transition-opacity duration-300 group-hover:opacity-55" />
+        .join(" ");
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+  return (
+    <div className={shellClass}>
+      {!compact ? (
+        <div className="pointer-events-none absolute inset-0 bg-zinc-500/5 opacity-35 blur-2xl transition-opacity duration-300 group-hover:opacity-55" />
+      ) : null}
+
+      <div className={`relative z-10 flex min-h-0 flex-1 flex-col`}>
         <div className="flex items-start justify-between gap-2">
-          <div className={compact ? "text-xs text-zinc-400" : "text-sm text-zinc-400"}>
+          <div
+            className={
+              compact
+                ? "text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500"
+                : "text-sm text-zinc-400"
+            }
+          >
             Your rank
           </div>
           <div className="flex shrink-0 gap-0.5" role="tablist" aria-label="Rank period">
@@ -2258,10 +2319,10 @@ function RankPanel({
                 role="tab"
                 aria-selected={range === t}
                 onClick={() => setRange(t)}
-                className={`rounded border transition ${tabPad} ${
+                className={`rounded-md border transition ${tabPad} ${
                   range === t
-                    ? "border-green-400 text-green-400"
-                    : "border-zinc-700 text-zinc-400 hover:border-green-400"
+                    ? "border-[color:var(--accent)]/45 bg-[color:var(--accent)]/12 font-semibold text-[color:var(--accent)]"
+                    : "border-zinc-700/80 bg-zinc-950/40 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
                 }`}
               >
                 {t}
@@ -2294,7 +2355,7 @@ function RankPanel({
             <>
               <div className={`flex items-start justify-between gap-2 ${compact ? "" : "items-center"}`}>
                 <div className="min-w-0">
-                  <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                  <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
                     Global
                   </div>
                   <div
@@ -5129,11 +5190,11 @@ export default function Home() {
         className="mb-6 min-w-0 space-y-2 overflow-x-hidden"
         data-tutorial="dashboard.personalStats"
       >
-        <div>
+        <div className="border-b border-zinc-800/60 pb-2">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className={`${terminalPage.sectionTitle} text-base sm:text-lg`}>At a glance</h2>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--accent)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]" aria-hidden />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent)]/30 bg-[color:var(--accent)]/12 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--accent)] shadow-[0_0_20px_-6px_rgba(34,197,94,0.45)]">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--accent)]" aria-hidden />
               LIVE
             </span>
           </div>
@@ -5142,7 +5203,7 @@ export default function Home() {
           </p>
         </div>
         <div
-          className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${
+          className={`mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 ${
             showRankWidget ? "lg:grid-cols-8" : "lg:grid-cols-6"
           } ${smoothClass(statsRefreshing || statsLoading)}`}
         >
@@ -5172,16 +5233,9 @@ export default function Home() {
             value={streakValue}
             valueClassName="min-h-[2rem] text-sm font-semibold leading-snug text-zinc-100"
           />
-          <HeroStatMini
-            label="Total calls"
-            value={stats === null ? "—" : stats.totalCalls.toLocaleString("en-US")}
-            hint="All time"
-          />
-          <HeroStatMini
-            label="Calls today"
-            value={stats === null ? "—" : stats.callsToday}
-            hint={callsTodayDeltaLabel(stats)}
-          />
+          <div className="col-span-2 min-w-0 sm:col-span-2 lg:col-span-2">
+            <HeroCallVolumeElite stats={stats} />
+          </div>
           <div className="col-span-2 min-w-0 sm:col-span-1 lg:col-span-1">
             <HeroLastCallMini
               recentCalls={recentCalls}
