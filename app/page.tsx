@@ -5282,6 +5282,10 @@ export default function Home() {
 
       <div className="mb-6 grid min-w-0 max-w-full grid-cols-1 items-start gap-4 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)]">
         <div className="flex min-w-0 max-w-full flex-col gap-5 overflow-x-clip">
+          {!socialFeedEnabled ? (
+            <DeskIntelColumn refreshNonce={homeDataRefreshNonce} />
+          ) : null}
+
           <div data-tutorial="dashboard.activityFeed">
           {widgetEnabled(widgets, "activity") && (
             <div className="min-w-0 max-w-full overflow-x-clip">
@@ -5320,9 +5324,7 @@ export default function Home() {
             <div data-tutorial="dashboard.socialFeed">
               <SocialsFeedPanel />
             </div>
-          ) : (
-            <DeskIntelColumn refreshNonce={homeDataRefreshNonce} />
-          )}
+          ) : null}
 
           {widgets !== null && widgetEnabled(widgets, "discord_chat") && (
             <div data-tutorial="dashboard.discordChat">
@@ -5393,8 +5395,15 @@ export default function Home() {
                   <div className="text-center">
                     <p className="text-sm font-semibold text-zinc-200">No contracts yet</p>
                     <p className="mt-1 text-xs text-zinc-500">
-                      Add contract addresses to build your list.
+                      Paste a Solana mint or Dexscreener link to track it here.
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => setAddWatchlistOpen(true)}
+                      className="mt-3 rounded-lg border border-[color:var(--accent)]/40 bg-[color:var(--accent)]/10 px-3 py-1.5 text-xs font-semibold text-[color:var(--accent)] transition hover:bg-[color:var(--accent)]/20"
+                    >
+                      Add contract
+                    </button>
                   </div>
                 </div>
               ) : (

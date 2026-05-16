@@ -2,6 +2,9 @@
 
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
 import { PanelCard } from "@/app/components/PanelCard";
+import { TokenCallThumb } from "@/components/TokenCallThumb";
+import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
+import type { DeskPulseTopHit } from "@/lib/deskPulseStats";
 import type { DeskPulseStats } from "@/lib/deskPulseStats";
 import type { DeskRankMover } from "@/lib/deskRankMovers";
 import type { DeskYouStats } from "@/lib/deskYouStats";
@@ -54,44 +57,148 @@ function DeskBriefLine({
   if (!pulse || pulse.calls === 0) {
     return (
       <p className="text-xs leading-relaxed text-zinc-500">
-        No verified desk calls in the last 24 hours yet. Activity will show here as members log
-        calls.
+        No verified desk calls in the last 24 hours yet. The live feed below will populate as
+        members log calls.
       </p>
     );
   }
 
-  const hit = pulse.topHit;
   return (
     <p className="text-xs leading-relaxed text-zinc-400">
       <span className="font-semibold text-zinc-200">{pulse.calls.toLocaleString("en-US")}</span>{" "}
-      verified calls ·{" "}
-      <span className="font-semibold text-[color:var(--accent)]">{formatDeskX(pulse.avgX)}</span>{" "}
-      avg ATH
-      {hit ? (
-        <>
-          {" "}
-          · Standout{" "}
-          <span className="font-semibold text-zinc-200">${hit.symbol}</span> at{" "}
-          <span className={`font-semibold tabular-nums ${multipleClass(hit.multiple)}`}>
-            {formatDeskX(hit.multiple)}
-          </span>{" "}
-          by <span className="font-semibold text-zinc-200">{hit.username}</span>
-        </>
-      ) : null}
+      verified calls in the last 24 hours · desk avg{" "}
+      <span className="font-semibold text-[color:var(--accent)]">{formatDeskX(pulse.avgX)}</span>
       {you && you.calls > 0 ? (
         <>
           {" "}
-          · You{" "}
+          · you{" "}
           <span className="font-semibold text-[color:var(--accent)]">{formatDeskX(you.avgX)}</span>
           {you.rank != null ? (
             <>
               {" "}
-              · Rank <span className="font-semibold text-zinc-200">#{you.rank}</span>
+              · rank <span className="font-semibold text-zinc-200">#{you.rank}</span>
             </>
           ) : null}
         </>
       ) : null}
     </p>
+  );
+}
+
+function YouVsDeskBar({
+  you,
+  pulse,
+}: {
+  you: DeskYouStats | null;
+  pulse: DeskPulseStats | null;
+}) {
+  if (!you || you.calls === 0 || !pulse || pulse.avgX <= 0) return null;
+  const ratio = Math.min(1.5, you.avgX / pulse.avgX);
+  const pct = Math.round(ratio * 100);
+  const ahead = you.avgX >= pulse.avgX;
+  return (
+    <div className="mt-3 rounded-lg border border-zinc-800/70 bg-zinc-950/40 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+        <span>Your avg vs desk</span>
+        <span className={ahead ? "text-emerald-300/90" : "text-zinc-400"}>
+          {ahead ? "Above desk" : "Below desk"}
+        </span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-800/80">
+        <div
+          className={`h-full rounded-full transition-all ${
+            ahead ? "bg-gradient-to-r from-emerald-600/80 to-[color:var(--accent)]" : "bg-zinc-600"
+          }`}
+          style={{ width: `${Math.min(100, pct)}%` }}
+        />
+      </div>
+      <p className="mt-1.5 text-[11px] text-zinc-500">
+        {formatDeskX(you.avgX)} you · {formatDeskX(pulse.avgX)} desk
+      </p>
+    </div>
+  );
+}
+
+function StandoutHitCard({
+  hit,
+  onChart,
+}: {
+  hit: DeskPulseTopHit;
+  onChart: () => void;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 via-zinc-950/80 to-zinc-950 p-3 sm:p-4">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(234,179,8,0.12),transparent_55%)]" />
+      <p className="relative text-[9px] font-bold uppercase tracking-[0.2em] text-yellow-200/80">
+        Standout · 24h
+      </p>
+      <div className="relative mt-3 flex items-center gap-3">
+        <TokenCallThumb
+          mint={hit.callCa}
+          symbol={hit.symbol}
+          tokenImageUrl={hit.tokenImageUrl}
+          tone="default"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-lg font-bold text-zinc-50">${hit.symbol}</p>
+          <p className="mt-0.5 truncate text-xs text-zinc-400">
+            by <span className="font-medium text-zinc-200">{hit.username}</span>
+          </p>
+          <p className={`mt-1 text-2xl font-black tabular-nums ${multipleClass(hit.multiple)}`}>
+            {formatDeskX(hit.multiple)}
+          </p>
+        </div>
+        {hit.callCa ? (
+          <button
+            type="button"
+            onClick={onChart}
+            className="shrink-0 rounded-lg border border-zinc-700/80 bg-zinc-900/50 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-300 transition hover:border-zinc-600 hover:text-white"
+          >
+            Chart
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function SolRegimePill() {
+  const [sol, setSol] = useState<{ price: string; change: string; up: boolean } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/market", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((j: unknown) => {
+        if (cancelled || !j || typeof j !== "object") return;
+        const o = j as { solPrice?: number; change24h?: number };
+        const price = Number(o.solPrice);
+        const ch = Number(o.change24h);
+        if (!Number.isFinite(price)) return;
+        setSol({
+          price: price >= 1000 ? `$${(price / 1000).toFixed(2)}k` : `$${price.toFixed(2)}`,
+          change: Number.isFinite(ch) ? `${ch >= 0 ? "+" : ""}${ch.toFixed(2)}%` : "—",
+          up: ch >= 0,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!sol) return null;
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
+        sol.up
+          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200/95"
+          : "border-red-500/25 bg-red-500/10 text-red-200/90"
+      }`}
+    >
+      SOL {sol.price}
+      <span className="opacity-80">{sol.change}</span>
+    </span>
   );
 }
 
@@ -127,6 +234,7 @@ function DeskMoversStrip({ movers }: { movers: DeskRankMover[] }) {
  * One desk intel card (replaces social feed). Top performers + activity wins cover hits and ranks.
  */
 export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number }) {
+  const { openTokenChart } = useTokenChartModal();
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [pulse, setPulse] = useState<DeskPulseStats | null>(null);
   const [you, setYou] = useState<DeskYouStats | null>(null);
@@ -235,6 +343,18 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
   const showInbox = !inboxLoading && inboxRows.length > 0;
   const pulseReady = !pulseLoading ? pulse : null;
   const youReady = !pulseLoading ? you : null;
+  const topHit = pulseReady?.topHit ?? null;
+
+  const openStandoutChart = () => {
+    if (!topHit?.callCa) return;
+    openTokenChart({
+      chain: "solana",
+      contractAddress: topHit.callCa,
+      symbolLabel: topHit.symbol ? `$${topHit.symbol}` : undefined,
+      tokenTicker: topHit.symbol,
+      tokenImageUrl: topHit.tokenImageUrl,
+    });
+  };
 
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-4" data-tutorial="dashboard.deskIntel">
@@ -242,7 +362,8 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
         title="Desk intel"
         titleClassName="normal-case"
         titleRight={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <SolRegimePill />
             <Link
               href="/leaderboard?period=rolling24h"
               className="text-[11px] font-semibold text-zinc-500 transition hover:text-zinc-200"
@@ -259,47 +380,63 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-sky-500/30 via-[color:var(--accent)]/35 to-transparent" />
         <DashboardRefreshBar active={pulseRefreshing && pulse !== null} />
         <p className="mt-1 text-[11px] text-zinc-500">
-          Room pulse and your standing — for top callers see Top Performers above; for big hits use
-          Activity → Wins.
+          Room pulse and your standing — scroll for live calls, top callers, and wins below.
         </p>
         <div className="mt-2">
           <DeskBriefLine pulse={pulseReady} you={youReady} />
         </div>
         {pulseLoading ? (
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-[4.25rem] animate-pulse rounded-lg border border-zinc-800/60 bg-zinc-900/30"
-              />
-            ))}
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <div className="h-32 animate-pulse rounded-xl border border-zinc-800/60 bg-zinc-900/30" />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-[4.25rem] animate-pulse rounded-lg border border-zinc-800/60 bg-zinc-900/30"
+                />
+              ))}
+            </div>
           </div>
         ) : (
           <>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              <DeskPulseTile label="Calls" value={pulse ? String(pulse.calls) : "—"} />
-              <DeskPulseTile label="Avg ATH" value={pulse ? formatDeskX(pulse.avgX) : "—"} />
-              <DeskPulseTile label="Median" value={pulse ? formatDeskX(pulse.medianX) : "—"} />
-              <DeskPulseTile
-                label="2×+"
-                value={pulse ? String(pulse.hits2xPlus) : "—"}
-                hint="Hits"
-              />
-              <DeskPulseTile
-                label="5×+"
-                value={pulse ? String(pulse.hits5xPlus) : "—"}
-                hint="Hits"
-              />
-              <DeskPulseTile
-                label="Callers"
-                value={pulse ? String(pulse.activeCallers) : "—"}
-                hint={
-                  pulse && pulse.memberCalls + pulse.botCalls > 0
-                    ? `${pulse.memberCalls} mem · ${pulse.botCalls} bot`
-                    : undefined
+            <div
+              className={`mt-3 grid gap-3 ${topHit ? "lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]" : ""}`}
+            >
+              {topHit ? (
+                <StandoutHitCard hit={topHit} onChart={openStandoutChart} />
+              ) : null}
+              <div
+                className={
+                  topHit
+                    ? "grid grid-cols-2 gap-2 sm:grid-cols-3"
+                    : "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
                 }
-              />
+              >
+                <DeskPulseTile label="Calls" value={pulse ? String(pulse.calls) : "—"} />
+                <DeskPulseTile label="Avg ATH" value={pulse ? formatDeskX(pulse.avgX) : "—"} />
+                <DeskPulseTile label="Median" value={pulse ? formatDeskX(pulse.medianX) : "—"} />
+                <DeskPulseTile
+                  label="2×+"
+                  value={pulse ? String(pulse.hits2xPlus) : "—"}
+                  hint="Hits"
+                />
+                <DeskPulseTile
+                  label="5×+"
+                  value={pulse ? String(pulse.hits5xPlus) : "—"}
+                  hint="Hits"
+                />
+                <DeskPulseTile
+                  label="Callers"
+                  value={pulse ? String(pulse.activeCallers) : "—"}
+                  hint={
+                    pulse && pulse.memberCalls + pulse.botCalls > 0
+                      ? `${pulse.memberCalls} mem · ${pulse.botCalls} bot`
+                      : undefined
+                  }
+                />
+              </div>
             </div>
+            <YouVsDeskBar you={youReady} pulse={pulseReady} />
             <DeskMoversStrip movers={rankMovers} />
           </>
         )}
