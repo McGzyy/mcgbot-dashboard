@@ -1,3 +1,5 @@
+import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
+import { membershipAccessGateFromRoleIds, membershipRolesConfigured } from "@/lib/discordMembershipRoles";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
@@ -60,8 +62,22 @@ async function getSubscriptionEndWithRetry(
   return { end: null, failed: true };
 }
 
+async function discordRoleAllowsDashboard(discordId: string): Promise<boolean | null> {
+  if (!membershipRolesConfigured()) return null;
+  try {
+    const roleIds = await getDiscordGuildMemberRoleIds(discordId);
+    if (!Array.isArray(roleIds)) return null;
+    const gate = membershipAccessGateFromRoleIds(roleIds);
+    if (gate === null) return null;
+    return gate.ok;
+  } catch (e) {
+    console.warn("[dashboardGate] discord role gate:", e);
+    return null;
+  }
+}
+
 /**
- * Live check (Discord staff + Supabase subscription). Used when JWT cookie is stale.
+ * Live check (Discord staff + Supabase subscription + membership roles). Used when JWT cookie is stale.
  * Cached briefly to avoid hammering Discord/Supabase on every navigation.
  *
  * Does not cache a **deny** when upstream calls failed (avoids locking paying users out for CACHE_MS).
@@ -86,6 +102,12 @@ export async function liveDashboardAccessForDiscordId(discordId: string): Promis
   if (exempt === true) {
     accessCache.set(id, { ok: true, exp: now + CACHE_MS });
     return true;
+  }
+
+  const roleOk = await discordRoleAllowsDashboard(id);
+  if (roleOk === false) {
+    accessCache.set(id, { ok: false, exp: now + CACHE_MS });
+    return false;
   }
 
   const { end, failed: subFailed } = await getSubscriptionEndWithRetry(id);

@@ -901,10 +901,12 @@ export default function MembershipPage() {
             <p className="text-sm font-semibold text-violet-50">Finish Discord verification to unlock checkout</p>
             <p className="mt-2 text-sm leading-relaxed text-violet-100/85">
               {guildGateReady && guildGate.verificationReason === "unverified_role"
-                ? "Your account still has the unverified role in Discord."
-                : guildGateReady && guildGate.verificationReason === "missing_required_role"
-                  ? "Complete server onboarding so you receive the member role."
-                  : "The server couldn&apos;t confirm your verified roles yet."}{" "}
+                ? "Complete human verification in Discord first (you should not keep the Unverified role)."
+                : guildGateReady && guildGate.verificationReason === "unpaid_role"
+                  ? "You are verified but do not have an active membership yet. Subscribe below ? we will assign Trencher (Basic) or Pro after payment."
+                  : guildGateReady && guildGate.verificationReason === "missing_required_role"
+                    ? "You need the Trencher or Pro member role in Discord. If you already paid, retry the check or ping support."
+                    : "The server couldn&apos;t confirm your member roles yet."}{" "}
               After verification updates in Discord, retry the membership check.
             </p>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">

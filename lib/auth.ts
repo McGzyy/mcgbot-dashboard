@@ -9,7 +9,11 @@ import { tierIncludesProFeatures } from "@/lib/subscription/planTiers";
 import { discordTrustedProRoleId } from "@/lib/discordHonorRoleIds";
 import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
-import { discordVerificationGateFromRoleIds } from "@/lib/discordVerificationGate";
+import {
+  membershipAccessGateFromRoleIds,
+  membershipRolesConfigured,
+  syncMembershipDiscordRoles,
+} from "@/lib/discordMembershipRoles";
 import { getSessionInvalidationEpochCached } from "@/lib/sessionInvalidationEpoch";
 import { syncGuildMembershipToUsers } from "@/lib/guildMembershipSync";
 import { consumeTotpSessionProof } from "@/lib/totpSessionProof";
@@ -270,6 +274,13 @@ export const authOptions: NextAuthOptions = {
           token.canModerate = meetsModerationMinTier(resolvedHelpTier);
           token.subscriptionRefreshAt = Date.now();
 
+          try {
+            const productTier = await resolveUserProductTier(discordId);
+            (token as { productTier?: string }).productTier = productTier;
+          } catch (e) {
+            console.warn("[auth] productTier refresh:", e);
+          }
+
           const ur = userRes as { data: Record<string, unknown> | null; error: { message?: string } | null };
           if (ur.error) {
             console.warn("[auth] users gate row fetch:", ur.error.message ?? ur.error);
@@ -326,10 +337,30 @@ export const authOptions: NextAuthOptions = {
             const roleIds = await getDiscordGuildMemberRoleIds(discordId);
             if (Array.isArray(roleIds)) {
               (token as any).discordGuildRoleIds = roleIds;
-              const gate = discordVerificationGateFromRoleIds(roleIds);
+              const gate = membershipAccessGateFromRoleIds(roleIds);
               if (gate && !gate.ok) {
                 (token as any).discordNeedsVerification = true;
                 (token as any).discordBlockedReason = gate.reason;
+                const subEnd =
+                  typeof token.subscriptionActiveUntil === "string"
+                    ? token.subscriptionActiveUntil
+                    : null;
+                const subActive =
+                  subEnd != null &&
+                  subEnd.length > 0 &&
+                  new Date(subEnd).getTime() > Date.now();
+                const alreadySynced = (token as { discordRoleSyncAt?: number }).discordRoleSyncAt;
+                if (
+                  subActive &&
+                  !token.subscriptionExempt &&
+                  membershipRolesConfigured() &&
+                  (!alreadySynced || Date.now() - alreadySynced > 120_000)
+                ) {
+                  (token as { discordRoleSyncAt?: number }).discordRoleSyncAt = Date.now();
+                  void syncMembershipDiscordRoles(discordId).catch((err) => {
+                    console.warn("[auth] syncMembershipDiscordRoles:", err);
+                  });
+                }
               } else {
                 (token as any).discordNeedsVerification = false;
                 (token as any).discordBlockedReason = null;
@@ -402,10 +433,10 @@ export const authOptions: NextAuthOptions = {
       (session.user as { pendingTotpVerification?: boolean }).pendingTotpVerification =
         totpEnabled && !totpSatisfied;
       session.user.hasDashboardAccess =
-        (staffSubscriptionBypass || exempt || session.user.hasActiveSubscription) &&
         guildAllowsDashboard &&
         !effectiveNeedsVerification &&
-        totpSatisfied;
+        totpSatisfied &&
+        (staffSubscriptionBypass || exempt || session.user.hasActiveSubscription);
       const tier = token.helpTier;
       session.user.helpTier =
         tier === "admin" || tier === "mod" || tier === "user" ? tier : "user";
