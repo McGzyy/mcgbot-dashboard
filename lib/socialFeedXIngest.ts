@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isSocialFeedEnabled } from "@/lib/socialFeedSettings";
 
 /** App-only Bearer (Twitter / X developer portal "Bearer Token"). Not OAuth 1.0a keys used by the bot to post. */
 
@@ -151,6 +152,10 @@ const MISSING_BEARER_LOG_COOLDOWN_MS = 300_000;
  * Throttled to once per minute per server instance to reduce rate-limit pressure.
  */
 export async function maybeRefreshSocialFeedFromX(db: SupabaseClient): Promise<void> {
+  if (!(await isSocialFeedEnabled())) {
+    return;
+  }
+
   const bearer = bearerToken();
   if (!bearer) {
     const now = Date.now();

@@ -42,16 +42,35 @@ function toDraft(s: SourceRow): Draft {
 
 export function SocialFeedAdminClient() {
   const [loading, setLoading] = useState(true);
+  const [feedEnabled, setFeedEnabled] = useState(false);
+  const [feedToggleBusy, setFeedToggleBusy] = useState(false);
+  const [feedMsg, setFeedMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
 
+  const loadSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/app-settings", { credentials: "same-origin", cache: "no-store" });
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        settings?: { social_feed_enabled?: boolean };
+      };
+      if (res.ok && j.success && j.settings) {
+        setFeedEnabled(j.settings.social_feed_enabled === true);
+      }
+    } catch {
+      /* keep prior feedEnabled */
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
     try {
+      await loadSettings();
       const res = await fetch("/api/admin/social-feed-sources", { credentials: "same-origin", cache: "no-store" });
       const j = (await res.json().catch(() => ({}))) as { success?: boolean; sources?: SourceRow[]; error?: string };
       if (!res.ok) {
@@ -65,6 +84,37 @@ export function SocialFeedAdminClient() {
       setSources([]);
     } finally {
       setLoading(false);
+    }
+  }, [loadSettings]);
+
+  const setFeedEnabledRemote = useCallback(async (next: boolean) => {
+    setFeedToggleBusy(true);
+    setFeedMsg(null);
+    setErr(null);
+    try {
+      const res = await fetch("/api/admin/app-settings", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ social_feed_enabled: next }),
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        settings?: { social_feed_enabled?: boolean };
+      };
+      if (!res.ok || !j.success) {
+        setErr(typeof j.error === "string" ? j.error : "Could not update social feed setting.");
+        return;
+      }
+      const on = j.settings?.social_feed_enabled === true;
+      setFeedEnabled(on);
+      setFeedMsg(on ? "Social feed enabled on the dashboard." : "Social feed hidden; X ingest stopped.");
+      window.setTimeout(() => setFeedMsg(null), 3500);
+    } catch {
+      setErr("Network error while updating social feed setting.");
+    } finally {
+      setFeedToggleBusy(false);
     }
   }, []);
 
@@ -188,6 +238,50 @@ export function SocialFeedAdminClient() {
           </>
         }
       />
+
+      <AdminPanel
+        className={`p-4 ${feedEnabled ? "border-emerald-500/30 bg-emerald-950/15" : "border-amber-500/30 bg-amber-950/15"}`}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+              Dashboard social feed
+            </p>
+            <p className="mt-1 text-sm text-zinc-300">
+              {feedEnabled ? (
+                <>
+                  <span className="font-medium text-emerald-200">On</span> — home feed visible; X Bearer ingest may run
+                  when users load posts (uses API read credits).
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-amber-200">Off</span> — panel hidden on home; no X timeline pulls.
+                  Milestones and D/W/M digests are unaffected.
+                </>
+              )}
+            </p>
+            {feedMsg ? <p className="mt-2 text-xs text-emerald-300/90">{feedMsg}</p> : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={feedToggleBusy || feedEnabled}
+              onClick={() => void setFeedEnabledRemote(true)}
+              className="rounded-lg border border-emerald-600/40 bg-emerald-950/40 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-900/50 disabled:opacity-45"
+            >
+              Turn on
+            </button>
+            <button
+              type="button"
+              disabled={feedToggleBusy || !feedEnabled}
+              onClick={() => void setFeedEnabledRemote(false)}
+              className="rounded-lg border border-amber-600/40 bg-amber-950/40 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-900/50 disabled:opacity-45"
+            >
+              Turn off
+            </button>
+          </div>
+        </div>
+      </AdminPanel>
 
       {err ? (
         <p className="text-sm text-red-300/90" role="alert">

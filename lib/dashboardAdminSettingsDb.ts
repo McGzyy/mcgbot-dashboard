@@ -45,6 +45,8 @@ export type DashboardAdminSettingsRow = {
   tutorial_auto_start_enabled: boolean;
   /** Optional X digest tweet templates (jsonb); null = use built-in defaults. */
   x_leaderboard_digest_format: unknown | null;
+  /** Home Social Feed panel + X Bearer timeline ingest. */
+  social_feed_enabled: boolean;
   updated_at: string;
   updated_by_discord_id: string | null;
 };
@@ -81,6 +83,7 @@ function defaultRow(): DashboardAdminSettingsRow {
     stripe_test_plan_id: null,
     tutorial_auto_start_enabled: true,
     x_leaderboard_digest_format: null,
+    social_feed_enabled: false,
     updated_at: now,
     updated_by_discord_id: null,
   };
@@ -180,6 +183,7 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
       if (v == null || typeof v !== "object") return null;
       return v as Record<string, unknown>;
     })(),
+    social_feed_enabled: (r as { social_feed_enabled?: unknown }).social_feed_enabled === true,
     updated_at: typeof r.updated_at === "string" ? r.updated_at : new Date().toISOString(),
     updated_by_discord_id: typeof r.updated_by_discord_id === "string" ? r.updated_by_discord_id : null,
   };
@@ -213,6 +217,7 @@ export async function patchDashboardAdminSettings(input: {
   stripe_test_plan_id?: string | null;
   tutorial_auto_start_enabled?: boolean;
   x_leaderboard_digest_format?: XLeaderboardDigestFormat | null;
+  social_feed_enabled?: boolean;
   updatedByDiscordId: string;
 }): Promise<DashboardAdminSettingsRow | null> {
   const db = getSupabaseAdmin();
@@ -360,6 +365,7 @@ export async function patchDashboardAdminSettings(input: {
         stripe_test_plan_id: next.stripe_test_plan_id,
         tutorial_auto_start_enabled: next.tutorial_auto_start_enabled,
         x_leaderboard_digest_format: next.x_leaderboard_digest_format,
+        social_feed_enabled: next.social_feed_enabled,
         updated_at: next.updated_at,
         updated_by_discord_id: next.updated_by_discord_id,
       },

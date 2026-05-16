@@ -147,10 +147,14 @@ export function XDigestsAdminClient() {
         title="X leaderboard digests"
         description={
           <>
-            Scheduled posts from the dashboard cron (<span className="font-mono text-xs">/api/cron/x-leaderboard-digest</span>
-            ). Times are shown in <span className="font-semibold text-zinc-300">Pacific (Los Angeles)</span> for
-            planning; Vercel still uses <span className="font-semibold text-zinc-300">UTC</span> for{" "}
-            <span className="font-mono text-xs">X_LEADERBOARD_DIGEST_UTC_HOUR</span>.
+            <span className="font-medium text-zinc-300">Live D/W/M posts</span> come from the{" "}
+            <span className="font-medium text-zinc-300">Discord bot</span> (
+            <span className="font-mono text-xs">utils/xLeaderboardDigest.js</span>) — &quot;Daily snapshot&quot; copy plus
+            chart PNGs. The old Vercel text-only cron is disabled so it does not replace that layout. Templates below
+            apply only if you set{" "}
+            <span className="font-mono text-xs">X_LEADERBOARD_DIGEST_VERCEL_CRON_ENABLED=1</span> and re-add the cron in{" "}
+            <span className="font-mono text-xs">vercel.json</span>. Digest hour uses{" "}
+            <span className="font-mono text-xs">X_LEADERBOARD_DIGEST_UTC_HOUR</span> on the bot host (UTC).
           </>
         }
       />
@@ -158,9 +162,12 @@ export function XDigestsAdminClient() {
       <AdminXStatusPanel />
 
       <AdminPanel className="p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">Post formatting</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+          Text-only cron templates (optional / legacy)
+        </h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Stored in <span className="font-mono text-[10px] text-zinc-400">dashboard_admin_settings</span>. Placeholders:{" "}
+          Not used while Vercel cron is off. Stored in{" "}
+          <span className="font-mono text-[10px] text-zinc-400">dashboard_admin_settings</span>. Placeholders:{" "}
           <span className="font-mono text-[10px] text-zinc-400">{"{dateUtc}"}</span>,{" "}
           <span className="font-mono text-[10px] text-zinc-400">{"{datePacific}"}</span> (head lines), and in{" "}
           <span className="font-mono text-[10px] text-zinc-400">row line</span>:{" "}

@@ -3,6 +3,7 @@ import {
   getDashboardAdminSettings,
   patchDashboardAdminSettings,
 } from "@/lib/dashboardAdminSettingsDb";
+import { invalidateSocialFeedSettingsCache } from "@/lib/socialFeedSettings";
 import { invalidateSiteOperationalStateCache } from "@/lib/siteOperationalState";
 import { clearSessionInvalidationEpochCache } from "@/lib/sessionInvalidationEpoch";
 import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
@@ -280,6 +281,9 @@ export async function PATCH(req: Request) {
       );
     }
   }
+  if (typeof o.social_feed_enabled === "boolean") {
+    patch.social_feed_enabled = o.social_feed_enabled;
+  }
 
   if ("announcement_visible_from" in patch || "announcement_visible_until" in patch) {
     const cur = await getDashboardAdminSettings();
@@ -309,6 +313,7 @@ export async function PATCH(req: Request) {
     );
   }
   invalidateSiteOperationalStateCache();
+  invalidateSocialFeedSettingsCache();
   invalidateStatsCutoverCache();
   return Response.json({ success: true, settings: row });
 }

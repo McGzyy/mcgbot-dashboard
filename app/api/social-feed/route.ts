@@ -1,5 +1,6 @@
 import type { SocialFeedCategorySlug } from "@/lib/socialFeedCategories";
 import { normalizeCategoryOther, parseSocialFeedCategorySlug } from "@/lib/socialFeedCategories";
+import { isSocialFeedEnabled } from "@/lib/socialFeedSettings";
 import { maybeRefreshSocialFeedFromX } from "@/lib/socialFeedXIngest";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -49,6 +50,17 @@ function formatLikeMetric(n: number | null | undefined): string | undefined {
 }
 
 export async function GET(request: Request) {
+  const enabled = await isSocialFeedEnabled();
+  if (!enabled) {
+    return Response.json({
+      success: true,
+      enabled: false,
+      category: "all",
+      rows: [],
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
   const db = getSupabaseAdmin();
   if (!db) {
     return Response.json({ success: false, error: "Supabase not configured" }, { status: 503 });
@@ -205,6 +217,7 @@ export async function GET(request: Request) {
 
   return Response.json({
     success: true,
+    enabled: true,
     category,
     rows,
     updatedAt: new Date().toISOString(),

@@ -95,6 +95,21 @@ export async function runXLeaderboardDigestCron(
 ): Promise<XLeaderboardDigestCronResult> {
   const posts: XLeaderboardDigestCronResult["posts"] = [];
 
+  /**
+   * Production D/W/M digests with terminal chart PNGs are posted from the Discord bot
+   * (`utils/xLeaderboardDigest.js` → buildLeaderboardDigestBody + buildDailySnapshotModulesPng).
+   * This Vercel cron only posted text-only trophy lines (formatDigestTweet) and duplicated the
+   * daily slot — including a link preview card from /leaderboard, not the dual-panel image.
+   */
+  const vercelCronForced = envFlag(process.env.X_LEADERBOARD_DIGEST_VERCEL_CRON_ENABLED);
+  if (!vercelCronForced) {
+    return {
+      skipped:
+        "Rich digest posts run on the Discord bot only (Daily snapshot + charts). Vercel cron digest is off.",
+      posts,
+    };
+  }
+
   if (!envFlag(process.env.X_LEADERBOARD_DIGEST_ENABLED)) {
     return { skipped: "X_LEADERBOARD_DIGEST_ENABLED is not true", posts };
   }

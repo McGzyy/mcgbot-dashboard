@@ -4231,6 +4231,7 @@ export default function Home() {
   const [yourRankLoading, setYourRankLoading] = useState(true);
 
   const [widgets, setWidgets] = useState<WidgetsEnabled | null>(null);
+  const [socialFeedEnabled, setSocialFeedEnabled] = useState(false);
   const [submitCallOpen, setSubmitCallOpen] = useState(false);
   const [addWatchlistOpen, setAddWatchlistOpen] = useState(false);
   const [alertsModalOpen, setAlertsModalOpen] = useState(false);
@@ -4318,6 +4319,26 @@ export default function Home() {
     url.searchParams.delete("error_description");
     window.history.replaceState({}, "", url.toString());
   }, [addNotification, status]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/social-feed/status", { credentials: "same-origin", cache: "no-store" })
+      .then((res) => res.json().catch(() => ({})))
+      .then((j: unknown) => {
+        if (cancelled) return;
+        const enabled =
+          j &&
+          typeof j === "object" &&
+          (j as { enabled?: unknown }).enabled === true;
+        setSocialFeedEnabled(enabled);
+      })
+      .catch(() => {
+        if (!cancelled) setSocialFeedEnabled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -5290,9 +5311,11 @@ export default function Home() {
           )}
           </div>
 
-          <div data-tutorial="dashboard.socialFeed">
-          <SocialsFeedPanel />
-          </div>
+          {socialFeedEnabled ? (
+            <div data-tutorial="dashboard.socialFeed">
+              <SocialsFeedPanel />
+            </div>
+          ) : null}
 
           {widgets !== null && widgetEnabled(widgets, "discord_chat") && (
             <div data-tutorial="dashboard.discordChat">
