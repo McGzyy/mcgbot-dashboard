@@ -17,6 +17,7 @@ type PlanRow = {
   active: boolean;
   created_at: string;
   stripe_price_id: string | null;
+  product_tier: string | null;
 };
 
 function money(n: number): string {
@@ -38,6 +39,7 @@ type PatchBody = Partial<{
   sortOrder: number;
   active: boolean;
   stripePriceId: string | null;
+  productTier: "basic" | "pro";
 }>;
 
 const emptyDraft = {
@@ -48,6 +50,7 @@ const emptyDraft = {
   discountPercent: 0,
   sortOrder: 1,
   stripePriceId: "",
+  productTier: "basic" as "basic" | "pro",
 };
 
 export function SubscriptionPlansAdminClient() {
@@ -161,6 +164,7 @@ export function SubscriptionPlansAdminClient() {
           sortOrder: draft.sortOrder,
           active: true,
           stripePriceId: draft.stripePriceId.trim() || null,
+          productTier: draft.productTier,
         }),
       });
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; row?: PlanRow; error?: string };
@@ -307,7 +311,24 @@ export function SubscriptionPlansAdminClient() {
                 className="mt-1 h-10 w-full rounded-lg border border-zinc-800/70 bg-[#060606] px-3 text-sm text-zinc-200 outline-none transition focus:border-zinc-700 focus:ring-2 focus:ring-[color:var(--accent)]/15 disabled:opacity-60"
               />
             </label>
-            <label className="sm:col-span-6">
+            <label>
+              <span className="block text-[11px] font-semibold text-zinc-400">Product tier</span>
+              <select
+                value={draft.productTier}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    productTier: e.target.value === "pro" ? "pro" : "basic",
+                  }))
+                }
+                disabled={creating}
+                className="mt-1 h-10 w-full rounded-lg border border-zinc-800/70 bg-[#060606] px-3 text-sm text-zinc-200 outline-none transition focus:border-zinc-700 focus:ring-2 focus:ring-[color:var(--accent)]/15 disabled:opacity-60"
+              >
+                <option value="basic">Basic</option>
+                <option value="pro">Pro</option>
+              </select>
+            </label>
+            <label className="sm:col-span-5">
               <span className="block text-[11px] font-semibold text-zinc-400">Stripe Price id (optional)</span>
               <input
                 value={draft.stripePriceId}
@@ -350,6 +371,15 @@ export function SubscriptionPlansAdminClient() {
                         <p className="text-sm font-semibold text-white">{r.label}</p>
                         <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] font-semibold text-zinc-300">
                           {r.slug}
+                        </span>
+                        <span
+                          className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase ${
+                            (r.product_tier ?? "basic") === "pro"
+                              ? "border-sky-500/30 bg-sky-500/10 text-sky-100"
+                              : "border-zinc-600/50 bg-zinc-800/50 text-zinc-300"
+                          }`}
+                        >
+                          {(r.product_tier ?? "basic") === "pro" ? "Pro" : "Basic"}
                         </span>
                         {r.active ? (
                           <span className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-200/90">
@@ -469,7 +499,24 @@ export function SubscriptionPlansAdminClient() {
                       />
                     </label>
 
-                    <label className="sm:col-span-6">
+                    <label className="sm:col-span-1">
+                      <span className="block text-[11px] font-semibold text-zinc-400">Tier</span>
+                      <select
+                        defaultValue={(r.product_tier ?? "basic") === "pro" ? "pro" : "basic"}
+                        onChange={(e) => {
+                          const v = e.target.value === "pro" ? "pro" : "basic";
+                          const prev = (r.product_tier ?? "basic") === "pro" ? "pro" : "basic";
+                          if (v !== prev) void patch(r.id, { productTier: v });
+                        }}
+                        disabled={busy || creating}
+                        className="mt-1 h-10 w-full rounded-lg border border-zinc-800/70 bg-[#060606] px-3 text-sm text-zinc-200 outline-none transition focus:border-zinc-700 focus:ring-2 focus:ring-[color:var(--accent)]/15 disabled:opacity-60"
+                      >
+                        <option value="basic">Basic</option>
+                        <option value="pro">Pro</option>
+                      </select>
+                    </label>
+
+                    <label className="sm:col-span-5">
                       <span className="block text-[11px] font-semibold text-zinc-400">Stripe Price id</span>
                       <input
                         key={`stripe-${r.id}-${r.stripe_price_id ?? ""}`}

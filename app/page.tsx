@@ -1143,6 +1143,12 @@ function activityLineLabel(item: ActivityItem): string {
   return item.username.trim();
 }
 
+function isOutsideActivityItem(item: ActivityItem): boolean {
+  if (item.outsideCallId?.trim()) return true;
+  if (item.type === "call" && (item.callSource ?? "").toLowerCase() === "outside") return true;
+  return Boolean(parseOutsideActivityLineText(item.text));
+}
+
 type NotificationPrefs = {
   own_calls: boolean;
   include_following: boolean;
@@ -2612,6 +2618,7 @@ type ActivityFeedPanelProps = {
   badgesByUser?: Record<string, string[]>;
   viewerId?: string;
   viewerName?: string | null;
+  hasProFeatures?: boolean;
 };
 
 function activityFeedRowTintClass(item: ActivityItem): string {
@@ -2662,17 +2669,27 @@ function ActivityFeedPanel({
   badgesByUser,
   viewerId,
   viewerName,
+  hasProFeatures = true,
 }: ActivityFeedPanelProps) {
   const filteredActivity = useMemo(() => {
+    let rows = activity;
     if (feedMode === "me") {
       const me = (viewerId ?? "").trim();
       if (!me) return [];
-      return activity.filter((a) => a.discordId.trim() === me);
+      rows = activity.filter((a) => a.discordId.trim() === me);
+    } else if (feedMode === "milestones") {
+      rows = activity.filter((a) => a.type === "win");
+    } else if (feedMode === "calls") {
+      rows = activity.filter((a) => a.type === "call");
     }
-    if (feedMode === "milestones") return activity.filter((a) => a.type === "win");
-    if (feedMode === "calls") return activity.filter((a) => a.type === "call");
-    return activity;
-  }, [activity, feedMode, viewerId]);
+    if (hasProFeatures) return rows;
+    return rows.filter((a) => !isOutsideActivityItem(a));
+  }, [activity, feedMode, hasProFeatures, viewerId]);
+
+  const outsideHiddenCount = useMemo(() => {
+    if (hasProFeatures) return 0;
+    return activity.filter((a) => isOutsideActivityItem(a)).length;
+  }, [activity, hasProFeatures]);
 
   const { addNotification } = useNotifications();
   const [watchlistAddingMint, setWatchlistAddingMint] = useState<string | null>(null);
@@ -2901,6 +2918,15 @@ function ActivityFeedPanel({
             })}
           </ul>
         )}
+        {!hasProFeatures && outsideHiddenCount > 0 ? (
+          <div className="mt-3 px-1">
+            <ProUpgradePrompt
+              className="text-left"
+              title="Outside calls hidden on Basic"
+              description={`${outsideHiddenCount} Outside Call${outsideHiddenCount === 1 ? "" : "s"} in the live feed — upgrade to Pro to see them here.`}
+            />
+          </div>
+        ) : null}
         </div>
       </div>
 
@@ -5329,6 +5355,7 @@ export default function Home() {
                 badgesByUser={badgesByUser}
                 viewerId={session.user.id}
                 viewerName={session.user.name}
+                hasProFeatures={hasProFeatures}
               />
             </div>
           )}

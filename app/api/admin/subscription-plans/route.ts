@@ -16,10 +16,17 @@ type PlanRow = {
   active: boolean;
   created_at: string;
   stripe_price_id: string | null;
+  product_tier: string | null;
 };
 
 const SELECT_PLAN =
-  "id, slug, label, billing_months, duration_days, price_usd, discount_percent, sort_order, active, created_at, stripe_price_id";
+  "id, slug, label, billing_months, duration_days, price_usd, discount_percent, sort_order, active, created_at, stripe_price_id, product_tier";
+
+function normalizeProductTierField(raw: unknown): { ok: true; value: "basic" | "pro" } | { ok: false; error: string } {
+  const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (s === "pro" || s === "basic") return { ok: true, value: s };
+  return { ok: false, error: "product_tier must be basic or pro." };
+}
 
 function normalizeSlug(raw: unknown): string | null {
   const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
@@ -143,6 +150,14 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "That slug is already in use." }, { status: 409 });
   }
 
+  let product_tier: "basic" | "pro" = slug.startsWith("pro-") ? "pro" : "basic";
+  if ("product_tier" in body || "productTier" in body) {
+    const raw = "productTier" in body ? body.productTier : body.product_tier;
+    const parsed = normalizeProductTierField(raw);
+    if (!parsed.ok) return Response.json({ ok: false, error: parsed.error }, { status: 400 });
+    product_tier = parsed.value;
+  }
+
   const { data, error } = await db
     .from("subscription_plans")
     .insert({
@@ -155,6 +170,7 @@ export async function POST(req: Request) {
       sort_order: sortOrder,
       active,
       stripe_price_id,
+      product_tier,
     })
     .select(SELECT_PLAN)
     .maybeSingle();
@@ -260,6 +276,13 @@ export async function PATCH(req: Request) {
     const parsed = parseStripePriceIdField(raw);
     if (!parsed.ok) return Response.json({ ok: false, error: parsed.error }, { status: 400 });
     patch.stripe_price_id = parsed.value;
+  }
+
+  if ("product_tier" in o || "productTier" in o) {
+    const raw = "productTier" in o ? o.productTier : o.product_tier;
+    const parsed = normalizeProductTierField(raw);
+    if (!parsed.ok) return Response.json({ ok: false, error: parsed.error }, { status: 400 });
+    patch.product_tier = parsed.value;
   }
 
   if (Object.keys(patch).length === 0) {

@@ -8,23 +8,13 @@ import { useSearchParams } from "next/navigation";
 
 import { DISCORD_SERVER_INVITE_URL } from "@/lib/discordInvite";
 import { membershipPaywallUserMessage } from "@/lib/membershipPaywallUserMessage";
-import {
-  MembershipSolCheckout,
-  MembershipSolPayNote,
-} from "@/app/membership/MembershipSolCheckout";
+import { MembershipBillingSection, type MembershipPlan } from "@/app/membership/MembershipBillingSection";
 import { MembershipProductCompare } from "@/app/membership/MembershipProductCompare";
 import { MembershipTestToolsFloat } from "@/app/membership/MembershipTestToolsFloat";
+import { ProBadge } from "@/app/components/subscription/ProBadge";
+import { TIER_MARKETING } from "@/lib/subscription/planTiers";
 
-type Plan = {
-  slug: string;
-  label: string;
-  priceUsd: number;
-  listPriceUsd?: number;
-  discountPercent?: number;
-  durationDays: number;
-  billingMonths: number;
-  productTier?: "basic" | "pro";
-};
+type Plan = MembershipPlan;
 
 type CheckoutVoucherOk = {
   success: true;
@@ -56,18 +46,6 @@ function formatExpiry(iso: string): string {
 function resolveDiscordInviteUrl(siteFlags: SiteFlags | null): string {
   const fromSite = siteFlags?.discord_invite_url?.trim();
   return fromSite || DISCORD_SERVER_INVITE_URL;
-}
-
-function billingCadenceLabel(billingMonths: number, durationDays: number): string {
-  const m = Math.max(0, Math.floor(Number(billingMonths) || 0));
-  if (m === 1) return "Billed every month";
-  if (m === 3) return "Billed every 3 months";
-  if (m === 6) return "Billed every 6 months";
-  if (m === 12) return "Billed once per year";
-  if (m > 1) return `Billed every ${m} months`;
-  const d = Math.floor(Number(durationDays));
-  if (d > 0) return `Renews on a ${d}-day cycle`;
-  return "Recurring in Stripe";
 }
 
 type GuildGateState =
@@ -103,9 +81,19 @@ export default function MembershipPage() {
   const [siteFlags, setSiteFlags] = useState<SiteFlags | null>(null);
   const [guildGate, setGuildGate] = useState<GuildGateState>({ status: "idle" });
   const [guildGateRetry, setGuildGateRetry] = useState(0);
-  const [productLine, setProductLine] = useState<"basic" | "pro">("basic");
+  const lineParam = (searchParams?.get("line") ?? searchParams?.get("productLine") ?? "").trim().toLowerCase();
+  const [productLine, setProductLine] = useState<"basic" | "pro">(
+    lineParam === "pro" ? "pro" : "basic"
+  );
+
+  useEffect(() => {
+    if (lineParam === "pro" || lineParam === "basic") setProductLine(lineParam);
+  }, [lineParam]);
 
   const active = Boolean(session?.user?.hasActiveSubscription);
+  const userProductTier =
+    session?.user?.productTier === "pro" ? "pro" : ("basic" as const);
+  const hasProFeatures = Boolean(session?.user?.hasProFeatures);
   const hasAccess = Boolean(session?.user?.hasDashboardAccess);
   const exempt = Boolean(session?.user?.subscriptionExempt);
   const periodEnd = session?.user?.subscriptionActiveUntil ?? null;
@@ -146,14 +134,14 @@ export default function MembershipPage() {
         };
         if (cancelled) return;
         if (res.ok && json.success) {
-          setPollNote("Payment confirmed. Activating your session…");
+          setPollNote("Payment confirmed. Activating your session?");
           await update({ refreshAccess: true });
         } else if (!json.success) {
           setCheckoutError(membershipPaywallUserMessage(res.status, json, "stripe_verify_session"));
         }
       } catch {
         if (!cancelled) {
-          setCheckoutError("Could not verify payment. It may still process — refresh in a moment.");
+          setCheckoutError("Could not verify payment. It may still process ? refresh in a moment.");
         }
       }
       try {
@@ -180,7 +168,7 @@ export default function MembershipPage() {
         const json = (await res.json().catch(() => ({}))) as { success?: boolean; active?: boolean };
         if (cancelled || !res.ok) return;
         if (json.success && json.active) {
-          setPollNote("You have access. Refreshing your session…");
+          setPollNote("You have access. Refreshing your session?");
           await update({ refreshAccess: true });
         }
       } catch {
@@ -457,7 +445,7 @@ export default function MembershipPage() {
       }
 
       if (json.activated === true && json.via === "voucher") {
-        setPollNote("Access granted. Refreshing your session…");
+        setPollNote("Access granted. Refreshing your session?");
         await update({ refreshAccess: true });
         return;
       }
@@ -538,7 +526,7 @@ export default function MembershipPage() {
         return;
       }
       if (json.activated === true && json.via === "voucher") {
-        setPollNote("Complimentary access activated. Refreshing your session…");
+        setPollNote("Complimentary access activated. Refreshing your session?");
         setComplimentaryCode("");
         setShowComplimentary(false);
         await update({ refreshAccess: true });
@@ -552,17 +540,26 @@ export default function MembershipPage() {
     }
   }, [complimentaryCode, selectedSlug, update]);
 
+  const showUpgradeCheckout =
+    hasAccess && active && !hasProFeatures && !exempt &&
+    (lineParam === "pro" || searchParams?.get("upgrade") === "1");
+
+  useEffect(() => {
+    if (showUpgradeCheckout) setProductLine("pro");
+  }, [showUpgradeCheckout]);
+
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[color:var(--mcg-page)] px-6 text-sm text-zinc-400">
-        Loading…
+        Loading?
       </div>
     );
   }
 
-  if (hasAccess) {
+  if (hasAccess && !showUpgradeCheckout) {
     const accessPill = active ? "Paid membership active" : exempt ? "Staff / exempt access" : "Dashboard access";
     const discordInvite = resolveDiscordInviteUrl(siteFlags);
+    const tierLabel = TIER_MARKETING[userProductTier].title;
 
     return (
       <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
@@ -573,7 +570,7 @@ export default function MembershipPage() {
 
         <header className="sticky top-0 z-10 border-b border-zinc-800/80 bg-black/40 px-4 py-4 backdrop-blur sm:px-6">
           <div className="mx-auto flex max-w-5xl items-center justify-between">
-            <Link href="/" className="flex min-w-0 items-center" aria-label="McGBot Terminal — home">
+            <Link href="/" className="flex min-w-0 items-center" aria-label="McGBot Terminal ? home">
               <Image
                 src="/brand/mcgbot-terminal-logo.png"
                 alt="McGBot Terminal"
@@ -620,16 +617,32 @@ export default function MembershipPage() {
               )}
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-[color:var(--accent)]/35 bg-[color:var(--accent)]/10 px-3 py-1.5 text-xs font-medium text-[color:var(--accent)]/95">
                 {accessPill}
               </span>
+              <span className="rounded-full border border-zinc-700/60 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-200">
+                {tierLabel} plan
+              </span>
+              {hasProFeatures ? <ProBadge size="sm" /> : null}
               {!active && exempt ? (
                 <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs text-sky-100/90">
                   No payment required for access
                 </span>
               ) : null}
             </div>
+
+            {active && !hasProFeatures && !exempt ? (
+              <p className="mt-4 text-sm text-zinc-400">
+                Upgrade to Pro for Outside Calls, social feed, and full alerts.{" "}
+                <Link
+                  href="/membership?line=pro&upgrade=1"
+                  className="font-semibold text-sky-300 hover:text-sky-200"
+                >
+                  View Pro plans
+                </Link>
+              </p>
+            ) : null}
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <Link
@@ -693,7 +706,7 @@ export default function MembershipPage() {
         onStripeTest={() => void startTestCheckout()}
         solTestDisabled={!checkoutAllowed}
         onSolActivated={async () => {
-          setPollNote("Payment confirmed. Activating your session…");
+          setPollNote("Payment confirmed. Activating your session?");
           await update({ refreshAccess: true });
         }}
       />
@@ -704,7 +717,7 @@ export default function MembershipPage() {
 
       <header className="sticky top-0 z-10 border-b border-zinc-800/80 bg-black/40 px-4 py-4 backdrop-blur sm:px-6">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <Link href="/" className="flex min-w-0 items-center" aria-label="McGBot Terminal — home">
+          <Link href="/" className="flex min-w-0 items-center" aria-label="McGBot Terminal ? home">
             <Image
               src="/brand/mcgbot-terminal-logo.png"
               alt="McGBot Terminal"
@@ -746,7 +759,7 @@ export default function MembershipPage() {
             </h1>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300/90">
               Pay with Stripe (card) or SOL (wallet). Stripe renewals follow your plan&apos;s billing cycle until you
-              cancel. SOL renewals are confirmed in your wallet when you choose to extend — each successful payment
+              cancel. SOL renewals are confirmed in your wallet when you choose to extend ? each successful payment
               extends dashboard access the same way.
             </p>
             {siteFlags?.paywall_subtitle ? (
@@ -769,16 +782,16 @@ export default function MembershipPage() {
             <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-3 py-1.5 text-zinc-200">
               Server:{" "}
               {!isLoggedIn
-                ? "—"
+                ? "?"
                 : guildGateLoading
-                  ? "Checking…"
+                  ? "Checking?"
                   : guildGateReady && !guildGate.guildMembershipKnown
                     ? "Could not verify"
                     : guildGateReady && guildGate.inGuild
                       ? "Member"
                       : guildGateReady
                         ? "Not joined"
-                        : "—"}
+                        : "?"}
             </span>
             <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-3 py-1.5 text-zinc-200">
               Access:{" "}
@@ -788,7 +801,7 @@ export default function MembershipPage() {
                   ? "Active"
                   : "Not active"}
               {periodEnd && isLoggedIn ? (
-                <span className="text-zinc-400"> · until {formatExpiry(periodEnd)}</span>
+                <span className="text-zinc-400"> ? until {formatExpiry(periodEnd)}</span>
               ) : null}
             </span>
           </div>
@@ -796,7 +809,7 @@ export default function MembershipPage() {
 
         {anonPreview ? (
           <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[#5865F2]/45 bg-[linear-gradient(135deg,rgba(88,101,242,0.18),rgba(24,24,27,0.85))] p-5 shadow-[0_20px_60px_rgba(88,101,242,0.12)] sm:p-6">
-            <p className="text-sm font-semibold text-zinc-50">You&apos;re viewing plans — checkout is locked</p>
+            <p className="text-sm font-semibold text-zinc-50">You&apos;re viewing plans ? checkout is locked</p>
             <p className="mt-2 text-sm leading-relaxed text-zinc-300">
               Tiers below are a preview only (greyed out). To purchase you must{" "}
               <span className="font-medium text-zinc-100">sign in with Discord</span> and{" "}
@@ -917,278 +930,74 @@ export default function MembershipPage() {
 
         <MembershipProductCompare />
 
-        <section className="mx-auto w-full max-w-6xl">
-          <div className="rounded-3xl border border-zinc-800/80 bg-[linear-gradient(165deg,rgba(39,39,42,0.75)_0%,rgba(9,9,11,0.92)_45%,rgba(0,0,0,0.55)_100%)] p-6 shadow-[0_32px_120px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.04] sm:p-8">
-            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
-                  Choose billing
-                </p>
-                <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-300">
-                  Pick how often you want to be billed, then pay with Stripe or SOL. If you have a{" "}
-                  <strong className="font-medium text-zinc-100">Stripe promotion code</strong>, enter it on
-                  Stripe&apos;s checkout page (not here).
-                </p>
-              </div>
-              <a
-                href={resolveDiscordInviteUrl(siteFlags)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-zinc-700/60 bg-zinc-900/50 px-3.5 py-2 text-xs font-semibold text-zinc-200 transition hover:border-[#949cf7]/50 hover:bg-zinc-800/80 hover:text-white"
-              >
-                Open Discord
-              </a>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-2">
-              {(["basic", "pro"] as const).map((line) => (
-                <button
-                  key={line}
-                  type="button"
-                  onClick={() => setProductLine(line)}
-                  className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] transition ${
-                    productLine === line
-                      ? line === "pro"
-                        ? "border-sky-400/50 bg-sky-500/15 text-sky-100"
-                        : "border-emerald-400/50 bg-emerald-500/15 text-emerald-100"
-                      : "border-zinc-700/70 bg-zinc-900/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-                  }`}
-                >
-                  {line === "basic" ? "Basic" : "Pro"}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-6 space-y-6">
-        {siteFlags?.maintenance_enabled && isDashboardAdmin ? (
-          <p className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            Maintenance mode is on for everyone else. You can still use checkout as a dashboard admin.
-          </p>
-        ) : null}
-
-        {siteFlags?.public_signups_paused && !isDashboardAdmin ? (
-          <p className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            New checkouts are temporarily paused. You can review plans below; the checkout button stays disabled until
-            staff re-opens signups.
-          </p>
-        ) : null}
-
-        {siteFlags?.public_signups_paused && isDashboardAdmin ? (
-          <p className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/90">
-            New checkouts are paused for members, but your admin session can still start checkout for testing.
-          </p>
-        ) : null}
-
-            {plansError ? (
-              <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{plansError}</p>
-            ) : plans == null ? (
-              <p className="text-sm text-zinc-500">Loading plans…</p>
-            ) : plansForLine.length === 0 ? (
-              <p className="text-sm text-zinc-500">
-                No {productLine === "pro" ? "Pro" : "Basic"} billing options are configured yet. Run the latest
-                Supabase migrations or add plans in Admin.
-              </p>
-            ) : (
-              <div
-                className={
-                  planCardsVisuallyLocked
-                    ? "pointer-events-none select-none grid gap-4 opacity-[0.5] grayscale sm:grid-cols-2 xl:grid-cols-4"
-                    : "grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
-                }
-              >
-                {plansForLine.map((p) => {
-                  const sel = p.slug === selectedSlug;
-                  const featured = featuredSlug && p.slug === featuredSlug;
-                  const discountPercent = Math.max(0, Math.min(100, Math.round(Number(p.discountPercent ?? 0) || 0)));
-                  const listPriceUsd = Number.isFinite(Number(p.listPriceUsd)) ? Number(p.listPriceUsd) : null;
-                  const showDiscount = discountPercent > 0 && listPriceUsd != null && listPriceUsd > p.priceUsd;
-                  const savingsUsd =
-                    showDiscount && listPriceUsd != null ? Math.max(0, listPriceUsd - p.priceUsd) : 0;
-                  return (
-                    <button
-                      key={p.slug}
-                      type="button"
-                      onClick={() => setSelectedSlug(p.slug)}
-                      className={[
-                        "group relative flex min-h-[176px] flex-col overflow-hidden rounded-2xl border text-left shadow-lg transition sm:min-h-[188px]",
-                        sel
-                          ? "border-emerald-400/50 bg-[linear-gradient(165deg,rgba(6,78,59,0.35)_0%,rgba(0,0,0,0.5)_55%)] shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_24px_60px_rgba(0,0,0,0.55)] ring-1 ring-emerald-400/25"
-                          : "border-zinc-800/90 bg-[linear-gradient(165deg,rgba(39,39,42,0.55)_0%,rgba(0,0,0,0.42)_100%)] hover:border-zinc-600/80 hover:shadow-xl",
-                      ].join(" ")}
-                    >
-                      {featured ? (
-                        <div className="flex items-center justify-end border-b border-amber-500/20 bg-amber-500/10 px-3 py-1.5">
-                          <span className="rounded-full border border-amber-200/70 bg-amber-400/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-amber-950">
-                            Best value
-                          </span>
-                        </div>
-                      ) : null}
-
-                      <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
-                        <div className="absolute -top-20 left-1/2 h-44 w-72 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.2),transparent_62%)] blur-2xl" />
-                      </div>
-
-                      <div className="relative flex flex-1 flex-col px-5 pb-5 pt-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 pr-1">
-                            <span className="block text-lg font-semibold tracking-tight text-white">{p.label}</span>
-                            <span className="mt-1.5 block text-[12px] leading-snug text-zinc-400">
-                              {billingCadenceLabel(p.billingMonths, p.durationDays)}
-                            </span>
-                          </div>
-                          {p.productTier ? (
-                            <span
-                              className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${
-                                p.productTier === "pro"
-                                  ? "border-sky-500/35 bg-sky-500/15 text-sky-100"
-                                  : "border-zinc-600/60 bg-zinc-800/60 text-zinc-300"
-                              }`}
-                            >
-                              {p.productTier}
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <div className="mt-auto pt-6">
-                          <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
-                            <span className="text-[28px] font-bold leading-none tabular-nums tracking-tight text-white sm:text-[30px]">
-                              ${p.priceUsd.toFixed(2)}
-                            </span>
-                            <span className="pb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-                              USD / period
-                            </span>
-                          </div>
-                          {showDiscount ? (
-                            <p className="mt-2 text-[11px] text-zinc-500">
-                              <span className="tabular-nums line-through decoration-zinc-600">
-                                ${listPriceUsd!.toFixed(2)}
-                              </span>
-                              <span className="text-zinc-600"> · </span>
-                              <span className="font-medium text-emerald-300/90">
-                                {discountPercent}% off
-                              </span>
-                              {savingsUsd > 0 ? (
-                                <span className="text-zinc-600">
-                                  {" "}
-                                  (save ${savingsUsd.toFixed(2)})
-                                </span>
-                              ) : null}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="mt-6 flex flex-col gap-3">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-stretch">
-                <button
-                  type="button"
-                  disabled={busy || testCheckoutBusy || !selectedPlan || !checkoutAllowed}
-                  aria-busy={busy || testCheckoutBusy}
-                  onClick={() => void startCheckout()}
-                  className="h-12 w-full rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_24px_80px_rgba(34,197,94,0.22)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {busy ? "Redirecting…" : siteFlags?.subscribe_button_label?.trim() || "Pay with Stripe"}
-                </button>
-                <MembershipSolCheckout
-                  compactPrimary
-                  disabled={!checkoutAllowed}
-                  selectedPlanSlug={selectedSlug}
-                  onActivated={async () => {
-                    setPollNote("Payment confirmed. Activating your session…");
-                    await update({ refreshAccess: true });
-                  }}
-                />
-              </div>
-
-              {isLoggedIn && guildGateLoading ? (
-                <p className="text-center text-xs text-amber-200/85" role="status">
-                  Checking Discord server membership… pay buttons unlock when we confirm you are in the server.
-                </p>
-              ) : null}
-
-              <MembershipSolPayNote />
-
-              <p className="text-center text-xs text-zinc-500">
-                Stripe checkout is hosted by Stripe. SOL checkout is signed in your wallet on Solana.
-              </p>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/60 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowComplimentary((v) => !v);
-                    setRedeemError(null);
-                  }}
-                  className="text-xs font-semibold text-zinc-400 hover:text-zinc-200"
-                >
-                  {showComplimentary ? "Hide 100% off code" : "Have a 100% off code?"}
-                </button>
-              </div>
-
-              {showComplimentary ? (
-                <div className="rounded-2xl border border-zinc-800/70 bg-zinc-900/30 p-4">
-                  <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                    Complimentary code
-                  </label>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                    For staff-issued codes that grant access without card payment. Percent-off sales use Stripe promotion
-                    codes at checkout instead.
-                  </p>
-                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <input
-                      type="text"
-                      value={complimentaryCode}
-                      onChange={(e) => setComplimentaryCode(e.target.value)}
-                      placeholder="Enter code"
-                      className="h-11 w-full min-w-0 flex-1 rounded-xl border border-zinc-800/70 bg-black/30 px-4 text-sm text-zinc-100 outline-none ring-[color:var(--accent)]/15 transition placeholder:text-zinc-500 focus:border-zinc-600/70 focus:ring-2"
-                    />
-                    <button
-                      type="button"
-                      disabled={redeemBusy || !selectedPlan || !checkoutAllowed}
-                      aria-busy={redeemBusy}
-                      onClick={() => void redeemComplimentary()}
-                      className="h-11 shrink-0 rounded-xl border border-zinc-700/55 bg-zinc-800/50 px-4 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-700/55 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {redeemBusy ? "Applying…" : "Apply to selected plan"}
-                    </button>
-                  </div>
-                  {redeemError ? <p className="mt-2 text-xs text-red-300">{redeemError}</p> : null}
-                </div>
-              ) : null}
-            </div>
-
-        {checkoutError ? (
-          <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{checkoutError}</p>
-        ) : null}
-
-        {pollNote ? <p className="text-sm text-[color:var(--accent)]">{pollNote}</p> : null}
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <section className="rounded-2xl border border-zinc-800/70 bg-zinc-900/30 p-5 text-xs leading-relaxed text-zinc-500">
-            <p className="font-semibold text-zinc-200">What you get</p>
-            <ul className="mt-2 space-y-1.5 text-zinc-400">
-              <li>Full dashboard access (premium tools & views)</li>
-              <li>Successful payments extend your access window from your current end date</li>
-              <li>Stripe renewals sync via webhooks; SOL payments confirm on-chain immediately after your signature</li>
-            </ul>
-          </section>
-          <section className="rounded-2xl border border-zinc-800/70 bg-zinc-900/30 p-5 text-xs leading-relaxed text-zinc-500">
-            <p className="font-semibold text-zinc-200">Refunds</p>
-            <p className="mt-2">
-              For refunds, contact a moderator in the McGBot Discord. A short automated refund window after purchase is
-              planned for a later release; until then, moderators handle requests case by case.
+        {showUpgradeCheckout ? (
+          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-sky-500/25 bg-sky-500/10 px-5 py-4 text-sm text-sky-100/90">
+            <p className="font-semibold text-sky-50">Upgrade to Pro</p>
+            <p className="mt-1 text-sky-100/80">
+              Your Basic membership stays active. Choose a Pro billing period below ? checkout extends your access
+              and unlocks Pro features after payment.
             </p>
-          </section>
-        </div>
-
-            </div>
           </div>
-        </section>
+        ) : null}
+
+        <MembershipBillingSection
+          productLine={productLine}
+          onProductLineChange={setProductLine}
+          plansForLine={plansForLine}
+          plansError={plansError}
+          plansLoading={plans == null}
+          selectedSlug={selectedSlug}
+          onSelectSlug={setSelectedSlug}
+          selectedPlan={selectedPlan}
+          featuredSlug={featuredSlug}
+          planCardsVisuallyLocked={planCardsVisuallyLocked}
+          checkoutAllowed={checkoutAllowed}
+          isLoggedIn={isLoggedIn}
+          guildGateLoading={guildGateLoading}
+          busy={busy}
+          testCheckoutBusy={testCheckoutBusy}
+          subscribeButtonLabel={siteFlags?.subscribe_button_label ?? null}
+          discordInviteUrl={resolveDiscordInviteUrl(siteFlags)}
+          checkoutError={checkoutError}
+          pollNote={pollNote}
+          showComplimentary={showComplimentary}
+          onToggleComplimentary={() => {
+            setShowComplimentary((v) => !v);
+            setRedeemError(null);
+          }}
+          complimentaryCode={complimentaryCode}
+          onComplimentaryCodeChange={setComplimentaryCode}
+          redeemBusy={redeemBusy}
+          redeemError={redeemError}
+          onStartCheckout={() => void startCheckout()}
+          onRedeemComplimentary={() => void redeemComplimentary()}
+          onSolActivated={async () => {
+            setPollNote("Payment confirmed. Activating your session?");
+            await update({ refreshAccess: true });
+          }}
+          maintenanceNote={
+            siteFlags?.maintenance_enabled && isDashboardAdmin ? (
+              <p className="mb-4 rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                Maintenance mode is on for everyone else. You can still use checkout as a dashboard admin.
+              </p>
+            ) : null
+          }
+          signupsPausedNote={
+            siteFlags?.public_signups_paused && !isDashboardAdmin ? (
+              <p className="mb-4 rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                New checkouts are temporarily paused. You can review plans below; checkout unlocks when staff
+                re-opens signups.
+              </p>
+            ) : null
+          }
+          signupsPausedAdminNote={
+            siteFlags?.public_signups_paused && isDashboardAdmin ? (
+              <p className="mb-4 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/90">
+                New checkouts are paused for members, but your admin session can still start checkout for testing.
+              </p>
+            ) : null
+          }
+        />
       </main>
     </div>
   );

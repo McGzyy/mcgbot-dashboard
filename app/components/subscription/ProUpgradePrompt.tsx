@@ -19,7 +19,7 @@ export function ProUpgradePrompt({
       <h2 className="mt-2 text-lg font-semibold text-zinc-50">{title}</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-zinc-400">{description}</p>
       <Link
-        href="/membership"
+        href="/membership?line=pro"
         className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-sky-500 px-5 text-sm font-bold text-sky-950 transition hover:bg-sky-400"
       >
         View Pro plans

@@ -14,6 +14,7 @@ import {
 } from "@/lib/roleTierStyles";
 import { useMobileSidebar } from "@/app/contexts/MobileSidebarContext";
 import { userProfileHref } from "@/lib/userProfileHref";
+import { ProBadge } from "@/app/components/subscription/ProBadge";
 import {
   applyDashDiscordMarkReadPayload,
   getDashDiscordLastRead,
@@ -60,6 +61,7 @@ type SidebarBodyProps = {
   onNavigate?: () => void;
   /** When true, Copy trade nav is non-interactive with a “coming soon” badge (staff never locked). */
   copyTradeNavLocked: boolean;
+  hasProFeatures: boolean;
 };
 
 function isCallsNavPath(pathname: string): boolean {
@@ -86,6 +88,7 @@ function SidebarBody({
   getNavItemClass,
   onNavigate,
   copyTradeNavLocked,
+  hasProFeatures,
 }: SidebarBodyProps) {
   const pick = onNavigate
     ? () => {
@@ -221,20 +224,38 @@ function SidebarBody({
                   />
                   <span>Trusted Pro</span>
                 </Link>
-                <Link
-                  href="/outside-calls"
-                  onClick={pick}
-                  data-tutorial="sidebar.nav.outsideCalls"
-                  className={getSubNavItemClass(isActive(pathname, "/outside-calls"))}
-                >
-                  <div
-                    className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded ${
-                      isActive(pathname, "/outside-calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
-                    }`}
-                    aria-hidden
-                  />
-                  <span>Outside Calls</span>
-                </Link>
+                {hasProFeatures ? (
+                  <Link
+                    href="/outside-calls"
+                    onClick={pick}
+                    data-tutorial="sidebar.nav.outsideCalls"
+                    className={getSubNavItemClass(isActive(pathname, "/outside-calls"))}
+                  >
+                    <div
+                      className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded ${
+                        isActive(pathname, "/outside-calls")
+                          ? `${tierNavBarClass("user")} opacity-100`
+                          : "opacity-0"
+                      }`}
+                      aria-hidden
+                    />
+                    <span>Outside Calls</span>
+                  </Link>
+                ) : (
+                  <Link
+                    href="/membership?line=pro&upgrade=1"
+                    onClick={pick}
+                    data-tutorial="sidebar.nav.outsideCalls"
+                    className={getSubNavItemClass(false)}
+                    title="Upgrade to Pro for Outside Calls"
+                  >
+                    <div className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded opacity-0" aria-hidden />
+                    <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                      <span className="truncate text-zinc-300">Outside Calls</span>
+                      <ProBadge />
+                    </span>
+                  </Link>
+                )}
                 <Link
                   href="/hodl"
                   onClick={pick}
@@ -452,7 +473,10 @@ function SidebarBody({
             <div className={`absolute bottom-0 right-0 h-2 w-2 rounded-full ${tierStatusDotClass(viewerTier)}`} />
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm text-white">{profileName}</div>
+            <div className="flex items-center gap-2">
+              <span className="truncate text-sm text-white">{profileName}</span>
+              {hasProFeatures ? <ProBadge /> : null}
+            </div>
             <div className="truncate text-xs text-zinc-500">View profile</div>
           </div>
         </Link>
@@ -723,6 +747,10 @@ export function Sidebar() {
     onDiscordChatsNavClick: markDiscordChatsNav,
     getNavItemClass,
     copyTradeNavLocked,
+    hasProFeatures:
+      session?.user?.hasProFeatures === true ||
+      session?.user?.helpTier === "admin" ||
+      session?.user?.helpTier === "mod",
   };
 
   return (
