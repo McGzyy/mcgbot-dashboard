@@ -3,6 +3,7 @@
 import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import { normalizeXHandle } from "@/lib/outsideXCalls/normalizeXHandle";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
+import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -65,8 +66,12 @@ function OutsideXHandleControl({
 }
 
 export function OutsideCallsClient() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const isAdmin = session?.user?.helpTier === "admin";
+  const hasProFeatures =
+    session?.user?.hasProFeatures === true ||
+    session?.user?.helpTier === "admin" ||
+    session?.user?.helpTier === "mod";
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -179,6 +184,17 @@ export function OutsideCallsClient() {
       setAdminBusy(false);
     }
   }, [displayName, load, xHandle]);
+
+  if (status === "authenticated" && !hasProFeatures) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 pb-20 pt-10 sm:px-6">
+        <ProUpgradePrompt
+          title="Outside Calls is a Pro feature"
+          description="Track allow-listed X monitors and a live outside-call tape. Basic membership includes the full desk, profiles, and watchlist."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-20 pt-4 sm:px-6">

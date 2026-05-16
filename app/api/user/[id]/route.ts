@@ -20,7 +20,10 @@ import { fetchDiscordIdentity } from "@/lib/discordIdentityFetch";
 import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
+import { buildCallerProfileIntel } from "@/lib/callerProfileIntel";
+import { loadDeskRowsForIntel } from "@/lib/deskAvgCache";
 import { isPublicProfileHiddenFromViewer } from "@/lib/profileGuildVisibility";
+import { rollingSevenDaysStartUtcMs } from "@/lib/leaderboardTimeWindows";
 
 const PROFILE_RECENT_CALLS_LIMIT = 15;
 
@@ -252,6 +255,19 @@ export async function GET(
     const keyStats = computeKeyStats(statsRows);
     const callDistribution = computeCallDistribution(statsRows);
 
+    const nowMs = Date.now();
+    const deskRows = await loadDeskRowsForIntel(
+      supabase,
+      Math.min(rollingSevenDaysStartUtcMs(nowMs), nowMs - 30 * 86_400_000)
+    );
+    const callerIntel = buildCallerProfileIntel(
+      rawRows,
+      cutoverMs,
+      discordId,
+      deskRows,
+      nowMs
+    );
+
     const dbTrustedPro = Boolean((userRow as { trusted_pro?: unknown })?.trusted_pro);
     const dbIsTopCaller = Boolean((userRow as { is_top_caller?: unknown })?.is_top_caller);
 
@@ -317,6 +333,7 @@ export async function GET(
       keyStats,
       callDistribution,
       recentCalls,
+      callerIntel,
     };
 
     return new Response(

@@ -1,6 +1,10 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { normalizeAlertPrefs } from "@/lib/dashboardAlertPrefs";
+import {
+  clampAlertPrefsForProductTier,
+  normalizeAlertPrefs,
+} from "@/lib/dashboardAlertPrefs";
+import { resolveUserProductTier } from "@/lib/subscription/productTierAccess";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +65,8 @@ export async function POST(req: Request) {
       body && typeof body === "object"
         ? (body as Record<string, unknown>).prefs
         : undefined;
-    const prefs = normalizeAlertPrefs(prefsPayload);
+    const tier = await resolveUserProductTier(discordId);
+    const prefs = clampAlertPrefsForProductTier(normalizeAlertPrefs(prefsPayload), tier);
 
     const db = getSupabaseAdmin();
     if (!db) {

@@ -4,6 +4,8 @@ import DiscordProvider from "next-auth/providers/discord";
 import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
+import { resolveUserProductTier } from "@/lib/subscription/productTierAccess";
+import { tierIncludesProFeatures } from "@/lib/subscription/planTiers";
 import { discordTrustedProRoleId } from "@/lib/discordHonorRoleIds";
 import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
@@ -195,7 +197,8 @@ export const authOptions: NextAuthOptions = {
           !("subscriptionExempt" in token) ||
           typeof token.helpTier !== "string" ||
           typeof token.canModerate !== "boolean" ||
-          !("totpEnabled" in token));
+          !("totpEnabled" in token) ||
+          !("productTier" in token));
 
       const shouldRefreshAccess =
         Boolean(user) ||
@@ -415,6 +418,13 @@ export const authOptions: NextAuthOptions = {
       const cts = (token as { copyTradeAccessState?: string }).copyTradeAccessState;
       session.user.copyTradeAccessState =
         cts === "pending" || cts === "approved" || cts === "denied" || cts === "none" ? cts : "none";
+
+      const productTierRaw = (token as { productTier?: unknown }).productTier;
+      const productTier =
+        productTierRaw === "pro" || productTierRaw === "basic" ? productTierRaw : "basic";
+      (session.user as { productTier?: string }).productTier = productTier;
+      (session.user as { hasProFeatures?: boolean }).hasProFeatures =
+        tierIncludesProFeatures(productTier);
 
       // Expose Discord gate status to the client for UX.
       (session.user as any).discordInGuild =

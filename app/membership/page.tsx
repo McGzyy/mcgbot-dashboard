@@ -12,6 +12,7 @@ import {
   MembershipSolCheckout,
   MembershipSolPayNote,
 } from "@/app/membership/MembershipSolCheckout";
+import { MembershipProductCompare } from "@/app/membership/MembershipProductCompare";
 import { MembershipTestToolsFloat } from "@/app/membership/MembershipTestToolsFloat";
 
 type Plan = {
@@ -22,6 +23,7 @@ type Plan = {
   discountPercent?: number;
   durationDays: number;
   billingMonths: number;
+  productTier?: "basic" | "pro";
 };
 
 type CheckoutVoucherOk = {
@@ -101,6 +103,7 @@ export default function MembershipPage() {
   const [siteFlags, setSiteFlags] = useState<SiteFlags | null>(null);
   const [guildGate, setGuildGate] = useState<GuildGateState>({ status: "idle" });
   const [guildGateRetry, setGuildGateRetry] = useState(0);
+  const [productLine, setProductLine] = useState<"basic" | "pro">("basic");
 
   const active = Boolean(session?.user?.hasActiveSubscription);
   const hasAccess = Boolean(session?.user?.hasDashboardAccess);
@@ -365,6 +368,9 @@ export default function MembershipPage() {
             Number.isFinite(billingMonthsRaw) && billingMonthsRaw >= 1
               ? Math.floor(billingMonthsRaw)
               : Math.max(1, Math.round(durationDays / 30));
+          const tierRaw = (raw as { productTier?: unknown }).productTier;
+          const productTier =
+            tierRaw === "pro" || tierRaw === "basic" ? tierRaw : undefined;
           return {
             slug: raw.slug,
             label: raw.label,
@@ -373,6 +379,7 @@ export default function MembershipPage() {
             discountPercent: raw.discountPercent,
             durationDays,
             billingMonths,
+            productTier,
           };
         });
         setPlans(normalized);
@@ -390,16 +397,28 @@ export default function MembershipPage() {
     };
   }, []);
 
+  const plansForLine = useMemo(() => {
+    if (!plans?.length) return [];
+    return plans.filter((p) => (p.productTier ?? "basic") === productLine);
+  }, [plans, productLine]);
+
+  useEffect(() => {
+    if (!plansForLine.length) return;
+    if (!plansForLine.some((p) => p.slug === selectedSlug)) {
+      setSelectedSlug(plansForLine[0]!.slug);
+    }
+  }, [plansForLine, productLine, selectedSlug]);
+
   const selectedPlan = useMemo(
-    () => plans?.find((p) => p.slug === selectedSlug) ?? null,
-    [plans, selectedSlug]
+    () => plansForLine.find((p) => p.slug === selectedSlug) ?? null,
+    [plansForLine, selectedSlug]
   );
 
   const featuredSlug = useMemo(() => {
-    if (!plans?.length) return "";
-    let best = plans[0]!;
+    if (!plansForLine.length) return "";
+    let best = plansForLine[0]!;
     let bestScore = best.durationDays > 0 ? best.priceUsd / best.durationDays : Number.POSITIVE_INFINITY;
-    for (const p of plans) {
+    for (const p of plansForLine) {
       const score = p.durationDays > 0 ? p.priceUsd / p.durationDays : Number.POSITIVE_INFINITY;
       if (score < bestScore) {
         best = p;
@@ -407,7 +426,7 @@ export default function MembershipPage() {
       }
     }
     return best.slug;
-  }, [plans]);
+  }, [plansForLine]);
 
   const startCheckout = useCallback(async () => {
     setCheckoutError(null);
@@ -896,15 +915,17 @@ export default function MembershipPage() {
           </div>
         ) : null}
 
+        <MembershipProductCompare />
+
         <section className="mx-auto w-full max-w-6xl">
           <div className="rounded-3xl border border-zinc-800/80 bg-[linear-gradient(165deg,rgba(39,39,42,0.75)_0%,rgba(9,9,11,0.92)_45%,rgba(0,0,0,0.55)_100%)] p-6 shadow-[0_32px_120px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.04] sm:p-8">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
-                  Choose a plan
+                  Choose billing
                 </p>
                 <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-300">
-                  Pick a tier, then pay with Stripe or SOL. If you have a{" "}
+                  Pick how often you want to be billed, then pay with Stripe or SOL. If you have a{" "}
                   <strong className="font-medium text-zinc-100">Stripe promotion code</strong>, enter it on
                   Stripe&apos;s checkout page (not here).
                 </p>
@@ -917,6 +938,25 @@ export default function MembershipPage() {
               >
                 Open Discord
               </a>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-2">
+              {(["basic", "pro"] as const).map((line) => (
+                <button
+                  key={line}
+                  type="button"
+                  onClick={() => setProductLine(line)}
+                  className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] transition ${
+                    productLine === line
+                      ? line === "pro"
+                        ? "border-sky-400/50 bg-sky-500/15 text-sky-100"
+                        : "border-emerald-400/50 bg-emerald-500/15 text-emerald-100"
+                      : "border-zinc-700/70 bg-zinc-900/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                  }`}
+                >
+                  {line === "basic" ? "Basic" : "Pro"}
+                </button>
+              ))}
             </div>
 
             <div className="mt-6 space-y-6">
@@ -943,6 +983,11 @@ export default function MembershipPage() {
               <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{plansError}</p>
             ) : plans == null ? (
               <p className="text-sm text-zinc-500">Loading plans…</p>
+            ) : plansForLine.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                No {productLine === "pro" ? "Pro" : "Basic"} billing options are configured yet. Run the latest
+                Supabase migrations or add plans in Admin.
+              </p>
             ) : (
               <div
                 className={
@@ -951,7 +996,7 @@ export default function MembershipPage() {
                     : "grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
                 }
               >
-                {plans.map((p) => {
+                {plansForLine.map((p) => {
                   const sel = p.slug === selectedSlug;
                   const featured = featuredSlug && p.slug === featuredSlug;
                   const discountPercent = Math.max(0, Math.min(100, Math.round(Number(p.discountPercent ?? 0) || 0)));
@@ -971,23 +1016,9 @@ export default function MembershipPage() {
                           : "border-zinc-800/90 bg-[linear-gradient(165deg,rgba(39,39,42,0.55)_0%,rgba(0,0,0,0.42)_100%)] hover:border-zinc-600/80 hover:shadow-xl",
                       ].join(" ")}
                     >
-                      {showDiscount ? (
-                        <div className="relative flex min-h-[5.25rem] flex-col justify-center bg-gradient-to-r from-emerald-600/90 via-emerald-500/85 to-teal-600/75 px-4 py-3 pr-28">
-                          {featured ? (
-                            <span className="absolute right-3 top-1/2 max-w-[calc(100%-1rem)] -translate-y-1/2 truncate rounded-full border border-amber-200/90 bg-amber-400 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.1em] text-amber-950 shadow-sm">
-                              Best value
-                            </span>
-                          ) : null}
-                          <span className="text-xl font-extrabold tracking-tight text-white drop-shadow-sm">
-                            Save {discountPercent}%
-                          </span>
-                          <span className="mt-1 text-xs font-semibold leading-snug text-emerald-50/95">
-                            You pay ${savingsUsd.toFixed(2)} less than full price
-                          </span>
-                        </div>
-                      ) : featured ? (
-                        <div className="flex min-h-[2.75rem] items-center justify-end border-b border-amber-500/25 bg-amber-500/15 px-3 py-2">
-                          <span className="rounded-full border border-amber-200/80 bg-amber-400 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-950">
+                      {featured ? (
+                        <div className="flex items-center justify-end border-b border-amber-500/20 bg-amber-500/10 px-3 py-1.5">
+                          <span className="rounded-full border border-amber-200/70 bg-amber-400/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-amber-950">
                             Best value
                           </span>
                         </div>
@@ -1005,6 +1036,17 @@ export default function MembershipPage() {
                               {billingCadenceLabel(p.billingMonths, p.durationDays)}
                             </span>
                           </div>
+                          {p.productTier ? (
+                            <span
+                              className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${
+                                p.productTier === "pro"
+                                  ? "border-sky-500/35 bg-sky-500/15 text-sky-100"
+                                  : "border-zinc-600/60 bg-zinc-800/60 text-zinc-300"
+                              }`}
+                            >
+                              {p.productTier}
+                            </span>
+                          ) : null}
                         </div>
 
                         <div className="mt-auto pt-6">
@@ -1017,14 +1059,21 @@ export default function MembershipPage() {
                             </span>
                           </div>
                           {showDiscount ? (
-                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                              <span className="text-sm font-semibold tabular-nums text-zinc-500 line-through decoration-zinc-600">
-                                Full price ${listPriceUsd!.toFixed(2)}
+                            <p className="mt-2 text-[11px] text-zinc-500">
+                              <span className="tabular-nums line-through decoration-zinc-600">
+                                ${listPriceUsd!.toFixed(2)}
                               </span>
-                              <span className="inline-flex items-center rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-200 ring-1 ring-emerald-400/35 sm:hidden">
-                                Save {discountPercent}%
+                              <span className="text-zinc-600"> · </span>
+                              <span className="font-medium text-emerald-300/90">
+                                {discountPercent}% off
                               </span>
-                            </div>
+                              {savingsUsd > 0 ? (
+                                <span className="text-zinc-600">
+                                  {" "}
+                                  (save ${savingsUsd.toFixed(2)})
+                                </span>
+                              ) : null}
+                            </p>
                           ) : null}
                         </div>
                       </div>

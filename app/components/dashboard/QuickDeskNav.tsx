@@ -5,6 +5,7 @@ import Link from "next/link";
 const LINKS = [
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/calls", label: "Call log" },
+  { href: "/outside-calls", label: "Outside" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/profile", label: "Profile" },
 ] as const;

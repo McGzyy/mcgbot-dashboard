@@ -1,5 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getPlanById, planProductTier } from "@/lib/subscription/subscriptionDb";
+import { tierIncludesProFeatures } from "@/lib/subscription/planTiers";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -25,6 +27,9 @@ export async function GET() {
 
   const end = sub?.current_period_end ? String(sub.current_period_end) : null;
   const active = end != null && new Date(end).getTime() > Date.now();
+  const planId = sub?.plan_id ? String(sub.plan_id) : null;
+  const plan = planId ? await getPlanById(planId) : null;
+  const productTier = plan ? planProductTier(plan) : "basic";
 
   const { data: pending } = await db
     .from("payment_invoices")
@@ -39,6 +44,8 @@ export async function GET() {
     success: true,
     active,
     currentPeriodEnd: end,
+    productTier,
+    hasProFeatures: tierIncludesProFeatures(productTier),
     pendingInvoice: pending ?? null,
   });
 }

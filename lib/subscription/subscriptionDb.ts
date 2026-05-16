@@ -1,5 +1,15 @@
+import { invalidateLiveDashboardAccessCache } from "@/lib/dashboardGate";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { computeSubscriptionPeriodEnd } from "@/lib/subscription/calendarSubscriptionEnd";
+import { normalizeProductTier, type ProductTier } from "@/lib/subscription/planTiers";
+import { invalidateUserProductTierCache } from "@/lib/subscription/productTierAccess";
+
+function afterSubscriptionWrite(discordId: string): void {
+  const id = discordId.trim();
+  if (!id) return;
+  invalidateLiveDashboardAccessCache(id);
+  invalidateUserProductTierCache(id);
+}
 
 export type SubscriptionPlanRow = {
   id: string;
@@ -13,31 +23,64 @@ export type SubscriptionPlanRow = {
   discount_percent?: number | null;
   /** Stripe Price ID (`price_...`); recurring amount/interval live in Stripe. */
   stripe_price_id?: string | null;
+  product_tier?: string | null;
 };
+
+const PLAN_COLUMNS =
+  "id, slug, label, billing_months, duration_days, price_usd, discount_percent, stripe_price_id, product_tier";
+
+function isMissingProductTierColumn(err: { code?: string; message?: string } | null): boolean {
+  if (!err) return false;
+  const msg = (err.message ?? "").toLowerCase();
+  return err.code === "42703" || err.code === "PGRST204" || msg.includes("product_tier");
+}
 
 export async function listActivePlans(): Promise<SubscriptionPlanRow[]> {
   const db = getSupabaseAdmin();
   if (!db) return [];
-  const { data, error } = await db
+  const first = await db
     .from("subscription_plans")
-    .select("id, slug, label, billing_months, duration_days, price_usd, discount_percent, stripe_price_id")
+    .select(PLAN_COLUMNS)
     .eq("active", true)
     .order("sort_order", { ascending: true });
-  if (error || !data) return [];
-  return data as SubscriptionPlanRow[];
+  if (!isMissingProductTierColumn(first.error)) {
+    if (first.error || !first.data) return [];
+    return first.data as unknown as SubscriptionPlanRow[];
+  }
+  const fallback = await db
+    .from("subscription_plans")
+    .select(
+      "id, slug, label, billing_months, duration_days, price_usd, discount_percent, stripe_price_id"
+    )
+    .eq("active", true)
+    .order("sort_order", { ascending: true });
+  if (fallback.error || !fallback.data) return [];
+  return fallback.data as unknown as SubscriptionPlanRow[];
 }
 
 export async function getPlanBySlug(slug: string): Promise<SubscriptionPlanRow | null> {
   const db = getSupabaseAdmin();
   if (!db) return null;
-  const { data, error } = await db
+  const first = await db
     .from("subscription_plans")
-    .select("id, slug, label, billing_months, duration_days, price_usd, discount_percent, stripe_price_id")
+    .select(PLAN_COLUMNS)
     .eq("slug", slug)
     .eq("active", true)
     .maybeSingle();
-  if (error || !data) return null;
-  return data as SubscriptionPlanRow;
+  if (!isMissingProductTierColumn(first.error)) {
+    if (first.error || !first.data) return null;
+    return first.data as unknown as SubscriptionPlanRow;
+  }
+  const fallback = await db
+    .from("subscription_plans")
+    .select(
+      "id, slug, label, billing_months, duration_days, price_usd, discount_percent, stripe_price_id"
+    )
+    .eq("slug", slug)
+    .eq("active", true)
+    .maybeSingle();
+  if (fallback.error || !fallback.data) return null;
+  return fallback.data as unknown as SubscriptionPlanRow;
 }
 
 /** By primary key (any active flag); used for Stripe test-checkout metadata when admin sets `stripe_test_plan_id`. */
@@ -46,13 +89,28 @@ export async function getPlanById(planId: string): Promise<SubscriptionPlanRow |
   if (!id) return null;
   const db = getSupabaseAdmin();
   if (!db) return null;
-  const { data, error } = await db
+  const first = await db
     .from("subscription_plans")
-    .select("id, slug, label, billing_months, duration_days, price_usd, discount_percent, stripe_price_id")
+    .select(PLAN_COLUMNS)
     .eq("id", id)
     .maybeSingle();
-  if (error || !data) return null;
-  return data as SubscriptionPlanRow;
+  if (!isMissingProductTierColumn(first.error)) {
+    if (first.error || !first.data) return null;
+    return first.data as unknown as SubscriptionPlanRow;
+  }
+  const fallback = await db
+    .from("subscription_plans")
+    .select(
+      "id, slug, label, billing_months, duration_days, price_usd, discount_percent, stripe_price_id"
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (fallback.error || !fallback.data) return null;
+  return fallback.data as unknown as SubscriptionPlanRow;
+}
+
+export function planProductTier(row: SubscriptionPlanRow): ProductTier {
+  return normalizeProductTier(row.product_tier);
 }
 
 export async function getSubscriptionEnd(discordId: string): Promise<string | null> {
@@ -126,6 +184,7 @@ export async function upsertSubscriptionFromStripe(input: {
     console.error("[subscription] upsertSubscriptionFromStripe", error);
     return false;
   }
+  afterSubscriptionWrite(input.discordId);
   return true;
 }
 
@@ -315,6 +374,7 @@ export async function upsertSubscriptionAfterPayment(input: {
     console.error("[subscription] upsertSubscriptionAfterPayment", error);
     return false;
   }
+  afterSubscriptionWrite(input.discordId);
   return true;
 }
 
@@ -377,6 +437,7 @@ export async function extendSubscriptionDays(input: {
     console.error("[subscription] extendSubscriptionDays upsert", error);
     return false;
   }
+  afterSubscriptionWrite(discordId);
   return true;
 }
 

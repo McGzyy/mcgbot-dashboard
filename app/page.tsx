@@ -13,6 +13,7 @@ import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
 import { DashboardChatPanel } from "./components/DashboardChatPanel";
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
 import { DeskIntelColumn } from "@/app/components/dashboard/DeskIntelColumn";
+import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
 import { MarketContextBar } from "@/app/components/dashboard/MarketContextBar";
 import { QuickDeskNav } from "@/app/components/dashboard/QuickDeskNav";
 import { HodlDashboardDock } from "./components/HodlDashboardDock";
@@ -3246,6 +3247,8 @@ function SocialsFeedPanel() {
 
   const tier = (session?.user as { helpTier?: string } | undefined)?.helpTier;
   const isAdmin = status === "authenticated" && tier === "admin";
+  const hasProFeatures =
+    session?.user?.hasProFeatures === true || tier === "admin" || tier === "mod";
   const canRequestSource = status === "authenticated" && session?.user?.hasDashboardAccess === true;
   /** Shorter for admins (immediate add); members need enough context for triage. */
   const submitRationaleMinLen = isAdmin ? 4 : 8;
@@ -3267,6 +3270,11 @@ function SocialsFeedPanel() {
   }, [expanded, submitOpen, closeExpanded]);
 
   useEffect(() => {
+    if (!hasProFeatures) {
+      setLoading(false);
+      setItems([]);
+      return;
+    }
     let cancelled = false;
     const POLL_MS = 45_000;
     prevFeedTopId.current = null;
@@ -3352,7 +3360,7 @@ function SocialsFeedPanel() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [tab]);
+  }, [tab, hasProFeatures]);
 
   const rows = useMemo(() => {
     if (tab === "all") return items;
@@ -4252,6 +4260,12 @@ export default function Home() {
   /** Bumps after submit-call success so stats / lists refetch without a full page reload. */
   const [homeDataRefreshNonce, setHomeDataRefreshNonce] = useState(0);
   const { helpTier } = useDashboardHelpRole();
+  const hasProFeatures =
+    session?.user?.hasProFeatures === true ||
+    helpTier === "admin" ||
+    helpTier === "mod";
+  const showSocialFeedPanel = socialFeedEnabled && hasProFeatures;
+  const showSocialProUpsell = socialFeedEnabled && !hasProFeatures;
   const [referralVanityForHome, setReferralVanityForHome] = useState<string | null>(null);
 
   useEffect(() => {
@@ -5286,8 +5300,17 @@ export default function Home() {
 
       <div className="mb-6 grid min-w-0 max-w-full grid-cols-1 items-start gap-4 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)]">
         <div className="flex min-w-0 max-w-full flex-col gap-5 overflow-x-clip">
-          {!socialFeedEnabled ? (
+          {!showSocialFeedPanel ? (
             <DeskIntelColumn refreshNonce={homeDataRefreshNonce} />
+          ) : null}
+          {showSocialProUpsell ? (
+            <div data-tutorial="dashboard.socialFeedPro">
+              <ProUpgradePrompt
+                className="text-left"
+                title="Social feed is Pro"
+                description="X ingest and the home social column use ongoing API credits. Basic members still get desk intel, activity, and watchlist."
+              />
+            </div>
           ) : null}
 
           <div data-tutorial="dashboard.activityFeed">
@@ -5324,13 +5347,13 @@ export default function Home() {
           )}
           </div>
 
-          {socialFeedEnabled ? (
+          {showSocialFeedPanel ? (
             <div data-tutorial="dashboard.socialFeed">
               <SocialsFeedPanel />
             </div>
           ) : null}
 
-          {widgetEnabled(widgets, "hot_now") && !socialFeedEnabled ? (
+          {widgetEnabled(widgets, "hot_now") && !showSocialFeedPanel ? (
             <div data-tutorial="dashboard.opportunities">
               <OpportunitiesPanel />
             </div>
@@ -5575,7 +5598,7 @@ export default function Home() {
           ) : null}
           </div>
 
-          {widgetEnabled(widgets, "hot_now") && socialFeedEnabled ? (
+          {widgetEnabled(widgets, "hot_now") && showSocialFeedPanel ? (
             <OpportunitiesPanel />
           ) : null}
         </div>

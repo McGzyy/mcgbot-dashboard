@@ -1,3 +1,6 @@
+import type { ProductTier } from "@/lib/subscription/planTiers";
+import { tierIncludesProFeatures } from "@/lib/subscription/planTiers";
+
 export type DashboardAlertRuleKind =
   | "pct_move"
   | "mc_cross"
@@ -60,6 +63,22 @@ export const DEFAULT_DASHBOARD_ALERT_PREFS: DashboardAlertPrefs = {
 };
 
 export const DASHBOARD_ALERT_RULES_CAP = 25;
+export const BASIC_ALERT_RULES_CAP = 5;
+
+/** Basic members: fewer rules, no hot/trending alert channel. */
+export function clampAlertPrefsForProductTier(
+  prefs: DashboardAlertPrefs,
+  tier: ProductTier
+): DashboardAlertPrefs {
+  if (tierIncludesProFeatures(tier)) return prefs;
+  return {
+    general: {
+      ...prefs.general,
+      hot_trending: false,
+    },
+    rules: prefs.rules.slice(0, BASIC_ALERT_RULES_CAP),
+  };
+}
 
 const SOLANA_MINTISH = /^[1-9A-HJ-NP-Za-km-z]{32,48}$/;
 const UUID_RE =

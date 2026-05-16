@@ -8,6 +8,7 @@ import {
   msSinceLastResolved,
   submitCooldownMsForTier,
 } from "@/lib/outsideXCalls/rateLimit";
+import { requireProFeatures } from "@/lib/subscription/productTierAccess";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -25,6 +26,9 @@ export async function POST(request: Request) {
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const proGate = await requireProFeatures(userId);
+  if (!proGate.ok) return proGate.response;
 
   const db = getSupabaseAdmin();
   if (!db) {

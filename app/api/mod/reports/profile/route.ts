@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireDashboardStaff } from "@/lib/staffGate";
+import { insertUserInboxNotification } from "@/lib/userInboxNotifications";
 
 const DEFAULT_LIMIT = 50;
 
@@ -70,11 +71,40 @@ export async function PATCH(request: Request) {
     patch.staff_notes = staffNotes;
   }
 
-  const { error } = await db.from("user_profile_reports").update(patch).eq("id", id);
+  const { data: updated, error } = await db
+    .from("user_profile_reports")
+    .update(patch)
+    .eq("id", id)
+    .select("reporter_user_id, reason, status")
+    .maybeSingle();
+
   if (error) {
     console.error("[mod/reports/profile] update:", error);
     return Response.json({ error: "Failed to update report" }, { status: 500 });
   }
+
+  if (status === "resolved" || status === "rejected") {
+    const reporter =
+      updated && typeof (updated as { reporter_user_id?: unknown }).reporter_user_id === "string"
+        ? String((updated as { reporter_user_id: string }).reporter_user_id).trim()
+        : "";
+    const reason =
+      updated && typeof (updated as { reason?: unknown }).reason === "string"
+        ? String((updated as { reason: string }).reason).slice(0, 80)
+        : "your report";
+    if (reporter) {
+      const resolved = status === "resolved";
+      void insertUserInboxNotification(db, {
+        userId: reporter,
+        title: resolved ? "Profile report reviewed" : "Profile report update",
+        body: resolved
+          ? `Thanks — we reviewed your profile report (${reason}). The team has marked it resolved.`
+          : `We reviewed your profile report (${reason}). No further action will be taken on this report.`,
+        kind: resolved ? "profile_report_resolved" : "profile_report_rejected",
+      });
+    }
+  }
+
   return Response.json({ success: true });
 }
 

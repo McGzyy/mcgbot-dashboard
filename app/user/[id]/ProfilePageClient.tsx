@@ -19,6 +19,8 @@ import {
   callClubMilestoneLabel,
   compareMilestoneKeys,
 } from "@/lib/milestoneTrophies";
+import { CallerIntelligencePanel } from "@/app/components/profile/CallerIntelligencePanel";
+import type { CallerProfileIntel } from "@/lib/callerProfileIntel";
 import { parseTopCallerTimesFromBadges } from "@/lib/topCallerBadgeDisplay";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import Link from "next/link";
@@ -122,6 +124,7 @@ type ProfilePayload = {
   } | null;
   stats: ProfileStats;
   recentCalls: RecentCallRow[];
+  callerIntel?: CallerProfileIntel | null;
 };
 
 type TrophyTimeframe = "daily" | "weekly" | "monthly";
@@ -870,6 +873,10 @@ function parseProfile(json: unknown): ProfilePayload | null {
         : null,
     stats,
     recentCalls,
+    callerIntel:
+      o.callerIntel && typeof o.callerIntel === "object"
+        ? (o.callerIntel as CallerProfileIntel)
+        : null,
   };
 }
 
@@ -2093,6 +2100,17 @@ export default function ProfilePageClient() {
                   Depth metrics
                 </p>
                 <DepthMetricsGrid keyStats={keyStatsPayload} />
+              </div>
+            ) : null}
+            {profile?.callerIntel ? (
+              <div
+                id="caller-intelligence"
+                className="relative z-[1] mt-5 border-t border-zinc-800/60 pt-4"
+              >
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Caller intelligence
+                </p>
+                <CallerIntelligencePanel intel={profile.callerIntel} />
               </div>
             ) : null}
           </div>

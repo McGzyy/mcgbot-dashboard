@@ -1,4 +1,5 @@
 import { listActivePlans } from "@/lib/subscription/subscriptionDb";
+import { normalizeProductTier } from "@/lib/subscription/planTiers";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -48,6 +49,7 @@ export async function GET() {
       priceUsd,
       listPriceUsd,
       discountPercent,
+      productTier: normalizeProductTier(p.product_tier),
     };
   });
 

@@ -12,7 +12,7 @@ import type { DeskYouStats } from "@/lib/deskYouStats";
 import { formatJoinedAt, multipleClass } from "@/lib/callDisplayFormat";
 import { userProfileHref } from "@/lib/userProfileHref";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type InboxRow = {
   id: string;
@@ -318,46 +318,76 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
     };
   }, [refreshNonce]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    fetch("/api/me/inbox?limit=8", { credentials: "same-origin", cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json: unknown) => {
-        if (cancelled) return;
-        const o = json && typeof json === "object" ? (json as Record<string, unknown>) : null;
-        const rowsRaw = o && Array.isArray(o.rows) ? (o.rows as unknown[]) : [];
-        const parsed: InboxRow[] = [];
-        for (const r of rowsRaw) {
-          if (!r || typeof r !== "object") continue;
-          const row = r as Record<string, unknown>;
-          parsed.push({
-            id: String(row.id ?? ""),
-            title: String(row.title ?? ""),
-            body: String(row.body ?? ""),
-            kind: String(row.kind ?? "info"),
-            createdAt: String(row.createdAt ?? ""),
-            readAt: row.readAt == null ? null : String(row.readAt),
-          });
-        }
-        const unread = parsed.filter((r) => !r.readAt);
-        setInboxUnread(typeof o?.unread === "number" ? o.unread : unread.length);
-        setInboxRows(unread.slice(0, 5));
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setInboxRows([]);
-          setInboxUnread(0);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setInboxLoading(false);
+  const loadInbox = useCallback(async () => {
+    setInboxLoading(true);
+    try {
+      const res = await fetch("/api/me/inbox?limit=8", {
+        credentials: "same-origin",
+        cache: "no-store",
       });
+      const json = res.ok ? ((await res.json()) as unknown) : null;
+      const o = json && typeof json === "object" ? (json as Record<string, unknown>) : null;
+      const rowsRaw = o && Array.isArray(o.rows) ? (o.rows as unknown[]) : [];
+      const parsed: InboxRow[] = [];
+      for (const r of rowsRaw) {
+        if (!r || typeof r !== "object") continue;
+        const row = r as Record<string, unknown>;
+        parsed.push({
+          id: String(row.id ?? ""),
+          title: String(row.title ?? ""),
+          body: String(row.body ?? ""),
+          kind: String(row.kind ?? "info"),
+          createdAt: String(row.createdAt ?? ""),
+          readAt: row.readAt == null ? null : String(row.readAt),
+        });
+      }
+      const unread = parsed.filter((r) => !r.readAt);
+      setInboxUnread(typeof o?.unread === "number" ? o.unread : unread.length);
+      setInboxRows(unread.slice(0, 5));
+    } catch {
+      setInboxRows([]);
+      setInboxUnread(0);
+    } finally {
+      setInboxLoading(false);
+    }
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshNonce]);
+  useEffect(() => {
+    void loadInbox();
+  }, [loadInbox, refreshNonce]);
+
+  const markInboxRead = useCallback(
+    async (ids: string[]) => {
+      const clean = ids.map((id) => id.trim()).filter(Boolean);
+      if (clean.length === 0) return;
+      try {
+        const res = await fetch("/api/me/inbox", {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: clean }),
+        });
+        if (res.ok) void loadInbox();
+      } catch {
+        /* ignore */
+      }
+    },
+    [loadInbox]
+  );
+
+  const markInboxAllRead = useCallback(async () => {
+    try {
+      const res = await fetch("/api/me/inbox", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ all: true }),
+      });
+      if (res.ok) void loadInbox();
+    } catch {
+      /* ignore */
+    }
+  }, [loadInbox]);
 
   const showInbox = !inboxLoading && inboxRows.length > 0;
   const pulseReady = !pulseLoading ? pulse : null;
@@ -470,11 +500,22 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
           title="Action inbox"
           titleClassName="normal-case"
           titleRight={
-            inboxUnread > 0 ? (
-              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-200/95">
-                {inboxUnread} unread
-              </span>
-            ) : null
+            <div className="flex items-center gap-2">
+              {inboxUnread > 0 ? (
+                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-200/95">
+                  {inboxUnread} unread
+                </span>
+              ) : null}
+              {inboxUnread > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => void markInboxAllRead()}
+                  className="text-[10px] font-semibold uppercase tracking-wide text-sky-300/90 transition hover:text-sky-200"
+                >
+                  Mark all read
+                </button>
+              ) : null}
+            </div>
           }
           className="min-w-0 overflow-hidden"
         >
@@ -483,21 +524,25 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
               const tMs = row.createdAt ? Date.parse(row.createdAt) : NaN;
               const when = Number.isFinite(tMs) ? formatJoinedAt(tMs, nowMs, "compact") : "";
               return (
-                <li
-                  key={row.id}
-                  className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 px-3 py-2.5"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-zinc-100">{row.title || "Update"}</p>
-                    {when ? (
-                      <time className="shrink-0 text-[10px] tabular-nums text-zinc-500">{when}</time>
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    onClick={() => void markInboxRead([row.id])}
+                    className="w-full rounded-lg border border-zinc-800/80 bg-zinc-950/40 px-3 py-2.5 text-left transition hover:border-zinc-700 hover:bg-zinc-900/50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-zinc-100">{row.title || "Update"}</p>
+                      {when ? (
+                        <time className="shrink-0 text-[10px] tabular-nums text-zinc-500">{when}</time>
+                      ) : null}
+                    </div>
+                    {row.body ? (
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-500">
+                        {row.body}
+                      </p>
                     ) : null}
-                  </div>
-                  {row.body ? (
-                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-500">
-                      {row.body}
-                    </p>
-                  ) : null}
+                    <p className="mt-1.5 text-[10px] font-medium text-zinc-600">Tap to dismiss</p>
+                  </button>
                 </li>
               );
             })}

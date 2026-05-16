@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { requireProFeatures } from "@/lib/subscription/productTierAccess";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -31,6 +32,9 @@ export async function GET(request: Request) {
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const proGate = await requireProFeatures(userId);
+  if (!proGate.ok) return proGate.response;
 
   const db = getSupabaseAdmin();
   if (!db) {

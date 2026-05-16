@@ -1,20 +1,31 @@
 import type { DefaultSession } from "next-auth";
-import type { CopyTradeAccessState } from "@/lib/copyTrade/copyTradeAccess";
 
 declare module "next-auth" {
   interface Session {
     user: DefaultSession["user"] & {
-      /** Discord snowflake (same as JWT `sub`). */
       id: string;
-      helpTier?: "admin" | "mod" | "user";
-      subscriptionActiveUntil?: string | null;
-      subscriptionExempt?: boolean;
-      hasActiveSubscription?: boolean;
-      hasDashboardAccess?: boolean;
-      canModerate?: boolean;
-      trustedPro?: boolean;
+      subscriptionActiveUntil: string | null;
+      subscriptionExempt: boolean;
+      hasActiveSubscription: boolean;
+      hasDashboardAccess: boolean;
+      helpTier: "admin" | "mod" | "user";
+      canModerate: boolean;
+      trustedPro: boolean;
       accountCreatedAt?: string | null;
-      copyTradeAccessState?: CopyTradeAccessState;
+      copyTradeAccessState: "pending" | "approved" | "denied" | "none";
+      productTier: "basic" | "pro";
+      hasProFeatures: boolean;
     };
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    discord_id?: string;
+    subscriptionActiveUntil?: string | null;
+    subscriptionExempt?: boolean;
+    helpTier?: "admin" | "mod" | "user";
+    canModerate?: boolean;
+    productTier?: "basic" | "pro";
   }
 }
