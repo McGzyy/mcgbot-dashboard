@@ -5,7 +5,10 @@ import { PanelCard } from "@/app/components/PanelCard";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import type { DeskPulseStats } from "@/lib/deskPulseStats";
+import type { DeskRankMover } from "@/lib/deskRankMovers";
+import type { DeskYouStats } from "@/lib/deskYouStats";
 import { formatJoinedAt, multipleClass } from "@/lib/callDisplayFormat";
+import { userProfileHref } from "@/lib/userProfileHref";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -51,6 +54,127 @@ function DeskPulseTile({
       </div>
       {hint ? <div className="mt-0.5 truncate text-[10px] text-zinc-500">{hint}</div> : null}
     </div>
+  );
+}
+
+function YouVsDeskPanel({
+  you,
+  pulse,
+  loading,
+}: {
+  you: DeskYouStats | null;
+  pulse: DeskPulseStats | null;
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="mt-2 h-20 animate-pulse rounded-lg border border-zinc-800/60 bg-zinc-900/30" />
+    );
+  }
+
+  if (!you || you.calls === 0) {
+    return (
+      <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+        Log a verified call in the last 24 hours to see how you compare to the desk.
+      </p>
+    );
+  }
+
+  const deskAvg = pulse?.avgX ?? 0;
+  const delta = you.avgX - deskAvg;
+  const deltaLabel =
+    !Number.isFinite(delta) || deskAvg <= 0
+      ? "—"
+      : delta >= 0
+        ? `+${delta.toFixed(2)}× vs desk`
+        : `${delta.toFixed(2)}× vs desk`;
+
+  return (
+    <div className="mt-2 grid gap-2 sm:grid-cols-3">
+      <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-2.5">
+        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500">Your avg ATH</p>
+        <p className="mt-1 text-lg font-bold tabular-nums text-[color:var(--accent)]">
+          {formatDeskX(you.avgX)}
+        </p>
+        <p className="mt-0.5 text-[10px] text-zinc-500">{deltaLabel}</p>
+      </div>
+      <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-2.5">
+        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500">Desk avg ATH</p>
+        <p className="mt-1 text-lg font-bold tabular-nums text-zinc-100">
+          {pulse ? formatDeskX(pulse.avgX) : "—"}
+        </p>
+        <p className="mt-0.5 text-[10px] text-zinc-500">All verified calls</p>
+      </div>
+      <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-2.5">
+        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500">Your rank</p>
+        <p className="mt-1 text-lg font-bold tabular-nums text-zinc-100">
+          {you.rank != null ? `#${you.rank}` : "—"}
+        </p>
+        <p className="mt-0.5 text-[10px] text-zinc-500">
+          {you.totalRanked > 0
+            ? `of ${you.totalRanked} active · ${you.calls} call${you.calls === 1 ? "" : "s"}`
+            : "Rolling 24h board"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function RankMoversPanel({
+  movers,
+  loading,
+}: {
+  movers: DeskRankMover[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="mt-2 space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-9 animate-pulse rounded-lg bg-zinc-900/35" />
+        ))}
+      </div>
+    );
+  }
+
+  if (movers.length === 0) {
+    return (
+      <p className="mt-2 text-xs text-zinc-500">
+        No big rank jumps in the last 24h vs the prior window yet.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="mt-2 divide-y divide-zinc-800/45">
+      {movers.map((m) => {
+        const moveLabel =
+          m.spotsUp == null
+            ? "New in top 10"
+            : m.spotsUp === 1
+              ? "↑ 1 spot"
+              : `↑ ${m.spotsUp} spots`;
+        return (
+          <li key={m.discordId} className="flex items-center justify-between gap-2 py-2">
+            <div className="min-w-0">
+              <Link
+                href={userProfileHref({ discordId: m.discordId, displayName: m.username })}
+                className="truncate text-sm font-semibold text-zinc-100 hover:text-white"
+              >
+                {m.username}
+              </Link>
+              <p className="text-[10px] text-zinc-500">
+                #{m.rankNow} now
+                {m.rankPrior != null ? ` · was #${m.rankPrior}` : ""} · {formatDeskX(m.avgX)} avg
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200/95">
+              {moveLabel}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -141,6 +265,8 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
   const { openTokenChart } = useTokenChartModal();
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [pulse, setPulse] = useState<DeskPulseStats | null>(null);
+  const [you, setYou] = useState<DeskYouStats | null>(null);
+  const [rankMovers, setRankMovers] = useState<DeskRankMover[]>([]);
   const [pulseLoading, setPulseLoading] = useState(true);
   const [pulseRefreshing, setPulseRefreshing] = useState(false);
   const [milestones, setMilestones] = useState<MilestoneRow[]>([]);
@@ -180,16 +306,26 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
         .then((res) => res.json().catch(() => ({})))
         .then((j: unknown) => {
           if (cancelled) return;
-          const ok =
-            j &&
-            typeof j === "object" &&
-            (j as { success?: boolean }).success === true &&
-            (j as { pulse?: unknown }).pulse &&
-            typeof (j as { pulse: unknown }).pulse === "object";
-          setPulse(ok ? ((j as { pulse: DeskPulseStats }).pulse as DeskPulseStats) : null);
+          const o = j && typeof j === "object" ? (j as Record<string, unknown>) : null;
+          const ok = o?.success === true && o.pulse && typeof o.pulse === "object";
+          if (!ok) {
+            setPulse(null);
+            setYou(null);
+            setRankMovers([]);
+            return;
+          }
+          setPulse(o.pulse as DeskPulseStats);
+          setYou(o.you && typeof o.you === "object" ? (o.you as DeskYouStats) : null);
+          setRankMovers(
+            Array.isArray(o.rankMovers) ? (o.rankMovers as DeskRankMover[]) : [],
+          );
         })
         .catch(() => {
-          if (!cancelled) setPulse(null);
+          if (!cancelled) {
+            setPulse(null);
+            setYou(null);
+            setRankMovers([]);
+          }
         })
         .finally(() => {
           if (!cancelled) {
@@ -365,6 +501,32 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
             />
           </div>
         )}
+      </PanelCard>
+
+      <PanelCard title="You vs desk" titleClassName="normal-case" className="min-w-0 overflow-hidden">
+        <p className="mt-1 text-[11px] text-zinc-500">
+          Your rolling 24h performance against the full desk average.
+        </p>
+        <YouVsDeskPanel you={you} pulse={pulse} loading={pulseLoading} />
+      </PanelCard>
+
+      <PanelCard
+        title="Rank movers"
+        titleClassName="normal-case"
+        titleRight={
+          <Link
+            href="/leaderboard?period=rolling24h"
+            className="text-[11px] font-semibold text-zinc-500 transition hover:text-zinc-200"
+          >
+            Board →
+          </Link>
+        }
+        className="min-w-0 overflow-hidden"
+      >
+        <p className="mt-1 text-[11px] text-zinc-500">
+          Callers who climbed the avg-X board vs the previous 24 hours.
+        </p>
+        <RankMoversPanel movers={rankMovers} loading={pulseLoading} />
       </PanelCard>
 
       <PanelCard
