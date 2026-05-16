@@ -4327,10 +4327,11 @@ export default function Home() {
       .then((res) => res.json().catch(() => ({})))
       .then((j: unknown) => {
         if (cancelled) return;
-        const enabled =
+        const enabled = Boolean(
           j &&
-          typeof j === "object" &&
-          (j as { enabled?: unknown }).enabled === true;
+            typeof j === "object" &&
+            (j as { enabled?: unknown }).enabled === true,
+        );
         setSocialFeedEnabled(enabled);
       })
       .catch(() => {

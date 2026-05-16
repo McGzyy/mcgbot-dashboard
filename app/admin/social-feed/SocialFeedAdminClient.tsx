@@ -227,14 +227,14 @@ export function SocialFeedAdminClient() {
   return (
     <div className="space-y-6" data-tutorial="admin.socialFeedSources">
       <AdminPageHeader
-        title="Social feed sources"
+        title="Social feed"
         description={
           <>
-            Edit handles, labels, and categories; toggle <span className="text-zinc-300">active</span> to hide a
-            source from the home feed without deleting it. For <span className="text-zinc-300">X</span>,{" "}
-            <span className="text-zinc-300">Posts only</span> skips reply tweets in ingest (
-            <code className="rounded bg-zinc-900 px-1 py-0.5 text-[11px]">exclude=replies</code>).{" "}
-            <span className="text-zinc-300">Remove</span> deletes the source and its cached posts (cascade).
+            Use <span className="text-zinc-300">Turn off</span> below to hide the home social panel and stop X timeline
+            ingest. Source list: edit handles and categories; toggle <span className="text-zinc-300">active</span> per
+            source without deleting. For <span className="text-zinc-300">X</span>,{" "}
+            <span className="text-zinc-300">Posts only</span> skips replies (
+            <code className="rounded bg-zinc-900 px-1 py-0.5 text-[11px]">exclude=replies</code>).
           </>
         }
       />
