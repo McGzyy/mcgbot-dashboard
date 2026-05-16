@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
+import { OutsideXPollStatusBanner } from "@/app/admin/_components/OutsideXPollStatusBanner";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -158,6 +159,8 @@ export function OutsideXSourcesAdminClient() {
           </>
         }
       />
+
+      <OutsideXPollStatusBanner />
 
       <div className="flex flex-wrap gap-2">
         {(["all", "active", "suspended", "removed"] as const).map((id) => (

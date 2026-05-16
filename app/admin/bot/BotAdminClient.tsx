@@ -3,10 +3,17 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AdminPanel, AdminMetric } from "@/app/admin/_components/adminUi";
 import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
+import { OutsideXPollStatusBanner } from "@/app/admin/_components/OutsideXPollStatusBanner";
 import { adminChrome } from "@/lib/roleTierStyles";
 
 type HealthBody = {
   ok?: boolean;
+  outsideXCallsPoll?: {
+    status?: string;
+    disabledByEnv?: boolean;
+    running?: boolean;
+    hint?: string;
+  };
   endpoints?: Record<string, unknown>;
   cwd?: string;
   loadedFrom?: string;
@@ -469,6 +476,8 @@ export function BotAdminClient() {
           )}
         </AdminPanel>
       </AdminSection>
+
+      <OutsideXPollStatusBanner className="mb-2" />
 
       <AdminSection
         kicker="Runtime"
