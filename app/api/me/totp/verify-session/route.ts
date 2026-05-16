@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { requireAuthenticatedDiscordId } from "@/lib/requireDashboardSession";
 import { verifyTotpOrRecoveryForSignIn } from "@/lib/totpRecoveryCodes";
 import { createTotpSessionProof } from "@/lib/totpSessionProof";
@@ -6,6 +7,7 @@ import {
   clearTotpVerifyThrottle,
   recordTotpVerifyFailure,
 } from "@/lib/totpVerifyThrottle";
+import { applyTotpDeviceTrustCookie, clearTotpDeviceTrustCookie } from "@/lib/totpDeviceTrustCookie";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,5 +57,11 @@ export async function POST(request: Request) {
   if (!proofId) {
     return Response.json({ success: false, error: "Could not issue session proof." }, { status: 500 });
   }
-  return Response.json({ success: true, proofId });
+  const res = NextResponse.json({ success: true, proofId });
+  if (trustExpiresAtMs != null && trustExpiresAtMs > Date.now()) {
+    applyTotpDeviceTrustCookie(res, auth.discordId, trustExpiresAtMs);
+  } else {
+    clearTotpDeviceTrustCookie(res);
+  }
+  return res;
 }

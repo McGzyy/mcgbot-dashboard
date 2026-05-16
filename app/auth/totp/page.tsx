@@ -20,6 +20,8 @@ export default function TotpSignInPage() {
   const [rememberDevice, setRememberDevice] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** After a successful code check, session becomes “not pending” before navigation finishes — hide the intermediate message. */
+  const [finishingSignIn, setFinishingSignIn] = useState(false);
 
   const pending = Boolean((session?.user as { pendingTotpVerification?: boolean } | undefined)?.pendingTotpVerification);
 
@@ -42,9 +44,15 @@ export default function TotpSignInPage() {
         setErr(typeof j.error === "string" ? j.error : "Verification failed.");
         return;
       }
-      await update({ totpProof: j.proofId });
-      router.replace("/");
-      router.refresh();
+      setFinishingSignIn(true);
+      try {
+        await update({ totpProof: j.proofId });
+        router.replace("/");
+        router.refresh();
+      } catch {
+        setFinishingSignIn(false);
+        setErr("Could not refresh your session. Try again.");
+      }
     } catch {
       setErr("Network error.");
     } finally {
@@ -56,6 +64,14 @@ export default function TotpSignInPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[color:var(--mcg-page)] px-6 text-sm text-zinc-400">
         Loading…
+      </div>
+    );
+  }
+
+  if (finishingSignIn) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[color:var(--mcg-page)] px-6 text-sm text-zinc-400">
+        Signing you in…
       </div>
     );
   }

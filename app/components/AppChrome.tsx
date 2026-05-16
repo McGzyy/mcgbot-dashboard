@@ -11,12 +11,13 @@ import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export function AppChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
+  const totpBootstrapStartedRef = useRef(false);
   const bareLayout =
     pathname.startsWith("/subscribe") ||
     pathname.startsWith("/membership") ||
@@ -31,10 +32,44 @@ export function AppChrome({ children }: { children: ReactNode }) {
     const pending = Boolean(
       (session?.user as { pendingTotpVerification?: boolean } | undefined)?.pendingTotpVerification
     );
-    if (!pending) return;
-    if (pathname.startsWith("/auth/totp")) return;
-    router.replace("/auth/totp");
-  }, [pathname, router, session?.user, status]);
+    if (!pending) {
+      totpBootstrapStartedRef.current = false;
+      return;
+    }
+    if (pathname.startsWith("/auth/totp")) {
+      totpBootstrapStartedRef.current = false;
+      return;
+    }
+    if (totpBootstrapStartedRef.current) return;
+    totpBootstrapStartedRef.current = true;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/totp/bootstrap-trust", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+        const j = (await res.json().catch(() => ({}))) as { success?: boolean; proofId?: string };
+        if (cancelled) return;
+        if (res.ok && j.success === true && typeof j.proofId === "string") {
+          await update({ totpProof: j.proofId });
+          if (cancelled) return;
+          router.refresh();
+          return;
+        }
+      } catch {
+        /* fall through */
+      }
+      if (cancelled) return;
+      router.replace("/auth/totp");
+    })();
+
+    return () => {
+      cancelled = true;
+      totpBootstrapStartedRef.current = false;
+    };
+  }, [pathname, router, session?.user, status, update]);
 
   // If the user is signed in but Discord marks them unverified, route them to the verify-required page.
   useEffect(() => {

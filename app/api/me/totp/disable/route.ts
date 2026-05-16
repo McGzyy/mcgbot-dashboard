@@ -1,5 +1,7 @@
+import { NextResponse } from "next/server";
 import { requireDashboardSession } from "@/lib/requireDashboardSession";
 import { disableTotp } from "@/lib/dashboardTotpUser";
+import { clearTotpDeviceTrustCookie } from "@/lib/totpDeviceTrustCookie";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,5 +20,7 @@ export async function POST(request: Request) {
   if (!res.ok) {
     return Response.json({ success: false, error: res.error }, { status: 400 });
   }
-  return Response.json({ success: true });
+  const out = NextResponse.json({ success: true });
+  clearTotpDeviceTrustCookie(out);
+  return out;
 }
