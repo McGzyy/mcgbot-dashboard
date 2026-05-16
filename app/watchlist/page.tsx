@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
 import { WatchlistContractRowsSkeleton } from "@/app/components/dashboard/dashboardRouteSkeletons";
+import { parseSolanaMintFromInput } from "@/lib/solanaCa";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 type WatchlistPayload = {
@@ -13,12 +14,6 @@ type WatchlistPayload = {
 };
 
 type Scope = "private" | "public";
-
-function isValidContractAddress(contractAddress: string): boolean {
-  const s = contractAddress.trim();
-  if (s.length < 20 || s.length > 60) return false;
-  return /^[1-9A-HJ-NP-Za-km-z]+$/.test(s);
-}
 
 function ContractAddressRow({
   contractAddress,
@@ -62,11 +57,13 @@ export default function WatchlistPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (status !== "authenticated") return;
     setLoading(true);
     setErr(null);
+    setNotice(null);
     try {
       const res = await fetch("/api/me/watchlist", { credentials: "same-origin" });
       const json = (await res.json().catch(() => null)) as WatchlistPayload | null;
@@ -114,11 +111,13 @@ export default function WatchlistPage() {
           private?: string[];
           public?: string[];
           error?: string;
+          note?: string;
         };
         if (!res.ok || json.success !== true) {
           setErr(typeof json.error === "string" ? json.error : "Could not save watchlist.");
           return;
         }
+        setNotice(typeof json.note === "string" && json.note.trim() ? json.note.trim() : null);
         setData({
           private: Array.isArray(json.private) ? json.private : data?.private ?? [],
           public: Array.isArray(json.public) ? json.public : data?.public ?? [],
@@ -132,11 +131,12 @@ export default function WatchlistPage() {
     [status, data?.private, data?.public]
   );
 
-  const canAdd = isValidContractAddress(contractAddress) && !saving;
+  const parsedMint = parseSolanaMintFromInput(contractAddress);
+  const canAdd = parsedMint != null && !saving;
   const add = useCallback(async () => {
-    const ca = contractAddress.trim();
-    if (!isValidContractAddress(ca)) {
-      setErr("Paste a valid Solana contract address.");
+    const ca = parseSolanaMintFromInput(contractAddress);
+    if (!ca) {
+      setErr("Paste a Solana mint or a Dexscreener / Solscan link.");
       return;
     }
     await submit("add", ca, scope);
@@ -223,7 +223,7 @@ export default function WatchlistPage() {
           <p className="text-xs text-zinc-500">
             {scope === "private"
               ? "Stored only on your dashboard profile."
-              : "Stored on your profile as a dashboard-visible list."}
+              : "Dashboard list; also posts to Discord when the bot is connected."}
           </p>
         </div>
 
@@ -247,9 +247,14 @@ export default function WatchlistPage() {
           </button>
         </div>
         <p className="mt-2 text-xs text-zinc-500">
-          Tip: paste a contract address, then hit Add. We’ll de-dupe and keep your newest items at the top.
+          Tip: paste a mint or Dexscreener link. We’ll de-dupe and keep your newest items at the top.
         </p>
 
+        {notice ? (
+          <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/95">
+            {notice}
+          </div>
+        ) : null}
         {err ? (
           <div className="mt-3 rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
             {err}

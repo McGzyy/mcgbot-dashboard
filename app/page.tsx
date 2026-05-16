@@ -4934,8 +4934,11 @@ export default function Home() {
             mint: mint.trim(),
           }),
         });
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          error?: string;
+        };
+        if (!res.ok || data.success !== true) {
           return {
             ok: false as const,
             error: data.error || `Could not save (${res.status})`,

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { parseSolanaMintFromInput } from "@/lib/solanaCa";
 import { terminalUi } from "@/lib/terminalDesignTokens";
 
 type Visibility = "private" | "public";
@@ -34,70 +35,45 @@ export function AddToWatchlistModal({
   }, [open]);
 
   const handleSubmit = useCallback(async () => {
-    const trimmed = ca.trim();
-    if (!trimmed || submitting) return;
+    const mint = parseSolanaMintFromInput(ca);
+    if (!mint || submitting) return;
 
     setSubmitting(true);
     setError(null);
     setSuccess(false);
 
     try {
-      if (visibility === "private") {
-        const res = await fetch("/api/me/watchlist", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({
-            action: "add",
-            scope: "private",
-            mint: trimmed,
-          }),
-        });
-        const data = (await res.json().catch(() => ({}))) as {
-          success?: boolean;
-          error?: string;
-        };
-        if (!res.ok) {
-          setError(data.error || "Could not save to your private watchlist");
-          return;
-        }
-        setSuccess(true);
-        onAdded?.();
-        window.setTimeout(() => {
-          onClose();
-        }, 700);
-        return;
-      }
-
-      const rec = await fetch("/api/me/watchlist", {
+      const res = await fetch("/api/me/watchlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         body: JSON.stringify({
           action: "add",
-          scope: "public",
-          mint: trimmed,
+          scope: visibility,
+          mint,
         }),
       });
-      const recJson = (await rec.json().catch(() => ({}))) as {
+      const data = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         error?: string;
+        note?: string;
       };
-      if (!rec.ok) {
+      if (!res.ok || data.success !== true) {
         setError(
-          recJson.error ||
-            "Posted to Discord, but saving this entry on your watchlist page failed."
+          data.error ||
+            (visibility === "public"
+              ? "Could not save public watch (Discord bot may be offline — try Private)."
+              : "Could not save to your watchlist.")
         );
         return;
       }
-
       setSuccess(true);
       onAdded?.();
       window.setTimeout(() => {
         onClose();
       }, 700);
     } catch {
-      setError("Request failed");
+      setError("Network error — try again.");
     } finally {
       setSubmitting(false);
     }
@@ -229,7 +205,7 @@ export function AddToWatchlistModal({
               <button
                 type="button"
                 onClick={() => void handleSubmit()}
-                disabled={submitting || ca.trim() === ""}
+                disabled={submitting || parseSolanaMintFromInput(ca) == null}
                 className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-medium text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-60"
               >
                 {submitting ? "Saving…" : "Save"}
