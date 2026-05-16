@@ -5,8 +5,22 @@ import {
   loadUserWatchlist,
   normalizeWatchlistContractAddress,
   saveUserWatchlist,
+  watchlistErrorMessage,
   type WatchlistPayload,
 } from "@/lib/userDashboardWatchlist";
+
+function isMissingSchemaError(err: { code?: string; message?: string } | null): boolean {
+  if (!err) return false;
+  const msg = (err.message ?? "").toLowerCase();
+  return (
+    err.code === "42P01" ||
+    err.code === "42703" ||
+    err.code === "PGRST204" ||
+    err.code === "PGRST205" ||
+    msg.includes("user_contract_watchlist") ||
+    msg.includes("private_watchlist")
+  );
+}
 
 function createDashboardAdminClient() {
   const url = process.env.SUPABASE_URL?.trim();
@@ -76,7 +90,8 @@ export async function POST(request: Request) {
 
     const { payload, row, readError } = await loadUserWatchlist(supabase, discordId);
     if (readError) {
-      console.error("[me/watchlist] POST read (continuing with empty lists):", readError);
+      console.error("[me/watchlist] POST read:", readError);
+      return Response.json({ error: watchlistErrorMessage(readError) }, { status: 503 });
     }
 
     const nextPrivate = [...payload.private];

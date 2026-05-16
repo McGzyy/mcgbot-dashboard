@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 
 import { parseSolanaContractAddressFromInput } from "@/lib/solanaCa";
 
@@ -8,6 +8,7 @@ export type WatchlistPayload = {
 };
 
 const MAX_ITEMS = 200;
+const WATCHLIST_TABLE = "user_contract_watchlist";
 
 const DEFAULT_WIDGETS = {
   market: true,
@@ -52,10 +53,88 @@ export function normalizeWatchlist(raw: unknown): string[] {
   return out.slice(0, MAX_ITEMS);
 }
 
-export async function loadUserWatchlist(
+function isMissingWatchlistTableError(err: PostgrestError | null): boolean {
+  if (!err) return false;
+  const msg = `${err.message ?? ""} ${err.details ?? ""} ${err.hint ?? ""}`.toLowerCase();
+  return (
+    err.code === "42P01" ||
+    err.code === "PGRST205" ||
+    msg.includes("user_contract_watchlist") ||
+    msg.includes("does not exist")
+  );
+}
+
+function isMissingJsonColumnError(err: PostgrestError | null): boolean {
+  if (!err) return false;
+  const msg = `${err.message ?? ""} ${err.details ?? ""}`.toLowerCase();
+  return (
+    err.code === "42703" ||
+    err.code === "PGRST204" ||
+    msg.includes("private_watchlist") ||
+    msg.includes("public_dashboard_watchlist")
+  );
+}
+
+export function watchlistErrorMessage(err: PostgrestError | null): string {
+  if (!err) return "Failed to save watchlist";
+  if (isMissingWatchlistTableError(err) || isMissingJsonColumnError(err)) {
+    return "Watchlist storage is not set up in Supabase. Run the latest migrations (user_contract_watchlist or user_dashboard_settings watchlist columns).";
+  }
+  const msg = (err.message ?? "").trim();
+  if (/permission denied|row-level security|rls/i.test(msg)) {
+    return "Watchlist save blocked by database permissions. Check SUPABASE_SERVICE_ROLE_KEY on the dashboard host.";
+  }
+  if (msg) return msg.length > 180 ? `${msg.slice(0, 177)}…` : msg;
+  return "Failed to save watchlist";
+}
+
+async function loadFromWatchlistTable(
   supabase: SupabaseClient,
   discordId: string
-): Promise<{ payload: WatchlistPayload; row: Record<string, unknown> | null; readError: Error | null }> {
+): Promise<{ payload: WatchlistPayload; error: PostgrestError | null }> {
+  const { data, error } = await supabase
+    .from(WATCHLIST_TABLE)
+    .select("contract_address, scope, created_at")
+    .eq("discord_id", discordId)
+    .order("created_at", { ascending: false })
+    .limit(MAX_ITEMS * 2);
+
+  if (error) {
+    return { payload: { private: [], public: [] }, error };
+  }
+
+  const priv: string[] = [];
+  const pub: string[] = [];
+  for (const row of data ?? []) {
+    const ca = normalizeWatchlistContractAddress(
+      (row as { contract_address?: unknown }).contract_address
+    );
+    if (!ca) continue;
+    const scope = String((row as { scope?: unknown }).scope ?? "").trim();
+    if (scope === "private") {
+      if (!priv.includes(ca)) priv.push(ca);
+    } else if (scope === "public") {
+      if (!pub.includes(ca)) pub.push(ca);
+    }
+  }
+
+  return {
+    payload: {
+      private: priv.slice(0, MAX_ITEMS),
+      public: pub.slice(0, MAX_ITEMS),
+    },
+    error: null,
+  };
+}
+
+async function loadFromSettingsJson(
+  supabase: SupabaseClient,
+  discordId: string
+): Promise<{
+  payload: WatchlistPayload;
+  row: Record<string, unknown> | null;
+  error: PostgrestError | null;
+}> {
   const { data: rows, error } = await supabase
     .from("user_dashboard_settings")
     .select(
@@ -68,7 +147,7 @@ export async function loadUserWatchlist(
     return {
       payload: { private: [], public: [] },
       row: null,
-      readError: error,
+      error,
     };
   }
 
@@ -79,16 +158,80 @@ export async function loadUserWatchlist(
       public: normalizeWatchlist(row?.public_dashboard_watchlist),
     },
     row,
-    readError: null,
+    error: null,
   };
 }
 
-export async function saveUserWatchlist(
+export async function loadUserWatchlist(
+  supabase: SupabaseClient,
+  discordId: string
+): Promise<{
+  payload: WatchlistPayload;
+  row: Record<string, unknown> | null;
+  readError: PostgrestError | null;
+  storage: "table" | "json" | null;
+}> {
+  const tableLoad = await loadFromWatchlistTable(supabase, discordId);
+  if (!tableLoad.error) {
+    const { row } = await loadFromSettingsJson(supabase, discordId);
+    return {
+      payload: tableLoad.payload,
+      row,
+      readError: null,
+      storage: "table",
+    };
+  }
+
+  if (!isMissingWatchlistTableError(tableLoad.error)) {
+    console.warn("[watchlist] table read failed, trying JSON fallback:", tableLoad.error.message);
+  }
+
+  const jsonLoad = await loadFromSettingsJson(supabase, discordId);
+  return {
+    payload: jsonLoad.payload,
+    row: jsonLoad.row,
+    readError: jsonLoad.error,
+    storage: jsonLoad.error ? null : "json",
+  };
+}
+
+async function saveToWatchlistTable(
+  supabase: SupabaseClient,
+  discordId: string,
+  payload: WatchlistPayload
+): Promise<{ error: PostgrestError | null }> {
+  const { error: delErr } = await supabase
+    .from(WATCHLIST_TABLE)
+    .delete()
+    .eq("discord_id", discordId);
+
+  if (delErr) return { error: delErr };
+
+  const rows = [
+    ...payload.private.map((contract_address) => ({
+      discord_id: discordId,
+      contract_address,
+      scope: "private" as const,
+    })),
+    ...payload.public.map((contract_address) => ({
+      discord_id: discordId,
+      contract_address,
+      scope: "public" as const,
+    })),
+  ];
+
+  if (rows.length === 0) return { error: null };
+
+  const { error: insErr } = await supabase.from(WATCHLIST_TABLE).insert(rows);
+  return { error: insErr };
+}
+
+async function saveToSettingsJson(
   supabase: SupabaseClient,
   discordId: string,
   payload: WatchlistPayload,
   existingRow: Record<string, unknown> | null
-): Promise<{ error: Error | null }> {
+): Promise<{ error: PostgrestError | null }> {
   const widgets =
     existingRow?.widgets_enabled && typeof existingRow.widgets_enabled === "object"
       ? existingRow.widgets_enabled
@@ -99,16 +242,58 @@ export async function saveUserWatchlist(
       ? existingRow.alert_prefs
       : {};
 
-  const { error } = await supabase.from("user_dashboard_settings").upsert(
-    {
-      discord_id: discordId,
-      widgets_enabled: widgets,
-      alert_prefs: alertPrefs,
-      private_watchlist: payload.private,
-      public_dashboard_watchlist: payload.public,
-    },
-    { onConflict: "discord_id" }
-  );
+  if (existingRow) {
+    const { error } = await supabase
+      .from("user_dashboard_settings")
+      .update({
+        private_watchlist: payload.private,
+        public_dashboard_watchlist: payload.public,
+      })
+      .eq("discord_id", discordId);
 
-  return { error: error ?? null };
+    if (!error) return { error: null };
+
+    if (!isMissingJsonColumnError(error)) {
+      return { error };
+    }
+  }
+
+  const { error: insertErr } = await supabase.from("user_dashboard_settings").insert({
+    discord_id: discordId,
+    widgets_enabled: widgets,
+    alert_prefs: alertPrefs,
+    private_watchlist: payload.private,
+    public_dashboard_watchlist: payload.public,
+  });
+
+  if (insertErr && insertErr.code === "23505") {
+    const { error: updateErr } = await supabase
+      .from("user_dashboard_settings")
+      .update({
+        private_watchlist: payload.private,
+        public_dashboard_watchlist: payload.public,
+      })
+      .eq("discord_id", discordId);
+    return { error: updateErr };
+  }
+
+  return { error: insertErr };
+}
+
+export async function saveUserWatchlist(
+  supabase: SupabaseClient,
+  discordId: string,
+  payload: WatchlistPayload,
+  existingRow: Record<string, unknown> | null
+): Promise<{ error: PostgrestError | null }> {
+  const tableSave = await saveToWatchlistTable(supabase, discordId, payload);
+  if (!tableSave.error) {
+    return { error: null };
+  }
+
+  if (!isMissingWatchlistTableError(tableSave.error)) {
+    return { error: tableSave.error };
+  }
+
+  return saveToSettingsJson(supabase, discordId, payload, existingRow);
 }
