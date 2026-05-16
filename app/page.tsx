@@ -12,6 +12,7 @@ import { DashboardAlertsModal } from "./components/DashboardAlertsModal";
 import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
 import { DashboardChatPanel } from "./components/DashboardChatPanel";
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import { DeskIntelColumn } from "@/app/components/dashboard/DeskIntelColumn";
 import { HodlDashboardDock } from "./components/HodlDashboardDock";
 import { PanelCard, CARD_HOVER } from "./components/PanelCard";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
@@ -5315,7 +5316,9 @@ export default function Home() {
             <div data-tutorial="dashboard.socialFeed">
               <SocialsFeedPanel />
             </div>
-          ) : null}
+          ) : (
+            <DeskIntelColumn refreshNonce={homeDataRefreshNonce} />
+          )}
 
           {widgets !== null && widgetEnabled(widgets, "discord_chat") && (
             <div data-tutorial="dashboard.discordChat">
