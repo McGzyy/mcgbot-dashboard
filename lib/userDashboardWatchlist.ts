@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { parseSolanaMintFromInput } from "@/lib/solanaCa";
+import { parseSolanaContractAddressFromInput } from "@/lib/solanaCa";
 
 export type WatchlistPayload = {
   private: string[];
@@ -24,9 +24,12 @@ const DEFAULT_WIDGETS = {
   quick_actions: true,
 };
 
-export function normalizeWatchlistMint(raw: unknown): string | null {
-  return parseSolanaMintFromInput(raw);
+export function normalizeWatchlistContractAddress(raw: unknown): string | null {
+  return parseSolanaContractAddressFromInput(raw);
 }
+
+/** @deprecated Use {@link normalizeWatchlistContractAddress}. */
+export const normalizeWatchlistMint = normalizeWatchlistContractAddress;
 
 export function normalizeWatchlist(raw: unknown): string[] {
   if (raw == null) return [];
@@ -43,8 +46,8 @@ export function normalizeWatchlist(raw: unknown): string[] {
   if (!Array.isArray(arr)) return [];
   const out: string[] = [];
   for (const v of arr) {
-    const mint = normalizeWatchlistMint(v);
-    if (mint && !out.includes(mint)) out.push(mint);
+    const ca = normalizeWatchlistContractAddress(v);
+    if (ca && !out.includes(ca)) out.push(ca);
   }
   return out.slice(0, MAX_ITEMS);
 }

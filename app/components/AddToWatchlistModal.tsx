@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { parseSolanaMintFromInput } from "@/lib/solanaCa";
+import { parseSolanaContractAddressFromInput } from "@/lib/solanaCa";
 import { terminalUi } from "@/lib/terminalDesignTokens";
 
 type Visibility = "private" | "public";
@@ -23,6 +23,7 @@ export function AddToWatchlistModal({
   const [visibility, setVisibility] = useState<Visibility>("private");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
@@ -31,15 +32,17 @@ export function AddToWatchlistModal({
     setVisibility("private");
     setSubmitting(false);
     setError(null);
+    setNotice(null);
     setSuccess(false);
   }, [open]);
 
   const handleSubmit = useCallback(async () => {
-    const mint = parseSolanaMintFromInput(ca);
-    if (!mint || submitting) return;
+    const contractAddress = parseSolanaContractAddressFromInput(ca);
+    if (!contractAddress || submitting) return;
 
     setSubmitting(true);
     setError(null);
+    setNotice(null);
     setSuccess(false);
 
     try {
@@ -50,7 +53,7 @@ export function AddToWatchlistModal({
         body: JSON.stringify({
           action: "add",
           scope: visibility,
-          mint,
+          contractAddress,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -62,16 +65,18 @@ export function AddToWatchlistModal({
         setError(
           data.error ||
             (visibility === "public"
-              ? "Could not save public watch (Discord bot may be offline — try Private)."
+              ? "Could not save to your watchlist."
               : "Could not save to your watchlist.")
         );
         return;
       }
+      const noteText = typeof data.note === "string" ? data.note.trim() : "";
       setSuccess(true);
+      if (noteText) setNotice(noteText);
       onAdded?.();
       window.setTimeout(() => {
         onClose();
-      }, 700);
+      }, noteText ? 2400 : 700);
     } catch {
       setError("Network error — try again.");
     } finally {
@@ -129,14 +134,15 @@ export function AddToWatchlistModal({
 
         <div className="mt-4 space-y-3">
           <label className="block text-xs font-medium text-zinc-400">
-            Solana contract
+            Contract address (CA)
             <input
               type="text"
               value={ca}
               onChange={(e) => setCa(e.target.value)}
-              placeholder="Paste mint address"
+              placeholder="Paste contract address (CA)"
               disabled={submitting}
               className={`mt-1 ${terminalUi.formInput}`}
+              spellCheck={false}
             />
           </label>
 
@@ -182,7 +188,12 @@ export function AddToWatchlistModal({
             </p>
           ) : null}
           {success ? (
-            <p className="text-sm text-[color:var(--accent)]">Saved.</p>
+            <p className="text-sm text-[color:var(--accent)]">Saved to your watchlist.</p>
+          ) : null}
+          {notice ? (
+            <p className="text-sm text-amber-200/90" role="status">
+              {notice}
+            </p>
           ) : null}
 
           <div className={`flex flex-wrap items-center justify-between gap-2 pt-3 ${terminalUi.inlineFooterRule}`}>
@@ -205,7 +216,7 @@ export function AddToWatchlistModal({
               <button
                 type="button"
                 onClick={() => void handleSubmit()}
-                disabled={submitting || parseSolanaMintFromInput(ca) == null}
+                disabled={submitting || parseSolanaContractAddressFromInput(ca) == null}
                 className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-medium text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-60"
               >
                 {submitting ? "Saving…" : "Save"}

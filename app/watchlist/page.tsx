@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
 import { WatchlistContractRowsSkeleton } from "@/app/components/dashboard/dashboardRouteSkeletons";
-import { parseSolanaMintFromInput } from "@/lib/solanaCa";
+import { parseSolanaContractAddressFromInput } from "@/lib/solanaCa";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 
 type WatchlistPayload = {
@@ -103,7 +103,7 @@ export default function WatchlistPage() {
           body: JSON.stringify({
             action,
             scope: targetScope,
-            mint: targetContractAddress,
+            contractAddress: targetContractAddress,
           }),
         });
         const json = (await res.json().catch(() => ({}))) as {
@@ -131,12 +131,12 @@ export default function WatchlistPage() {
     [status, data?.private, data?.public]
   );
 
-  const parsedMint = parseSolanaMintFromInput(contractAddress);
-  const canAdd = parsedMint != null && !saving;
+  const parsedCa = parseSolanaContractAddressFromInput(contractAddress);
+  const canAdd = parsedCa != null && !saving;
   const add = useCallback(async () => {
-    const ca = parseSolanaMintFromInput(contractAddress);
+    const ca = parseSolanaContractAddressFromInput(contractAddress);
     if (!ca) {
-      setErr("Paste a Solana mint or a Dexscreener / Solscan link.");
+      setErr("Paste a contract address (CA) or a Dexscreener / Solscan link.");
       return;
     }
     await submit("add", ca, scope);
@@ -232,7 +232,7 @@ export default function WatchlistPage() {
             value={contractAddress}
             onChange={(e) => setContractAddress(e.target.value)}
             data-tutorial="watchlist.input"
-            placeholder="Paste a Solana contract address…"
+            placeholder="Paste contract address (CA)…"
             className="flex-1 rounded-xl border border-zinc-800/80 bg-zinc-950/70 px-4 py-2.5 text-sm text-zinc-100 outline-none ring-fuchsia-500/20 focus:ring-2"
             spellCheck={false}
           />
@@ -247,7 +247,7 @@ export default function WatchlistPage() {
           </button>
         </div>
         <p className="mt-2 text-xs text-zinc-500">
-          Tip: paste a mint or Dexscreener link. We’ll de-dupe and keep your newest items at the top.
+          Tip: paste a CA or Dexscreener link. We’ll de-dupe and keep your newest items at the top.
         </p>
 
         {notice ? (

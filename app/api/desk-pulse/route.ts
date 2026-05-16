@@ -8,6 +8,7 @@ import {
   minCallTimeMsForLeaderboardPeriod,
 } from "@/lib/callPerformanceLeaderboard";
 import { buildDeskPulseStats } from "@/lib/deskPulseStats";
+import { buildDeskRecentHits } from "@/lib/deskRecentHits";
 import { buildDeskRankMovers } from "@/lib/deskRankMovers";
 import { buildDeskYouStats } from "@/lib/deskYouStats";
 import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
@@ -67,6 +68,7 @@ export async function GET() {
     const windowRows = filterRowsByCallTimeWindow(eligible, currentMinMs, nowMs);
 
     const pulse = buildDeskPulseStats(windowRows, cutoverMs);
+    const recentHits = buildDeskRecentHits(windowRows, cutoverMs, 6);
     const you = buildDeskYouStats(
       eligible,
       cutoverMs,
@@ -102,6 +104,7 @@ export async function GET() {
       pulse,
       you,
       rankMovers,
+      recentHits,
       updatedAt: new Date(nowMs).toISOString(),
     });
   } catch (e) {

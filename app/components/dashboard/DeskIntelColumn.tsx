@@ -7,6 +7,7 @@ import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import type { DeskPulseTopHit } from "@/lib/deskPulseStats";
 import type { DeskPulseStats } from "@/lib/deskPulseStats";
 import type { DeskRankMover } from "@/lib/deskRankMovers";
+import type { DeskRecentHit } from "@/lib/deskRecentHits";
 import type { DeskYouStats } from "@/lib/deskYouStats";
 import { formatJoinedAt, multipleClass } from "@/lib/callDisplayFormat";
 import { userProfileHref } from "@/lib/userProfileHref";
@@ -162,43 +163,55 @@ function StandoutHitCard({
   );
 }
 
-function SolRegimePill() {
-  const [sol, setSol] = useState<{ price: string; change: string; up: boolean } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/market", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((j: unknown) => {
-        if (cancelled || !j || typeof j !== "object") return;
-        const o = j as { solPrice?: number; change24h?: number };
-        const price = Number(o.solPrice);
-        const ch = Number(o.change24h);
-        if (!Number.isFinite(price)) return;
-        setSol({
-          price: price >= 1000 ? `$${(price / 1000).toFixed(2)}k` : `$${price.toFixed(2)}`,
-          change: Number.isFinite(ch) ? `${ch >= 0 ? "+" : ""}${ch.toFixed(2)}%` : "—",
-          up: ch >= 0,
-        });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (!sol) return null;
+function DeskRecentHitsStrip({
+  hits,
+  onChart,
+}: {
+  hits: DeskRecentHit[];
+  onChart: (hit: DeskRecentHit) => void;
+}) {
+  if (hits.length === 0) return null;
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
-        sol.up
-          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200/95"
-          : "border-red-500/25 bg-red-500/10 text-red-200/90"
-      }`}
-    >
-      SOL {sol.price}
-      <span className="opacity-80">{sol.change}</span>
-    </span>
+    <div className="mt-3 border-t border-zinc-800/50 pt-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+          Recent 2×+ hits
+        </p>
+        <Link
+          href="/leaderboard?period=rolling24h"
+          className="text-[10px] font-semibold text-zinc-500 hover:text-zinc-300"
+        >
+          All →
+        </Link>
+      </div>
+      <ul className="mt-2 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {hits.map((hit) => (
+          <li key={`${hit.callCa}-${hit.multiple}`} className="shrink-0">
+            <button
+              type="button"
+              onClick={() => onChart(hit)}
+              className="flex w-[8.5rem] flex-col rounded-lg border border-zinc-800/80 bg-zinc-950/60 p-2 text-left transition hover:border-zinc-600 hover:bg-zinc-900/50 sm:w-[9.25rem]"
+            >
+              <div className="flex items-center gap-2">
+                <TokenCallThumb
+                  mint={hit.callCa}
+                  symbol={hit.symbol}
+                  tokenImageUrl={hit.tokenImageUrl}
+                  tone="default"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-bold text-zinc-100">${hit.symbol}</p>
+                  <p className={`text-sm font-black tabular-nums ${multipleClass(hit.multiple)}`}>
+                    {formatDeskX(hit.multiple)}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-1.5 truncate text-[10px] text-zinc-500">{hit.username}</p>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -239,6 +252,7 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
   const [pulse, setPulse] = useState<DeskPulseStats | null>(null);
   const [you, setYou] = useState<DeskYouStats | null>(null);
   const [rankMovers, setRankMovers] = useState<DeskRankMover[]>([]);
+  const [recentHits, setRecentHits] = useState<DeskRecentHit[]>([]);
   const [pulseLoading, setPulseLoading] = useState(true);
   const [pulseRefreshing, setPulseRefreshing] = useState(false);
   const [inboxRows, setInboxRows] = useState<InboxRow[]>([]);
@@ -267,6 +281,7 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
             setPulse(null);
             setYou(null);
             setRankMovers([]);
+            setRecentHits([]);
             return;
           }
           setPulse(o.pulse as DeskPulseStats);
@@ -274,12 +289,16 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
           setRankMovers(
             Array.isArray(o.rankMovers) ? (o.rankMovers as DeskRankMover[]) : [],
           );
+          setRecentHits(
+            Array.isArray(o.recentHits) ? (o.recentHits as DeskRecentHit[]) : [],
+          );
         })
         .catch(() => {
           if (!cancelled) {
             setPulse(null);
             setYou(null);
             setRankMovers([]);
+            setRecentHits([]);
           }
         })
         .finally(() => {
@@ -345,15 +364,19 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
   const youReady = !pulseLoading ? you : null;
   const topHit = pulseReady?.topHit ?? null;
 
-  const openStandoutChart = () => {
-    if (!topHit?.callCa) return;
+  const openHitChart = (hit: { callCa: string; symbol: string; tokenImageUrl: string | null }) => {
+    if (!hit.callCa) return;
     openTokenChart({
       chain: "solana",
-      contractAddress: topHit.callCa,
-      symbolLabel: topHit.symbol ? `$${topHit.symbol}` : undefined,
-      tokenTicker: topHit.symbol,
-      tokenImageUrl: topHit.tokenImageUrl,
+      contractAddress: hit.callCa,
+      symbolLabel: hit.symbol ? `$${hit.symbol}` : undefined,
+      tokenTicker: hit.symbol,
+      tokenImageUrl: hit.tokenImageUrl,
     });
+  };
+
+  const openStandoutChart = () => {
+    if (topHit) openHitChart(topHit);
   };
 
   return (
@@ -363,7 +386,6 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
         titleClassName="normal-case"
         titleRight={
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <SolRegimePill />
             <Link
               href="/leaderboard?period=rolling24h"
               className="text-[11px] font-semibold text-zinc-500 transition hover:text-zinc-200"
@@ -438,6 +460,7 @@ export function DeskIntelColumn({ refreshNonce = 0 }: { refreshNonce?: number })
             </div>
             <YouVsDeskBar you={youReady} pulse={pulseReady} />
             <DeskMoversStrip movers={rankMovers} />
+            <DeskRecentHitsStrip hits={recentHits} onChart={openHitChart} />
           </>
         )}
       </PanelCard>

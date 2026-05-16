@@ -13,6 +13,8 @@ import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
 import { DashboardChatPanel } from "./components/DashboardChatPanel";
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
 import { DeskIntelColumn } from "@/app/components/dashboard/DeskIntelColumn";
+import { MarketContextBar } from "@/app/components/dashboard/MarketContextBar";
+import { QuickDeskNav } from "@/app/components/dashboard/QuickDeskNav";
 import { HodlDashboardDock } from "./components/HodlDashboardDock";
 import { PanelCard, CARD_HOVER } from "./components/PanelCard";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
@@ -2697,7 +2699,7 @@ function ActivityFeedPanel({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
-          body: JSON.stringify({ action: "add", scope: "private", mint }),
+          body: JSON.stringify({ action: "add", scope: "private", contractAddress: mint }),
         });
         const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
         if (!res.ok || data.success !== true) {
@@ -4668,9 +4670,6 @@ export default function Home() {
       return;
     }
 
-    // refresh after closing the add-to-watchlist modal
-    if (addWatchlistOpen) return;
-
     let cancelled = false;
     const hadSaved =
       watchlistPrivate.length + watchlistPublic.length > 0 && !watchlistLoading;
@@ -4931,7 +4930,7 @@ export default function Home() {
           body: JSON.stringify({
             action: "add",
             scope: "private",
-            mint: mint.trim(),
+            contractAddress: mint.trim(),
           }),
         });
         const data = (await res.json().catch(() => ({}))) as {
@@ -5208,6 +5207,11 @@ export default function Home() {
         <PerformanceChart compact refreshNonce={homeDataRefreshNonce} />
       </div>
 
+      <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <MarketContextBar />
+        <QuickDeskNav onSubmitCall={() => setSubmitCallOpen(true)} />
+      </div>
+
       {quickActionsBlock ? (
         <div className="mb-8 lg:hidden">{quickActionsBlock}</div>
       ) : null}
@@ -5326,6 +5330,12 @@ export default function Home() {
             </div>
           ) : null}
 
+          {widgetEnabled(widgets, "hot_now") && !socialFeedEnabled ? (
+            <div data-tutorial="dashboard.opportunities">
+              <OpportunitiesPanel />
+            </div>
+          ) : null}
+
           {widgets !== null && widgetEnabled(widgets, "discord_chat") && (
             <div data-tutorial="dashboard.discordChat">
               <DashboardChatPanel feed="dashboard" dashboardChannel="general" pollMs={12000} />
@@ -5395,7 +5405,7 @@ export default function Home() {
                   <div className="text-center">
                     <p className="text-sm font-semibold text-zinc-200">No contracts yet</p>
                     <p className="mt-1 text-xs text-zinc-500">
-                      Paste a Solana mint or Dexscreener link to track it here.
+                      Paste a contract address (CA) or Dexscreener link to track it here.
                     </p>
                     <button
                       type="button"
@@ -5565,9 +5575,9 @@ export default function Home() {
           ) : null}
           </div>
 
-          {widgetEnabled(widgets, "hot_now") && (
+          {widgetEnabled(widgets, "hot_now") && socialFeedEnabled ? (
             <OpportunitiesPanel />
-          )}
+          ) : null}
         </div>
       </div>
       </div>
@@ -5582,6 +5592,7 @@ export default function Home() {
       <AddToWatchlistModal
         open={addWatchlistOpen}
         onClose={() => setAddWatchlistOpen(false)}
+        onAdded={() => setWatchlistRefreshNonce((n) => n + 1)}
       />
 
       <DashboardAlertsModal
