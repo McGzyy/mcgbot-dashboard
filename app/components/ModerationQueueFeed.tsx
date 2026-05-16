@@ -1,6 +1,7 @@
 "use client";
 
 import type { ModQueueCallApproval, ModQueueDevSubmission, ModQueuePayload } from "@/lib/modQueue";
+import { ModerationCallApprovalsTable } from "@/app/components/ModerationCallApprovalsTable";
 import { dexscreenerTokenUrl, formatListField, formatRelativeTime, parseTagsList } from "@/lib/modUiUtils";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
@@ -234,7 +235,8 @@ export function ModerationQueueFeed({
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const limit = mode === "full" ? 100 : 8;
-  const maxCards = mode === "full" ? 40 : 4;
+  /** Full desk lists up to the API limit so large queues stay on one scannable surface. */
+  const maxCards = mode === "full" ? limit : 4;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -301,6 +303,18 @@ export function ModerationQueueFeed({
     const sorted = sort === "newest" ? filtered.slice().sort((a, b) => newestScore(b) - newestScore(a)) : filtered;
     return sorted.slice(0, maxCards);
   }, [allItems, filter, maxCards, query, sort]);
+
+  const fullCallRows = useMemo(() => {
+    if (mode !== "full") return [];
+    return orderedItems
+      .filter((item): item is UnifiedCall => item.type === "call")
+      .map((item) => ({ origin: item.origin, call: item.call }));
+  }, [mode, orderedItems]);
+
+  const fullDevItems = useMemo(() => {
+    if (mode !== "full") return [];
+    return orderedItems.filter((item): item is UnifiedDev => item.type === "dev");
+  }, [mode, orderedItems]);
 
   const filteredCounts = useMemo(() => {
     if (!data?.success) {
@@ -483,13 +497,11 @@ export function ModerationQueueFeed({
           <p className="mt-1 text-xs leading-relaxed text-zinc-500">
             {mode === "full" ? (
               <>
-                <span className="font-medium text-zinc-300">Coin / tracked-call</span> rows are listed first and
-                clear from this view as soon as they are decided or the window closes — use{" "}
-                <span className="font-medium text-zinc-400">Approve</span>,{" "}
-                <span className="font-medium text-zinc-400">Deny</span>, or{" "}
-                <span className="font-medium text-zinc-400">Exclude</span>. Dev roster items stay below; approve/deny
-                still happens in{" "}
-                <span className="font-medium text-zinc-400">Discord</span> on the message.
+                <span className="font-medium text-zinc-300">Coin / tracked-call</span> approvals use a wide{" "}
+                <span className="font-medium text-zinc-400">terminal desk</span> (sortable columns, bulk select, sticky
+                actions). Rows disappear after a decision or when the window closes. Dev roster stays below — approve /
+                deny there in{" "}
+                <span className="font-medium text-zinc-400">Discord</span>.
               </>
             ) : (
               <>
@@ -664,7 +676,7 @@ export function ModerationQueueFeed({
         <div
           className={
             mode === "full"
-              ? "mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] xl:grid-cols-[minmax(0,1fr)_19.5rem] lg:items-start lg:gap-6"
+              ? "mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_14.5rem] lg:items-start lg:gap-5 2xl:grid-cols-[minmax(0,1fr)_17rem] 2xl:gap-6"
               : "mt-4"
           }
         >
@@ -685,203 +697,266 @@ export function ModerationQueueFeed({
                   Show all pending
                 </button>
               </div>
+            ) : mode === "full" ? (
+              <div className="space-y-10">
+                {fullCallRows.length > 0 ? (
+                  <ModerationCallApprovalsTable
+                    rows={fullCallRows}
+                    selected={selected}
+                    toggleSelected={toggleSelected}
+                    submitCallDecision={submitCallDecision}
+                    actingKey={actingKey}
+                    bulkBusy={bulkBusy}
+                  />
+                ) : null}
+                {fullDevItems.length > 0 ? (
+                  <div>
+                    <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                      Dev roster · approve / deny in Discord
+                    </h3>
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {fullDevItems.map((item) => {
+                        const d = item.dev;
+                        const tags = parseTagsList(d.tags);
+                        return (
+                          <div key={d.id} className={devShell()}>
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-zinc-200">
+                                  {d.nickname?.trim() || d.submitterUsername || shortAddr(d.id)}
+                                </p>
+                                <p className="mt-0.5 text-[10px] text-zinc-500">
+                                  Submitted {formatRelativeTime(d.createdAt)}
+                                  {d.submitterUsername ? ` · @${d.submitterUsername}` : ""}
+                                </p>
+                              </div>
+                              <span className="shrink-0 rounded-full border border-violet-400/35 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-100/90">
+                                Dev roster
+                              </span>
+                            </div>
+                            <dl className="mt-2 space-y-1 text-[11px]">
+                              <div className="flex gap-2">
+                                <dt className="w-24 shrink-0 text-zinc-600">Wallets</dt>
+                                <dd className="min-w-0 break-all text-zinc-300">{formatListField(d.walletAddresses)}</dd>
+                              </div>
+                              <div className="flex gap-2">
+                                <dt className="w-24 shrink-0 text-zinc-600">Coins</dt>
+                                <dd className="min-w-0 break-all text-zinc-300">{formatListField(d.coinAddresses)}</dd>
+                              </div>
+                              {tags.length ? (
+                                <div className="flex gap-2">
+                                  <dt className="w-24 shrink-0 text-zinc-600">Tags</dt>
+                                  <dd className="text-zinc-300">{tags.join(", ")}</dd>
+                                </div>
+                              ) : null}
+                              {d.notes ? (
+                                <div className="flex gap-2">
+                                  <dt className="w-24 shrink-0 text-zinc-600">Notes</dt>
+                                  <dd className="whitespace-pre-wrap break-words text-zinc-400">{d.notes}</dd>
+                                </div>
+                              ) : null}
+                            </dl>
+                            <div className="mt-3">
+                              {d.discordJumpUrl ? (
+                                <a
+                                  href={d.discordJumpUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex rounded-lg border border-violet-500/40 bg-violet-950/30 px-3 py-1.5 text-[11px] font-semibold text-violet-100 transition hover:border-violet-400/55 hover:bg-violet-900/35"
+                                >
+                                  Open in Discord (approve / deny)
+                                </a>
+                              ) : (
+                                <p className="text-[11px] text-zinc-500">No Discord jump link on this row.</p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <div className="space-y-3">
                 {orderedItems.map((item) => {
-            if (item.type === "call") {
-              const c = item.call;
-              const origin = item.origin;
-              const label = callSubject(c);
-              const expLabel = formatExpiryLabel(c.approvalExpiresAt ?? null);
-              const dex = dexscreenerTokenUrl(c.chain, c.contractAddress);
-              const milestones = Array.isArray(c.approvalMilestonesTriggered)
-                ? c.approvalMilestonesTriggered.map(String).join(", ")
-                : "—";
-              const busy = actingKey === c.contractAddress.trim();
-              const selKey = `${origin}:${c.contractAddress.trim()}`;
-              const isSelected = Boolean(selected[selKey]);
-              const actionPad = mode === "full" ? "py-2.5 text-xs" : "py-1.5 text-[11px]";
-              return (
-                <div key={`${origin}-${c.contractAddress}-${c.approvalMessageId ?? ""}`} className={callShell(origin)}>
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-zinc-200">{label}</p>
-                      <p className="mt-0.5 font-mono text-[10px] text-zinc-500">{shortAddr(c.contractAddress)}</p>
+                  if (item.type === "call") {
+                    const c = item.call;
+                    const origin = item.origin;
+                    const label = callSubject(c);
+                    const expLabel = formatExpiryLabel(c.approvalExpiresAt ?? null);
+                    const dex = dexscreenerTokenUrl(c.chain, c.contractAddress);
+                    const milestones = Array.isArray(c.approvalMilestonesTriggered)
+                      ? c.approvalMilestonesTriggered.map(String).join(", ")
+                      : "—";
+                    const busy = actingKey === c.contractAddress.trim();
+                    return (
+                      <div key={`${origin}-${c.contractAddress}-${c.approvalMessageId ?? ""}`} className={callShell(origin)}>
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-zinc-200">{label}</p>
+                            <p className="mt-0.5 font-mono text-[10px] text-zinc-500">{shortAddr(c.contractAddress)}</p>
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                              origin === "bot"
+                                ? "border-amber-400/35 bg-amber-500/10 text-amber-100/90"
+                                : "border-sky-400/35 bg-sky-500/10 text-sky-100/90"
+                            }`}
+                          >
+                            {origin === "bot" ? "McGBot call" : "Community call"}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={busy || bulkBusy}
+                            onClick={() => void submitCallDecision(c, origin, "approve")}
+                            className="rounded-lg border border-emerald-500/45 bg-emerald-950/45 px-3 py-1.5 text-[11px] font-bold text-emerald-100 transition hover:border-emerald-400/65 hover:bg-emerald-900/40 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy || bulkBusy}
+                            onClick={() => void submitCallDecision(c, origin, "deny")}
+                            className="rounded-lg border border-zinc-600 bg-zinc-900/75 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
+                          >
+                            Deny
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy || bulkBusy}
+                            onClick={() => void submitCallDecision(c, origin, "exclude")}
+                            className="rounded-lg border border-amber-600/50 bg-amber-950/30 px-3 py-1.5 text-[11px] font-semibold text-amber-100/95 transition hover:border-amber-500/60 hover:bg-amber-950/45 disabled:opacity-50"
+                          >
+                            Exclude
+                          </button>
+                        </div>
+                        {expLabel ? (
+                          <p
+                            className={`mt-2 text-[11px] font-medium ${
+                              expLabel.startsWith("Window expired") ? "text-red-300/90" : "text-amber-200/85"
+                            }`}
+                          >
+                            {expLabel}
+                          </p>
+                        ) : null}
+                        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:grid-cols-3">
+                          <div>
+                            <dt className="text-zinc-600">ATH ×</dt>
+                            <dd className="font-semibold tabular-nums text-zinc-200">{c.athMultipleX ?? "—"}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-zinc-600">Eligible top</dt>
+                            <dd className="font-semibold tabular-nums text-zinc-200">{c.eligibleTopMilestoneX ?? "—"}×</dd>
+                          </div>
+                          <div>
+                            <dt className="text-zinc-600">This cycle</dt>
+                            <dd className="font-semibold tabular-nums text-zinc-200">{c.lastApprovalTriggerX ?? "—"}×</dd>
+                          </div>
+                          <div>
+                            <dt className="text-zinc-600">Ladder ref</dt>
+                            <dd className="font-semibold tabular-nums text-zinc-200">{c.approvalTriggerX ?? "—"}×</dd>
+                          </div>
+                          <div className="col-span-2 sm:col-span-1">
+                            <dt className="text-zinc-600">Milestones hit</dt>
+                            <dd className="truncate text-zinc-300" title={milestones}>
+                              {milestones}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-zinc-600">Caller</dt>
+                            <dd className="truncate text-zinc-300">{c.firstCallerUsername ?? "—"}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-zinc-600">Requested</dt>
+                            <dd className="text-zinc-400">{formatRelativeTime(c.approvalRequestedAt)}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-zinc-600">Chain</dt>
+                            <dd className="uppercase text-zinc-400">{c.chain ?? "—"}</dd>
+                          </div>
+                        </dl>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {c.discordJumpUrl ? (
+                            <a
+                              href={c.discordJumpUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-lg border border-zinc-600/80 bg-zinc-900/60 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/80"
+                            >
+                              Discord message
+                            </a>
+                          ) : null}
+                          <a
+                            href={dex}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-lg border border-zinc-600/80 bg-zinc-900/60 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/80"
+                          >
+                            Dexscreener
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  }
+                  const d = item.dev;
+                  const tags = parseTagsList(d.tags);
+                  return (
+                    <div key={d.id} className={devShell()}>
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-zinc-200">
+                            {d.nickname?.trim() || d.submitterUsername || shortAddr(d.id)}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-zinc-500">
+                            Submitted {formatRelativeTime(d.createdAt)}
+                            {d.submitterUsername ? ` · @${d.submitterUsername}` : ""}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-violet-400/35 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-100/90">
+                          Dev roster
+                        </span>
+                      </div>
+                      <dl className="mt-2 space-y-1 text-[11px]">
+                        <div className="flex gap-2">
+                          <dt className="w-24 shrink-0 text-zinc-600">Wallets</dt>
+                          <dd className="min-w-0 break-all text-zinc-300">{formatListField(d.walletAddresses)}</dd>
+                        </div>
+                        <div className="flex gap-2">
+                          <dt className="w-24 shrink-0 text-zinc-600">Coins</dt>
+                          <dd className="min-w-0 break-all text-zinc-300">{formatListField(d.coinAddresses)}</dd>
+                        </div>
+                        {tags.length ? (
+                          <div className="flex gap-2">
+                            <dt className="w-24 shrink-0 text-zinc-600">Tags</dt>
+                            <dd className="text-zinc-300">{tags.join(", ")}</dd>
+                          </div>
+                        ) : null}
+                        {d.notes ? (
+                          <div className="flex gap-2">
+                            <dt className="w-24 shrink-0 text-zinc-600">Notes</dt>
+                            <dd className="whitespace-pre-wrap break-words text-zinc-400">{d.notes}</dd>
+                          </div>
+                        ) : null}
+                      </dl>
+                      <div className="mt-3">
+                        {d.discordJumpUrl ? (
+                          <a
+                            href={d.discordJumpUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex rounded-lg border border-violet-500/40 bg-violet-950/30 px-3 py-1.5 text-[11px] font-semibold text-violet-100 transition hover:border-violet-400/55 hover:bg-violet-900/35"
+                          >
+                            Open in Discord (approve / deny)
+                          </a>
+                        ) : (
+                          <p className="text-[11px] text-zinc-500">No Discord jump link on this row.</p>
+                        )}
+                      </div>
                     </div>
-                    <span
-                      className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                        origin === "bot"
-                          ? "border-amber-400/35 bg-amber-500/10 text-amber-100/90"
-                          : "border-sky-400/35 bg-sky-500/10 text-sky-100/90"
-                      }`}
-                    >
-                      {origin === "bot" ? "McGBot call" : "Community call"}
-                    </span>
-                  </div>
-                  <div
-                    className={`mt-3 flex gap-2 ${mode === "full" ? "w-full flex-col sm:flex-row" : "flex-wrap"}`}
-                  >
-                    <button
-                      type="button"
-                      disabled={busy || bulkBusy}
-                      onClick={() => void submitCallDecision(c, origin, "approve")}
-                      className={`rounded-lg border border-emerald-500/45 bg-emerald-950/45 font-bold text-emerald-100 transition hover:border-emerald-400/65 hover:bg-emerald-900/40 disabled:opacity-50 ${actionPad} ${mode === "full" ? "w-full sm:flex-1" : "px-3"}`}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy || bulkBusy}
-                      onClick={() => void submitCallDecision(c, origin, "deny")}
-                      className={`rounded-lg border border-zinc-600 bg-zinc-900/75 font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50 ${actionPad} ${mode === "full" ? "w-full sm:flex-1" : "px-3"}`}
-                    >
-                      Deny
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy || bulkBusy}
-                      onClick={() => void submitCallDecision(c, origin, "exclude")}
-                      className={`rounded-lg border border-amber-600/50 bg-amber-950/30 font-semibold text-amber-100/95 transition hover:border-amber-500/60 hover:bg-amber-950/45 disabled:opacity-50 ${actionPad} ${mode === "full" ? "w-full sm:flex-1" : "px-3"}`}
-                    >
-                      Exclude
-                    </button>
-                  </div>
-                  {mode === "full" ? (
-                    <label className="mt-2 inline-flex select-none items-center gap-2 text-[11px] text-zinc-500">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelected(c, origin)}
-                        disabled={bulkBusy || busy}
-                        className="h-4 w-4 rounded border-zinc-700 bg-black/40"
-                      />
-                      Select for bulk actions
-                    </label>
-                  ) : null}
-                  {expLabel ? (
-                    <p
-                      className={`mt-2 text-[11px] font-medium ${
-                        expLabel.startsWith("Window expired") ? "text-red-300/90" : "text-amber-200/85"
-                      }`}
-                    >
-                      {expLabel}
-                    </p>
-                  ) : null}
-                  <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:grid-cols-3">
-                    <div>
-                      <dt className="text-zinc-600">ATH ×</dt>
-                      <dd className="font-semibold tabular-nums text-zinc-200">{c.athMultipleX ?? "—"}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-600">Eligible top</dt>
-                      <dd className="font-semibold tabular-nums text-zinc-200">{c.eligibleTopMilestoneX ?? "—"}×</dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-600">This cycle</dt>
-                      <dd className="font-semibold tabular-nums text-zinc-200">{c.lastApprovalTriggerX ?? "—"}×</dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-600">Ladder ref</dt>
-                      <dd className="font-semibold tabular-nums text-zinc-200">{c.approvalTriggerX ?? "—"}×</dd>
-                    </div>
-                    <div className="col-span-2 sm:col-span-1">
-                      <dt className="text-zinc-600">Milestones hit</dt>
-                      <dd className="truncate text-zinc-300" title={milestones}>
-                        {milestones}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-600">Caller</dt>
-                      <dd className="truncate text-zinc-300">{c.firstCallerUsername ?? "—"}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-600">Requested</dt>
-                      <dd className="text-zinc-400">{formatRelativeTime(c.approvalRequestedAt)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-600">Chain</dt>
-                      <dd className="uppercase text-zinc-400">{c.chain ?? "—"}</dd>
-                    </div>
-                  </dl>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {c.discordJumpUrl ? (
-                      <a
-                        href={c.discordJumpUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-lg border border-zinc-600/80 bg-zinc-900/60 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/80"
-                      >
-                        Discord message
-                      </a>
-                    ) : null}
-                    <a
-                      href={dex}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-lg border border-zinc-600/80 bg-zinc-900/60 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/80"
-                    >
-                      Dexscreener
-                    </a>
-                  </div>
-                </div>
-              );
-            }
-            const d = item.dev;
-            const tags = parseTagsList(d.tags);
-            return (
-              <div key={d.id} className={devShell()}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-zinc-200">
-                      {d.nickname?.trim() || d.submitterUsername || shortAddr(d.id)}
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-zinc-500">
-                      Submitted {formatRelativeTime(d.createdAt)}
-                      {d.submitterUsername ? ` · @${d.submitterUsername}` : ""}
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full border border-violet-400/35 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-100/90">
-                    Dev roster
-                  </span>
-                </div>
-                <dl className="mt-2 space-y-1 text-[11px]">
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-zinc-600">Wallets</dt>
-                    <dd className="min-w-0 break-all text-zinc-300">{formatListField(d.walletAddresses)}</dd>
-                  </div>
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-zinc-600">Coins</dt>
-                    <dd className="min-w-0 break-all text-zinc-300">{formatListField(d.coinAddresses)}</dd>
-                  </div>
-                  {tags.length ? (
-                    <div className="flex gap-2">
-                      <dt className="w-24 shrink-0 text-zinc-600">Tags</dt>
-                      <dd className="text-zinc-300">{tags.join(", ")}</dd>
-                    </div>
-                  ) : null}
-                  {d.notes ? (
-                    <div className="flex gap-2">
-                      <dt className="w-24 shrink-0 text-zinc-600">Notes</dt>
-                      <dd className="whitespace-pre-wrap break-words text-zinc-400">{d.notes}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-                <div className="mt-3">
-                  {d.discordJumpUrl ? (
-                    <a
-                      href={d.discordJumpUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex rounded-lg border border-violet-500/40 bg-violet-950/30 px-3 py-1.5 text-[11px] font-semibold text-violet-100 transition hover:border-violet-400/55 hover:bg-violet-900/35"
-                    >
-                      Open in Discord (approve / deny)
-                    </a>
-                  ) : (
-                    <p className="text-[11px] text-zinc-500">No Discord jump link on this row.</p>
-                  )}
-                </div>
-              </div>
-            );
+                  );
                 })}
               </div>
             )}
