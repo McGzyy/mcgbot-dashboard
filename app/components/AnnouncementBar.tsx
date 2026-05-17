@@ -33,12 +33,12 @@ export function AnnouncementBar({
   variant = "inset",
   /** When true (dashboard shell), sticky is applied outside `mainStage` so it is not broken by `overflow-x-hidden`. */
   stickyBelowTopBar = false,
-  /** Bare layouts (verify, auth, subscribe): only show when admin enabled "global". */
-  barePage = false,
+  /** Only show when admin enabled "Global (all pages)". */
+  requireGlobal = false,
 }: {
   variant?: AnnouncementBarVariant;
   stickyBelowTopBar?: boolean;
-  barePage?: boolean;
+  requireGlobal?: boolean;
 }) {
   const [payload, setPayload] = useState<BarPayload | null>(null);
   const [userDismissed, setUserDismissed] = useState(false);
@@ -51,7 +51,7 @@ export function AnnouncementBar({
         setPayload(null);
         return;
       }
-      if (barePage && j.announcement_global !== true) {
+      if (requireGlobal && j.announcement_global !== true) {
         setPayload(null);
         return;
       }
@@ -100,7 +100,7 @@ export function AnnouncementBar({
       if ((e as { name?: string }).name === "AbortError") return;
       setPayload(null);
     }
-  }, [barePage]);
+  }, [requireGlobal]);
 
   useEffect(() => {
     const ac = new AbortController();

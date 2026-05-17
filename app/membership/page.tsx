@@ -734,8 +734,8 @@ export default function MembershipPage() {
       </div>
 
       <header className="sticky top-0 z-10 border-b border-zinc-800/80 bg-black/40 px-4 py-4 backdrop-blur sm:px-6">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <Link href="/" className="flex min-w-0 items-center" aria-label="McGBot Terminal ? home">
+        <div className="mx-auto flex max-w-4xl items-center justify-between">
+          <Link href="/" className="flex min-w-0 items-center" aria-label="McGBot Terminal home">
             <Image
               src="/brand/mcgbot-terminal-logo.png"
               alt="McGBot Terminal"
@@ -766,38 +766,35 @@ export default function MembershipPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-10 sm:px-6 sm:py-12">
-        <div className="mx-auto w-full max-w-3xl">
-          <div className="text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-              Membership
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl">
-              {siteFlags?.paywall_title?.trim() || "Unlock premium access"}
-            </h1>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300/90">
-              Pay with Stripe (card) or SOL (wallet). Stripe renewals follow your plan&apos;s billing cycle until you
-              cancel. SOL renewals are confirmed in your wallet when you choose to extend ? each successful payment
-              extends dashboard access the same way.
-            </p>
-            {siteFlags?.paywall_subtitle ? (
-              <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300">
-                {siteFlags.paywall_subtitle}
-              </p>
-            ) : null}
-          </div>
+      <main className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+        <div className="mx-auto w-full max-w-3xl text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-zinc-600">
+            McGBot Terminal
+          </p>
+          <h1 className="mt-3 bg-gradient-to-b from-white to-zinc-400 bg-clip-text text-3xl font-semibold tracking-tight text-transparent sm:text-[2.35rem] sm:leading-tight">
+            {siteFlags?.paywall_title?.trim() || "Membership"}
+          </h1>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-zinc-500">
+            {siteFlags?.paywall_subtitle?.trim() ||
+              "Choose Basic or Pro, pick monthly or annual billing, then checkout with Stripe or SOL."}
+          </p>
 
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs">
+          <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-2">
             <span
-              className={`rounded-full border px-3 py-1.5 ${
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium ${
                 isLoggedIn
-                  ? "border-zinc-800/70 bg-zinc-900/35 text-zinc-200"
-                  : "border-[#5865F2]/40 bg-[#5865F2]/10 text-zinc-100 ring-1 ring-[#5865F2]/25"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
+                  : "border-[#5865F2]/35 bg-[#5865F2]/10 text-[#c4c8ff]"
               }`}
             >
-              Discord: {isLoggedIn ? "Connected" : "Not signed in"}
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${isLoggedIn ? "bg-emerald-400" : "bg-[#5865F2]"}`}
+                aria-hidden
+              />
+              Discord {isLoggedIn ? "connected" : "required"}
             </span>
-            <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-3 py-1.5 text-zinc-200">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-800/70 bg-zinc-950/50 px-3 py-1 text-[11px] font-medium text-zinc-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" aria-hidden />
               Server:{" "}
               {!isLoggedIn
                 ? "?"
@@ -811,15 +808,21 @@ export default function MembershipPage() {
                         ? "Not joined"
                         : "?"}
             </span>
-            <span className="rounded-full border border-zinc-800/70 bg-zinc-900/35 px-3 py-1.5 text-zinc-200">
-              Access:{" "}
-              {!isLoggedIn
-                ? "Sign in to purchase"
-                : active || exempt
-                  ? "Active"
-                  : "Not active"}
-              {periodEnd && isLoggedIn ? (
-                <span className="text-zinc-400"> ? until {formatExpiry(periodEnd)}</span>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium ${
+                active || exempt
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
+                  : "border-amber-500/30 bg-amber-500/10 text-amber-100"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${active || exempt ? "bg-emerald-400" : "bg-amber-400"}`}
+                aria-hidden
+              />
+              Access{" "}
+              {!isLoggedIn ? "— sign in" : active || exempt ? "active" : "inactive"}
+              {periodEnd && isLoggedIn && (active || exempt) ? (
+                <span className="text-zinc-500"> · {formatExpiry(periodEnd)}</span>
               ) : null}
             </span>
           </div>
@@ -956,7 +959,13 @@ export default function MembershipPage() {
           </div>
         ) : null}
 
-        <MembershipProductCompare />
+        <MembershipProductCompare
+          productLine={productLine}
+          onProductLineChange={(line) => {
+            setProductLine(line);
+            setSelectedSlug((prev) => preferredSlugForLine(line, prev) || prev);
+          }}
+        />
 
         {showUpgradeCheckout ? (
           <div className="mx-auto w-full max-w-3xl rounded-2xl border border-sky-500/25 bg-sky-500/10 px-5 py-4 text-sm text-sky-100/90">
@@ -970,10 +979,6 @@ export default function MembershipPage() {
 
         <MembershipBillingSection
           productLine={productLine}
-          onProductLineChange={(line) => {
-            setProductLine(line);
-            setSelectedSlug((prev) => preferredSlugForLine(line, prev) || prev);
-          }}
           plansForLine={plansForLine}
           plansError={plansError}
           plansLoading={plans == null}

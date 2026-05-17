@@ -687,8 +687,8 @@ export function SiteAdminClient() {
                   <span>
                     <span className="block text-sm font-medium text-white">Global (all pages)</span>
                     <span className="mt-0.5 block text-xs text-zinc-500">
-                      Also show on verify, auth, and subscribe pages. Off by default — those pages stay clean unless
-                      you need a site-wide alert.
+                      Required for the bar to appear anywhere (dashboard, verify, auth, subscribe). Off by default —
+                      pages stay clean unless you need a site-wide alert.
                     </span>
                   </span>
                 </label>

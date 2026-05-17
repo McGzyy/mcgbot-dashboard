@@ -13,7 +13,7 @@ export function MainShell({ children }: { children: ReactNode }) {
         Announcement must stay OUTSIDE mainStage: that region uses overflow-x-hidden, which breaks
         position:sticky in Chromium — the bar would scroll with content and overlap page headers.
       */}
-      <AnnouncementBar variant="inset" stickyBelowTopBar />
+      <AnnouncementBar variant="inset" stickyBelowTopBar requireGlobal />
       <div className={dashboardChrome.mainStage}>
         <div className={`${dashboardChrome.mainGlow} absolute inset-0`} aria-hidden />
         <div className={`${dashboardChrome.mainGrid} absolute inset-0`} aria-hidden />

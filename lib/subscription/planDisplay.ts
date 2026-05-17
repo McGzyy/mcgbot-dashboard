@@ -33,6 +33,14 @@ export function billingCadenceLabel(billingMonths: number, durationDays: number)
   return "Recurring in Stripe";
 }
 
+/** Short title for plan cards (e.g. Monthly, Annual). */
+export function planCadenceTitle(billingMonths: number): string {
+  const m = Math.max(1, Math.floor(Number(billingMonths) || 1));
+  if (m === 1) return "Monthly";
+  if (m === 12) return "Annual";
+  return `${m} months`;
+}
+
 export function billingPeriodNoun(billingMonths: number): string {
   const m = Math.max(1, Math.floor(Number(billingMonths) || 1));
   if (m === 1) return "month";
