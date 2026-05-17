@@ -46,21 +46,46 @@ export async function GET(request: Request) {
     const winStart = windowStartMs(window, now);
     const floor = mergeStatsCutoverIntoMin(winStart, cutoverMs);
 
-    const { data, error, count } = await selectCallPerformanceWithSnapshotFallback({
-      columnsWithSnapshot: CP_TAPE_WITH_SNAPSHOT,
-      columnsLegacy: CP_TAPE_LEGACY,
-      run: async (columns) => {
-        const res = await supabase
-          .from("call_performance")
-          .select(columns, { count: "exact" })
-          .eq("discord_id", discordId)
-          .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR)
-          .gte("call_time", floor)
-          .order("call_time", { ascending: false })
-          .range(offset, offset + limit - 1);
-        return { data: res.data, error: res.error, count: res.count };
-      },
-    });
+    const tapeQuery = (columns: string) =>
+      supabase
+        .from("call_performance")
+        .select(columns, { count: "exact" })
+        .eq("discord_id", discordId)
+        .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR)
+        .gte("call_time", floor)
+        .order("call_time", { ascending: false })
+        .range(offset, offset + limit - 1);
+
+    const bestAthColumns = "call_ca, ath_multiple, token_ticker, token_name";
+    const bestAthQuery = (columns: string) =>
+      supabase
+        .from("call_performance")
+        .select(columns)
+        .eq("discord_id", discordId)
+        .or(CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR)
+        .gte("call_time", floor)
+        .eq("excluded_from_stats", false)
+        .order("ath_multiple", { ascending: false })
+        .limit(1);
+
+    const [{ data, error, count }, bestPick] = await Promise.all([
+      selectCallPerformanceWithSnapshotFallback({
+        columnsWithSnapshot: CP_TAPE_WITH_SNAPSHOT,
+        columnsLegacy: CP_TAPE_LEGACY,
+        run: async (columns) => {
+          const res = await tapeQuery(columns);
+          return { data: res.data, error: res.error, count: res.count };
+        },
+      }),
+      selectCallPerformanceWithSnapshotFallback({
+        columnsWithSnapshot: bestAthColumns,
+        columnsLegacy: "call_ca, ath_multiple",
+        run: async (columns) => {
+          const res = await bestAthQuery(columns);
+          return { data: res.data, error: res.error };
+        },
+      }),
+    ]);
 
     if (error) {
       console.error("[me/call-tape]", error);
@@ -99,6 +124,13 @@ export async function GET(request: Request) {
       };
     });
 
+    const bestRaw = Array.isArray(bestPick.data) ? (bestPick.data[0] as Record<string, unknown> | undefined) : undefined;
+    const bestAthMultiple = bestRaw ? rowAthMultiple(bestRaw) : 0;
+    const bestCallCa =
+      bestRaw && typeof bestRaw.call_ca === "string" ? bestRaw.call_ca.trim() : "";
+    const bestTicker =
+      bestRaw && typeof bestRaw.token_ticker === "string" ? bestRaw.token_ticker.trim() : "";
+
     return Response.json({
       success: true,
       window,
@@ -106,6 +138,11 @@ export async function GET(request: Request) {
       total: typeof count === "number" ? count : rows.length,
       offset,
       limit,
+      summary: {
+        bestAthMultiple: bestAthMultiple > 0 ? bestAthMultiple : null,
+        bestCallCa: bestCallCa || null,
+        bestTokenTicker: bestTicker || null,
+      },
     });
   } catch (e) {
     console.error("[me/call-tape] GET:", e);

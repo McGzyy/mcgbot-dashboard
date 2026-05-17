@@ -41,6 +41,19 @@ const WINDOWS = [
   { id: "all", label: "All time" },
 ] as const;
 
+type TapeSummary = {
+  bestAthMultiple: number | null;
+  bestCallCa: string | null;
+  bestTokenTicker: string | null;
+};
+
+function multipleCellClass(multiple: number): string {
+  if (!Number.isFinite(multiple) || multiple <= 0) return "text-zinc-500";
+  if (multiple >= 2) return "font-semibold text-emerald-300";
+  if (multiple >= 1) return "font-medium text-zinc-200";
+  return "font-medium text-amber-200/85";
+}
+
 export default function CallTapePage() {
   const { status } = useSession();
   const searchParams = useSearchParams();
@@ -53,6 +66,7 @@ export default function CallTapePage() {
   const [tapeWindow, setTapeWindow] = useState<(typeof WINDOWS)[number]["id"]>("30d");
   const [rows, setRows] = useState<TapeRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState<TapeSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
@@ -82,18 +96,35 @@ export default function CallTapePage() {
         success?: boolean;
         rows?: TapeRow[];
         total?: number;
+        summary?: TapeSummary;
         error?: string;
       };
       if (!res.ok || !json.success) {
         setErr(typeof json.error === "string" ? json.error : "Could not load My Call Log.");
         setRows([]);
+        setSummary(null);
         return;
       }
       setRows(Array.isArray(json.rows) ? json.rows : []);
       setTotal(typeof json.total === "number" ? json.total : 0);
+      const s = json.summary;
+      setSummary(
+        s && typeof s === "object"
+          ? {
+              bestAthMultiple:
+                typeof s.bestAthMultiple === "number" && s.bestAthMultiple > 0
+                  ? s.bestAthMultiple
+                  : null,
+              bestCallCa: typeof s.bestCallCa === "string" ? s.bestCallCa : null,
+              bestTokenTicker:
+                typeof s.bestTokenTicker === "string" ? s.bestTokenTicker : null,
+            }
+          : null
+      );
     } catch {
       setErr("Could not load My Call Log.");
       setRows([]);
+      setSummary(null);
     } finally {
       setLoading(false);
     }
@@ -151,6 +182,20 @@ export default function CallTapePage() {
     [highlightMint, rows]
   );
 
+  const rangeLabel = useMemo(() => {
+    if (loading || total === 0) return null;
+    const from = total === 0 ? 0 : offset + 1;
+    const to = Math.min(offset + rows.length, total);
+    return `Showing ${from.toLocaleString("en-US")}–${to.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`;
+  }, [loading, total, offset, rows.length]);
+
+  const bestAthRowKey = useMemo(() => {
+    const ca = summary?.bestCallCa?.trim();
+    if (!ca) return null;
+    const match = rows.find((r) => r.callCa === ca);
+    return match ? match.id || match.callCa + String(match.callTime) : null;
+  }, [rows, summary?.bestCallCa]);
+
   useLayoutEffect(() => {
     if (!highlightMint || loading) return;
     const key = highlightRow?.id || highlightRow?.callCa || highlightMint;
@@ -185,19 +230,13 @@ export default function CallTapePage() {
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Your terminal</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">My Call Log</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          <span className="font-medium text-zinc-200">Your calls only</span> — not the whole server, not other
-          people’s history. Each row is one call credited to <span className="font-medium text-zinc-200">your</span>{" "}
-          account (the <span className="font-medium text-zinc-300">Source</span> column just says how it was logged,
-          e.g. you vs McGBot). Use <span className="font-medium text-zinc-300">Dex</span> or{" "}
-          <span className="font-medium text-zinc-300">Chart</span> when you want to jump out. For charts and totals from the same data, open{" "}
+          Every row is a call credited to you — not the whole server. Jump out with{" "}
+          <span className="font-medium text-zinc-300">Chart</span> or{" "}
+          <span className="font-medium text-zinc-300">Dex</span>, or open{" "}
           <Link href="/performance" className="font-medium text-cyan-300/90 underline-offset-2 hover:underline">
-            Performance
-          </Link>
-          ; for everyone’s rankings, open{" "}
-          <Link href="/leaderboard" className="font-medium text-cyan-300/90 underline-offset-2 hover:underline">
-            Leaderboards
-          </Link>
-          .
+            Performance Lab
+          </Link>{" "}
+          for totals and charts from the same data.
         </p>
       </header>
 
@@ -231,11 +270,44 @@ export default function CallTapePage() {
           >
             Log call
           </button>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-2.5 py-1.5 text-xs font-semibold text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-200 disabled:opacity-40"
+          >
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
           <p className="text-xs tabular-nums text-zinc-500">
-            {loading ? "…" : total.toLocaleString("en-US")} in window
+            {rangeLabel ?? (loading ? "…" : `${total.toLocaleString("en-US")} in window`)}
           </p>
         </div>
       </div>
+
+      {!loading && total > 0 ? (
+        <div className="mt-5 flex flex-wrap items-center gap-2 sm:gap-3">
+          <span className="rounded-lg border border-zinc-700/70 bg-zinc-950/60 px-2.5 py-1 text-xs font-semibold tabular-nums text-zinc-300">
+            {total.toLocaleString("en-US")} call{total === 1 ? "" : "s"}
+          </span>
+          {summary?.bestAthMultiple != null ? (
+            <span className="rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] px-2.5 py-1 text-xs text-emerald-100/90">
+              Best ATH{" "}
+              <span className="font-semibold tabular-nums text-emerald-300">
+                {summary.bestAthMultiple.toFixed(2)}×
+              </span>
+              {summary.bestTokenTicker ? (
+                <span className="text-emerald-200/70"> · ${summary.bestTokenTicker}</span>
+              ) : null}
+            </span>
+          ) : null}
+          <Link
+            href="/performance"
+            className="rounded-lg border border-violet-500/25 bg-violet-500/[0.07] px-2.5 py-1 text-xs font-semibold text-violet-100/90 transition hover:border-violet-400/35 hover:bg-violet-500/12"
+          >
+            Performance Lab →
+          </Link>
+        </div>
+      ) : null}
 
       {highlightMint && !loading && !highlightRow ? (
         <div className="mt-6 rounded-xl border border-[color:var(--accent)]/30 bg-[color:var(--accent)]/[0.06] px-4 py-3 text-sm text-zinc-200">
@@ -262,20 +334,20 @@ export default function CallTapePage() {
 
       <div className={`relative mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ${terminalSurface.insetEdge}`}>
         <DashboardRefreshBar active={loading && rows.length > 0} />
-        <div className="overflow-x-auto">
-          <table className="min-w-[720px] w-full text-left text-sm">
+        <div className="max-h-[min(70vh,52rem)] overflow-auto no-scrollbar">
+          <table className="min-w-[760px] w-full text-left text-sm">
             <thead
-              className="border-b border-zinc-800/90 bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-zinc-500"
+              className="sticky top-0 z-10 border-b border-zinc-800/90 bg-zinc-950/95 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 backdrop-blur-sm"
               data-tutorial="calls.table"
             >
               <tr>
-                <th className="px-4 py-2.5">When</th>
-                <th className="px-4 py-2.5 min-w-[220px]">Call</th>
-                <th className="px-4 py-2.5 text-right">Live ×</th>
-                <th className="px-4 py-2.5 text-right">ATH ×</th>
-                <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5">Source</th>
-                <th className="px-4 py-2.5 text-right">Links</th>
+                <th className="px-3 py-2 sm:px-4">When</th>
+                <th className="min-w-[220px] px-3 py-2 sm:px-4">Call</th>
+                <th className="px-3 py-2 text-right sm:px-4">Live ×</th>
+                <th className="px-3 py-2 text-right sm:px-4">ATH ×</th>
+                <th className="hidden px-3 py-2 sm:table-cell sm:px-4">Status</th>
+                <th className="hidden px-3 py-2 md:table-cell md:px-4">Source</th>
+                <th className="px-3 py-2 text-right sm:px-4">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
@@ -321,6 +393,7 @@ export default function CallTapePage() {
                   const dex = r.callCa ? dexscreenerTokenUrl("solana", r.callCa) : null;
                   const rowKey = r.id || r.callCa + String(r.callTime);
                   const isHighlighted = highlightMint != null && r.callCa === highlightMint;
+                  const isBestAth = bestAthRowKey != null && rowKey === bestAthRowKey;
                   return (
                     <tr
                       key={rowKey}
@@ -330,20 +403,22 @@ export default function CallTapePage() {
                       className={
                         isHighlighted
                           ? "bg-[color:var(--accent)]/[0.08] ring-1 ring-inset ring-[color:var(--accent)]/40"
-                          : "hover:bg-zinc-900/35"
+                          : isBestAth
+                            ? "bg-emerald-500/[0.04] ring-1 ring-inset ring-emerald-500/20 hover:bg-emerald-500/[0.06]"
+                            : "hover:bg-zinc-900/35"
                       }
                     >
-                      <td className="whitespace-nowrap px-4 py-2.5 text-xs text-zinc-400">
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-400 sm:px-4">
                         {iso ? formatRelativeTime(iso) : "—"}
                       </td>
-                      <td className="max-w-[min(420px,55vw)] px-4 py-2.5 text-xs text-zinc-200">
+                      <td className="max-w-[min(420px,55vw)] px-3 py-2 text-xs text-zinc-200 sm:px-4">
                         <div className="flex min-w-0 gap-2">
                           {r.tokenImageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={r.tokenImageUrl}
                               alt=""
-                              className="mt-0.5 h-8 w-8 shrink-0 rounded-lg border border-zinc-700/50 object-cover shadow-sm shadow-black/40 ring-1 ring-white/[0.03]"
+                              className="mt-0.5 h-7 w-7 shrink-0 rounded-lg border border-zinc-700/50 object-cover shadow-sm shadow-black/40 ring-1 ring-white/[0.03] sm:h-8 sm:w-8"
                               loading="lazy"
                               referrerPolicy="no-referrer"
                             />
@@ -360,15 +435,19 @@ export default function CallTapePage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-emerald-300">
+                      <td
+                        className={`px-3 py-2 text-right text-xs tabular-nums sm:px-4 ${multipleCellClass(r.liveMultiple)}`}
+                      >
                         {Number.isFinite(r.liveMultiple) ? `${r.liveMultiple.toFixed(2)}×` : "—"}
                       </td>
-                      <td className="px-4 py-2.5 text-right font-medium tabular-nums text-zinc-400">
+                      <td
+                        className={`px-3 py-2 text-right text-xs tabular-nums sm:px-4 ${multipleCellClass(r.athMultiple)}`}
+                      >
                         {Number.isFinite(r.athMultiple) && r.athMultiple > 0
                           ? `${r.athMultiple.toFixed(2)}×`
                           : "—"}
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="hidden px-3 py-2 sm:table-cell sm:px-4">
                         {r.excludedFromStats ? (
                           <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
                             Excluded
@@ -379,13 +458,13 @@ export default function CallTapePage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="hidden px-3 py-2 md:table-cell md:px-4">
                         <span className="rounded-md border border-zinc-700/80 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
                           {r.source || "user"}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right">
-                        <div className="flex flex-wrap justify-end gap-1.5">
+                      <td className="whitespace-nowrap px-3 py-2 text-right sm:px-4">
+                        <div className="flex flex-wrap justify-end gap-1">
                           {r.callCa ? (
                             <button
                               type="button"
@@ -398,7 +477,7 @@ export default function CallTapePage() {
                                   tokenImageUrl: r.tokenImageUrl ?? null,
                                 })
                               }
-                              className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-100/90 transition hover:border-emerald-400/40 hover:bg-emerald-500/15"
+                              className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100/90 transition hover:border-emerald-400/40 hover:bg-emerald-500/15 sm:py-1 sm:text-[11px]"
                               title="Live chart (TradingView)"
                             >
                               Chart
@@ -409,11 +488,17 @@ export default function CallTapePage() {
                               href={dex}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[11px] font-semibold text-cyan-100/90 transition hover:border-cyan-400/35 hover:bg-cyan-500/15"
+                              className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-100/90 transition hover:border-cyan-400/35 hover:bg-cyan-500/15 sm:py-1 sm:text-[11px]"
                             >
                               Dex
                             </a>
                           ) : null}
+                          <Link
+                            href="/performance"
+                            className="rounded-md border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-100/90 transition hover:border-violet-400/35 hover:bg-violet-500/15 sm:py-1 sm:text-[11px]"
+                          >
+                            Stats
+                          </Link>
                         </div>
                       </td>
                     </tr>
@@ -426,7 +511,9 @@ export default function CallTapePage() {
       </div>
 
       {total > limit ? (
-        <div className="mt-4 flex justify-center gap-2">
+        <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center sm:gap-4">
+          {rangeLabel ? <p className="text-xs tabular-nums text-zinc-500">{rangeLabel}</p> : null}
+          <div className="flex gap-2">
           <button
             type="button"
             disabled={offset === 0 || loading}
@@ -443,6 +530,7 @@ export default function CallTapePage() {
           >
             Next
           </button>
+          </div>
         </div>
       ) : null}
 
