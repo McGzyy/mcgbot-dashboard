@@ -129,7 +129,7 @@ export function MembershipBillingSection({
                 {lineMeta.title} membership · pick a billing period
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                Longer periods save more. Pay with Stripe or SOL — promotion codes are entered on
+                Monthly or annual billing. Pay with Stripe or SOL — promotion codes are entered on
                 Stripe&apos;s checkout page.
               </p>
             </div>
@@ -186,8 +186,8 @@ export function MembershipBillingSection({
               {plansError}
             </p>
           ) : plansLoading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {[0, 1, 2, 3].map((i) => (
+            <div className="grid max-w-2xl gap-3 sm:grid-cols-2">
+              {[0, 1].map((i) => (
                 <div
                   key={i}
                   className="h-[168px] animate-pulse rounded-2xl border border-zinc-800/60 bg-zinc-900/40"
@@ -203,8 +203,8 @@ export function MembershipBillingSection({
             <div
               className={
                 planCardsVisuallyLocked
-                  ? "pointer-events-none grid gap-3 opacity-50 grayscale sm:grid-cols-2 xl:grid-cols-4"
-                  : "grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+                  ? "pointer-events-none grid max-w-2xl gap-3 opacity-50 grayscale sm:grid-cols-2"
+                  : "grid max-w-2xl gap-3 sm:grid-cols-2"
               }
             >
               {plansForLine.map((p) => {

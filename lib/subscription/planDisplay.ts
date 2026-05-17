@@ -1,5 +1,13 @@
 /** Shared copy/formatting for membership plan cards and checkout summaries. */
 
+/** Billing periods offered on /membership (quarterly etc. can be added later). */
+export const SELLABLE_BILLING_MONTHS = [1, 12] as const;
+
+export function isSellableBillingMonths(months: number): boolean {
+  const m = Math.floor(Number(months) || 0);
+  return (SELLABLE_BILLING_MONTHS as readonly number[]).includes(m);
+}
+
 export function formatUsd(amount: number): string {
   const n = Number(amount);
   if (!Number.isFinite(n)) return "$0.00";

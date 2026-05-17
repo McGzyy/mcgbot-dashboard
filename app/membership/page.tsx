@@ -376,7 +376,11 @@ export default function MembershipPage() {
         });
         setPlans(normalized);
         setPlansError(null);
-        setSelectedSlug((prev) => prev || (json.plans!.length ? json.plans![0]!.slug : ""));
+        setSelectedSlug((prev) => {
+          if (prev && normalized.some((p) => p.slug === prev)) return prev;
+          const annual = normalized.find((p) => p.billingMonths === 12);
+          return annual?.slug ?? normalized[0]?.slug ?? "";
+        });
       } catch {
         if (!cancelled) {
           setPlansError("Could not load plans.");
@@ -391,15 +395,32 @@ export default function MembershipPage() {
 
   const plansForLine = useMemo(() => {
     if (!plans?.length) return [];
-    return plans.filter((p) => (p.productTier ?? "basic") === productLine);
+    return plans
+      .filter((p) => (p.productTier ?? "basic") === productLine)
+      .sort((a, b) => (a.billingMonths ?? 1) - (b.billingMonths ?? 1));
   }, [plans, productLine]);
+
+  const preferredSlugForLine = useCallback(
+    (line: "basic" | "pro", slugHint?: string) => {
+      const linePlans = (plans ?? []).filter((p) => (p.productTier ?? "basic") === line);
+      if (!linePlans.length) return "";
+      const hintPlan = slugHint ? (plans ?? []).find((p) => p.slug === slugHint) : null;
+      const targetMonths = hintPlan?.billingMonths === 1 ? 1 : 12;
+      const match =
+        linePlans.find((p) => p.billingMonths === targetMonths) ??
+        linePlans.find((p) => p.billingMonths === 12) ??
+        linePlans[0];
+      return match?.slug ?? "";
+    },
+    [plans]
+  );
 
   useEffect(() => {
     if (!plansForLine.length) return;
     if (!plansForLine.some((p) => p.slug === selectedSlug)) {
-      setSelectedSlug(plansForLine[0]!.slug);
+      setSelectedSlug(preferredSlugForLine(productLine, selectedSlug));
     }
-  }, [plansForLine, productLine, selectedSlug]);
+  }, [plansForLine, productLine, preferredSlugForLine, selectedSlug]);
 
   const selectedPlan = useMemo(
     () => plansForLine.find((p) => p.slug === selectedSlug) ?? null,
@@ -408,16 +429,8 @@ export default function MembershipPage() {
 
   const featuredSlug = useMemo(() => {
     if (!plansForLine.length) return "";
-    let best = plansForLine[0]!;
-    let bestScore = best.durationDays > 0 ? best.priceUsd / best.durationDays : Number.POSITIVE_INFINITY;
-    for (const p of plansForLine) {
-      const score = p.durationDays > 0 ? p.priceUsd / p.durationDays : Number.POSITIVE_INFINITY;
-      if (score < bestScore) {
-        best = p;
-        bestScore = score;
-      }
-    }
-    return best.slug;
+    const annual = plansForLine.find((p) => p.billingMonths === 12);
+    return annual?.slug ?? plansForLine[plansForLine.length - 1]!.slug;
   }, [plansForLine]);
 
   const startCheckout = useCallback(async () => {
@@ -957,7 +970,10 @@ export default function MembershipPage() {
 
         <MembershipBillingSection
           productLine={productLine}
-          onProductLineChange={setProductLine}
+          onProductLineChange={(line) => {
+            setProductLine(line);
+            setSelectedSlug((prev) => preferredSlugForLine(line, prev) || prev);
+          }}
           plansForLine={plansForLine}
           plansError={plansError}
           plansLoading={plans == null}

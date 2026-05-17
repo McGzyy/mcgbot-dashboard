@@ -67,7 +67,7 @@ export function MembershipProductCompare() {
         </h2>
         <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
           Basic is full desk membership. Pro adds features that use ongoing API and credit spend.
-          Choose your billing period in the next step — annual and multi-month plans show savings there.
+          Choose monthly or annual billing in the next step — annual is marked as best value.
         </p>
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-2">

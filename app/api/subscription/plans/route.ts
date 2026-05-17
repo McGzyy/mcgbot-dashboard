@@ -1,3 +1,4 @@
+import { isSellableBillingMonths } from "@/lib/subscription/planDisplay";
 import { listActivePlans } from "@/lib/subscription/subscriptionDb";
 import { normalizeProductTier } from "@/lib/subscription/planTiers";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -37,7 +38,23 @@ export async function GET() {
     );
   }
 
-  const shaped = plans.map((p) => {
+  const sellable = plans.filter((p) =>
+    isSellableBillingMonths(Math.max(1, Math.floor(Number(p.billing_months) || 1)))
+  );
+
+  if (!sellable.length) {
+    return Response.json(
+      {
+        success: false,
+        code: "no_plans",
+        error:
+          "No monthly or annual subscription plans are active. Enable plans with billing_months 1 or 12 in subscription_plans.",
+      },
+      { status: 503 }
+    );
+  }
+
+  const shaped = sellable.map((p) => {
     const discountPercent = clampPercent((p as any).discount_percent);
     const listPriceUsd = Number(p.price_usd);
     const priceUsd = Math.max(0, listPriceUsd * (1 - discountPercent / 100));
