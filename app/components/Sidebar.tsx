@@ -697,7 +697,7 @@ export function Sidebar() {
   return (
     <>
       <aside
-        className={`relative z-30 sticky top-0 hidden h-screen w-64 shrink-0 flex flex-col overflow-hidden bg-gradient-to-b from-black via-zinc-950 to-black lg:flex ${dashboardChrome.sidebar}`}
+        className={`relative z-30 hidden w-64 shrink-0 flex-col self-stretch overflow-y-auto overscroll-contain bg-gradient-to-b from-black via-zinc-950 to-black lg:flex ${dashboardChrome.sidebar}`}
       >
         <SidebarBody {...bodyProps} />
       </aside>

@@ -5,10 +5,16 @@ import { dashboardChrome } from "@/lib/roleTierStyles";
 import type { ReactNode } from "react";
 import { TopBar } from "./TopBar";
 
-export function MainShell({ children }: { children: ReactNode }) {
+export function MainShell({
+  children,
+  showTopBar = true,
+}: {
+  children: ReactNode;
+  showTopBar?: boolean;
+}) {
   return (
-    <div className="relative flex min-h-screen min-w-0 flex-1 flex-col">
-      <TopBar />
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      {showTopBar ? <TopBar /> : null}
       {/*
         Announcement must stay OUTSIDE mainStage: that region uses overflow-x-hidden, which breaks
         position:sticky in Chromium — the bar would scroll with content and overlap page headers.
