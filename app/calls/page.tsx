@@ -57,19 +57,16 @@ export default function CallTapePage() {
   const [err, setErr] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [submitCallOpen, setSubmitCallOpen] = useState(false);
-  const [resubmitMint, setResubmitMint] = useState<string | null>(null);
   const [deskCallQuota, setDeskCallQuota] = useState<DeskCallQuotaUi | null>(null);
   const [deskCallQuotaLoading, setDeskCallQuotaLoading] = useState(false);
   const limit = 40;
 
-  const openSubmitCall = useCallback((mint?: string | null) => {
-    setResubmitMint(mint?.trim() || null);
+  const openSubmitCall = useCallback(() => {
     setSubmitCallOpen(true);
   }, []);
 
   const closeSubmitCall = useCallback(() => {
     setSubmitCallOpen(false);
-    setResubmitMint(null);
   }, []);
 
   const load = useCallback(async () => {
@@ -108,7 +105,7 @@ export default function CallTapePage() {
 
   useEffect(() => {
     setOffset(0);
-  }, [window]);
+  }, [tapeWindow]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -389,13 +386,6 @@ export default function CallTapePage() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right">
                         <div className="flex flex-wrap justify-end gap-1.5">
-                          <Link
-                            href="/performance"
-                            className="rounded-md border border-violet-500/25 bg-violet-500/10 px-2 py-1 text-[11px] font-semibold text-violet-100/90 transition hover:border-violet-400/40 hover:bg-violet-500/15"
-                            title="Your stats in Performance Lab"
-                          >
-                            Lab
-                          </Link>
                           {r.callCa ? (
                             <button
                               type="button"
@@ -423,16 +413,6 @@ export default function CallTapePage() {
                             >
                               Dex
                             </a>
-                          ) : null}
-                          {r.callCa ? (
-                            <button
-                              type="button"
-                              onClick={() => openSubmitCall(r.callCa)}
-                              className="rounded-md border border-zinc-600/80 bg-zinc-900/60 px-2 py-1 text-[11px] font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800/80"
-                              title="Log this token again on the desk"
-                            >
-                              Log again
-                            </button>
                           ) : null}
                         </div>
                       </td>
@@ -471,7 +451,6 @@ export default function CallTapePage() {
         onClose={closeSubmitCall}
         quota={deskCallQuota}
         onQuotaChange={setDeskCallQuota}
-        initialMint={resubmitMint}
         onSubmitted={() => {
           void load();
         }}

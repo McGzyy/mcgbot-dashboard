@@ -15,9 +15,7 @@ import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefresh
 import { DashboardWidgetEmpty } from "@/app/components/dashboard/DashboardWidgetEmpty";
 import { DeskIntelColumn } from "@/app/components/dashboard/DeskIntelColumn";
 import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
-import { DeskCallQuotaChip } from "@/app/components/dashboard/DeskCallQuotaChip";
-import { MarketContextBar } from "@/app/components/dashboard/MarketContextBar";
-import { QuickDeskNav } from "@/app/components/dashboard/QuickDeskNav";
+import { DeskCommandBar } from "@/app/components/dashboard/DeskCommandBar";
 import { SubmitDeskCallModal } from "@/app/components/dashboard/SubmitDeskCallModal";
 import { deskCallQuotaFromApi, type DeskCallQuotaUi } from "@/lib/deskCallQuotaDisplay";
 import { HodlDashboardDock } from "./components/HodlDashboardDock";
@@ -1708,9 +1706,13 @@ function HeroLastCallMini({
     call != null
       ? resolveTokenAvatarUrl({ tokenImageUrl: call.tokenImageUrl, mint: call.token })
       : null;
+  const mint = call?.token?.trim() ?? "";
+  const cardClass = `${ELITE_GLANCE_CARD} flex flex-col justify-between gap-0.5${
+    mint ? " transition hover:border-zinc-600/80 hover:bg-zinc-900/30" : ""
+  }`;
 
-  return (
-    <div className={`${ELITE_GLANCE_CARD} flex flex-col justify-between gap-0.5`}>
+  const body = (
+    <>
       <div className="flex items-start justify-between gap-2">
         <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
           Last call
@@ -1736,10 +1738,24 @@ function HeroLastCallMini({
         {mult}
       </div>
       <div className="line-clamp-1 border-t border-zinc-800/60 pt-1.5 text-[10px] leading-snug text-zinc-500">
-        {hint}
+        {mint ? "Open in call log · " + hint : hint}
       </div>
-    </div>
+    </>
   );
+
+  if (mint) {
+    return (
+      <Link
+        href={`/calls?mint=${encodeURIComponent(mint)}`}
+        className={cardClass}
+        title="View in My Call Log"
+      >
+        {body}
+      </Link>
+    );
+  }
+
+  return <div className={cardClass}>{body}</div>;
 }
 
 function HeroStatMini({
@@ -4609,20 +4625,14 @@ export default function Home() {
 
   const quickActionsBlock = widgetEnabled(widgets, "quick_actions") ? (
     <PanelCard
-      title="Quick Actions"
+      title="Shortcuts"
       data-tutorial="dashboard.quickActions"
       paddingClassName="px-4 pt-2.5 pb-3"
     >
+      <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+        Log desk calls from the command bar above.
+      </p>
       <div className="mt-3 space-y-3">
-        <button
-          type="button"
-          onClick={openSubmitCallModal}
-          data-tutorial="dashboard.quickActions.submitCall"
-          className="w-full rounded-xl bg-[color:var(--accent)] px-4 py-3 text-base font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/30"
-        >
-          Submit Call
-        </button>
-
         <div className="grid grid-cols-2 gap-2">
           <Link
             href={userProfileHref({
@@ -4682,16 +4692,12 @@ export default function Home() {
         <PerformanceChart compact refreshNonce={homeDataRefreshNonce} />
       </div>
 
-      <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <MarketContextBar />
-          <DeskCallQuotaChip
-            quota={deskCallQuota}
-            loading={deskCallQuotaLoading}
-            onSubmitCall={openSubmitCallModal}
-          />
-        </div>
-        <QuickDeskNav onSubmitCall={openSubmitCallModal} />
+      <div className="mb-5">
+        <DeskCommandBar
+          quota={deskCallQuota}
+          quotaLoading={deskCallQuotaLoading}
+          onSubmitCall={openSubmitCallModal}
+        />
       </div>
 
       {quickActionsBlock ? (
@@ -4704,14 +4710,14 @@ export default function Home() {
       >
         <div className="border-b border-zinc-800/60 pb-2">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className={`${terminalPage.sectionTitle} text-base sm:text-lg`}>At a glance</h2>
+            <h2 className={`${terminalPage.sectionTitle} text-base sm:text-lg`}>Your desk today</h2>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent)]/30 bg-[color:var(--accent)]/12 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--accent)] shadow-[0_0_20px_-6px_rgba(34,197,94,0.45)]">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--accent)]" aria-hidden />
               LIVE
             </span>
           </div>
           <p className={`${terminalPage.sectionHint} text-[11px] sm:text-xs`}>
-            Key metrics from your recent activity.
+            Track record and streak — chart above, full breakdown in Performance Lab.
           </p>
         </div>
         <div
@@ -4978,8 +4984,8 @@ export default function Home() {
                   <DashboardWidgetEmpty
                     badge="Calls"
                     title="No calls yet"
-                    description="Verified rows show here after you log a desk call from Quick Actions."
-                    actionLabel="Submit call"
+                    description="Verified rows show here after you submit a desk call from the command bar."
+                    actionLabel="Submit desk call"
                     onAction={openSubmitCallModal}
                   />
                 </div>
