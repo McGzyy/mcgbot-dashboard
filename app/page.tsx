@@ -15,7 +15,7 @@ import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefresh
 import { DashboardWidgetEmpty } from "@/app/components/dashboard/DashboardWidgetEmpty";
 import { DeskIntelColumn } from "@/app/components/dashboard/DeskIntelColumn";
 import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
-import { DeskCommandBar } from "@/app/components/dashboard/DeskCommandBar";
+import { HomeLogCallBar } from "@/app/components/dashboard/HomeLogCallBar";
 import { SubmitDeskCallModal } from "@/app/components/dashboard/SubmitDeskCallModal";
 import { deskCallQuotaFromApi, type DeskCallQuotaUi } from "@/lib/deskCallQuotaDisplay";
 import { HodlDashboardDock } from "./components/HodlDashboardDock";
@@ -2245,7 +2245,7 @@ function activityFeedEmptyCopy(
         badge: "Activity",
         title: "No calls logged yet",
         description:
-          "Submit a verified desk call — it appears here, on the tape, and in Performance Lab.",
+          "Log a verified call — it appears here, on the tape, and in Performance Lab.",
         actionLabel: "Submit call",
         onAction: onSubmitCall,
       };
@@ -2269,12 +2269,12 @@ function activityFeedEmptyCopy(
       return {
         badge: "Wins",
         title: "No wins on tape yet",
-        description: "2× and higher milestones from verified desk calls land here in real time.",
+        description: "2× and higher milestones from verified calls land here in real time.",
       };
     case "calls":
       return {
         badge: "Calls",
-        title: "No desk calls yet",
+        title: "No calls yet",
         description: "The live call stream fills as members submit verified entries.",
         actionLabel: "Submit call",
         onAction: onSubmitCall,
@@ -2282,7 +2282,7 @@ function activityFeedEmptyCopy(
     default:
       return {
         badge: "Activity",
-        title: "The desk is warming up",
+        title: "The room is warming up",
         description:
           "Verified calls and milestones from the room stream here as members trade.",
       };
@@ -4623,15 +4623,12 @@ export default function Home() {
   const showRankWidget = widgetEnabled(widgets, "rank");
   const showTrendingWidget = widgetEnabled(widgets, "trending");
 
-  const quickActionsBlock = widgetEnabled(widgets, "quick_actions") ? (
+  const shortcutsBlock = widgetEnabled(widgets, "quick_actions") ? (
     <PanelCard
       title="Shortcuts"
       data-tutorial="dashboard.quickActions"
       paddingClassName="px-4 pt-2.5 pb-3"
     >
-      <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-        Log desk calls from the command bar above.
-      </p>
       <div className="mt-3 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <Link
@@ -4693,15 +4690,15 @@ export default function Home() {
       </div>
 
       <div className="mb-5">
-        <DeskCommandBar
+        <HomeLogCallBar
           quota={deskCallQuota}
           quotaLoading={deskCallQuotaLoading}
           onSubmitCall={openSubmitCallModal}
         />
       </div>
 
-      {quickActionsBlock ? (
-        <div className="mb-8 lg:hidden">{quickActionsBlock}</div>
+      {shortcutsBlock ? (
+        <div className="mb-8 lg:hidden">{shortcutsBlock}</div>
       ) : null}
 
       <div
@@ -4710,7 +4707,7 @@ export default function Home() {
       >
         <div className="border-b border-zinc-800/60 pb-2">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className={`${terminalPage.sectionTitle} text-base sm:text-lg`}>Your desk today</h2>
+            <h2 className={`${terminalPage.sectionTitle} text-base sm:text-lg`}>Your day</h2>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent)]/30 bg-[color:var(--accent)]/12 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[color:var(--accent)] shadow-[0_0_20px_-6px_rgba(34,197,94,0.45)]">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--accent)]" aria-hidden />
               LIVE
@@ -4780,7 +4777,7 @@ export default function Home() {
               <ProUpgradePrompt
                 className="text-left"
                 title="Social feed is Pro"
-                description="X ingest and the home social column use ongoing API credits. Basic members still get desk intel, activity, and watchlist."
+                description="X ingest and the home social column use ongoing API credits. Basic members still get room pulse, activity, and watchlist."
               />
             </div>
           ) : null}
@@ -4845,7 +4842,7 @@ export default function Home() {
           data-tutorial="dashboard.sidebarColumn"
         >
           <div className="flex min-w-0 max-w-full flex-col gap-4 overflow-x-hidden">
-          {quickActionsBlock ? <div className="hidden lg:block">{quickActionsBlock}</div> : null}
+          {shortcutsBlock ? <div className="hidden lg:block">{shortcutsBlock}</div> : null}
 
           <div className="hidden lg:block">
             <ExtendedStatsPanel
@@ -4984,8 +4981,8 @@ export default function Home() {
                   <DashboardWidgetEmpty
                     badge="Calls"
                     title="No calls yet"
-                    description="Verified rows show here after you submit a desk call from the command bar."
-                    actionLabel="Submit desk call"
+                    description="Verified rows show here after you log a call."
+                    actionLabel="Log call"
                     onAction={openSubmitCallModal}
                   />
                 </div>

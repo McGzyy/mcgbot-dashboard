@@ -69,7 +69,7 @@ export function DeskCallQuotaChip({
   const inner = (
     <>
       <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
-        Desk calls
+        Calls
       </span>
       <span
         className={`truncate text-sm font-bold tabular-nums ${

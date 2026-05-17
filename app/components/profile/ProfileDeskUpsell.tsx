@@ -12,7 +12,7 @@ export function ProfileDeskUpsell({ variant }: ProfileDeskUpsellProps) {
     return (
       <div className="mb-6 rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-4 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4">
         <p className="text-sm leading-relaxed text-zinc-400">
-          <span className="font-medium text-zinc-200">McGBot Terminal</span> — log desk calls,
+          <span className="font-medium text-zinc-200">McGBot Terminal</span> — log calls,
           track performance, and compete on the leaderboard.
         </p>
         <div className="mt-3 flex shrink-0 flex-wrap gap-2 sm:mt-0">
@@ -44,7 +44,7 @@ export function ProfileDeskUpsell({ variant }: ProfileDeskUpsellProps) {
         href="/membership"
         className="mt-3 inline-flex shrink-0 rounded-lg bg-[color:var(--accent)] px-3 py-1.5 text-xs font-semibold text-black transition hover:brightness-110 sm:mt-0"
       >
-        Get desk access
+        Get access
       </Link>
     </div>
   );

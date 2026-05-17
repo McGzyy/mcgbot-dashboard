@@ -30,10 +30,10 @@ export function deskCallQuotaFromServer(q: DeskCallQuota): DeskCallQuotaUi {
 }
 
 export function deskCallsRemainingLabel(quota: DeskCallQuotaUi): string {
-  if (quota.unlimited) return "Unlimited desk calls";
-  if (quota.dailyLimit == null) return "Desk calls";
+  if (quota.unlimited) return "Unlimited calls today";
+  if (quota.dailyLimit == null) return "Calls";
   const left = quota.remaining ?? Math.max(0, quota.dailyLimit - quota.usedToday);
-  return `${left} of ${quota.dailyLimit} desk calls left today`;
+  return `${left} of ${quota.dailyLimit} calls left today`;
 }
 
 export function deskCallsAtLimit(quota: DeskCallQuotaUi | null): boolean {

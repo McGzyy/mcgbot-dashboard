@@ -1993,7 +1993,7 @@ export default function ProfilePageClient() {
                           href="/membership"
                           className="w-full rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-center text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/15 sm:w-auto"
                         >
-                          Join desk to follow
+                          Get access to follow
                         </Link>
                       )}
                     </div>

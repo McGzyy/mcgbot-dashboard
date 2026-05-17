@@ -229,7 +229,7 @@ export default function CallTapePage() {
             onClick={() => openSubmitCall()}
             className="rounded-lg bg-[color:var(--accent)] px-3 py-1.5 text-xs font-semibold text-black shadow-md shadow-black/30 transition hover:bg-green-500"
           >
-            Submit call
+            Log call
           </button>
           <p className="text-xs tabular-nums text-zinc-500">
             {loading ? "…" : total.toLocaleString("en-US")} in window
@@ -289,7 +289,7 @@ export default function CallTapePage() {
                       title={tapeWindow === "all" ? "No calls logged yet" : "No calls in this window"}
                       description={
                         tapeWindow === "all"
-                          ? "Submit a verified desk call from the terminal — it lands here, on the live feed, and in Performance Lab."
+                          ? "Log a verified call from the terminal — it lands here, on the live feed, and in Performance Lab."
                           : `Nothing credited to you in the last ${tapeWindow === "7d" ? "7 days" : "30 days"}. Try All time or log a new call.`
                       }
                       actionLabel="Submit call"

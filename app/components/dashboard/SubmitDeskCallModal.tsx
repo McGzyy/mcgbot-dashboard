@@ -279,7 +279,7 @@ export function SubmitDeskCallModal({
       className={terminalUi.modalBackdropCenterZ50}
       role="dialog"
       aria-modal="true"
-      aria-label="Submit desk call"
+      aria-label="Log call"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !submitting) onClose();
       }}
@@ -351,7 +351,7 @@ export function SubmitDeskCallModal({
 
             {atLimit ? (
               <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
-                You&apos;ve used all desk calls for today (UTC).{" "}
+                You&apos;ve used all calls for today (UTC).{" "}
                 <Link href="/membership" className="font-semibold underline underline-offset-2">
                   Upgrade to Pro
                 </Link>{" "}
@@ -395,12 +395,12 @@ function ModalHeader({
   return (
     <div>
       <h3 className="text-sm font-semibold text-zinc-100">
-        {done ? (isSuccess ? "Call submitted" : "Already on the tape") : "Submit desk call"}
+        {done ? (isSuccess ? "Call submitted" : "Already on the tape") : "Log call"}
       </h3>
       <p className="mt-1 text-xs text-zinc-500">
         {done
           ? isSuccess
-            ? "Your call is on the desk — open it in your log or chart."
+            ? "Your call is live — open it in your log or chart."
             : "This contract was already called. Try another mint."
           : quota
             ? deskCallsRemainingLabel(quota)
@@ -564,7 +564,7 @@ function DonePanel({
             </p>
             <p className="mt-2 text-xs text-zinc-400">
               {isSuccess
-                ? "Logged to your call tape and desk feed."
+                ? "Logged to your call log and live feed."
                 : "Pick a different token to add a new call."}
             </p>
           </div>
