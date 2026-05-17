@@ -43,10 +43,6 @@ const CARD_HOVER =
 
 const PROFILE_HERO_SHELL = `${terminalSurface.routeHeroFrame} ${terminalSurface.insetEdge} relative mb-6 overflow-hidden`;
 
-/** Left-floating desk nav width + padding for main two-column body (lg+). */
-const PROFILE_DESK_CONTENT_PAD =
-  "lg:pl-[calc(12.5rem+2.5rem)] xl:pl-[calc(13rem+3rem)]";
-
 /** In-page anchors — offset matches TopBar + optional announcement (see dashboardStickyChrome). */
 const PROFILE_STICKY_BELOW_CHROME =
   "top-[var(--dashboard-sticky-below-chrome,6rem)]";
@@ -2230,14 +2226,20 @@ export default function ProfilePageClient() {
         </nav>
       ) : null}
 
-      <div className="relative mt-6 lg:mt-8">
+      <div
+        className={
+          profileNavItems.length > 1
+            ? "mt-6 lg:mt-8 lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:items-start lg:gap-6 xl:grid-cols-[13rem_minmax(0,1fr)] xl:gap-8"
+            : "mt-6 lg:mt-8"
+        }
+      >
         {profileNavItems.length > 1 ? (
           <aside
-            className="pointer-events-none absolute left-0 top-0 z-[35] hidden w-[12.5rem] lg:block xl:w-[13rem]"
+            className="hidden min-w-0 lg:block"
             aria-label="Profile section navigation"
           >
             <nav
-              className={`pointer-events-auto sticky ${PROFILE_STICKY_BELOW_CHROME} ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} space-y-0.5 p-2`}
+              className={`sticky ${PROFILE_STICKY_BELOW_CHROME} ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} space-y-0.5 p-2`}
               aria-label="Profile sections"
             >
               <p className="px-2.5 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
@@ -2257,9 +2259,7 @@ export default function ProfilePageClient() {
           </aside>
         ) : null}
 
-        <div
-          className={`min-w-0 ${profileNavItems.length > 1 ? PROFILE_DESK_CONTENT_PAD : ""}`}
-        >
+        <div className="min-w-0">
       <div className="grid grid-cols-12 gap-5 lg:items-start lg:gap-6 xl:gap-8">
         {visibility.show_stats ? (
         <section
