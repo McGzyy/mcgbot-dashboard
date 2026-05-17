@@ -1,5 +1,10 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { clampAthMultipleForStats } from "@/lib/callPerformanceMultiples";
+import {
+  fetchDexMetaByMint,
+  fetchLatestPerformanceByMint,
+} from "@/lib/outsideCallsTapeEnrich";
 import { requireProFeatures } from "@/lib/subscription/productTierAccess";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -23,6 +28,9 @@ type CallRow = {
   posted_at: string;
   signal_ticker?: string | null;
   mint_resolution?: string | null;
+  trust_max_ath_multiple?: number | null;
+  entry_mcap_usd?: number | null;
+  trust_failure_applied?: boolean | null;
   outside_x_sources: SourceRow | SourceRow[] | null;
 };
 
@@ -58,6 +66,9 @@ export async function GET(request: Request) {
       posted_at,
       signal_ticker,
       mint_resolution,
+      trust_max_ath_multiple,
+      entry_mcap_usd,
+      trust_failure_applied,
       outside_x_sources (
         display_name,
         x_handle_normalized,
@@ -75,11 +86,14 @@ export async function GET(request: Request) {
   }
 
   const rows = (Array.isArray(data) ? data : []) as CallRow[];
-  const calls = rows
+  const baseCalls = rows
     .map((r) => {
       const srcRaw = r.outside_x_sources;
       const src = Array.isArray(srcRaw) ? srcRaw[0] : srcRaw;
       if (!src || src.status !== "active") return null;
+      const trustAth = Number(r.trust_max_ath_multiple);
+      const peakFromTrust =
+        Number.isFinite(trustAth) && trustAth > 0 ? clampAthMultipleForStats(trustAth) : null;
       return {
         id: r.id,
         mint: r.mint,
@@ -90,6 +104,12 @@ export async function GET(request: Request) {
         postedAt: r.posted_at,
         signalTicker: r.signal_ticker ?? null,
         mintResolution: r.mint_resolution ?? null,
+        peakMultiple: peakFromTrust,
+        entryMcapUsd:
+          typeof r.entry_mcap_usd === "number" && Number.isFinite(r.entry_mcap_usd)
+            ? r.entry_mcap_usd
+            : null,
+        trustFailureApplied: r.trust_failure_applied === true,
         source: {
           displayName: src.display_name ?? "",
           xHandle: src.x_handle_normalized ?? "",
@@ -97,7 +117,27 @@ export async function GET(request: Request) {
         },
       };
     })
-    .filter(Boolean);
+    .filter((c): c is NonNullable<typeof c> => c != null);
+
+  const mints = baseCalls.map((c) => c.mint);
+  const [perfByMint, dexByMint] = await Promise.all([
+    fetchLatestPerformanceByMint(db, mints),
+    fetchDexMetaByMint(mints),
+  ]);
+
+  const calls = baseCalls.map((c) => {
+    const mintKey = c.mint.trim();
+    const perf = perfByMint.get(mintKey);
+    const dex = dexByMint.get(mintKey);
+    return {
+      ...c,
+      liveMultiple: perf?.liveMultiple ?? null,
+      athMultiple: c.peakMultiple ?? perf?.athMultiple ?? null,
+      tokenName: dex?.tokenName ?? null,
+      tokenTicker: dex?.tokenTicker ?? c.signalTicker,
+      tokenImageUrl: dex?.tokenImageUrl ?? null,
+    };
+  });
 
   return Response.json({ success: true, calls });
 }

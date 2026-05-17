@@ -1,9 +1,16 @@
 "use client";
 
-import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
-import { normalizeXHandle } from "@/lib/outsideXCalls/normalizeXHandle";
-import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
+import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import {
+  OutsideSubmissionTracker,
+  type OutsideSubmissionUi,
+} from "@/app/components/outside-calls/OutsideSubmissionTracker";
 import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
+import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
+import { abbreviateCa } from "@/lib/callDisplayFormat";
+import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
+import { normalizeXHandle } from "@/lib/outsideXCalls/normalizeXHandle";
+import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -18,8 +25,20 @@ type FeedCall = {
   postedAt: string;
   signalTicker?: string | null;
   mintResolution?: string | null;
+  liveMultiple?: number | null;
+  athMultiple?: number | null;
+  entryMcapUsd?: number | null;
+  trustFailureApplied?: boolean;
+  tokenName?: string | null;
+  tokenTicker?: string | null;
+  tokenImageUrl?: string | null;
   source: { displayName: string; xHandle: string; trustScore: number | null };
 };
+
+function fmtMult(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n) || n <= 0) return "—";
+  return `${n >= 10 ? n.toFixed(1) : n.toFixed(2)}×`;
+}
 
 function isSolanaMint(ca: string): boolean {
   const s = ca.trim();
@@ -67,6 +86,7 @@ function OutsideXHandleControl({
 
 export function OutsideCallsClient() {
   const { data: session, status } = useSession();
+  const { openTokenChart } = useTokenChartModal();
   const isAdmin = session?.user?.helpTier === "admin";
   const hasProFeatures =
     session?.user?.hasProFeatures === true ||
@@ -74,8 +94,11 @@ export function OutsideCallsClient() {
     session?.user?.helpTier === "mod";
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [calls, setCalls] = useState<FeedCall[]>([]);
+  const [submissions, setSubmissions] = useState<OutsideSubmissionUi[]>([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [xHandle, setXHandle] = useState("");
@@ -89,25 +112,58 @@ export function OutsideCallsClient() {
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [adminErr, setAdminErr] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErr(null);
+  const loadFeed = useCallback(async (opts?: { background?: boolean }) => {
+    const background = opts?.background === true;
+    if (background) setRefreshing(true);
+    else {
+      setLoading(true);
+      setErr(null);
+    }
     try {
       const res = await fetch("/api/outside-calls/feed?limit=100", { credentials: "same-origin", cache: "no-store" });
       const j = (await res.json().catch(() => ({}))) as { success?: boolean; calls?: FeedCall[]; error?: string };
       if (!res.ok) {
         setErr(typeof j.error === "string" ? j.error : "Could not load Outside Calls.");
-        setCalls([]);
+        if (!background) setCalls([]);
         return;
       }
       setCalls(Array.isArray(j.calls) ? j.calls : []);
+      setErr(null);
     } catch {
       setErr("Could not load Outside Calls.");
-      setCalls([]);
+      if (!background) setCalls([]);
     } finally {
-      setLoading(false);
+      if (background) setRefreshing(false);
+      else setLoading(false);
     }
   }, []);
+
+  const loadSubmissions = useCallback(async () => {
+    setSubmissionsLoading(true);
+    try {
+      const res = await fetch("/api/outside-calls/my-submissions", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        submissions?: OutsideSubmissionUi[];
+      };
+      if (res.ok && j.success) {
+        setSubmissions(Array.isArray(j.submissions) ? j.submissions : []);
+      } else {
+        setSubmissions([]);
+      }
+    } catch {
+      setSubmissions([]);
+    } finally {
+      setSubmissionsLoading(false);
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    await Promise.all([loadFeed(), loadSubmissions()]);
+  }, [loadFeed, loadSubmissions]);
 
   useEffect(() => {
     void load();
@@ -144,19 +200,24 @@ export function OutsideCallsClient() {
         }
         return;
       }
-      setSubmitMsg(typeof j.message === "string" ? j.message : "Submitted.");
+      setSubmitMsg(
+        typeof j.message === "string"
+          ? j.message
+          : "Submitted for staff review — track progress below."
+      );
       setXHandle("");
       setDisplayName("");
       setNote("");
       setTrackRecord("");
       setExtraContext("");
       setModalOpen(false);
+      void loadSubmissions();
     } catch {
       setSubmitErr("Submit failed.");
     } finally {
       setSubmitting(false);
     }
-  }, [displayName, extraContext, note, trackRecord, xHandle]);
+  }, [displayName, extraContext, loadSubmissions, note, trackRecord, xHandle]);
 
   const adminAddSource = useCallback(async () => {
     setAdminBusy(true);
@@ -259,16 +320,19 @@ export function OutsideCallsClient() {
           </div>
         ) : null}
 
-        <div className={`rounded-2xl ${terminalSurface.panelCard} p-5`}>
+        <OutsideSubmissionTracker submissions={submissions} loading={submissionsLoading} />
+
+        <div className={`relative mt-6 rounded-2xl ${terminalSurface.panelCard} p-5`}>
+          <DashboardRefreshBar active={refreshing} />
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-zinc-200">Tape</h2>
+            <h2 className="text-sm font-semibold text-zinc-200">Live tape</h2>
             <button
               type="button"
-              disabled={loading}
-              onClick={() => void load()}
+              disabled={loading || refreshing}
+              onClick={() => void loadFeed({ background: true })}
               className="rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
             >
-              {loading ? "Loading…" : "Refresh"}
+              {refreshing ? "Refreshing…" : loading ? "Loading…" : "Refresh"}
             </button>
           </div>
 
@@ -289,63 +353,113 @@ export function OutsideCallsClient() {
               {calls.map((c) => {
                 const dex = isSolanaMint(c.mint) ? dexscreenerTokenUrl("solana", c.mint) : null;
                 const echo = c.callRole === "echo";
+                const label =
+                  c.tokenTicker && c.tokenName
+                    ? `$${c.tokenTicker} · ${c.tokenName}`
+                    : c.tokenTicker
+                      ? `$${c.tokenTicker}`
+                      : c.tokenName || abbreviateCa(c.mint, 6, 6);
                 return (
                   <li
                     key={c.id}
                     className="rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-4 py-3 text-sm text-zinc-300"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium text-zinc-100">{c.source.displayName || "Monitor"}</p>
-                        <p className="mt-0.5 text-[11px] text-zinc-500">
-                          <a
-                            href={xProfileUrl(c.source.xHandle)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-cyan-400/80 hover:underline"
-                          >
-                            @{c.source.xHandle}
-                          </a>
-                          {typeof c.source.trustScore === "number" ? (
-                            <span className="text-zinc-600"> · trust {c.source.trustScore}</span>
+                    <div className="flex gap-3">
+                      {c.tokenImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={c.tokenImageUrl}
+                          alt=""
+                          className="mt-0.5 h-10 w-10 shrink-0 rounded-lg border border-zinc-700/50 object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : null}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium text-zinc-100">{label}</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">
+                              <span className="text-zinc-300">{c.source.displayName || "Monitor"}</span>
+                              {" · "}
+                              <a
+                                href={xProfileUrl(c.source.xHandle)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-cyan-400/80 hover:underline"
+                              >
+                                @{c.source.xHandle}
+                              </a>
+                              {typeof c.source.trustScore === "number" ? (
+                                <span className="text-zinc-600"> · trust {c.source.trustScore}</span>
+                              ) : null}
+                            </p>
+                            <p className="mt-1 font-mono text-[11px] text-zinc-500">
+                              {abbreviateCa(c.mint, 8, 8)}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <span className="text-[10px] text-zinc-500">{formatRelativeTime(c.postedAt)}</span>
+                            {echo ? (
+                              <span className="rounded border border-amber-500/35 bg-amber-950/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-100/90">
+                                Echo
+                              </span>
+                            ) : (
+                              <span className="rounded border border-emerald-500/30 bg-emerald-950/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-100/90">
+                                Primary
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+                          <span className="tabular-nums text-emerald-300/95">Live {fmtMult(c.liveMultiple)}</span>
+                          <span className="text-zinc-600">·</span>
+                          <span className="tabular-nums text-zinc-300">Peak {fmtMult(c.athMultiple)}</span>
+                          {c.trustFailureApplied ? (
+                            <span className="rounded border border-red-500/25 bg-red-950/20 px-1.5 py-0.5 text-[10px] text-red-200/80">
+                              Closed
+                            </span>
                           ) : null}
-                        </p>
-                        <p className="mt-1 font-mono text-xs text-zinc-400">{c.mint}</p>
-                        {c.signalTicker ? (
-                          <p className="mt-0.5 text-[10px] text-zinc-500">
-                            From <span className="font-mono text-zinc-400">${c.signalTicker}</span>
-                            {c.mintResolution ? (
-                              <span className="text-zinc-600"> · {c.mintResolution.replace(/_/g, " ")}</span>
-                            ) : null}
-                          </p>
-                        ) : null}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                          {isSolanaMint(c.mint) ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openTokenChart({
+                                  chain: "solana",
+                                  contractAddress: c.mint,
+                                  tokenTicker: c.tokenTicker,
+                                  tokenName: c.tokenName,
+                                  tokenImageUrl: c.tokenImageUrl ?? null,
+                                })
+                              }
+                              className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-100/90 transition hover:bg-emerald-500/15"
+                            >
+                              Chart
+                            </button>
+                          ) : null}
+                          {dex ? (
+                            <a
+                              href={dex}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-md border border-zinc-700/80 px-2 py-1 text-[11px] font-semibold text-zinc-300 hover:bg-zinc-900"
+                            >
+                              Dex
+                            </a>
+                          ) : null}
+                          {c.xPostUrl ? (
+                            <a
+                              href={c.xPostUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[11px] font-semibold text-cyan-100/90 hover:bg-cyan-500/15"
+                            >
+                              Post
+                            </a>
+                          ) : null}
+                        </div>
                       </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        <span className="text-[10px] text-zinc-500">{formatRelativeTime(c.postedAt)}</span>
-                        {echo ? (
-                          <span className="rounded border border-amber-500/35 bg-amber-950/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-100/90">
-                            Already called
-                          </span>
-                        ) : (
-                          <span className="rounded border border-emerald-500/30 bg-emerald-950/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-100/90">
-                            Primary
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                      {dex ? (
-                        <a href={dex} target="_blank" rel="noreferrer" className="font-semibold text-emerald-300/90 hover:underline">
-                          Dexscreener
-                        </a>
-                      ) : null}
-                      {c.xPostUrl ? (
-                        <a href={c.xPostUrl} target="_blank" rel="noreferrer" className="font-semibold text-cyan-300/90 hover:underline">
-                          Post
-                        </a>
-                      ) : c.tweetId ? (
-                        <span className="text-zinc-600">tweet {c.tweetId}</span>
-                      ) : null}
                     </div>
                   </li>
                 );
