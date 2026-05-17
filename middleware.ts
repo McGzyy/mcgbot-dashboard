@@ -4,6 +4,7 @@ import { getToken } from "next-auth/jwt";
 import { isAwaitingMembershipRole } from "@/lib/discordMembershipRoles";
 import { liveDashboardAccessForDiscordId } from "@/lib/dashboardGate";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
+import { isPublicProfileApi, isPublicProfilePage } from "@/lib/publicProfileRoutes";
 
 function isStaticPath(pathname: string): boolean {
   if (pathname.startsWith("/_next")) return true;
@@ -21,6 +22,7 @@ function isPublicForAnonymous(pathname: string): boolean {
   if (pathname.startsWith("/subscribe")) return true;
   if (pathname.startsWith("/membership")) return true;
   if (pathname.startsWith("/ref")) return true;
+  if (isPublicProfilePage(pathname)) return true;
   return false;
 }
 
@@ -247,6 +249,10 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
+    if (isPublicProfileApi(pathname, req.method)) {
+      return NextResponse.next();
+    }
+
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -332,6 +338,10 @@ export async function middleware(req: NextRequest) {
       url.search = "";
       return NextResponse.redirect(url);
     }
+    return NextResponse.next();
+  }
+
+  if (isPublicProfilePage(pathname)) {
     return NextResponse.next();
   }
 

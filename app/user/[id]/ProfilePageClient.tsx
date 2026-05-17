@@ -20,6 +20,7 @@ import {
   compareMilestoneKeys,
 } from "@/lib/milestoneTrophies";
 import { CallerIntelligencePanel } from "@/app/components/profile/CallerIntelligencePanel";
+import { ProfileDeskUpsell } from "@/app/components/profile/ProfileDeskUpsell";
 import type { CallerProfileIntel } from "@/lib/callerProfileIntel";
 import { parseTopCallerTimesFromBadges } from "@/lib/topCallerBadgeDisplay";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
@@ -961,6 +962,13 @@ export default function ProfilePageClient() {
       : looksLikeDiscordSnowflake(profileUserId) &&
         session.user.id.trim() === profileUserId.trim());
 
+  const hasDeskAccess = session?.user?.hasDashboardAccess === true;
+  const showProfileDeskUpsell =
+    !isOwnProfile &&
+    !loading &&
+    profile != null &&
+    (status === "unauthenticated" || (status === "authenticated" && !hasDeskAccess));
+
   const fetchProfile = useCallback(async (signal?: AbortSignal) => {
     if (!profileUserId) {
       setLoading(false);
@@ -1789,6 +1797,12 @@ export default function ProfilePageClient() {
           aria-hidden
         />
 
+        {showProfileDeskUpsell ? (
+          <ProfileDeskUpsell
+            variant={status === "unauthenticated" ? "anonymous" : "needs_membership"}
+          />
+        ) : null}
+
         <div className={`${PROFILE_HERO_SHELL}`}>
           <div className="relative h-[9.5rem] w-full overflow-hidden sm:h-[11rem]">
             {profile?.banner_url ? (
@@ -1932,7 +1946,7 @@ export default function ProfilePageClient() {
                         >
                           Edit Profile
                         </button>
-                      ) : (
+                      ) : hasDeskAccess ? (
                         <>
                           <FollowButton
                             targetDiscordId={snowflakeForFollow}
@@ -1974,6 +1988,13 @@ export default function ProfilePageClient() {
                             Report
                           </button>
                         </>
+                      ) : (
+                        <Link
+                          href="/membership"
+                          className="w-full rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-center text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/15 sm:w-auto"
+                        >
+                          Join desk to follow
+                        </Link>
                       )}
                     </div>
                     {!loading && profile && visibility.show_stats ? (
