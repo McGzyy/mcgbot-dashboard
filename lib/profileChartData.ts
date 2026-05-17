@@ -8,8 +8,8 @@ export type ProfileTrackMetric =
   | "avg_x"
   | "win_rate"
   | "total_calls"
-  | "rate_2x"
-  | "rate_3x";
+  | "rate_3x"
+  | "rate_5x";
 
 export type ProfileChartPoint = {
   key: string;
@@ -78,15 +78,15 @@ export function buildProfileTrackChartView(
       total: number;
     };
     stats: { avgX: number; winRate: number; totalCalls: number };
-    hitRates: { rate2x: number | null; rate3x: number | null };
+    hitRates: { rate3x: number | null; rate5x: number | null };
   },
   nowMs = Date.now()
 ): ProfileChartView {
   const calls = eligibleCalls(input.recentCalls);
   const winPct = Math.max(0, Math.min(100, input.stats.winRate));
   const lossPct = Math.max(0, 100 - winPct);
-  const rate2x = input.hitRates.rate2x ?? 0;
   const rate3x = input.hitRates.rate3x ?? 0;
+  const rate5x = input.hitRates.rate5x ?? 0;
 
   switch (metric) {
     case "avg_x": {
@@ -164,34 +164,34 @@ export function buildProfileTrackChartView(
         })),
       };
     }
-    case "rate_2x":
-      return {
-        title: "2× hit rate",
-        subtitle: "Calls reaching at least 2×",
-        kind: "donut",
-        valueSuffix: "%",
-        points: [
-          { key: "hit", label: "Hit 2×+", value: rate2x, fill: "#34d399" },
-          {
-            key: "miss",
-            label: "Below 2×",
-            value: Math.max(0, 100 - rate2x),
-            fill: "#71717a",
-          },
-        ],
-      };
     case "rate_3x":
       return {
-        title: "3×+ hit rate",
+        title: "3× hit rate",
         subtitle: "Calls reaching at least 3×",
         kind: "donut",
         valueSuffix: "%",
         points: [
-          { key: "hit", label: "Hit 3×+", value: rate3x, fill: "#22d3ee" },
+          { key: "hit", label: "Hit 3×+", value: rate3x, fill: "#34d399" },
           {
             key: "miss",
             label: "Below 3×",
             value: Math.max(0, 100 - rate3x),
+            fill: "#71717a",
+          },
+        ],
+      };
+    case "rate_5x":
+      return {
+        title: "5× hit rate",
+        subtitle: "Calls reaching at least 5×",
+        kind: "donut",
+        valueSuffix: "%",
+        points: [
+          { key: "hit", label: "Hit 5×+", value: rate5x, fill: "#22d3ee" },
+          {
+            key: "miss",
+            label: "Below 5×",
+            value: Math.max(0, 100 - rate5x),
             fill: "#71717a",
           },
         ],

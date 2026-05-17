@@ -400,23 +400,23 @@ function computeHitRates(
 ) {
   const list = callsEligibleForSnapshot(calls);
   if (!list.length) {
-    return { rate2x: null, rate3x: null };
+    return { rate3x: null, rate5x: null };
   }
 
   const multiples = list.map(c => c.multiple).filter(n => typeof n === "number");
 
   if (multiples.length === 0) {
-    return { rate2x: null, rate3x: null };
+    return { rate3x: null, rate5x: null };
   }
 
   const total = multiples.length;
 
-  const hit2x = multiples.filter(m => m >= 2).length;
-  const hit3x = multiples.filter(m => m >= 3).length;
+  const hit3x = multiples.filter((m) => m >= 3).length;
+  const hit5x = multiples.filter((m) => m >= 5).length;
 
   return {
-    rate2x: (hit2x / total) * 100,
     rate3x: (hit3x / total) * 100,
+    rate5x: (hit5x / total) * 100,
   };
 }
 
@@ -2165,7 +2165,7 @@ export default function ProfilePageClient() {
           >
             <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent sm:inset-x-6 lg:inset-x-8" />
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6 lg:gap-8">
-              <div className="relative shrink-0">
+              <div className="relative flex shrink-0 flex-col items-center sm:items-start">
                 <div
                   className="pointer-events-none absolute -inset-1.5 rounded-[1.05rem] bg-gradient-to-br from-cyan-500/20 via-transparent to-violet-600/15 opacity-60 blur-md sm:-inset-2 sm:rounded-2xl"
                   aria-hidden
@@ -2177,6 +2177,17 @@ export default function ProfilePageClient() {
                   height={112}
                   className="relative -mt-9 h-24 w-24 rounded-xl border border-white/10 bg-zinc-900 object-cover shadow-[0_20px_48px_-14px_rgba(0,0,0,0.88)] ring-[3px] ring-zinc-950 sm:-mt-11 sm:h-[7.25rem] sm:w-[7.25rem] sm:rounded-2xl"
                 />
+                {!loading && joinedText ? (
+                  <p className="mt-2 w-24 text-center text-[11px] leading-snug text-zinc-500 sm:w-[7.25rem] sm:text-left">
+                    {joinedText}
+                  </p>
+                ) : loading ? (
+                  <div
+                    className="mt-2 h-3.5 w-20 animate-pulse rounded bg-zinc-800/80"
+                    aria-busy
+                    aria-label="Loading join date"
+                  />
+                ) : null}
               </div>
               <div className="min-w-0 flex-1 pt-0.5 sm:pb-0 sm:pt-0">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
@@ -2217,23 +2228,10 @@ export default function ProfilePageClient() {
                         <span className="text-zinc-500">@{profile.username}</span>
                       </p>
                     ) : null}
-                    {!loading && (bioText || joinedText) ? (
-                      <>
-                        {bioText ? (
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
-                            {bioText}
-                          </p>
-                        ) : null}
-                        {joinedText ? (
-                          <p
-                            className={`${
-                              bioText ? "mt-1" : "mt-2"
-                            } text-sm text-zinc-500`}
-                          >
-                            {joinedText}
-                          </p>
-                        ) : null}
-                      </>
+                    {!loading && bioText ? (
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
+                        {bioText}
+                      </p>
                     ) : null}
                     {!loading && xHandle ? (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -2481,18 +2479,18 @@ export default function ProfilePageClient() {
                   value={profile ? profile.stats.totalCalls : "—"}
                 />
                 <StatCard
-                  title="2x Rate"
-                  loading={loading}
-                  selected={trackChartMetric === "rate_2x"}
-                  onSelect={() => setTrackChartMetric("rate_2x")}
-                  value={hitRates.rate2x ? `${Math.round(hitRates.rate2x)}%` : "-"}
-                />
-                <StatCard
-                  title="3x+ Rate"
+                  title="3× Rate"
                   loading={loading}
                   selected={trackChartMetric === "rate_3x"}
                   onSelect={() => setTrackChartMetric("rate_3x")}
-                  value={hitRates.rate3x ? `${Math.round(hitRates.rate3x)}%` : "-"}
+                  value={hitRates.rate3x != null ? `${Math.round(hitRates.rate3x)}%` : "—"}
+                />
+                <StatCard
+                  title="5× Rate"
+                  loading={loading}
+                  selected={trackChartMetric === "rate_5x"}
+                  onSelect={() => setTrackChartMetric("rate_5x")}
+                  value={hitRates.rate5x != null ? `${Math.round(hitRates.rate5x)}%` : "—"}
                 />
               </div>
             </div>
