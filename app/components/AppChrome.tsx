@@ -4,7 +4,6 @@ import { AnnouncementBar } from "@/app/components/AnnouncementBar";
 import { DiscordChatDock } from "@/app/components/DiscordChatDock";
 import { MainShell } from "@/app/components/MainShell";
 import { Sidebar } from "@/app/components/Sidebar";
-import { TopBar } from "@/app/components/TopBar";
 import { TutorialProvider } from "@/app/components/TutorialProvider";
 import { MobileSidebarProvider } from "@/app/contexts/MobileSidebarContext";
 import { usePathname } from "next/navigation";
@@ -94,15 +93,12 @@ export function AppChrome({ children }: { children: ReactNode }) {
         </div>
       ) : (
         <MobileSidebarProvider>
-          <div className="flex min-h-0 flex-1 flex-col">
-            <TopBar />
-            <div className="flex min-h-0 flex-1">
-              <Sidebar />
-              <TutorialProvider>
-                <MainShell showTopBar={false}>{children}</MainShell>
-              </TutorialProvider>
-              <DiscordChatDock />
-            </div>
+          <div className="flex min-h-0 flex-1">
+            <Sidebar />
+            <TutorialProvider>
+              <MainShell>{children}</MainShell>
+            </TutorialProvider>
+            <DiscordChatDock />
           </div>
         </MobileSidebarProvider>
       )}
