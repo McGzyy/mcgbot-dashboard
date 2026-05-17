@@ -144,12 +144,12 @@ export function AnnouncementBar({
     "sticky top-0 z-40 shrink-0 border-b border-sky-500/25 bg-gradient-to-r from-sky-950/95 via-sky-900/40 to-zinc-950 px-4 py-2.5 text-center text-[13px] leading-snug text-sky-100/95 shadow-[inset_0_1px_0_0_rgba(56,189,248,0.12),0_8px_24px_-12px_rgba(0,0,0,0.45)] backdrop-blur-md";
 
   const insetInnerShell =
-    "relative z-[1] w-full min-w-0 overflow-hidden rounded-lg border border-red-500/35 bg-gradient-to-r from-red-950/90 via-red-950/45 to-zinc-950/95 py-2.5 pl-3 pr-3 text-red-50/95 shadow-[inset_0_1px_0_0_rgba(248,113,113,0.2),0_0_32px_-8px_rgba(220,38,38,0.35),0_10px_28px_-12px_rgba(0,0,0,0.55)] backdrop-blur-md";
+    "relative z-[1] w-full min-w-0 overflow-hidden rounded-md border border-red-500/35 bg-gradient-to-r from-red-950/85 via-red-950/40 to-zinc-950/90 py-1.5 pl-2.5 pr-2 text-red-50/95 shadow-[inset_0_1px_0_0_rgba(248,113,113,0.2),0_0_28px_-8px_rgba(220,38,38,0.32),0_8px_22px_-12px_rgba(0,0,0,0.5)] backdrop-blur-md";
 
   const dotClass =
     variant === "bare"
       ? "mt-0.5 hidden h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.75)] sm:inline"
-      : "h-2 w-2 shrink-0 rounded-full bg-red-400 shadow-[0_0_12px_rgba(248,113,113,0.85)]";
+      : "h-1.5 w-1.5 shrink-0 rounded-full bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.85)]";
 
   const ctaClass =
     variant === "bare"
@@ -159,7 +159,7 @@ export function AnnouncementBar({
   const dismissBtnClass =
     variant === "bare"
       ? "ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-sky-400/30 bg-black/30 text-sky-100/90 transition hover:border-sky-200/50 hover:bg-black/40 hover:text-white"
-      : "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-400/35 bg-black/35 text-red-50/90 transition hover:border-red-200/55 hover:bg-black/45 hover:text-white";
+      : "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-400/35 bg-black/35 text-red-50/90 transition hover:border-red-200/55 hover:bg-black/45 hover:text-white";
 
   const dismissControl =
     payload.allowUserDismiss && payload.contentVersion ? (
@@ -176,28 +176,50 @@ export function AnnouncementBar({
       </button>
     ) : null;
 
-  const messageBlock = (
-    <span
-      title={payload.message}
-      className={
-        variant === "bare"
-          ? "inline text-pretty"
-          : "min-w-0 flex-1 text-balance break-words px-0.5 text-center text-[13px] leading-snug sm:overflow-x-auto sm:whitespace-nowrap sm:leading-none sm:[scrollbar-width:thin] sm:[scrollbar-color:rgba(248,113,113,0.35)_transparent] sm:[&::-webkit-scrollbar]:h-1"
-      }
-    >
-      <span className="sm:hidden">
-        {payload.messageMobile?.trim() ? payload.messageMobile.trim() : payload.message}
+  const desktopMessage = payload.message;
+  const mobileMessage = payload.messageMobile?.trim() ? payload.messageMobile.trim() : payload.message;
+
+  const messageBlock =
+    variant === "bare" ? (
+      <span title={payload.message} className="inline text-pretty text-[14px] leading-snug">
+        <span className="sm:hidden">{mobileMessage}</span>
+        <span className="hidden sm:inline">{desktopMessage}</span>
       </span>
-      <span className="hidden sm:inline">{payload.message}</span>
-    </span>
-  );
+    ) : (
+      <>
+        <div className="announcement-marquee min-w-0 flex-1 sm:hidden" aria-label={mobileMessage}>
+          <div className="announcement-marquee-track">
+            <span className="announcement-marquee-gap text-[14px] font-medium leading-none tracking-tight">
+              {mobileMessage}
+            </span>
+            <span className="announcement-marquee-gap text-[14px] font-medium leading-none tracking-tight" aria-hidden>
+              {mobileMessage}
+            </span>
+          </div>
+        </div>
+        <div
+          className="announcement-marquee hidden min-w-0 flex-1 sm:block"
+          title={payload.message}
+          aria-label={payload.message}
+        >
+          <div className="announcement-marquee-track">
+            <span className="announcement-marquee-gap text-[14px] font-medium leading-none tracking-tight">
+              {desktopMessage}
+            </span>
+            <span className="announcement-marquee-gap text-[14px] font-medium leading-none tracking-tight" aria-hidden>
+              {desktopMessage}
+            </span>
+          </div>
+        </div>
+      </>
+    );
 
   const body = (
-    <span
+    <div
       className={
         variant === "bare"
           ? "inline-flex max-w-4xl items-start justify-center gap-3"
-          : "flex w-full min-w-0 items-start justify-center gap-2.5 sm:items-center sm:gap-3"
+          : "flex w-full min-w-0 items-center gap-2 sm:gap-2.5"
       }
     >
       <span className={dotClass} aria-hidden />
@@ -208,7 +230,7 @@ export function AnnouncementBar({
           {payload.ctaLabel}
         </a>
       ) : null}
-    </span>
+    </div>
   );
 
   if (variant === "bare") {
@@ -222,9 +244,9 @@ export function AnnouncementBar({
   if (stickyBelowTopBar) {
     return (
       <div
-        className={`sticky top-[var(--dashboard-topbar-height,6rem)] z-[45] w-full shrink-0 bg-[color:var(--mcg-stage)] shadow-[0_10px_28px_-14px_rgba(0,0,0,0.55)] ${mobileShellClass}`}
+        className={`sticky top-[var(--dashboard-topbar-height,6rem)] z-[45] w-full shrink-0 bg-[color:var(--mcg-stage)]/30 shadow-[0_6px_20px_-14px_rgba(0,0,0,0.4)] backdrop-blur-[2px] ${mobileShellClass}`}
       >
-        <div className="mx-auto w-full max-w-[1680px] px-3 pb-2 pt-1 min-[480px]:px-5 sm:px-8 sm:pb-3 sm:pt-2">
+        <div className="mx-auto w-full max-w-[1680px] px-3 pb-1 pt-0.5 min-[480px]:px-5 sm:px-8 sm:pb-1.5 sm:pt-1">
           <div role="status" className={insetInnerShell}>
             {body}
           </div>

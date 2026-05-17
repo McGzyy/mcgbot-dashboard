@@ -84,6 +84,43 @@ body {
   display: none;
 }
 
+@keyframes announcement-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.announcement-marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 6%,
+    #000 94%,
+    transparent
+  );
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+.announcement-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: announcement-marquee 48s linear infinite;
+}
+
+.announcement-marquee-gap {
+  padding-right: 3rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-marquee-track {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in {
     animation: none;

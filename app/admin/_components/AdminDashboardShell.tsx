@@ -249,7 +249,7 @@ export function AdminDashboardShell({ children }: { children: ReactNode }) {
         aria-label="Admin sections"
       >
         <div
-          className={`max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain rounded-2xl p-2 ${terminalSurface.panelCardElevated} ${terminalSurface.insetEdge}`}
+          className={`max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain no-scrollbar rounded-2xl p-2 ${terminalSurface.panelCardElevated} ${terminalSurface.insetEdge}`}
         >
           <p className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
             Control plane
