@@ -20,7 +20,10 @@ import {
   compareMilestoneKeys,
 } from "@/lib/milestoneTrophies";
 import { CallerIntelligencePanel } from "@/app/components/profile/CallerIntelligencePanel";
+import { ProfileCallStripChart } from "@/app/components/profile/ProfileCallStripChart";
+import { ProfileDistributionChart } from "@/app/components/profile/ProfileDistributionChart";
 import { ProfileDeskUpsell } from "@/app/components/profile/ProfileDeskUpsell";
+import { buildProfileCallStripSeries } from "@/lib/profileChartData";
 import type { CallerProfileIntel } from "@/lib/callerProfileIntel";
 import { parseTopCallerTimesFromBadges } from "@/lib/topCallerBadgeDisplay";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
@@ -38,7 +41,11 @@ import {
 const CARD_HOVER =
   "transition-[box-shadow,border-color,transform,filter] duration-200 ease-out motion-safe:hover:border-zinc-600/55 motion-safe:hover:shadow-lg motion-safe:hover:shadow-black/40 motion-safe:hover:-translate-y-0.5";
 
-const PROFILE_HERO_SHELL = `${terminalSurface.routeHeroFrame} ${terminalSurface.insetEdge} relative mb-10 overflow-hidden`;
+const PROFILE_HERO_SHELL = `${terminalSurface.routeHeroFrame} ${terminalSurface.insetEdge} relative mb-6 overflow-hidden`;
+
+/** Left-floating desk nav width + padding for main two-column body (lg+). */
+const PROFILE_DESK_CONTENT_PAD =
+  "lg:pl-[calc(12.5rem+2.5rem)] xl:pl-[calc(13rem+3rem)]";
 
 /** In-page anchors — offset matches TopBar + optional announcement (see dashboardStickyChrome). */
 const PROFILE_STICKY_BELOW_CHROME =
@@ -347,7 +354,7 @@ function PinnedCallSpotlight({
       : fmt.display;
   return (
     <section
-      className={`relative isolate overflow-hidden ${terminalSurface.routeHeroFrame} border-emerald-500/30 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-emerald-950/35 p-6 ring-emerald-500/15 sm:p-8`}
+      className={`relative isolate overflow-hidden ${terminalSurface.routeHeroFrame} border-emerald-500/30 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-emerald-950/35 p-5 ring-emerald-500/15 sm:p-6`}
       aria-label="Pinned call showcase"
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[2] h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
@@ -1753,6 +1760,11 @@ export default function ProfilePageClient() {
     winRate: winRate,
   });
 
+  const callStripSeries = useMemo(
+    () => buildProfileCallStripSeries(profile?.recentCalls ?? [], 20, nowMs),
+    [profile?.recentCalls, nowMs]
+  );
+
   const xHandle = profile?.x_handle?.trim() || "";
   const xVerified = Boolean(profile?.x_verified);
 
@@ -1937,7 +1949,7 @@ export default function ProfilePageClient() {
         ) : null}
 
         <div className={`${PROFILE_HERO_SHELL}`}>
-          <div className="relative h-[9.5rem] w-full overflow-hidden sm:h-[11rem]">
+          <div className="relative h-[7rem] w-full overflow-hidden sm:h-[8.25rem]">
             {profile?.banner_url ? (
               <img
                 src={profile.banner_url}
@@ -1958,32 +1970,32 @@ export default function ProfilePageClient() {
           </div>
 
           <header
-            className="relative px-4 pb-8 pt-6 sm:px-8 sm:pb-10 sm:pt-8"
+            className="relative px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5 lg:px-8"
             data-tutorial="profile.header"
           >
-            <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent sm:inset-x-8" />
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8 lg:gap-10">
+            <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent sm:inset-x-6 lg:inset-x-8" />
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6 lg:gap-8">
               <div className="relative shrink-0">
                 <div
-                  className="pointer-events-none absolute -inset-2 rounded-[1.15rem] bg-gradient-to-br from-cyan-500/25 via-transparent to-violet-600/20 opacity-70 blur-lg sm:-inset-2.5 sm:rounded-2xl"
+                  className="pointer-events-none absolute -inset-1.5 rounded-[1.05rem] bg-gradient-to-br from-cyan-500/20 via-transparent to-violet-600/15 opacity-60 blur-md sm:-inset-2 sm:rounded-2xl"
                   aria-hidden
                 />
                 <img
                   src={avatarSrc}
                   alt=""
-                  width={128}
-                  height={128}
-                  className="relative -mt-11 h-28 w-28 rounded-2xl border border-white/10 bg-zinc-900 object-cover shadow-[0_24px_56px_-14px_rgba(0,0,0,0.88)] ring-[3px] ring-zinc-950 sm:-mt-[3.35rem] sm:h-[8.5rem] sm:w-[8.5rem]"
+                  width={112}
+                  height={112}
+                  className="relative -mt-9 h-24 w-24 rounded-xl border border-white/10 bg-zinc-900 object-cover shadow-[0_20px_48px_-14px_rgba(0,0,0,0.88)] ring-[3px] ring-zinc-950 sm:-mt-11 sm:h-[7.25rem] sm:w-[7.25rem] sm:rounded-2xl"
                 />
               </div>
-              <div className="min-w-0 flex-1 pt-1 sm:pb-1 sm:pt-0 lg:pt-1">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
+              <div className="min-w-0 flex-1 pt-0.5 sm:pb-0 sm:pt-0">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
                       Trader desk
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-2">
-                      <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.55)] sm:text-4xl sm:leading-tight">
+                      <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.55)] sm:text-3xl sm:leading-tight">
                         {showNameSkeleton ? (
                           <span className="inline-block h-9 w-52 max-w-full animate-pulse rounded-md bg-zinc-800/90" />
                         ) : (
@@ -2072,7 +2084,7 @@ export default function ProfilePageClient() {
                     </div>
                   </div>
 
-                  <aside className="flex w-full shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 lg:w-[13.5rem] lg:flex-col lg:items-stretch xl:w-60">
+                  <aside className="flex w-full shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2 lg:w-[12rem] lg:flex-col lg:items-stretch xl:w-52">
                     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                       {isOwnProfile ? (
                         <button
@@ -2137,7 +2149,7 @@ export default function ProfilePageClient() {
                       <Link
                         href="#performance"
                         scroll
-                        className={`group w-full min-w-[12rem] ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} p-3 transition motion-safe:hover:border-cyan-500/25 sm:flex-1 lg:flex-none lg:text-right`}
+                        className={`group w-full min-w-[11rem] ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} p-2.5 transition motion-safe:hover:border-cyan-500/25 sm:flex-1 lg:flex-none lg:text-right`}
                       >
                         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                           Track record
@@ -2165,7 +2177,7 @@ export default function ProfilePageClient() {
         </div>
 
       {visibility.show_pinned_call ? (
-        <div className={`mt-8 ${PROFILE_SECTION_SCROLL}`} id="signature-pick">
+        <div className={`mt-6 ${PROFILE_SECTION_SCROLL}`} id="signature-pick">
           {pinnedLoading ? (
             <PinnedCallSpotlightSkeleton />
           ) : pinnedCall ? (
@@ -2176,7 +2188,7 @@ export default function ProfilePageClient() {
             />
           ) : isOwnProfile ? (
             <div
-              className={`relative flex items-start gap-4 overflow-hidden ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} px-5 py-5 sm:items-center sm:gap-5 sm:px-7 sm:py-5`}
+              className={`relative flex items-start gap-3 overflow-hidden ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} px-4 py-4 sm:items-center sm:gap-4 sm:px-5 sm:py-4`}
             >
               <span
                 className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-500/20 bg-gradient-to-br from-zinc-800/90 to-zinc-950 text-lg shadow-inner shadow-black/40"
@@ -2197,12 +2209,12 @@ export default function ProfilePageClient() {
       ) : null}
 
       {error ? (
-        <p className="mt-8 text-sm text-red-400/90">{error}</p>
+        <p className="mt-6 text-sm text-red-400/90">{error}</p>
       ) : null}
 
       {profileNavItems.length > 1 ? (
         <nav
-          className={`mt-8 flex gap-1.5 overflow-x-auto pb-1 lg:hidden ${terminalChrome.scrollYHidden}`}
+          className={`mt-6 flex gap-1.5 overflow-x-auto pb-1 lg:hidden ${terminalChrome.scrollYHidden}`}
           aria-label="Profile sections"
         >
           {profileNavItems.map(({ href, id, label }) => (
@@ -2218,11 +2230,14 @@ export default function ProfilePageClient() {
         </nav>
       ) : null}
 
-      <div className="mt-8 lg:mt-10 lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-x-10 xl:grid-cols-[13rem_minmax(0,1fr)] xl:gap-x-12">
+      <div className="relative mt-6 lg:mt-8">
         {profileNavItems.length > 1 ? (
-          <aside className="mb-6 hidden lg:block">
+          <aside
+            className="pointer-events-none absolute left-0 top-0 z-[35] hidden w-[12.5rem] lg:block xl:w-[13rem]"
+            aria-label="Profile section navigation"
+          >
             <nav
-              className={`sticky ${PROFILE_STICKY_BELOW_CHROME} z-[35] ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} space-y-0.5 p-2`}
+              className={`pointer-events-auto sticky ${PROFILE_STICKY_BELOW_CHROME} ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} space-y-0.5 p-2`}
               aria-label="Profile sections"
             >
               <p className="px-2.5 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
@@ -2242,8 +2257,10 @@ export default function ProfilePageClient() {
           </aside>
         ) : null}
 
-        <div className="min-w-0">
-      <div className="grid grid-cols-12 gap-6 lg:items-start lg:gap-8">
+        <div
+          className={`min-w-0 ${profileNavItems.length > 1 ? PROFILE_DESK_CONTENT_PAD : ""}`}
+        >
+      <div className="grid grid-cols-12 gap-5 lg:items-start lg:gap-6 xl:gap-8">
         {visibility.show_stats ? (
         <section
           id="performance"
@@ -2293,6 +2310,17 @@ export default function ProfilePageClient() {
                 loading={loading}
                 value={hitRates.rate3x ? `${Math.round(hitRates.rate3x)}%` : "-"}
               />
+            </div>
+            <div className="relative z-[1] mt-5 border-t border-zinc-800/60 pt-4">
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                Recent call multiples
+              </p>
+              <ProfileCallStripChart data={callStripSeries} loading={loading} />
+              {callStripSeries.length > 0 ? (
+                <p className="mt-2 text-[11px] leading-snug text-zinc-600">
+                  Last {callStripSeries.length} calls · oldest → newest · dashed lines at 1× and 2×
+                </p>
+              ) : null}
             </div>
             {visibility.show_key_stats && hasDepthMetrics && keyStatsPayload ? (
               <div id="depth-metrics" className="relative z-[1] mt-5 border-t border-zinc-800/60 pt-4">
@@ -2406,65 +2434,7 @@ export default function ProfilePageClient() {
 
           <section id="distribution" className={`mb-4 ${PROFILE_SECTION_SCROLL}`} data-tutorial="profile.distribution">
             <PanelCard title="Call Distribution">
-              {(() => {
-                const dist = profile?.callDistribution;
-                const total = dist?.total ?? 0;
-                const rows = [
-                  { label: "<1x", count: dist?.under1 ?? 0 },
-                  { label: "1–2x", count: dist?.oneToTwo ?? 0 },
-                  { label: "2–5x", count: dist?.twoToFive ?? 0 },
-                  { label: "5x+", count: dist?.fivePlus ?? 0 },
-                ] as const;
-
-                if (loading) {
-                  return (
-                    <div className="mt-3 space-y-3" aria-busy>
-                      {rows.map((r) => (
-                        <div key={r.label} className="flex items-center gap-2">
-                          <div className="h-3 w-12 animate-pulse rounded bg-zinc-800/80" />
-                          <div className="h-2 flex-1 animate-pulse rounded bg-zinc-800/80" />
-                          <div className="h-3 w-16 animate-pulse rounded bg-zinc-800/80" />
-                        </div>
-                      ))}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className={`mt-3 ${terminalPage.statTile} p-4`}>
-                    {total > 0 ? (
-                      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                        {total.toLocaleString()} calls in distribution
-                      </p>
-                    ) : null}
-                    <div className="space-y-3">
-                      {rows.map((r) => {
-                        const pct =
-                          total > 0 ? Math.round((r.count / total) * 100) : 0;
-                        return (
-                          <div key={r.label} className="flex items-center gap-3">
-                            <span className="w-[3.25rem] shrink-0 font-mono text-[11px] font-medium tabular-nums text-zinc-500">
-                              {r.label}
-                            </span>
-                            <div className="h-3 min-w-0 flex-1 rounded-full bg-black/40 ring-1 ring-zinc-700/35 shadow-inner">
-                              <div
-                                className="h-3 rounded-full bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 shadow-[0_0_20px_-4px_rgba(34,211,238,0.35)] transition-[width] duration-500 ease-out"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                            <span className="w-[4.5rem] shrink-0 text-right text-[11px] tabular-nums text-zinc-400">
-                              <span className="font-semibold text-zinc-300">{r.count}</span>
-                              {total > 0 ? (
-                                <span className="text-zinc-600"> · {pct}%</span>
-                              ) : null}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
+              <ProfileDistributionChart distribution={profile?.callDistribution} loading={loading} />
             </PanelCard>
           </section>
 
@@ -2712,7 +2682,7 @@ export default function ProfilePageClient() {
 
         <aside className="col-span-12 lg:col-span-4">
           <div
-            className={`w-full max-w-sm space-y-5 lg:sticky ${PROFILE_STICKY_BELOW_CHROME} lg:z-[35] lg:ml-auto lg:self-start`}
+            className={`w-full space-y-5 lg:sticky ${PROFILE_STICKY_BELOW_CHROME} lg:z-[10] lg:self-start`}
           >
             {canModerate && resolvedSnowflake && !isOwnProfile ? (
               <UserCallSuspensionStaffPanel mode="profile" targetDiscordId={resolvedSnowflake} />
