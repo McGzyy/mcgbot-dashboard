@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  BASIC_OUTSIDE_CALLS_PER_DAY,
+  BASIC_DAILY_CALLS_LIMIT,
   MEMBERSHIP_TIER_FEATURES,
   TIER_MARKETING,
   type ProductTier,
@@ -19,7 +19,7 @@ function FeatureCell({ value }: { value: TierFeatureValue }) {
   if (value === "10_per_day") {
     return (
       <span className="text-[11px] font-medium text-amber-200/90">
-        {BASIC_OUTSIDE_CALLS_PER_DAY}/day
+        {BASIC_DAILY_CALLS_LIMIT}/day
       </span>
     );
   }

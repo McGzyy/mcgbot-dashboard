@@ -34,7 +34,7 @@ import {
   multipleClass,
 } from "@/lib/callDisplayFormat";
 import { parseOutsideActivityLineText } from "@/lib/outsideActivityFeedFormat";
-import { BASIC_OUTSIDE_CALLS_PER_DAY } from "@/lib/subscription/planTiers";
+import { BASIC_DAILY_CALLS_LIMIT } from "@/lib/subscription/planTiers";
 import { useDashboardHelpRole } from "./hooks/useDashboardHelpRole";
 import { userProfileHref } from "@/lib/userProfileHref";
 import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
@@ -2684,21 +2684,12 @@ function ActivityFeedPanel({
       rows = activity.filter((a) => a.type === "call");
     }
     if (hasProFeatures) return rows;
-    let outsideShown = 0;
-    return rows.filter((a) => {
-      if (!isOutsideActivityItem(a)) return true;
-      if (outsideShown < BASIC_OUTSIDE_CALLS_PER_DAY) {
-        outsideShown += 1;
-        return true;
-      }
-      return false;
-    });
+    return rows.filter((a) => !isOutsideActivityItem(a));
   }, [activity, feedMode, hasProFeatures, viewerId]);
 
   const outsideHiddenCount = useMemo(() => {
     if (hasProFeatures) return 0;
-    const totalOutside = activity.filter((a) => isOutsideActivityItem(a)).length;
-    return Math.max(0, totalOutside - BASIC_OUTSIDE_CALLS_PER_DAY);
+    return activity.filter((a) => isOutsideActivityItem(a)).length;
   }, [activity, hasProFeatures]);
 
   const { addNotification } = useNotifications();
@@ -2932,8 +2923,8 @@ function ActivityFeedPanel({
           <div className="mt-3 px-1">
             <ProUpgradePrompt
               className="text-left"
-              title="More Outside Calls on Pro"
-              description={`Basic shows ${BASIC_OUTSIDE_CALLS_PER_DAY} Outside Calls per UTC day in the live feed. ${outsideHiddenCount} more ${outsideHiddenCount === 1 ? "is" : "are"} hidden — upgrade to Pro for unlimited.`}
+              title="Outside calls hidden on Basic"
+              description={`${outsideHiddenCount} Outside Call${outsideHiddenCount === 1 ? "" : "s"} in the live feed — upgrade to Pro to see them here.`}
             />
           </div>
         ) : null}
@@ -4293,6 +4284,12 @@ export default function Home() {
   const [submitCallFeedback, setSubmitCallFeedback] = useState<
     "success" | "already_exists" | null
   >(null);
+  const [deskCallQuota, setDeskCallQuota] = useState<{
+    unlimited: boolean;
+    usedToday: number;
+    remaining: number | null;
+    dailyLimit: number | null;
+  } | null>(null);
   /** Bumps after submit-call success so stats / lists refetch without a full page reload. */
   const [homeDataRefreshNonce, setHomeDataRefreshNonce] = useState(0);
   const { helpTier } = useDashboardHelpRole();
@@ -4328,6 +4325,39 @@ export default function Home() {
       cancelled = true;
     };
   }, [status, session?.user?.id]);
+
+  useEffect(() => {
+    if (!submitCallOpen || status !== "authenticated") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/product-tier", { credentials: "same-origin", cache: "no-store" });
+        const j = (await res.json().catch(() => ({}))) as {
+          deskCallQuota?: {
+            unlimited?: boolean;
+            usedToday?: number;
+            remaining?: number | null;
+            dailyLimit?: number | null;
+          };
+        };
+        if (cancelled || !res.ok) return;
+        const q = j.deskCallQuota;
+        if (q && typeof q === "object") {
+          setDeskCallQuota({
+            unlimited: q.unlimited === true,
+            usedToday: typeof q.usedToday === "number" ? q.usedToday : 0,
+            remaining: typeof q.remaining === "number" ? q.remaining : null,
+            dailyLimit: typeof q.dailyLimit === "number" ? q.dailyLimit : null,
+          });
+        }
+      } catch {
+        /* optional */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [submitCallOpen, status]);
 
   /** Refetch stats / charts / rank while monitoring updates Supabase in the background. */
   useEffect(() => {
@@ -5075,10 +5105,21 @@ export default function Home() {
         return;
       }
 
+      const dataObj =
+        res.data && typeof res.data === "object" ? (res.data as Record<string, unknown>) : null;
+      const code = dataObj && typeof dataObj.code === "string" ? dataObj.code : "";
       const msg =
-        res.data && typeof res.data === "object" && "error" in res.data
-          ? String((res.data as any).error)
-          : "Failed to submit call";
+        dataObj && typeof dataObj.error === "string" ? dataObj.error : "Failed to submit call";
+      if (code === "daily_call_limit" || res.status === 429) {
+        addNotification({
+          id: crypto.randomUUID(),
+          text: msg,
+          type: "call",
+          createdAt: Date.now(),
+          priority: "high",
+        });
+        return;
+      }
       const normalized = msg.toLowerCase();
       if (res.status === 409 || normalized.includes("already")) {
         setSubmitCallFeedback("already_exists");
@@ -5679,6 +5720,13 @@ export default function Home() {
                 </h3>
                 <p className="mt-1 text-xs text-zinc-500">
                   Paste a contract address to submit a new call.
+                  {deskCallQuota && !deskCallQuota.unlimited && deskCallQuota.dailyLimit != null ? (
+                    <>
+                      {" "}
+                      Basic: {deskCallQuota.remaining ?? 0} of {deskCallQuota.dailyLimit} desk calls
+                      left today (UTC).
+                    </>
+                  ) : null}
                 </p>
               </div>
               <button
