@@ -8,12 +8,11 @@ import { useSearchParams } from "next/navigation";
 
 import { DISCORD_SERVER_INVITE_URL, resolveDiscordEntryUrl } from "@/lib/discordInvite";
 import { membershipPaywallUserMessage } from "@/lib/membershipPaywallUserMessage";
+import { MembershipAccessPanel } from "@/app/membership/MembershipAccessPanel";
 import { MembershipBillingSection, type MembershipPlan } from "@/app/membership/MembershipBillingSection";
 import { MembershipProductCompare } from "@/app/membership/MembershipProductCompare";
+import { markMembershipWelcome } from "@/lib/membershipActivation";
 import { MembershipTestToolsFloat } from "@/app/membership/MembershipTestToolsFloat";
-import { ProBadge } from "@/app/components/subscription/ProBadge";
-import { TIER_MARKETING } from "@/lib/subscription/planTiers";
-
 type Plan = MembershipPlan;
 
 type CheckoutVoucherOk = {
@@ -85,6 +84,7 @@ export default function MembershipPage() {
   const [siteFlags, setSiteFlags] = useState<SiteFlags | null>(null);
   const [guildGate, setGuildGate] = useState<GuildGateState>({ status: "idle" });
   const [guildGateRetry, setGuildGateRetry] = useState(0);
+  const [showActivationWelcome, setShowActivationWelcome] = useState(false);
   const lineParam = (searchParams?.get("line") ?? searchParams?.get("productLine") ?? "").trim().toLowerCase();
   const [productLine, setProductLine] = useState<"basic" | "pro">(
     lineParam === "pro" ? "pro" : "basic"
@@ -138,7 +138,9 @@ export default function MembershipPage() {
         };
         if (cancelled) return;
         if (res.ok && json.success) {
-          setPollNote("Payment confirmed. Activating your session?");
+          markMembershipWelcome();
+          setShowActivationWelcome(true);
+          setPollNote("Payment confirmed — unlocking your desk…");
           await update({ refreshAccess: true });
         } else if (!json.success) {
           setCheckoutError(membershipPaywallUserMessage(res.status, json, "stripe_verify_session"));
@@ -172,7 +174,9 @@ export default function MembershipPage() {
         const json = (await res.json().catch(() => ({}))) as { success?: boolean; active?: boolean };
         if (cancelled || !res.ok) return;
         if (json.success && json.active) {
-          setPollNote("You have access. Refreshing your session?");
+          markMembershipWelcome();
+          setShowActivationWelcome(true);
+          setPollNote("Membership active — finishing setup…");
           await update({ refreshAccess: true });
         }
       } catch {
@@ -543,7 +547,9 @@ export default function MembershipPage() {
         return;
       }
       if (json.activated === true && json.via === "voucher") {
-        setPollNote("Complimentary access activated. Refreshing your session?");
+        markMembershipWelcome();
+        setShowActivationWelcome(true);
+        setPollNote("Access activated — welcome to the desk.");
         setComplimentaryCode("");
         setShowComplimentary(false);
         await update({ refreshAccess: true });
@@ -565,6 +571,18 @@ export default function MembershipPage() {
     if (showUpgradeCheckout) setProductLine("pro");
   }, [showUpgradeCheckout]);
 
+  useEffect(() => {
+    if (!hasAccess || showUpgradeCheckout) return;
+    if (showActivationWelcome) return;
+    try {
+      if (sessionStorage.getItem("mcg_membership_welcome")) {
+        setShowActivationWelcome(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [hasAccess, showActivationWelcome, showUpgradeCheckout]);
+
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[color:var(--mcg-page)] px-6 text-sm text-zinc-400">
@@ -574,9 +592,7 @@ export default function MembershipPage() {
   }
 
   if (hasAccess && !showUpgradeCheckout) {
-    const accessPill = active ? "Paid membership active" : exempt ? "Staff / exempt access" : "Dashboard access";
     const discordInvite = resolveDiscordInviteUrl(siteFlags);
-    const tierLabel = TIER_MARKETING[userProductTier].title;
 
     return (
       <div className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100">
@@ -609,75 +625,16 @@ export default function MembershipPage() {
         </header>
 
         <main className="mx-auto max-w-xl px-4 py-12 sm:px-6 sm:py-16">
-          <div className="rounded-3xl border border-zinc-800/80 bg-[linear-gradient(180deg,rgba(24,24,27,0.72),rgba(0,0,0,0.42))] p-8 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:p-10">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">Membership</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-[2rem]">
-              {active ? "You're a member" : "You're all set"}
-            </h1>
-            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
-              {active ? (
-                periodEnd ? (
-                  <>
-                    Your paid access is active. Current period runs through{" "}
-                    <span className="font-medium text-zinc-200">{new Date(periodEnd).toLocaleString()}</span>.
-                  </>
-                ) : (
-                  "Your membership is active and linked to this Discord account."
-                )
-              ) : exempt ? (
-                <>
-                  Your account bypasses the public paywall (staff tier, allowlisted Discord role, or explicit
-                  allowlist). The full dashboard is already unlocked for this Discord login.
-                </>
-              ) : (
-                "Your account already has full dashboard access with this Discord login."
-              )}
-            </p>
-
-            <div className="mt-6 flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-[color:var(--accent)]/35 bg-[color:var(--accent)]/10 px-3 py-1.5 text-xs font-medium text-[color:var(--accent)]/95">
-                {accessPill}
-              </span>
-              <span className="rounded-full border border-zinc-700/60 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-200">
-                {tierLabel} plan
-              </span>
-              {hasProFeatures ? <ProBadge size="sm" /> : null}
-              {!active && exempt ? (
-                <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs text-sky-100/90">
-                  No payment required for access
-                </span>
-              ) : null}
-            </div>
-
-            {active && !hasProFeatures && !exempt ? (
-              <p className="mt-4 text-sm text-zinc-400">
-                Upgrade to Pro for Outside Calls, social feed, and full alerts.{" "}
-                <Link
-                  href="/membership?line=pro&upgrade=1"
-                  className="font-semibold text-sky-300 hover:text-sky-200"
-                >
-                  View Pro plans
-                </Link>
-              </p>
-            ) : null}
-
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <Link
-                href="/"
-                className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_20px_60px_rgba(34,197,94,0.2)] transition hover:brightness-110 sm:min-w-[200px] sm:flex-none"
-              >
-                Go to dashboard
-              </Link>
-              <a
-                href={discordInvite}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl border border-zinc-700/70 bg-zinc-900/50 px-6 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800/60 sm:min-w-[200px] sm:flex-none"
-              >
-                Open Discord
-              </a>
-            </div>
-          </div>
+          <MembershipAccessPanel
+            variant={showActivationWelcome && active ? "welcome" : "standard"}
+            active={active}
+            exempt={exempt}
+            hasProFeatures={hasProFeatures}
+            userProductTier={userProductTier}
+            periodEnd={periodEnd}
+            discordInviteUrl={discordInvite}
+            onDismissWelcome={() => setShowActivationWelcome(false)}
+          />
         </main>
       </div>
     );
@@ -724,7 +681,9 @@ export default function MembershipPage() {
         onStripeTest={() => void startTestCheckout()}
         solTestDisabled={!checkoutAllowed}
         onSolActivated={async () => {
-          setPollNote("Payment confirmed. Activating your session?");
+          markMembershipWelcome();
+          setShowActivationWelcome(true);
+          setPollNote("Payment confirmed — unlocking your desk…");
           await update({ refreshAccess: true });
         }}
       />
@@ -860,9 +819,8 @@ export default function MembershipPage() {
           <div className="mx-auto w-full max-w-3xl rounded-2xl border border-zinc-600/50 bg-zinc-900/45 p-5 sm:p-6">
             <p className="text-sm font-semibold text-zinc-50">We couldn&apos;t verify Discord server membership</p>
             <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-              Checkout stays disabled until the server can confirm you&apos;re in the McGBot Discord (usually missing{" "}
-              <span className="font-medium text-zinc-200">DISCORD_GUILD_ID</span> / bot token on the host, or a temporary
-              Discord API issue).
+              Checkout stays disabled until we can confirm you&apos;re in the McGBot Discord server. Try joining below,
+              then use Retry check — if this keeps happening, contact support in Discord.
             </p>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <button

@@ -24,6 +24,7 @@ import { UserBadgeIcons } from "./components/UserBadgeIcons";
 import PerformanceChart from "@/components/dashboard/PerformanceChart";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import {
   abbreviateCa,
@@ -4225,6 +4226,7 @@ async function submitCall(
 
 export default function Home() {
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
   const { addNotification } = useNotifications();
   const { openTokenChart } = useTokenChartModal();
   const oauthErrorHandledRef = useRef(false);
@@ -4271,6 +4273,22 @@ export default function Home() {
   const [widgets, setWidgets] = useState<WidgetsEnabled | null>(null);
   const [socialFeedEnabled, setSocialFeedEnabled] = useState(false);
   const [submitCallOpen, setSubmitCallOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const openDesk =
+      searchParams.get("submitCall") === "1" || searchParams.get("desk") === "submit";
+    if (!openDesk) return;
+    if (status === "authenticated" && session?.user?.hasDashboardAccess) {
+      setSubmitCallOpen(true);
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete("submitCall");
+    url.searchParams.delete("desk");
+    const qs = url.searchParams.toString();
+    window.history.replaceState({}, "", `${url.pathname}${qs ? `?${qs}` : ""}`);
+  }, [searchParams, session?.user?.hasDashboardAccess, status]);
+
   const [addWatchlistOpen, setAddWatchlistOpen] = useState(false);
   const [alertsModalOpen, setAlertsModalOpen] = useState(false);
   const [watchlistPrivate, setWatchlistPrivate] = useState<string[]>([]);
