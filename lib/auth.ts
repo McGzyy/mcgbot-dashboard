@@ -16,6 +16,7 @@ import {
   membershipRolesConfigured,
   syncMembershipDiscordRoles,
 } from "@/lib/discordMembershipRoles";
+import { invalidateLiveDashboardAccessCache } from "@/lib/dashboardGate";
 import { getSessionInvalidationEpochCached } from "@/lib/sessionInvalidationEpoch";
 import { syncGuildMembershipToUsers } from "@/lib/guildMembershipSync";
 import { consumeTotpSessionProof } from "@/lib/totpSessionProof";
@@ -188,6 +189,9 @@ export const authOptions: NextAuthOptions = {
             })
           : null;
       const refreshAccessAll = Boolean(sessionObj?.refreshAccess);
+      if (refreshAccessAll && discordId) {
+        invalidateLiveDashboardAccessCache(discordId);
+      }
       const refreshSubscriptionFlag =
         Boolean(sessionObj?.refreshSubscription) || refreshAccessAll;
       const refreshGuildFromUpdate =
@@ -346,7 +350,6 @@ export const authOptions: NextAuthOptions = {
                 (token as any).discordBlockedReason = humanGate.reason;
               } else if (membershipGate && !membershipGate.ok) {
                 (token as any).discordNeedsVerification = false;
-                (token as any).discordBlockedReason = membershipGate.reason;
                 const subEnd =
                   typeof token.subscriptionActiveUntil === "string"
                     ? token.subscriptionActiveUntil
@@ -355,6 +358,10 @@ export const authOptions: NextAuthOptions = {
                   subEnd != null &&
                   subEnd.length > 0 &&
                   new Date(subEnd).getTime() > Date.now();
+                const paidOrExempt = subActive || token.subscriptionExempt === true;
+                (token as any).discordBlockedReason = paidOrExempt
+                  ? null
+                  : membershipGate.reason;
                 const alreadySynced = (token as { discordRoleSyncAt?: number }).discordRoleSyncAt;
                 if (
                   subActive &&

@@ -81,11 +81,15 @@ function hasDashboardAccess(token: Record<string, unknown> | null): boolean {
   return subscriptionActive(token);
 }
 
-function discordGateStatus(token: Record<string, unknown>): "ok" | "needs_verification" | "not_in_guild" {
-  const inGuild = (token as Record<string, unknown> & { discordInGuild?: unknown }).discordInGuild;
-  if (inGuild === false) return "not_in_guild";
+function isStaffToken(token: Record<string, unknown>): boolean {
   const tier = token.helpTier;
-  const staffBypass = tier === "admin" || tier === "mod";
+  return tier === "admin" || tier === "mod" || token.canModerate === true;
+}
+
+function discordGateStatus(token: Record<string, unknown>): "ok" | "needs_verification" | "not_in_guild" {
+  const staffBypass = isStaffToken(token);
+  const inGuild = (token as Record<string, unknown> & { discordInGuild?: unknown }).discordInGuild;
+  if (inGuild === false && !staffBypass) return "not_in_guild";
   const needsVerification = (token as Record<string, unknown> & { discordNeedsVerification?: unknown })
     .discordNeedsVerification === true;
   const blockedReason = (token as Record<string, unknown> & { discordBlockedReason?: unknown })
@@ -111,12 +115,23 @@ function discordIdFromToken(token: Record<string, unknown> | null): string {
 }
 
 /** Cookie claims first; if denied, re-check server (fixes stale JWT after env/code changes). */
+/** Session identity — must not require paid dashboard access (sidebar staff nav, etc.). */
+function isIdentityMeApi(pathname: string, method: string): boolean {
+  if (method !== "GET" && method !== "POST") return false;
+  return (
+    pathname === "/api/me/help-role" ||
+    pathname === "/api/me/product-tier" ||
+    pathname === "/api/me/presence"
+  );
+}
+
 async function hasDashboardAccessResolved(
   token: Record<string, unknown> | null
 ): Promise<boolean> {
   if (!token) return false;
   const gate = discordGateStatus(token);
-  if (gate === "not_in_guild" || gate === "needs_verification") return false;
+  if (gate === "needs_verification") return false;
+  if (gate === "not_in_guild") return false;
   if (hasDashboardAccess(token)) return true;
   const id = discordIdFromToken(token);
   if (!id) return false;
@@ -247,6 +262,9 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
     if (referralApiNoPaywall) {
+      return NextResponse.next();
+    }
+    if (isIdentityMeApi(pathname, req.method)) {
       return NextResponse.next();
     }
     if (!(await hasDashboardAccessResolved(token))) {

@@ -104,14 +104,20 @@ export async function liveDashboardAccessForDiscordId(discordId: string): Promis
     return true;
   }
 
+  const { end, failed: subFailed } = await getSubscriptionEndWithRetry(id);
+  const subActive = subscriptionActiveUntil(end);
+
   const roleOk = await discordRoleAllowsDashboard(id);
+  if (roleOk === true || subActive) {
+    accessCache.set(id, { ok: true, exp: now + CACHE_MS });
+    return true;
+  }
   if (roleOk === false) {
     accessCache.set(id, { ok: false, exp: now + CACHE_MS });
     return false;
   }
 
-  const { end, failed: subFailed } = await getSubscriptionEndWithRetry(id);
-  const ok = subscriptionActiveUntil(end);
+  const ok = subActive;
 
   const uncertainDeny = !ok && (tierFailed || exemptFailed || subFailed);
   if (!uncertainDeny) {
