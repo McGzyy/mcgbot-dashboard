@@ -1,6 +1,6 @@
 import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
 import { membershipAccessGateFromRoleIds, membershipRolesConfigured } from "@/lib/discordMembershipRoles";
-import { resolveHelpTierAsync } from "@/lib/helpRole";
+import { resolveHelpTier, resolveHelpTierAsync } from "@/lib/helpRole";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
 
@@ -8,6 +8,8 @@ type CacheEntry = { ok: boolean; exp: number };
 
 const accessCache = new Map<string, CacheEntry>();
 const CACHE_MS = 90_000;
+/** Shorter deny cache so transient Discord/role flakes do not lock users out for minutes. */
+const DENY_CACHE_MS = 15_000;
 
 function subscriptionActiveUntil(end: string | null): boolean {
   if (!end) return false;
@@ -92,6 +94,12 @@ export async function liveDashboardAccessForDiscordId(discordId: string): Promis
     return hit.ok;
   }
 
+  const envTier = resolveHelpTier(id);
+  if (envTier === "admin" || envTier === "mod") {
+    accessCache.set(id, { ok: true, exp: now + CACHE_MS });
+    return true;
+  }
+
   const { tier, failed: tierFailed } = await resolveHelpTierWithRetry(id);
   if (!tierFailed && (tier === "admin" || tier === "mod")) {
     accessCache.set(id, { ok: true, exp: now + CACHE_MS });
@@ -112,8 +120,8 @@ export async function liveDashboardAccessForDiscordId(discordId: string): Promis
     accessCache.set(id, { ok: true, exp: now + CACHE_MS });
     return true;
   }
-  if (roleOk === false) {
-    accessCache.set(id, { ok: false, exp: now + CACHE_MS });
+  if (roleOk === false && !tierFailed && !exemptFailed && !subFailed) {
+    accessCache.set(id, { ok: false, exp: now + DENY_CACHE_MS });
     return false;
   }
 
@@ -121,7 +129,7 @@ export async function liveDashboardAccessForDiscordId(discordId: string): Promis
 
   const uncertainDeny = !ok && (tierFailed || exemptFailed || subFailed);
   if (!uncertainDeny) {
-    accessCache.set(id, { ok, exp: now + CACHE_MS });
+    accessCache.set(id, { ok, exp: now + (ok ? CACHE_MS : DENY_CACHE_MS) });
   }
   return ok;
 }

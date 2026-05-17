@@ -18,6 +18,9 @@ export function SessionGateRecovery() {
     if (status !== "authenticated") return;
     if (session?.user?.hasDashboardAccess === true) return;
 
+    const tier = (session.user as { helpTier?: string }).helpTier;
+    if (tier === "admin" || tier === "mod" || session.user.canModerate === true) return;
+
     const u = session.user as {
       discordInGuild?: boolean | null;
       discordNeedsVerification?: boolean;

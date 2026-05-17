@@ -328,10 +328,16 @@ export const authOptions: NextAuthOptions = {
           }
 
           if (inGuild === false) {
-            await syncGuildMembershipToUsers(discordId, false);
-            (token as any).discordInGuild = false;
-            (token as any).discordNeedsVerification = false;
-            (token as any).discordBlockedReason = "not_in_guild";
+            const staffSticky =
+              token.helpTier === "admin" ||
+              token.helpTier === "mod" ||
+              token.canModerate === true;
+            if (!staffSticky) {
+              await syncGuildMembershipToUsers(discordId, false);
+              (token as any).discordInGuild = false;
+              (token as any).discordNeedsVerification = false;
+              (token as any).discordBlockedReason = "not_in_guild";
+            }
             (token as any).discordGuildRefreshAt = Date.now();
             // Keep the session cookie so they can land on /membership, join, then session refetch
             // picks up membership without going through OAuth again.

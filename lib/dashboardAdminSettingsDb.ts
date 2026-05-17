@@ -340,52 +340,89 @@ export async function patchDashboardAdminSettings(input: {
     next.x_leaderboard_digest_format =
       input.x_leaderboard_digest_format == null ? null : { ...input.x_leaderboard_digest_format };
   }
-  const { data, error } = await db
-    .from("dashboard_admin_settings")
-    .upsert(
-      {
-        id: 1,
-        maintenance_enabled: next.maintenance_enabled,
-        maintenance_message: next.maintenance_message,
-        paywall_subtitle: next.paywall_subtitle,
-        public_signups_paused: next.public_signups_paused,
-        announcement_enabled: next.announcement_enabled,
-        announcement_global: next.announcement_global,
-        announcement_message: next.announcement_message,
-        announcement_cta_label: next.announcement_cta_label,
-        announcement_cta_url: next.announcement_cta_url,
-        announcement_message_mobile: next.announcement_message_mobile,
-        announcement_hide_on_mobile: next.announcement_hide_on_mobile,
-        announcement_allow_user_dismiss: next.announcement_allow_user_dismiss,
-        announcement_visible_from: next.announcement_visible_from,
-        announcement_visible_until: next.announcement_visible_until,
-        paywall_title: next.paywall_title,
-        subscribe_button_label: next.subscribe_button_label,
-        discord_invite_url: next.discord_invite_url,
-        stats_cutover_at: next.stats_cutover_at,
-        trusted_pro_apply_min_total_calls: next.trusted_pro_apply_min_total_calls,
-        trusted_pro_apply_min_avg_x: next.trusted_pro_apply_min_avg_x,
-        trusted_pro_apply_min_win_rate: next.trusted_pro_apply_min_win_rate,
-        trusted_pro_apply_min_best_x_30d: next.trusted_pro_apply_min_best_x_30d,
-        session_invalidation_epoch: next.session_invalidation_epoch,
-        referral_credit_divisor: next.referral_credit_divisor,
-        stripe_test_checkout_enabled: next.stripe_test_checkout_enabled,
-        stripe_test_price_id: next.stripe_test_price_id,
-        stripe_test_plan_id: next.stripe_test_plan_id,
-        tutorial_auto_start_enabled: next.tutorial_auto_start_enabled,
-        x_leaderboard_digest_format: next.x_leaderboard_digest_format,
-        social_feed_enabled: next.social_feed_enabled,
-        updated_at: next.updated_at,
-        updated_by_discord_id: next.updated_by_discord_id,
-      },
-      { onConflict: "id" }
-    )
-    .select("*")
-    .single();
-
-  if (error) {
-    console.error("[dashboardAdminSettings] patch", error);
-    return null;
+  if (typeof input.social_feed_enabled === "boolean") {
+    next.social_feed_enabled = input.social_feed_enabled;
   }
-  return normalizeAdminSettingsRow(data as Record<string, unknown>);
+
+  const upsertPayload = (omit = new Set<string>()) => {
+    const row: Record<string, unknown> = {
+      id: 1,
+      maintenance_enabled: next.maintenance_enabled,
+      maintenance_message: next.maintenance_message,
+      paywall_subtitle: next.paywall_subtitle,
+      public_signups_paused: next.public_signups_paused,
+      announcement_enabled: next.announcement_enabled,
+      announcement_global: next.announcement_global,
+      announcement_message: next.announcement_message,
+      announcement_cta_label: next.announcement_cta_label,
+      announcement_cta_url: next.announcement_cta_url,
+      announcement_message_mobile: next.announcement_message_mobile,
+      announcement_hide_on_mobile: next.announcement_hide_on_mobile,
+      announcement_allow_user_dismiss: next.announcement_allow_user_dismiss,
+      announcement_visible_from: next.announcement_visible_from,
+      announcement_visible_until: next.announcement_visible_until,
+      paywall_title: next.paywall_title,
+      subscribe_button_label: next.subscribe_button_label,
+      discord_invite_url: next.discord_invite_url,
+      stats_cutover_at: next.stats_cutover_at,
+      trusted_pro_apply_min_total_calls: next.trusted_pro_apply_min_total_calls,
+      trusted_pro_apply_min_avg_x: next.trusted_pro_apply_min_avg_x,
+      trusted_pro_apply_min_win_rate: next.trusted_pro_apply_min_win_rate,
+      trusted_pro_apply_min_best_x_30d: next.trusted_pro_apply_min_best_x_30d,
+      session_invalidation_epoch: next.session_invalidation_epoch,
+      referral_credit_divisor: next.referral_credit_divisor,
+      stripe_test_checkout_enabled: next.stripe_test_checkout_enabled,
+      stripe_test_price_id: next.stripe_test_price_id,
+      stripe_test_plan_id: next.stripe_test_plan_id,
+      tutorial_auto_start_enabled: next.tutorial_auto_start_enabled,
+      x_leaderboard_digest_format: next.x_leaderboard_digest_format,
+      social_feed_enabled: next.social_feed_enabled,
+      updated_at: next.updated_at,
+      updated_by_discord_id: next.updated_by_discord_id,
+    };
+    for (const key of omit) delete row[key];
+    return row;
+  };
+
+  const isMissingColumnError = (err: { message?: string; code?: string }) => {
+    const msg = (err.message ?? "").toLowerCase();
+    return (
+      err.code === "PGRST204" ||
+      err.code === "42703" ||
+      (msg.includes("column") && (msg.includes("does not exist") || msg.includes("unknown")))
+    );
+  };
+
+  const optionalColumns = ["announcement_global", "social_feed_enabled"] as const;
+  let omit = new Set<string>();
+
+  for (let attempt = 0; attempt < optionalColumns.length + 1; attempt++) {
+    const { data, error } = await db
+      .from("dashboard_admin_settings")
+      .upsert(upsertPayload(omit), { onConflict: "id" })
+      .select("*")
+      .single();
+
+    if (!error) {
+      return normalizeAdminSettingsRow(data as Record<string, unknown>);
+    }
+
+    if (!isMissingColumnError(error) || attempt >= optionalColumns.length) {
+      console.error("[dashboardAdminSettings] patch", error);
+      return null;
+    }
+
+    for (const col of optionalColumns) {
+      if (!omit.has(col) && (error.message ?? "").includes(col)) {
+        omit = new Set([...omit, col]);
+        console.warn(`[dashboardAdminSettings] patch omit missing column: ${col}`);
+        break;
+      }
+    }
+    if (omit.size === attempt) {
+      omit = new Set([...omit, optionalColumns[attempt]!]);
+    }
+  }
+
+  return null;
 }

@@ -20,6 +20,10 @@ export async function isDiscordGuildMember(discordUserId: string): Promise<boole
     );
     if (res.status === 200) return true;
     if (res.status === 404) return false;
+    if (res.status === 429) {
+      console.warn("[discordGuildMember] rate limited (429); keeping last-known guild state");
+      return null;
+    }
     console.warn(`[discordGuildMember] unexpected status ${res.status}`);
     return null;
   } catch (e) {
@@ -49,6 +53,10 @@ export async function getDiscordGuildMemberRoleIds(discordUserId: string): Promi
       }
     );
     if (res.status === 404) return [];
+    if (res.status === 429) {
+      console.warn("[discordGuildMember] member roles rate limited (429)");
+      return null;
+    }
     if (!res.ok) {
       console.warn(`[discordGuildMember] member roles fetch unexpected status ${res.status}`);
       return null;

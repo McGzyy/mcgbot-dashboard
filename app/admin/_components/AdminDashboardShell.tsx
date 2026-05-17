@@ -244,9 +244,12 @@ export function AdminDashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-10 lg:flex-row lg:gap-12">
-      <aside className="shrink-0 lg:w-72 lg:sticky lg:top-24 lg:self-start" aria-label="Admin sections">
+      <aside
+        className="shrink-0 lg:w-72 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100dvh-6rem)]"
+        aria-label="Admin sections"
+      >
         <div
-          className={`rounded-2xl p-2 ${terminalSurface.panelCardElevated} ${terminalSurface.insetEdge}`}
+          className={`max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain rounded-2xl p-2 ${terminalSurface.panelCardElevated} ${terminalSurface.insetEdge}`}
         >
           <p className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
             Control plane

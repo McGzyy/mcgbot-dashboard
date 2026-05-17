@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { isAwaitingMembershipRole } from "@/lib/discordMembershipRoles";
 import { liveDashboardAccessForDiscordId } from "@/lib/dashboardGate";
+import { resolveHelpTier } from "@/lib/helpRole";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
 import { isPublicProfileApi, isPublicProfilePage } from "@/lib/publicProfileRoutes";
 
@@ -137,6 +138,8 @@ async function hasDashboardAccessResolved(
   if (hasDashboardAccess(token)) return true;
   const id = discordIdFromToken(token);
   if (!id) return false;
+  const envTier = resolveHelpTier(id);
+  if (envTier === "admin" || envTier === "mod") return true;
   try {
     return await liveDashboardAccessForDiscordId(id);
   } catch (e) {
@@ -145,7 +148,8 @@ async function hasDashboardAccessResolved(
       await new Promise((r) => setTimeout(r, 150));
       return await liveDashboardAccessForDiscordId(id);
     } catch {
-      return false;
+      // Fail open when JWT already grants access (stale live check / Discord flake).
+      return hasDashboardAccess(token);
     }
   }
 }
