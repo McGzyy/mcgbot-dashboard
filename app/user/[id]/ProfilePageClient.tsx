@@ -37,8 +37,11 @@ const CARD_HOVER =
 const PROFILE_HERO_SHELL =
   "relative mb-10 overflow-hidden rounded-[1.75rem] border border-zinc-800/75 bg-zinc-950/50 shadow-[0_40px_120px_-52px_rgba(0,0,0,0.92)] ring-1 ring-white/[0.06] backdrop-blur-[2px]";
 
-/** In-page anchors / reduced jump when shell scrolls with sticky chrome. */
-const PROFILE_SECTION_SCROLL = "scroll-mt-24 lg:scroll-mt-28";
+/** In-page anchors — offset matches TopBar + optional announcement (see dashboardStickyChrome). */
+const PROFILE_STICKY_BELOW_CHROME =
+  "top-[var(--dashboard-sticky-below-chrome,6rem)]";
+const PROFILE_SECTION_SCROLL =
+  "scroll-mt-[var(--dashboard-sticky-below-chrome,6rem)]";
 
 const TROPHY_TIER_WELL =
   "rounded-xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/45 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.14)] ring-1 ring-white/[0.03]";
@@ -1846,7 +1849,10 @@ export default function ProfilePageClient() {
               <div className="min-w-0 flex-1 pt-1 sm:pb-1 sm:pt-0 lg:pt-1">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
+                      Trader profile
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-2">
                       <h1 className="text-[1.65rem] font-semibold tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.55)] sm:text-[2.125rem] sm:leading-tight">
                         {showNameSkeleton ? (
                           <span className="inline-block h-9 w-52 max-w-full animate-pulse rounded-md bg-zinc-800/90" />
@@ -2528,7 +2534,9 @@ export default function ProfilePageClient() {
         </div>
 
         <aside className="col-span-12 lg:col-span-4">
-          <div className="w-full max-w-sm space-y-5 lg:sticky lg:top-24 lg:z-10 lg:ml-auto lg:self-start">
+          <div
+            className={`w-full max-w-sm space-y-5 lg:sticky ${PROFILE_STICKY_BELOW_CHROME} lg:z-[35] lg:ml-auto lg:self-start`}
+          >
             {canModerate && resolvedSnowflake && !isOwnProfile ? (
               <UserCallSuspensionStaffPanel mode="profile" targetDiscordId={resolvedSnowflake} />
             ) : null}

@@ -128,6 +128,9 @@ const SETTINGS_BTN_DANGER =
 
 const SETTINGS_FIELD_PANEL = `${terminalSurface.dashboardListWell} px-3 py-3 sm:px-4`;
 
+const STICKY_BELOW_CHROME =
+  "top-[var(--dashboard-sticky-below-chrome,6rem)]";
+
 function settingsNavLinkClass(active: boolean, variant: "side" | "pill"): string {
   if (variant === "side") {
     return active
@@ -271,6 +274,48 @@ function ToggleRow({
           }`}
           aria-hidden
         />
+      </button>
+    </div>
+  );
+}
+
+function SettingsSaveCluster({
+  saveState,
+  saveMessage,
+  settingsLoading,
+  onSave,
+  compact = false,
+}: {
+  saveState: "idle" | "saving" | "saved" | "error";
+  saveMessage: string | null;
+  settingsLoading: boolean;
+  onSave: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`flex flex-col gap-2 sm:items-end ${
+        compact ? "" : "sm:flex-row sm:gap-3"
+      }`}
+    >
+      {saveMessage ? (
+        <span
+          className={`font-mono text-[11px] ${
+            saveState === "error" ? "text-red-400" : "text-cyan-300/90"
+          } ${compact ? "text-left sm:text-right" : ""}`}
+        >
+          {saveMessage}
+        </span>
+      ) : (
+        <span className="font-mono text-[11px] text-zinc-600">READY</span>
+      )}
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={settingsLoading || saveState === "saving"}
+        className={`${SETTINGS_BTN_PRIMARY} ${compact ? "w-full sm:w-auto" : ""}`}
+      >
+        {saveState === "saving" ? "Saving…" : "Save changes"}
       </button>
     </div>
   );
@@ -1039,11 +1084,11 @@ function SettingsPageInner() {
 
   return (
     <>
-    <div className="mx-auto max-w-6xl px-4 pb-[calc(7rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] pt-4 sm:px-6">
+    <div className="mx-auto max-w-6xl px-4 pb-[calc(2rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] pt-4 sm:px-6">
       <div className="lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-x-10 xl:grid-cols-[13rem_minmax(0,1fr)] xl:gap-x-12">
         <aside className="mb-6 hidden lg:block">
           <nav
-            className={`sticky top-24 ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} space-y-0.5 p-2`}
+            className={`sticky ${STICKY_BELOW_CHROME} z-[35] ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} space-y-0.5 p-2`}
             aria-label="Settings sections"
           >
             <p className="px-2.5 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
@@ -1064,16 +1109,29 @@ function SettingsPageInner() {
 
         <div className="min-w-0">
           <header className={`${terminalChrome.headerRule} pb-6 pt-1`} data-tutorial="settings.header">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
-              Control panel
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Settings
-            </h1>
-            <p className={`${terminalPage.sectionHint} mt-3 max-w-2xl text-sm leading-relaxed`}>
-              Notifications, security, connected accounts, profile visibility, home layout, and
-              referral link. Use the command bar below to commit changes.
-            </p>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
+                  Control panel
+                </p>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                  Settings
+                </h1>
+                <p className={`${terminalPage.sectionHint} mt-3 max-w-2xl text-sm leading-relaxed`}>
+                  Notifications, security, connected accounts, profile visibility, home layout, and
+                  referral link. Save when you are done editing.
+                </p>
+              </div>
+              <div className="hidden shrink-0 lg:block">
+                <SettingsSaveCluster
+                  saveState={saveState}
+                  saveMessage={saveMessage}
+                  settingsLoading={settingsLoading}
+                  onSave={() => void handleSave()}
+                  compact
+                />
+              </div>
+            </div>
             <nav
               className={`mt-4 flex gap-1.5 overflow-x-auto pb-1 lg:hidden ${terminalChrome.scrollYHidden}`}
               aria-label="Settings sections"
@@ -1849,50 +1907,36 @@ function SettingsPageInner() {
         </SettingsSection>
       </div>
 
-          </div>
-        </div>
-      </div>
-    </div>
+            <div className="mt-8 flex justify-end lg:hidden">
+              <div
+                className={`w-full max-w-md ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} p-4 sm:p-5`}
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Save preferences
+                </p>
+                <p className={`${terminalPage.sectionHint} mt-1`}>
+                  Applies notifications, profile visibility, and home widgets.
+                </p>
+                <div className="mt-3">
+                  <SettingsSaveCluster
+                    saveState={saveState}
+                    saveMessage={saveMessage}
+                    settingsLoading={settingsLoading}
+                    onSave={() => void handleSave()}
+                    compact
+                  />
+                </div>
+              </div>
+            </div>
 
-    <div
-      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+var(--mcg-dock-stack,0px))] left-0 right-0 z-[65] border-t border-zinc-800/90 bg-zinc-950/95 py-3 pl-4 pr-4 shadow-[0_-16px_48px_-16px_rgba(0,0,0,0.85)] backdrop-blur-md sm:px-6 sm:pl-44 lg:left-64 lg:pr-[max(1.5rem,13rem)] ${terminalSurface.insetEdge}`}
-    >
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
-        <div className="hidden min-w-0 sm:block">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-            Command bar
-          </p>
-          <p className="mt-0.5 truncate text-xs text-zinc-600">
-            Commit notification, profile, and layout prefs. X and referral save separately.
-          </p>
-        </div>
-        <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
-          {saveMessage ? (
-            <span
-              className={`max-w-[40vw] truncate font-mono text-[11px] sm:max-w-xs sm:text-xs ${
-                saveState === "error" ? "text-red-400" : "text-cyan-300/90"
-              }`}
-            >
-              {saveMessage}
-            </span>
-          ) : (
-            <span className="hidden font-mono text-[11px] text-zinc-600 sm:inline">READY</span>
-          )}
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={settingsLoading || saveState === "saving"}
-            className={`w-full sm:w-auto ${SETTINGS_BTN_PRIMARY}`}
-          >
-            {saveState === "saving" ? "Saving…" : "Save changes"}
-          </button>
+          </div>
         </div>
       </div>
     </div>
 
     {showToast ? (
       <div
-        className="fixed bottom-[calc(5rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] right-4 z-[72] rounded-lg border border-emerald-500/35 bg-emerald-950/90 px-4 py-2 font-mono text-xs text-emerald-100 shadow-lg animate-fade-in sm:right-6"
+        className="fixed bottom-[calc(1.25rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] right-4 z-[72] rounded-lg border border-emerald-500/35 bg-emerald-950/90 px-4 py-2 font-mono text-xs text-emerald-100 shadow-lg animate-fade-in sm:right-6"
         role="status"
         aria-live="polite"
       >

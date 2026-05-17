@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  clearDashboardStickyBelowChrome,
+  publishDashboardStickyBelowChrome,
+} from "@/lib/dashboardStickyChrome";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type AnnouncementBarVariant = "inset" | "bare";
 
@@ -42,6 +46,7 @@ export function AnnouncementBar({
 }) {
   const [payload, setPayload] = useState<BarPayload | null>(null);
   const [userDismissed, setUserDismissed] = useState(false);
+  const stickyShellRef = useRef<HTMLDivElement>(null);
 
   const loadFlags = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -125,6 +130,42 @@ export function AnnouncementBar({
       setUserDismissed(false);
     }
   }, [payload?.allowUserDismiss, payload?.contentVersion]);
+
+  useEffect(() => {
+    if (!stickyBelowTopBar) return;
+
+    const visible = Boolean(payload && !userDismissed);
+    if (!visible) {
+      publishDashboardStickyBelowChrome(0);
+      return;
+    }
+
+    const el = stickyShellRef.current;
+    if (!el || typeof ResizeObserver === "undefined") {
+      publishDashboardStickyBelowChrome(0);
+      return;
+    }
+
+    const apply = () => {
+      publishDashboardStickyBelowChrome(Math.round(el.getBoundingClientRect().height));
+    };
+
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    window.addEventListener("resize", apply);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", apply);
+      publishDashboardStickyBelowChrome(0);
+    };
+  }, [stickyBelowTopBar, payload, userDismissed]);
+
+  useEffect(() => {
+    if (stickyBelowTopBar) return;
+    return () => clearDashboardStickyBelowChrome();
+  }, [stickyBelowTopBar]);
 
   if (!payload || userDismissed) return null;
 
@@ -250,6 +291,7 @@ export function AnnouncementBar({
   if (stickyBelowTopBar) {
     return (
       <div
+        ref={stickyShellRef}
         className={`sticky top-[var(--dashboard-topbar-height,6rem)] z-[45] w-full shrink-0 bg-[color:var(--mcg-stage)]/30 shadow-[0_6px_20px_-14px_rgba(0,0,0,0.4)] backdrop-blur-[2px] ${mobileShellClass}`}
       >
         <div className="mx-auto w-full max-w-[1680px] px-3 pb-1 pt-0.5 min-[480px]:px-5 sm:px-8 sm:pb-1.5 sm:pt-1">

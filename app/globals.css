@@ -9,6 +9,9 @@
   /** Full-app canvas (sidebar gutter, bare routes); main column uses --mcg-stage. */
   --mcg-page: #050505;
   --mcg-stage: #030406;
+  /** TopBar only; updated at runtime. AnnouncementBar adds its height on top. */
+  --dashboard-topbar-height: 6rem;
+  --dashboard-sticky-below-chrome: 6rem;
 }
 
 @media (prefers-color-scheme: dark) {
