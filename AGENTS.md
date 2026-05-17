@@ -8,4 +8,4 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - **B4 — Bot calls moderation:** done — bulk exclude/restore via `/api/bot/call-exclude-bulk`, page + row selection on Bot Calls.
 - **Pass 12 — Sidebar shell:** hidden nav scrollbar (`no-scrollbar`), comfortable nav spacing, flex column layout (fix-it + profile pinned; nav scrolls in between).
-- **Activity feed — watchlist:** per-row `+` with confirm → add mint to private watchlist; compact relative times in the feed (`formatJoinedAt` compact style).
+- **Pass 13 — Activity feed watchlist:** per-row `+` → inline Add/Cancel (no `window.confirm`); ✓ link when already on private watchlist; compact times with full timestamp on hover.

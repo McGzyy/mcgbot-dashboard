@@ -2225,6 +2225,8 @@ type ActivityFeedPanelProps = {
   viewerName?: string | null;
   hasProFeatures?: boolean;
   onSubmitCall?: () => void;
+  privateWatchlistMints: ReadonlySet<string>;
+  onPrivateWatchlistAdd: (mint: string) => void;
 };
 
 function activityFeedEmptyCopy(
@@ -2339,6 +2341,8 @@ function ActivityFeedPanel({
   viewerName,
   hasProFeatures = true,
   onSubmitCall,
+  privateWatchlistMints,
+  onPrivateWatchlistAdd,
 }: ActivityFeedPanelProps) {
   const emptyFeed = activityFeedEmptyCopy(feedMode, followingIds.size, onSubmitCall);
   const filteredActivity = useMemo(() => {
@@ -2363,25 +2367,18 @@ function ActivityFeedPanel({
 
   const { addNotification } = useNotifications();
   const [watchlistAddingMint, setWatchlistAddingMint] = useState<string | null>(null);
+  const [watchlistConfirmMint, setWatchlistConfirmMint] = useState<string | null>(null);
 
-  const addActivityToWatchlist = useCallback(
-    async (item: ActivityItem) => {
-      const mint = resolveActivityMint(item);
-      if (!mint) {
-        addNotification({
-          id: crypto.randomUUID(),
-          text: "No token address on this activity line.",
-          type: "call",
-          createdAt: Date.now(),
-          priority: "low",
-        });
-        return;
-      }
-      const ticker = parseCallTickerFromActivityText(item.text);
-      const label = ticker ? `$${ticker}` : abbreviateCa(mint, 4, 4);
-      if (!window.confirm(`Add ${label} to your private watchlist?`)) return;
+  const watchlistLabelForMint = useCallback((mint: string, item?: ActivityItem) => {
+    const ticker = item ? parseCallTickerFromActivityText(item.text) : null;
+    return ticker ? `$${ticker}` : abbreviateCa(mint, 4, 4);
+  }, []);
 
+  const confirmAddToWatchlist = useCallback(
+    async (mint: string, item?: ActivityItem) => {
+      setWatchlistConfirmMint(null);
       setWatchlistAddingMint(mint);
+      const label = watchlistLabelForMint(mint, item);
       try {
         const res = await fetch("/api/me/watchlist", {
           method: "POST",
@@ -2403,6 +2400,7 @@ function ActivityFeedPanel({
           });
           return;
         }
+        onPrivateWatchlistAdd(mint);
         addNotification({
           id: crypto.randomUUID(),
           text: `Added ${label} to your watchlist.`,
@@ -2422,7 +2420,7 @@ function ActivityFeedPanel({
         setWatchlistAddingMint(null);
       }
     },
-    [addNotification]
+    [addNotification, onPrivateWatchlistAdd, watchlistLabelForMint]
   );
 
   return (
@@ -2545,23 +2543,62 @@ function ActivityFeedPanel({
                             {item.multiple.toFixed(1)}x
                           </span>
                         ) : null}
-                        <span className="whitespace-nowrap text-[10px] tabular-nums text-zinc-500">
+                        <span
+                          className="whitespace-nowrap text-[10px] tabular-nums text-zinc-500"
+                          title={formatJoinedAt(callTimeMs(item.time), nowMs, "default")}
+                        >
                           {formatJoinedAt(callTimeMs(item.time), nowMs, "compact")}
                         </span>
                         {rowMint ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void addActivityToWatchlist(item);
-                            }}
-                            disabled={watchlistAddingMint === rowMint}
-                            className="-mr-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md text-zinc-500 transition hover:bg-zinc-800 hover:text-sky-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 disabled:opacity-40"
-                            aria-label="Add token to watchlist"
-                            title="Add to watchlist"
-                          >
-                            <span className="text-base font-semibold leading-none">+</span>
-                          </button>
+                          privateWatchlistMints.has(rowMint) ? (
+                            <Link
+                              href="/watchlist"
+                              onClick={(e) => e.stopPropagation()}
+                              className="-mr-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md text-sky-400/90 transition hover:bg-zinc-800 hover:text-sky-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                              aria-label="On your watchlist"
+                              title="On watchlist — open list"
+                            >
+                              <span className="text-sm font-semibold leading-none" aria-hidden>
+                                ✓
+                              </span>
+                            </Link>
+                          ) : watchlistConfirmMint === rowMint ? (
+                            <span
+                              className="flex shrink-0 items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                disabled={watchlistAddingMint === rowMint}
+                                onClick={() => void confirmAddToWatchlist(rowMint, item)}
+                                className="rounded-md bg-sky-500/20 px-2 py-0.5 text-[10px] font-semibold text-sky-100 transition hover:bg-sky-500/30 disabled:opacity-50"
+                              >
+                                {watchlistAddingMint === rowMint ? "…" : "Add"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={watchlistAddingMint === rowMint}
+                                onClick={() => setWatchlistConfirmMint(null)}
+                                className="rounded-md px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 transition hover:text-zinc-300 disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setWatchlistConfirmMint(rowMint);
+                              }}
+                              disabled={watchlistAddingMint != null}
+                              className="-mr-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md text-zinc-500 transition hover:bg-zinc-800 hover:text-sky-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 disabled:opacity-40"
+                              aria-label={`Add ${watchlistLabelForMint(rowMint, item)} to watchlist`}
+                              title="Add to watchlist"
+                            >
+                              <span className="text-base font-semibold leading-none">+</span>
+                            </button>
+                          )
                         ) : null}
                         <span className="text-xs text-zinc-500" aria-hidden>
                           ↗
@@ -3805,6 +3842,16 @@ export default function Home() {
   const [watchlistRefreshing, setWatchlistRefreshing] = useState(false);
   const [watchlistUpdatedAt, setWatchlistUpdatedAt] = useState<number | null>(null);
   const [watchlistRefreshNonce, setWatchlistRefreshNonce] = useState(0);
+  const privateWatchlistMintSet = useMemo(
+    () => new Set(watchlistPrivate.filter(Boolean)),
+    [watchlistPrivate]
+  );
+  const handlePrivateWatchlistAddFromFeed = useCallback((mint: string) => {
+    const ca = mint.trim();
+    if (!ca) return;
+    setWatchlistPrivate((prev) => (prev.includes(ca) ? prev : [ca, ...prev]));
+    setWatchlistUpdatedAt(Date.now());
+  }, []);
   const [deskCallQuota, setDeskCallQuota] = useState<DeskCallQuotaUi | null>(null);
   /** Bumps after submit-call success so stats / lists refetch without a full page reload. */
   const [homeDataRefreshNonce, setHomeDataRefreshNonce] = useState(0);
@@ -4814,6 +4861,8 @@ export default function Home() {
                 viewerName={session.user.name}
                 hasProFeatures={hasProFeatures}
                 onSubmitCall={openSubmitCallModal}
+                privateWatchlistMints={privateWatchlistMintSet}
+                onPrivateWatchlistAdd={handlePrivateWatchlistAddFromFeed}
               />
             </div>
           )}
