@@ -1,7 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import { createClient } from "@supabase/supabase-js";
 import DiscordProvider from "next-auth/providers/discord";
-import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
+import { meetsModerationMinTier, resolveHelpTier, resolveHelpTierAsync } from "@/lib/helpRole";
 import {
   isProtectedFromGuildFalsePositive,
   isStaffFromToken,
@@ -324,8 +324,14 @@ export const authOptions: NextAuthOptions = {
                 token.canModerate = meetsModerationMinTier(helpTier);
               }
             } catch {
-              token.helpTier = "user";
-              token.canModerate = false;
+              const envTier = resolveHelpTier(discordId);
+              if (envTier === "admin" || envTier === "mod") {
+                token.helpTier = envTier;
+                token.canModerate = meetsModerationMinTier(envTier);
+              } else {
+                token.helpTier = "user";
+                token.canModerate = false;
+              }
             }
           }
         }
@@ -334,14 +340,17 @@ export const authOptions: NextAuthOptions = {
       if (discordId && shouldRefreshGuildGate) {
         try {
           const inGuild = await isDiscordGuildMember(discordId);
+          const staffSticky = isStaffFromToken(token as Record<string, unknown>, discordId);
+          const protectedMember =
+            staffSticky || isProtectedFromGuildFalsePositive(token as Record<string, unknown>, discordId);
+
           if (typeof inGuild === "boolean") {
-            (token as any).discordInGuild = inGuild;
+            if (inGuild === true || !protectedMember) {
+              (token as any).discordInGuild = inGuild;
+            }
           }
 
           if (inGuild === false) {
-            const staffSticky = isStaffFromToken(token as Record<string, unknown>, discordId);
-            const protectedMember =
-              staffSticky || isProtectedFromGuildFalsePositive(token as Record<string, unknown>, discordId);
             if (!protectedMember) {
               await syncGuildMembershipToUsers(discordId, false);
               (token as any).discordInGuild = false;

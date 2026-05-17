@@ -121,24 +121,41 @@ async function hasDashboardAccessResolved(
   token: Record<string, unknown> | null
 ): Promise<boolean> {
   if (!token) return false;
-  const gate = discordGateStatus(token);
-  if (gate === "needs_verification") return false;
-  if (gate === "not_in_guild") return false;
-  if (hasDashboardAccess(token)) return true;
   const id = discordIdFromTokenFields(token);
+  const gate = discordGateStatus(token);
+  if (gate === "needs_verification") {
+    if (isStaffFromToken(token, id)) return true;
+    return false;
+  }
+  if (gate === "not_in_guild") {
+    if (isProtectedFromGuildFalsePositive(token, id) || isStaffFromToken(token, id)) {
+      // Fall through — protected members may keep discordInGuild=false in JWT during API flakes.
+    } else {
+      return false;
+    }
+  }
+  if (hasDashboardAccess(token)) return true;
   if (!id) return false;
   const envTier = resolveHelpTier(id);
   if (envTier === "admin" || envTier === "mod") return true;
+  const jwtGrace =
+    subscriptionActiveFromToken(token) ||
+    isProtectedFromGuildFalsePositive(token, id) ||
+    isStaffFromToken(token, id);
   try {
-    return await liveDashboardAccessForDiscordId(id);
+    const liveOk = await liveDashboardAccessForDiscordId(id);
+    if (liveOk) return true;
+    return jwtGrace;
   } catch (e) {
     console.warn("[middleware] liveDashboardAccessForDiscordId failed, retry once:", e);
     try {
       await new Promise((r) => setTimeout(r, 150));
-      return await liveDashboardAccessForDiscordId(id);
+      const liveOk = await liveDashboardAccessForDiscordId(id);
+      if (liveOk) return true;
+      return jwtGrace || hasDashboardAccess(token);
     } catch {
-      // Fail open when JWT already grants access (stale live check / Discord flake).
-      return hasDashboardAccess(token);
+      // Fail open when JWT / env already grants access (stale live check / Discord flake).
+      return jwtGrace || hasDashboardAccess(token);
     }
   }
 }
