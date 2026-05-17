@@ -9,6 +9,12 @@ import {
   type NotificationSoundId,
 } from "@/lib/notificationSounds";
 import { dispatchPreferencesUpdated } from "@/lib/preferencesEvents";
+import {
+  terminalChrome,
+  terminalPage,
+  terminalSurface,
+  terminalUi,
+} from "@/lib/terminalDesignTokens";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -106,13 +112,32 @@ const SECONDARY_DASHBOARD_WIDGET_TOGGLES: {
 ];
 
 const SETTINGS_NAV = [
-  { href: "#notifications", label: "Notifications" },
-  { href: "#security", label: "Security" },
-  { href: "#account", label: "Account & X" },
-  { href: "#public-profile", label: "Public profile" },
-  { href: "#dashboard", label: "Home layout" },
-  { href: "#referral-link", label: "Referral link" },
+  { href: "#notifications", id: "notifications", label: "Notifications" },
+  { href: "#security", id: "security", label: "Security" },
+  { href: "#account", id: "account", label: "Account & X" },
+  { href: "#public-profile", id: "public-profile", label: "Public profile" },
+  { href: "#dashboard", id: "dashboard", label: "Home layout" },
+  { href: "#referral-link", id: "referral-link", label: "Referral link" },
 ] as const;
+
+const SETTINGS_BTN_PRIMARY =
+  "rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-[0_0_20px_-10px_rgba(34,211,238,0.4)] transition hover:border-cyan-400/55 hover:bg-cyan-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-50";
+
+const SETTINGS_BTN_DANGER =
+  "rounded-lg border border-red-500/35 bg-red-950/30 px-4 py-2 text-sm font-semibold text-red-100/95 transition hover:border-red-400/45 hover:bg-red-950/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 disabled:opacity-40";
+
+const SETTINGS_FIELD_PANEL = `${terminalSurface.dashboardListWell} px-3 py-3 sm:px-4`;
+
+function settingsNavLinkClass(active: boolean, variant: "side" | "pill"): string {
+  if (variant === "side") {
+    return active
+      ? "block rounded-md border-l-2 border-cyan-400/90 bg-cyan-500/10 py-2 pl-2.5 -ml-px text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-100"
+      : "block rounded-md py-2 pl-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 transition hover:bg-zinc-900/80 hover:text-zinc-200";
+  }
+  return active
+    ? "shrink-0 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-100"
+    : "shrink-0 rounded-md border border-zinc-800/90 bg-zinc-950/60 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 transition hover:border-zinc-600 hover:text-zinc-200";
+}
 
 function parseWidgetsEnabled(raw: unknown): WidgetsEnabled {
   const out: WidgetsEnabled = { ...DEFAULT_WIDGETS };
@@ -173,22 +198,16 @@ function SettingsSection({
 }) {
   return (
     <section id={id} className="scroll-mt-24">
-      <div className="rounded-2xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/55 to-zinc-950/95 p-5 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.85)] ring-1 ring-zinc-700/15 sm:p-6">
-        <header className="border-b border-zinc-800/60 pb-4">
-          <div className="flex items-start gap-3">
-            <span
-              className="mt-1.5 inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-400/90 shadow-[0_0_14px_rgba(34,211,238,0.45)]"
-              aria-hidden
-            />
-            <div className="min-w-0">
-              <h2 className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">
-                {title}
-              </h2>
-              {description ? (
-                <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{description}</p>
-              ) : null}
-            </div>
-          </div>
+      <div className={`${terminalSurface.insetPanel} ${terminalSurface.insetEdge} p-5 sm:p-6`}>
+        <header className={`${terminalChrome.headerRule} pb-4`}>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-300/80">
+            {title}
+          </p>
+          {description ? (
+            <p className={`${terminalPage.sectionHint} mt-1.5 max-w-2xl leading-relaxed`}>
+              {description}
+            </p>
+          ) : null}
         </header>
         <div className="pt-4">{children}</div>
       </div>
@@ -215,7 +234,7 @@ function ToggleRow({
 }) {
   return (
     <div
-      className={`flex items-start justify-between gap-3 rounded-lg border border-zinc-800/40 bg-zinc-950/35 px-3 py-2.5 sm:gap-4 sm:px-3.5 sm:py-3 ${className}`.trim()}
+      className={`flex items-start justify-between gap-3 ${terminalPage.denseInsetRow} sm:gap-4 ${className}`.trim()}
     >
       <label
         htmlFor={id}
@@ -236,8 +255,10 @@ function ToggleRow({
         aria-label={label}
         disabled={disabled}
         {...(disabled ? {} : { onClick: onToggle })}
-        className={`mt-0.5 flex h-6 w-12 shrink-0 items-center rounded-full transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 ${
-          checked ? "bg-emerald-500" : "bg-zinc-700"
+        className={`mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full border transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/35 ${
+          checked
+            ? "border-cyan-500/50 bg-cyan-500/25"
+            : "border-zinc-700/90 bg-zinc-900/80"
         } ${
           disabled
             ? "cursor-not-allowed opacity-50"
@@ -245,9 +266,10 @@ function ToggleRow({
         }`}
       >
         <div
-          className={`pointer-events-none h-5 w-5 transform rounded-full bg-white shadow transition-all duration-200 ease-out ${
-            checked ? "translate-x-6" : "translate-x-1"
+          className={`pointer-events-none h-3.5 w-3.5 transform rounded-full bg-zinc-100 shadow-sm transition-all duration-200 ease-out ${
+            checked ? "translate-x-[18px]" : "translate-x-0.5"
           }`}
+          aria-hidden
         />
       </button>
     </div>
@@ -277,7 +299,8 @@ function SettingsPageInner() {
   >("idle");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
-  const [toastLabel, setToastLabel] = useState("Settings saved ✅");
+  const [toastLabel, setToastLabel] = useState("Settings saved");
+  const [activeSection, setActiveSection] = useState<string>(SETTINGS_NAV[0].id);
   const toastHideTimeoutRef = useRef<number | null>(null);
 
   const [xHandle, setXHandle] = useState("");
@@ -461,11 +484,34 @@ function SettingsPageInner() {
   }, [status]);
 
   useEffect(() => {
+    if (status !== "authenticated" || settingsLoading) return;
+    const sectionIds = SETTINGS_NAV.map((item) => item.id);
+    const elements = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el != null);
+    if (elements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        const top = visible[0]?.target;
+        if (top?.id) setActiveSection(top.id);
+      },
+      { rootMargin: "-18% 0px -58% 0px", threshold: [0.08, 0.2, 0.45] }
+    );
+
+    for (const el of elements) observer.observe(el);
+    return () => observer.disconnect();
+  }, [status, settingsLoading]);
+
+  useEffect(() => {
     const x = searchParams.get("x");
     const reason = searchParams.get("reason");
     if (x === "linked") {
       const xhFallback = searchParams.get("xh");
-      setToastLabel("X account linked ✅");
+      setToastLabel("X account linked");
       setShowToast(true);
       if (toastHideTimeoutRef.current !== null) {
         clearTimeout(toastHideTimeoutRef.current);
@@ -937,7 +983,7 @@ function SettingsPageInner() {
 
       setSaveState("saved");
       setSaveMessage("Saved.");
-      setToastLabel("Settings saved ✅");
+      setToastLabel("Settings saved");
       if (toastHideTimeoutRef.current !== null) {
         clearTimeout(toastHideTimeoutRef.current);
       }
@@ -959,23 +1005,29 @@ function SettingsPageInner() {
 
   if (status === "loading") {
     return (
-      <div className="mx-auto max-w-lg">
-        <p className="text-sm text-zinc-500">Loading…</p>
+      <div className="mx-auto max-w-6xl px-4 pt-4 sm:px-6">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/70">
+          Control panel
+        </p>
+        <p className="mt-3 text-sm text-zinc-500">Loading preferences…</p>
       </div>
     );
   }
 
   if (status !== "authenticated") {
     return (
-      <div className="mx-auto max-w-lg">
-        <h1 className="text-xl font-semibold text-zinc-50">Settings</h1>
-        <p className="mt-2 text-sm text-zinc-400">
-          Sign in to manage notification preferences.
+      <div className="mx-auto max-w-lg px-4 pt-4 sm:px-0">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/70">
+          Control panel
+        </p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-zinc-50">Settings</h1>
+        <p className={`${terminalPage.sectionHint} mt-2`}>
+          Sign in with Discord to manage alerts, security, and dashboard layout.
         </p>
         <button
           type="button"
           onClick={() => discordSignInSafe()}
-          className="mt-4 rounded-lg bg-[#5865F2] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+          className="mt-5 rounded-lg border border-[#5865F2]/50 bg-[#5865F2]/15 px-4 py-2 text-sm font-semibold text-[#e8eaff] transition hover:bg-[#5865F2]/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5865F2]/40"
         >
           Login with Discord
         </button>
@@ -987,18 +1039,22 @@ function SettingsPageInner() {
 
   return (
     <>
-    <div className="mx-auto max-w-6xl pb-[calc(7rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))]">
-      <div className="lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-x-10 xl:grid-cols-[12.5rem_minmax(0,1fr)] xl:gap-x-12">
+    <div className="mx-auto max-w-6xl px-4 pb-[calc(7rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] pt-4 sm:px-6">
+      <div className="lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-x-10 xl:grid-cols-[13rem_minmax(0,1fr)] xl:gap-x-12">
         <aside className="mb-6 hidden lg:block">
           <nav
-            className="sticky top-24 space-y-1 border-l-2 border-zinc-800/80 pl-3 text-[13px] font-medium"
+            className={`sticky top-24 ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} space-y-0.5 p-2`}
             aria-label="Settings sections"
           >
-            {SETTINGS_NAV.map(({ href, label }) => (
+            <p className="px-2.5 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
+              Sections
+            </p>
+            {SETTINGS_NAV.map(({ href, id, label }) => (
               <a
                 key={href}
                 href={href}
-                className="block rounded-md py-2 pl-2.5 text-zinc-400 transition hover:bg-zinc-900/80 hover:text-zinc-50"
+                aria-current={activeSection === id ? "location" : undefined}
+                className={settingsNavLinkClass(activeSection === id, "side")}
               >
                 {label}
               </a>
@@ -1007,75 +1063,35 @@ function SettingsPageInner() {
         </aside>
 
         <div className="min-w-0">
-          <header
-            className="flex flex-col gap-4 border-b border-zinc-800/60 pb-6 sm:flex-row sm:items-end sm:justify-between"
-            data-tutorial="settings.header"
-          >
-            <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
-                Settings
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-500">
-                Alerts and live-activity filters first, then X linking and milestone tags, what
-                appears on your public profile, home dashboard panels (plus the guided tour), and
-                your referral vanity link — one save applies everything stored here.
-              </p>
-              <nav
-                className="mt-4 flex gap-1.5 overflow-x-auto pb-1 text-[12px] font-medium text-zinc-400 lg:hidden"
-                aria-label="Settings sections"
-              >
-                {SETTINGS_NAV.map(({ href, label }) => (
-                  <a
-                    key={href}
-                    href={href}
-                    className="shrink-0 rounded-full border border-zinc-700/90 bg-zinc-900/60 px-3 py-1.5 text-zinc-300 hover:border-zinc-500 hover:bg-zinc-800/70 hover:text-white"
-                  >
-                    {label}
-                  </a>
-                ))}
-              </nav>
-            </div>
-            <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-              {saveMessage ? (
-                <span
-                  className={`hidden max-w-xs truncate text-right text-sm sm:inline ${
-                    saveState === "error" ? "text-red-400" : "text-emerald-400/90"
-                  }`}
-                >
-                  {saveMessage}
-                </span>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => void handleSave()}
-                disabled={settingsLoading || saveState === "saving"}
-                className="hidden rounded-lg bg-gradient-to-r from-cyan-600 to-sky-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-950/25 transition hover:from-cyan-500 hover:to-sky-500 disabled:opacity-50 sm:inline-flex"
-              >
-                {saveState === "saving" ? "Saving…" : "Save changes"}
-              </button>
-            </div>
-          </header>
-          <div className="mt-4 sm:hidden">
-            <button
-              type="button"
-              onClick={() => void handleSave()}
-              disabled={settingsLoading || saveState === "saving"}
-              className="w-full rounded-lg bg-gradient-to-r from-cyan-600 to-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-950/25 transition hover:from-cyan-500 hover:to-sky-500 disabled:opacity-50"
+          <header className={`${terminalChrome.headerRule} pb-6 pt-1`} data-tutorial="settings.header">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
+              Control panel
+            </p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Settings
+            </h1>
+            <p className={`${terminalPage.sectionHint} mt-3 max-w-2xl text-sm leading-relaxed`}>
+              Notifications, security, connected accounts, profile visibility, home layout, and
+              referral link. Use the command bar below to commit changes.
+            </p>
+            <nav
+              className={`mt-4 flex gap-1.5 overflow-x-auto pb-1 lg:hidden ${terminalChrome.scrollYHidden}`}
+              aria-label="Settings sections"
             >
-              {saveState === "saving" ? "Saving…" : "Save changes"}
-            </button>
-            {saveMessage ? (
-              <p
-                className={`mt-2 text-xs ${
-                  saveState === "error" ? "text-red-400/90" : "text-emerald-400/90"
-                }`}
-              >
-                {saveMessage}
-              </p>
-            ) : null}
-          </div>
+              {SETTINGS_NAV.map(({ href, id, label }) => (
+                <a
+                  key={href}
+                  href={href}
+                  aria-current={activeSection === id ? "location" : undefined}
+                  className={settingsNavLinkClass(activeSection === id, "pill")}
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
+          </header>
 
-          <div className="mt-6 space-y-6 lg:mt-8 lg:space-y-7">
+          <div className="mt-6 space-y-5 lg:mt-8 lg:space-y-6">
       <div data-tutorial="settings.notifications">
       <SettingsSection
         id="notifications"
@@ -1150,7 +1166,7 @@ function SettingsPageInner() {
             disabled={settingsLoading}
           />
 
-          <div className="rounded-lg border border-zinc-800/85 bg-zinc-950/35 px-3 py-3 sm:col-span-2 sm:px-4">
+          <div className={`${SETTINGS_FIELD_PANEL} sm:col-span-2`}>
             <label
               htmlFor="notification-sound-type"
               className="text-sm font-medium text-zinc-100"
@@ -1170,7 +1186,7 @@ function SettingsPageInner() {
                   setPrefs((prev) => ({ ...prev, sound_type: v }));
                 }}
                 disabled={settingsLoading || !prefs.sound_enabled}
-                className="w-full min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50 sm:max-w-md"
+                className={`${terminalUi.formInput} w-full min-w-0 flex-1 sm:max-w-md`}
               >
                 {NOTIFICATION_SOUND_OPTIONS.map(({ id, label }) => (
                   <option key={id} value={id}>
@@ -1183,14 +1199,14 @@ function SettingsPageInner() {
                 onClick={() => previewNotificationSound(prefs.sound_type)}
                 disabled={settingsLoading || !prefs.sound_enabled}
                 aria-label="Play a sample of the selected notification sound"
-                className="shrink-0 rounded-md border border-zinc-600 bg-zinc-900/80 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800/90 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`shrink-0 ${terminalUi.secondaryButtonSm} px-4 py-2 text-sm font-semibold`}
               >
                 Play sample
               </button>
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-800/85 bg-zinc-950/35 px-3 py-3 sm:col-span-2 sm:px-4">
+          <div className={`${SETTINGS_FIELD_PANEL} sm:col-span-2`}>
             <label
               htmlFor="min-multiple"
               className="text-sm font-medium text-zinc-100"
@@ -1220,7 +1236,7 @@ function SettingsPageInner() {
                 });
               }}
               disabled={settingsLoading}
-              className="mt-3 w-full max-w-[200px] rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 tabular-nums outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50"
+              className={`${terminalUi.formInput} mt-3 w-full max-w-[200px] tabular-nums`}
             />
           </div>
         </div>
@@ -1245,7 +1261,7 @@ function SettingsPageInner() {
               <p className="text-sm text-emerald-200/90">
                 Authenticator 2FA is <span className="font-semibold">on</span> for this account.
               </p>
-              <div className="rounded-xl border border-zinc-800/80 bg-black/25 p-4 sm:p-5">
+              <div className={`${SETTINGS_FIELD_PANEL} p-4 sm:p-5`}>
                 <p className="text-sm font-medium text-zinc-100">Recovery codes</p>
                 <p className="mt-1 text-xs text-zinc-500">
                   One-time backup codes if you lose your phone. You currently have{" "}
@@ -1256,7 +1272,7 @@ function SettingsPageInner() {
                   type="button"
                   disabled={totpBusy}
                   onClick={() => void regenerateTotpRecoveryCodes()}
-                  className="mt-3 rounded-lg border border-zinc-600 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-800 disabled:opacity-40"
+                  className={`mt-3 ${terminalUi.secondaryButtonSm} px-4 py-2 text-sm font-semibold disabled:opacity-40`}
                 >
                   {totpBusy ? "Working…" : "Generate new recovery codes"}
                 </button>
@@ -1284,7 +1300,7 @@ function SettingsPageInner() {
                   </button>
                 </div>
               ) : null}
-              <div className="rounded-xl border border-zinc-800/80 bg-black/25 p-4 sm:p-5">
+              <div className={`${SETTINGS_FIELD_PANEL} p-4 sm:p-5`}>
                 <p className="text-sm font-medium text-zinc-100">Disable 2FA</p>
                 <p className="mt-1 text-xs text-zinc-500">
                   Enter a current 6-digit code from your app, or a one-time recovery code.
@@ -1296,14 +1312,14 @@ function SettingsPageInner() {
                   maxLength={14}
                   value={totpDisableCode}
                   onChange={(e) => setTotpDisableCode(e.target.value)}
-                  className="mt-3 w-full max-w-xs rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 font-mono text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                  className={`${terminalUi.formInput} mt-3 w-full max-w-xs font-mono`}
                   placeholder="000000 or recovery code"
                 />
                 <button
                   type="button"
                   disabled={totpBusy || !isValidTotpOrRecoveryInput(totpDisableCode)}
                   onClick={() => void submitTotpDisable()}
-                  className="mt-3 rounded-lg border border-red-500/40 bg-red-950/25 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-900/35 disabled:opacity-40"
+                  className={`mt-3 ${SETTINGS_BTN_DANGER} disabled:opacity-40`}
                 >
                   {totpBusy ? "Working…" : "Turn off authenticator 2FA"}
                 </button>
@@ -1344,7 +1360,7 @@ function SettingsPageInner() {
                   maxLength={12}
                   value={totpFinishCode}
                   onChange={(e) => setTotpFinishCode(e.target.value)}
-                  className="mt-2 w-full max-w-xs rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 font-mono text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                  className={`${terminalUi.formInput} mt-2 w-full max-w-xs font-mono`}
                   placeholder="000000"
                 />
               </div>
@@ -1353,7 +1369,7 @@ function SettingsPageInner() {
                   type="button"
                   disabled={totpBusy || totpFinishCode.replace(/\s/g, "").length < 6}
                   onClick={() => void finishTotpEnroll()}
-                  className="rounded-lg bg-gradient-to-r from-cyan-600 to-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-950/25 disabled:opacity-40"
+                  className={`${SETTINGS_BTN_PRIMARY} disabled:opacity-40`}
                 >
                   {totpBusy ? "Saving…" : "Confirm & enable"}
                 </button>
@@ -1361,7 +1377,7 @@ function SettingsPageInner() {
                   type="button"
                   disabled={totpBusy}
                   onClick={() => void cancelTotpEnroll()}
-                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+                  className={`${terminalUi.secondaryButtonSm} px-4 py-2 text-sm disabled:opacity-40`}
                 >
                   Cancel setup
                 </button>
@@ -1384,7 +1400,7 @@ function SettingsPageInner() {
                   type="button"
                   disabled={totpBusy}
                   onClick={() => void startTotpEnroll()}
-                  className="rounded-lg bg-gradient-to-r from-cyan-600 to-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-950/25 disabled:opacity-40"
+                  className={`${SETTINGS_BTN_PRIMARY} disabled:opacity-40`}
                 >
                   {totpBusy ? "Working…" : totpStatus.pendingSetup ? "Continue setup" : "Set up authenticator"}
                 </button>
@@ -1393,7 +1409,7 @@ function SettingsPageInner() {
                     type="button"
                     disabled={totpBusy}
                     onClick={() => void cancelTotpEnroll()}
-                    className="rounded-lg border border-zinc-600 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+                    className={`${terminalUi.secondaryButtonSm} px-4 py-2 text-sm disabled:opacity-40`}
                   >
                     Clear pending setup
                   </button>
@@ -1418,7 +1434,7 @@ function SettingsPageInner() {
         <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
         <div
           id="connected-accounts"
-          className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5"
+          className={`${SETTINGS_FIELD_PANEL} p-4 sm:p-5`}
           data-tutorial="settings.connectedX"
         >
           <p className="text-sm font-medium text-zinc-100">X (Twitter)</p>
@@ -1449,7 +1465,7 @@ function SettingsPageInner() {
                   type="button"
                   onClick={() => void unlinkX()}
                   disabled={xBusy}
-                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
+                  className={`${terminalUi.secondaryButtonSm} px-3 py-2 text-xs font-semibold disabled:opacity-50`}
                 >
                   {xBusy ? "Working…" : "Unlink X"}
                 </button>
@@ -1468,12 +1484,12 @@ function SettingsPageInner() {
         </div>
 
         <div
-          className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5"
+          className={`${SETTINGS_FIELD_PANEL} p-4 sm:p-5`}
           data-tutorial="settings.xMilestones"
         >
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
             X milestone posts
-          </h3>
+          </p>
           <p className="mt-2 text-xs text-zinc-500">
             When a call you made hits a milestone and moderators approve an X post, McGBot can
             @mention you only at or above the multiple you choose. If tagging is off (or the post
@@ -1494,7 +1510,7 @@ function SettingsPageInner() {
               onToggle={() => setXMilestoneTagEnabled((v) => !v)}
               disabled={settingsLoading || !xVerified}
             />
-            <div className="rounded-lg border border-zinc-800/85 bg-zinc-950/40 px-3 py-3 sm:px-4">
+            <div className={SETTINGS_FIELD_PANEL}>
               <label htmlFor="x-milestone-min" className="text-sm font-medium text-zinc-100">
                 Minimum multiple to @mention
               </label>
@@ -1519,7 +1535,7 @@ function SettingsPageInner() {
                   );
                 }}
                 disabled={settingsLoading || !xVerified || !xMilestoneTagEnabled}
-                className="mt-3 w-full max-w-[200px] rounded-md border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 tabular-nums outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50"
+                className={`${terminalUi.formInput} mt-3 w-full max-w-[200px] tabular-nums`}
               />
             </div>
           </div>
@@ -1610,9 +1626,11 @@ function SettingsPageInner() {
         title="Home layout"
         description="Dashboard panels and the guided tour — only affects your account on this site."
       >
-        <div className="mb-5 rounded-xl border border-cyan-500/25 bg-cyan-950/20 p-4 sm:p-5">
-          <p className="text-sm font-medium text-cyan-50/95">Guided tour</p>
-          <p className="mt-1 text-xs leading-relaxed text-cyan-100/70">
+        <div className={`mb-5 ${SETTINGS_FIELD_PANEL} border-cyan-500/20`}>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300/80">
+            Guided tour
+          </p>
+          <p className={`${terminalPage.sectionHint} mt-1.5`}>
             Replay the walkthrough of the home board, sidebar, and main routes whenever you like.
           </p>
           <button
@@ -1621,12 +1639,14 @@ function SettingsPageInner() {
               const w = window as unknown as { __mcgbotTutorial?: { start?: () => void } };
               w.__mcgbotTutorial?.start?.();
             }}
-            className="mt-3 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-100 transition hover:border-cyan-400/55 hover:bg-cyan-500/15"
+            className={`mt-3 ${SETTINGS_BTN_PRIMARY} px-3 py-1.5 text-xs`}
           >
             Replay dashboard tour
           </button>
         </div>
-        <details className="group rounded-xl border border-zinc-800/40 bg-black/20 [&_summary::-webkit-details-marker]:hidden">
+        <details
+          className={`group ${terminalSurface.dashboardListWell} [&_summary::-webkit-details-marker]:hidden`}
+        >
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-3 py-3 text-sm font-medium text-zinc-200 transition hover:bg-zinc-900/50 sm:px-4">
             <span>All home widgets</span>
             <span
@@ -1758,7 +1778,7 @@ function SettingsPageInner() {
             </p>
           ) : null}
 
-          <div className="rounded-xl border border-zinc-800/40 bg-black/25 p-4 sm:p-5">
+          <div className={`${SETTINGS_FIELD_PANEL} p-4 sm:p-5`}>
             <label htmlFor="referral-slug-input" className="text-sm font-medium text-zinc-100">
               Vanity segment
             </label>
@@ -1768,7 +1788,9 @@ function SettingsPageInner() {
               remove this.
             </p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
-              <div className="flex min-w-0 flex-1 items-center rounded-lg border border-zinc-700/80 bg-zinc-950/50 font-mono text-sm text-zinc-200">
+              <div
+                className={`flex min-w-0 flex-1 items-center font-mono text-sm text-zinc-200 ${terminalUi.formInput} py-0`}
+              >
                 <span className="shrink-0 pl-3 text-zinc-500">mcgbot.xyz/ref/</span>
                 <input
                   id="referral-slug-input"
@@ -1792,7 +1814,7 @@ function SettingsPageInner() {
                   !referralCanChange ||
                   referralSlugDraft.trim().toLowerCase() === (referralSlug ?? "")
                 }
-                className="shrink-0 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40"
+                className={`shrink-0 ${SETTINGS_BTN_PRIMARY} border-emerald-500/40 bg-emerald-500/10 text-emerald-100 shadow-emerald-950/20 hover:border-emerald-400/55 hover:bg-emerald-500/15 disabled:opacity-40`}
               >
                 {referralBusy ? "Saving…" : "Save link"}
               </button>
@@ -1804,7 +1826,7 @@ function SettingsPageInner() {
                   type="button"
                   onClick={() => setReferralSlugDraft(referralSlugSuggested)}
                   disabled={settingsLoading || referralBusy || !referralCanChange}
-                  className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-40"
+                  className={`${terminalUi.secondaryButtonSm} px-3 py-1.5 text-xs font-semibold disabled:opacity-40`}
                 >
                   Use suggested ({referralSlugSuggested})
                 </button>
@@ -1832,34 +1854,45 @@ function SettingsPageInner() {
       </div>
     </div>
 
-    <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+var(--mcg-dock-stack,0px))] left-0 right-0 z-[65] flex items-center justify-between gap-3 border-t border-zinc-800/80 bg-zinc-950/95 py-3.5 pl-4 pr-4 shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.75)] backdrop-blur-md sm:px-6 sm:pl-44 lg:left-64 lg:pr-[max(1.5rem,13rem)]">
-      <p className="hidden min-w-0 flex-1 truncate text-xs text-zinc-500 sm:block">
-        Unsaved changes apply after you save. X linking updates immediately when you connect.
-      </p>
-      <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
-        {saveMessage ? (
-          <span
-            className={`max-w-[40vw] truncate text-xs sm:max-w-xs sm:text-sm ${
-              saveState === "error" ? "text-red-400" : "text-emerald-400/90"
-            }`}
+    <div
+      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+var(--mcg-dock-stack,0px))] left-0 right-0 z-[65] border-t border-zinc-800/90 bg-zinc-950/95 py-3 pl-4 pr-4 shadow-[0_-16px_48px_-16px_rgba(0,0,0,0.85)] backdrop-blur-md sm:px-6 sm:pl-44 lg:left-64 lg:pr-[max(1.5rem,13rem)] ${terminalSurface.insetEdge}`}
+    >
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+        <div className="hidden min-w-0 sm:block">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            Command bar
+          </p>
+          <p className="mt-0.5 truncate text-xs text-zinc-600">
+            Commit notification, profile, and layout prefs. X and referral save separately.
+          </p>
+        </div>
+        <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
+          {saveMessage ? (
+            <span
+              className={`max-w-[40vw] truncate font-mono text-[11px] sm:max-w-xs sm:text-xs ${
+                saveState === "error" ? "text-red-400" : "text-cyan-300/90"
+              }`}
+            >
+              {saveMessage}
+            </span>
+          ) : (
+            <span className="hidden font-mono text-[11px] text-zinc-600 sm:inline">READY</span>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={settingsLoading || saveState === "saving"}
+            className={`w-full sm:w-auto ${SETTINGS_BTN_PRIMARY}`}
           >
-            {saveMessage}
-          </span>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => void handleSave()}
-          disabled={settingsLoading || saveState === "saving"}
-          className="w-full rounded-lg bg-gradient-to-r from-cyan-600 to-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-950/25 transition hover:from-cyan-500 hover:to-sky-500 disabled:opacity-50 sm:w-auto"
-        >
-          {saveState === "saving" ? "Saving…" : "Save changes"}
-        </button>
+            {saveState === "saving" ? "Saving…" : "Save changes"}
+          </button>
+        </div>
       </div>
     </div>
 
     {showToast ? (
       <div
-        className="fixed bottom-[calc(5rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] right-4 z-[72] rounded-lg bg-emerald-500/90 px-4 py-2 text-sm text-white shadow-lg animate-fade-in sm:right-6"
+        className="fixed bottom-[calc(5rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] right-4 z-[72] rounded-lg border border-emerald-500/35 bg-emerald-950/90 px-4 py-2 font-mono text-xs text-emerald-100 shadow-lg animate-fade-in sm:right-6"
         role="status"
         aria-live="polite"
       >
