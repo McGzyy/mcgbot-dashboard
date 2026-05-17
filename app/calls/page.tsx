@@ -6,9 +6,11 @@ import { CallTapeTableSkeleton } from "@/app/components/dashboard/dashboardRoute
 import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
+import { normalizeDexscreenerMint } from "@/lib/dexscreenerMintMeta";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 type TapeRow = {
   id: string;
@@ -37,7 +39,13 @@ const WINDOWS = [
 
 export default function CallTapePage() {
   const { status } = useSession();
+  const searchParams = useSearchParams();
   const { openTokenChart } = useTokenChartModal();
+  const highlightMint = useMemo(
+    () => normalizeDexscreenerMint(searchParams.get("mint")),
+    [searchParams]
+  );
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const [window, setWindow] = useState<(typeof WINDOWS)[number]["id"]>("30d");
   const [rows, setRows] = useState<TapeRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -83,6 +91,18 @@ export default function CallTapePage() {
   useEffect(() => {
     setOffset(0);
   }, [window]);
+
+  const highlightRow = useMemo(
+    () => (highlightMint ? rows.find((r) => r.callCa === highlightMint) : undefined),
+    [highlightMint, rows]
+  );
+
+  useLayoutEffect(() => {
+    if (!highlightMint || loading) return;
+    const key = highlightRow?.id || highlightRow?.callCa || highlightMint;
+    const el = rowRefs.current[key];
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightMint, highlightRow, loading]);
 
   if (status === "loading") {
     return (
@@ -147,6 +167,25 @@ export default function CallTapePage() {
         <p className="text-xs tabular-nums text-zinc-500">{loading ? "…" : total.toLocaleString("en-US")} in window</p>
       </div>
 
+      {highlightMint && !loading && !highlightRow ? (
+        <div className="mt-6 rounded-xl border border-[color:var(--accent)]/30 bg-[color:var(--accent)]/[0.06] px-4 py-3 text-sm text-zinc-200">
+          Your latest call may still be syncing, or it falls outside this time window. Try{" "}
+          <button
+            type="button"
+            onClick={() =>
+              openTokenChart({
+                chain: "solana",
+                contractAddress: highlightMint,
+              })
+            }
+            className="font-semibold text-[color:var(--accent)] underline-offset-2 hover:underline"
+          >
+            opening the chart
+          </button>{" "}
+          for <span className="font-mono text-zinc-400">{highlightMint.slice(0, 8)}…</span>.
+        </div>
+      ) : null}
+
       {err ? (
         <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">{err}</div>
       ) : null}
@@ -187,8 +226,20 @@ export default function CallTapePage() {
                         ? new Date(r.callTime).toISOString()
                         : null;
                   const dex = r.callCa ? dexscreenerTokenUrl("solana", r.callCa) : null;
+                  const rowKey = r.id || r.callCa + String(r.callTime);
+                  const isHighlighted = highlightMint != null && r.callCa === highlightMint;
                   return (
-                    <tr key={r.id || r.callCa + String(r.callTime)} className="hover:bg-zinc-900/35">
+                    <tr
+                      key={rowKey}
+                      ref={(el) => {
+                        rowRefs.current[rowKey] = el;
+                      }}
+                      className={
+                        isHighlighted
+                          ? "bg-[color:var(--accent)]/[0.08] ring-1 ring-inset ring-[color:var(--accent)]/40"
+                          : "hover:bg-zinc-900/35"
+                      }
+                    >
                       <td className="whitespace-nowrap px-4 py-2.5 text-xs text-zinc-400">
                         {iso ? formatRelativeTime(iso) : "—"}
                       </td>

@@ -14,8 +14,11 @@ import { DashboardChatPanel } from "./components/DashboardChatPanel";
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
 import { DeskIntelColumn } from "@/app/components/dashboard/DeskIntelColumn";
 import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
+import { DeskCallQuotaChip } from "@/app/components/dashboard/DeskCallQuotaChip";
 import { MarketContextBar } from "@/app/components/dashboard/MarketContextBar";
 import { QuickDeskNav } from "@/app/components/dashboard/QuickDeskNav";
+import { SubmitDeskCallModal } from "@/app/components/dashboard/SubmitDeskCallModal";
+import { deskCallQuotaFromApi, type DeskCallQuotaUi } from "@/lib/deskCallQuotaDisplay";
 import { HodlDashboardDock } from "./components/HodlDashboardDock";
 import { PanelCard, CARD_HOVER } from "./components/PanelCard";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
@@ -4209,21 +4212,6 @@ function OpportunitiesPanel() {
   );
 }
 
-async function submitCall(
-  ca: string
-): Promise<{ ok: boolean; status: number; data: any }> {
-  const res = await fetch("/api/call", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ ca }),
-  });
-
-  const data = await res.json().catch(() => ({}));
-  return { ok: res.ok, status: res.status, data };
-}
-
 export default function Home() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
@@ -4273,6 +4261,7 @@ export default function Home() {
   const [widgets, setWidgets] = useState<WidgetsEnabled | null>(null);
   const [socialFeedEnabled, setSocialFeedEnabled] = useState(false);
   const [submitCallOpen, setSubmitCallOpen] = useState(false);
+  const [deskCallQuotaLoading, setDeskCallQuotaLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -4297,17 +4286,7 @@ export default function Home() {
   const [watchlistRefreshing, setWatchlistRefreshing] = useState(false);
   const [watchlistUpdatedAt, setWatchlistUpdatedAt] = useState<number | null>(null);
   const [watchlistRefreshNonce, setWatchlistRefreshNonce] = useState(0);
-  const [submitCallValue, setSubmitCallValue] = useState("");
-  const [submitCallSubmitting, setSubmitCallSubmitting] = useState(false);
-  const [submitCallFeedback, setSubmitCallFeedback] = useState<
-    "success" | "already_exists" | null
-  >(null);
-  const [deskCallQuota, setDeskCallQuota] = useState<{
-    unlimited: boolean;
-    usedToday: number;
-    remaining: number | null;
-    dailyLimit: number | null;
-  } | null>(null);
+  const [deskCallQuota, setDeskCallQuota] = useState<DeskCallQuotaUi | null>(null);
   /** Bumps after submit-call success so stats / lists refetch without a full page reload. */
   const [homeDataRefreshNonce, setHomeDataRefreshNonce] = useState(0);
   const { helpTier } = useDashboardHelpRole();
@@ -4345,37 +4324,30 @@ export default function Home() {
   }, [status, session?.user?.id]);
 
   useEffect(() => {
-    if (!submitCallOpen || status !== "authenticated") return;
+    if (status !== "authenticated") {
+      setDeskCallQuota(null);
+      setDeskCallQuotaLoading(false);
+      return;
+    }
     let cancelled = false;
+    setDeskCallQuotaLoading(true);
     void (async () => {
       try {
         const res = await fetch("/api/me/product-tier", { credentials: "same-origin", cache: "no-store" });
-        const j = (await res.json().catch(() => ({}))) as {
-          deskCallQuota?: {
-            unlimited?: boolean;
-            usedToday?: number;
-            remaining?: number | null;
-            dailyLimit?: number | null;
-          };
-        };
+        const j = (await res.json().catch(() => ({}))) as { deskCallQuota?: Record<string, unknown> };
         if (cancelled || !res.ok) return;
-        const q = j.deskCallQuota;
-        if (q && typeof q === "object") {
-          setDeskCallQuota({
-            unlimited: q.unlimited === true,
-            usedToday: typeof q.usedToday === "number" ? q.usedToday : 0,
-            remaining: typeof q.remaining === "number" ? q.remaining : null,
-            dailyLimit: typeof q.dailyLimit === "number" ? q.dailyLimit : null,
-          });
-        }
+        const q = deskCallQuotaFromApi(j.deskCallQuota);
+        if (q) setDeskCallQuota(q);
       } catch {
         /* optional */
+      } finally {
+        if (!cancelled) setDeskCallQuotaLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [submitCallOpen, status]);
+  }, [status, homeDataRefreshNonce]);
 
   /** Refetch stats / charts / rank while monitoring updates Supabase in the background. */
   useEffect(() => {
@@ -5061,111 +5033,9 @@ export default function Home() {
     }
   }, [referralUrl]);
 
-  const handleSubmitCall = useCallback(async () => {
-    if (submitCallSubmitting) return;
-    const ca = submitCallValue.trim();
-    if (!ca) return;
-
-    setSubmitCallSubmitting(true);
-    setSubmitCallFeedback(null);
-    try {
-      const res = await submitCall(ca);
-      if (res.ok) {
-        const data = res.data as Record<string, unknown> | null;
-        const alreadyCalled =
-          !!data &&
-          typeof data === "object" &&
-          (data as any).alreadyCalled === true;
-
-        if (alreadyCalled) {
-          setSubmitCallFeedback("already_exists");
-          addNotification({
-            id: crypto.randomUUID(),
-            text: "This coin has already been called.",
-            type: "call",
-            createdAt: Date.now(),
-            priority: "low",
-          });
-          window.setTimeout(() => {
-            setSubmitCallOpen(false);
-            setSubmitCallValue("");
-            setSubmitCallFeedback(null);
-          }, 600);
-          return;
-        }
-
-        setSubmitCallFeedback("success");
-        const sm = data?.statsMirror as Record<string, unknown> | undefined;
-        if (sm && sm.ok === false) {
-          const reason =
-            typeof sm.reason === "string" ? sm.reason : "";
-          const errText =
-            typeof sm.error === "string" ? sm.error : "";
-          const msg =
-            reason === "missing_supabase_service_role"
-              ? "Call posted, but stats did not sync: set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY on the bot VPS (same project as the dashboard)."
-              : `Call posted, but stats did not sync${errText ? `: ${errText}` : reason ? ` (${reason})` : ""}.`;
-          addNotification({
-            id: crypto.randomUUID(),
-            text: msg,
-            type: "call",
-            createdAt: Date.now(),
-            priority: "high",
-          });
-        }
-        setHomeDataRefreshNonce((n) => n + 1);
-        loadActivity();
-        window.setTimeout(() => {
-          setSubmitCallOpen(false);
-          setSubmitCallValue("");
-          setSubmitCallFeedback(null);
-        }, 900);
-        return;
-      }
-
-      const dataObj =
-        res.data && typeof res.data === "object" ? (res.data as Record<string, unknown>) : null;
-      const code = dataObj && typeof dataObj.code === "string" ? dataObj.code : "";
-      const msg =
-        dataObj && typeof dataObj.error === "string" ? dataObj.error : "Failed to submit call";
-      if (code === "daily_call_limit" || res.status === 429) {
-        addNotification({
-          id: crypto.randomUUID(),
-          text: msg,
-          type: "call",
-          createdAt: Date.now(),
-          priority: "high",
-        });
-        return;
-      }
-      const normalized = msg.toLowerCase();
-      if (res.status === 409 || normalized.includes("already")) {
-        setSubmitCallFeedback("already_exists");
-      } else {
-        addNotification({
-          id: crypto.randomUUID(),
-          text: msg || "Failed to submit call",
-          type: "call",
-          createdAt: Date.now(),
-          priority: "low",
-        });
-      }
-    } catch (err) {
-      const msg =
-        err && typeof err === "object" && "message" in err
-          ? String((err as any).message)
-          : "Failed to submit call";
-      addNotification({
-        id: crypto.randomUUID(),
-        text: msg || "Failed to submit call",
-        type: "call",
-        createdAt: Date.now(),
-        priority: "low",
-      });
-    } finally {
-      setSubmitCallSubmitting(false);
-    }
-  }, [addNotification, loadActivity, submitCallSubmitting, submitCallValue]);
+  const openSubmitCallModal = useCallback(() => {
+    setSubmitCallOpen(true);
+  }, []);
 
   if (status === "loading") {
     return (
@@ -5247,10 +5117,7 @@ export default function Home() {
       <div className="mt-3 space-y-3">
         <button
           type="button"
-          onClick={() => {
-            setSubmitCallFeedback(null);
-            setSubmitCallOpen(true);
-          }}
+          onClick={openSubmitCallModal}
           data-tutorial="dashboard.quickActions.submitCall"
           className="w-full rounded-xl bg-[color:var(--accent)] px-4 py-3 text-base font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/30"
         >
@@ -5317,8 +5184,15 @@ export default function Home() {
       </div>
 
       <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <MarketContextBar />
-        <QuickDeskNav onSubmitCall={() => setSubmitCallOpen(true)} />
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <MarketContextBar />
+          <DeskCallQuotaChip
+            quota={deskCallQuota}
+            loading={deskCallQuotaLoading}
+            onSubmitCall={openSubmitCallModal}
+          />
+        </div>
+        <QuickDeskNav onSubmitCall={openSubmitCallModal} />
       </div>
 
       {quickActionsBlock ? (
@@ -5720,121 +5594,16 @@ export default function Home() {
         addNotification={addNotification}
       />
 
-      {submitCallOpen ? (
-        <div
-          className={terminalUi.modalBackdropCenterZ50}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Submit call"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setSubmitCallOpen(false);
-          }}
-        >
-          <div className={terminalUi.dialogPanelCompact}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-100">
-                  Submit Call
-                </h3>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Paste a contract address to submit a new call.
-                  {deskCallQuota && !deskCallQuota.unlimited && deskCallQuota.dailyLimit != null ? (
-                    <>
-                      {" "}
-                      Basic: {deskCallQuota.remaining ?? 0} of {deskCallQuota.dailyLimit} desk calls
-                      left today (UTC).
-                    </>
-                  ) : null}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSubmitCallOpen(false)}
-                className={terminalUi.modalCloseIconBtn}
-                aria-label="Close"
-                disabled={submitCallSubmitting}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
-                  aria-hidden
-                >
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <div className="flex items-stretch gap-2">
-                <input
-                  type="text"
-                  value={submitCallValue}
-                  onChange={(e) => setSubmitCallValue(e.target.value)}
-                  placeholder="Enter contract address"
-                  disabled={submitCallSubmitting}
-                  className={`min-w-0 flex-1 ${terminalUi.formInput}`}
-                />
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const t = await navigator.clipboard.readText();
-                      if (typeof t === "string") setSubmitCallValue(t.trim());
-                    } catch {
-                      addNotification({
-                        id: crypto.randomUUID(),
-                        text: "Clipboard blocked — use Ctrl+V instead.",
-                        type: "call",
-                        createdAt: Date.now(),
-                        priority: "low",
-                      });
-                    }
-                  }}
-                  disabled={submitCallSubmitting}
-                  className="shrink-0 rounded-lg border border-zinc-800/90 bg-zinc-950 px-3 text-xs font-semibold text-zinc-200 transition hover:border-zinc-700/80 hover:bg-zinc-900/30 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/20 disabled:opacity-60"
-                >
-                  Paste
-                </button>
-              </div>
-
-              {submitCallFeedback ? (
-                <p className="text-sm">
-                  {submitCallFeedback === "success" ? (
-                    <span className="text-[color:var(--accent)]">Call submitted</span>
-                  ) : (
-                    <span className="text-zinc-400">Already called</span>
-                  )}
-                </p>
-              ) : null}
-
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setSubmitCallOpen(false)}
-                  disabled={submitCallSubmitting}
-                  className={terminalUi.secondaryButtonSm}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSubmitCall}
-                  disabled={submitCallSubmitting || submitCallValue.trim() === ""}
-                  className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-medium text-black shadow-lg shadow-black/40 transition hover:bg-green-500 disabled:opacity-60"
-                >
-                  {submitCallSubmitting ? "Submitting…" : "Submit"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <SubmitDeskCallModal
+        open={submitCallOpen}
+        onClose={() => setSubmitCallOpen(false)}
+        quota={deskCallQuota}
+        onQuotaChange={setDeskCallQuota}
+        onSubmitted={() => {
+          setHomeDataRefreshNonce((n) => n + 1);
+          loadActivity();
+        }}
+      />
     </div>
     </div>
     </div>
