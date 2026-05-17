@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DISCORD_SERVER_INVITE_URL } from "@/lib/discordInvite";
+import { DISCORD_SERVER_INVITE_URL, resolveDiscordEntryUrl } from "@/lib/discordInvite";
 
 export default function VerifyRequiredPage() {
+  const router = useRouter();
   const { data: session, status, update } = useSession();
   const [busy, setBusy] = useState(false);
   const [discordInvite, setDiscordInvite] = useState(DISCORD_SERVER_INVITE_URL);
@@ -28,21 +30,42 @@ export default function VerifyRequiredPage() {
     };
   }, []);
 
-  const reason = (session?.user as any)?.discordBlockedReason as string | null | undefined;
+  const reason = (session?.user as { discordBlockedReason?: string | null } | undefined)
+    ?.discordBlockedReason;
+  const inGuild = (session?.user as { discordInGuild?: boolean | null } | undefined)?.discordInGuild;
+  const discordHref = useMemo(
+    () => resolveDiscordEntryUrl({ inGuild, siteInviteUrl: discordInvite }),
+    [discordInvite, inGuild]
+  );
+  const discordButtonLabel = inGuild === true ? "Open #verification" : "Open Discord";
+  const readyForMembership =
+    reason === "unpaid_role" || reason === "missing_required_role";
+
+  useEffect(() => {
+    if (status !== "authenticated" || !readyForMembership) return;
+    router.replace("/membership");
+  }, [readyForMembership, router, status]);
+
   const copy = useMemo(() => {
-    if (reason === "missing_required_role") {
+    if (readyForMembership) {
       return {
-        title: "Verify your Discord account",
+        title: "Choose a membership",
         body:
-          "You're in the server, but you don't have the required member role yet. Finish verification in the Discord #verification channel, then come back here.",
+          "You're verified in Discord. Pick Basic or Pro on the membership page to unlock the dashboard.",
+        primaryHref: "/membership",
+        primaryLabel: "View membership plans",
+        showDiscord: false,
       };
     }
     return {
       title: "Verify your Discord account",
       body:
-        "Your account is currently marked as unverified in Discord. Please complete verification in the Discord #verification channel to unlock dashboard access.",
+        "Your account is marked as unverified in Discord. Complete verification in the #verification channel, then return here.",
+      primaryHref: null,
+      primaryLabel: null,
+      showDiscord: true,
     };
-  }, [reason]);
+  }, [readyForMembership]);
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -100,15 +123,25 @@ export default function VerifyRequiredPage() {
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-zinc-300/90">{copy.body}</p>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <a
-              href={discordInvite}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-[#5865F2] px-6 text-sm font-semibold text-white shadow-[0_20px_60px_rgba(88,101,242,0.22)] transition hover:brightness-110"
-            >
-              Open Discord
-            </a>
+          <div className={`mt-8 grid gap-3 ${copy.showDiscord ? "sm:grid-cols-2" : ""}`}>
+            {copy.primaryHref ? (
+              <Link
+                href={copy.primaryHref}
+                className="inline-flex h-12 items-center justify-center rounded-2xl bg-[color:var(--accent)] px-6 text-sm font-semibold text-black shadow-[0_20px_60px_rgba(34,197,94,0.2)] transition hover:brightness-110"
+              >
+                {copy.primaryLabel}
+              </Link>
+            ) : null}
+            {copy.showDiscord ? (
+              <a
+                href={discordHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-12 items-center justify-center rounded-2xl bg-[#5865F2] px-6 text-sm font-semibold text-white shadow-[0_20px_60px_rgba(88,101,242,0.22)] transition hover:brightness-110"
+              >
+                {discordButtonLabel}
+              </a>
+            ) : null}
             <button
               type="button"
               disabled={busy}

@@ -34,6 +34,7 @@ import {
   multipleClass,
 } from "@/lib/callDisplayFormat";
 import { parseOutsideActivityLineText } from "@/lib/outsideActivityFeedFormat";
+import { BASIC_OUTSIDE_CALLS_PER_DAY } from "@/lib/subscription/planTiers";
 import { useDashboardHelpRole } from "./hooks/useDashboardHelpRole";
 import { userProfileHref } from "@/lib/userProfileHref";
 import { resolveTokenAvatarUrl } from "@/lib/resolveTokenAvatarUrl";
@@ -2683,12 +2684,21 @@ function ActivityFeedPanel({
       rows = activity.filter((a) => a.type === "call");
     }
     if (hasProFeatures) return rows;
-    return rows.filter((a) => !isOutsideActivityItem(a));
+    let outsideShown = 0;
+    return rows.filter((a) => {
+      if (!isOutsideActivityItem(a)) return true;
+      if (outsideShown < BASIC_OUTSIDE_CALLS_PER_DAY) {
+        outsideShown += 1;
+        return true;
+      }
+      return false;
+    });
   }, [activity, feedMode, hasProFeatures, viewerId]);
 
   const outsideHiddenCount = useMemo(() => {
     if (hasProFeatures) return 0;
-    return activity.filter((a) => isOutsideActivityItem(a)).length;
+    const totalOutside = activity.filter((a) => isOutsideActivityItem(a)).length;
+    return Math.max(0, totalOutside - BASIC_OUTSIDE_CALLS_PER_DAY);
   }, [activity, hasProFeatures]);
 
   const { addNotification } = useNotifications();
@@ -2922,8 +2932,8 @@ function ActivityFeedPanel({
           <div className="mt-3 px-1">
             <ProUpgradePrompt
               className="text-left"
-              title="Outside calls hidden on Basic"
-              description={`${outsideHiddenCount} Outside Call${outsideHiddenCount === 1 ? "" : "s"} in the live feed — upgrade to Pro to see them here.`}
+              title="More Outside Calls on Pro"
+              description={`Basic shows ${BASIC_OUTSIDE_CALLS_PER_DAY} Outside Calls per UTC day in the live feed. ${outsideHiddenCount} more ${outsideHiddenCount === 1 ? "is" : "are"} hidden — upgrade to Pro for unlimited.`}
             />
           </div>
         ) : null}

@@ -1,16 +1,25 @@
 "use client";
 
 import {
+  BASIC_OUTSIDE_CALLS_PER_DAY,
   MEMBERSHIP_TIER_FEATURES,
   TIER_MARKETING,
   type ProductTier,
+  type TierFeatureValue,
 } from "@/lib/subscription/planTiers";
 
-function FeatureCell({ value }: { value: boolean | "limited" }) {
+function FeatureCell({ value }: { value: TierFeatureValue }) {
   if (value === true) {
     return (
       <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
         ✓
+      </span>
+    );
+  }
+  if (value === "10_per_day") {
+    return (
+      <span className="text-[11px] font-medium text-amber-200/90">
+        {BASIC_OUTSIDE_CALLS_PER_DAY}/day
       </span>
     );
   }

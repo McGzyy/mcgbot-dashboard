@@ -8,6 +8,8 @@ export type DashboardAdminSettingsRow = {
   paywall_subtitle: string | null;
   public_signups_paused: boolean;
   announcement_enabled: boolean;
+  /** When true, bar also shows on bare pages (verify, auth, subscribe). */
+  announcement_global: boolean;
   announcement_message: string | null;
   announcement_cta_label: string | null;
   announcement_cta_url: string | null;
@@ -60,6 +62,7 @@ function defaultRow(): DashboardAdminSettingsRow {
     paywall_subtitle: null,
     public_signups_paused: false,
     announcement_enabled: false,
+    announcement_global: false,
     announcement_message: null,
     announcement_cta_label: null,
     announcement_cta_url: null,
@@ -109,6 +112,7 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
     paywall_subtitle: typeof r.paywall_subtitle === "string" ? r.paywall_subtitle : null,
     public_signups_paused: r.public_signups_paused === true,
     announcement_enabled: r.announcement_enabled === true,
+    announcement_global: (r as { announcement_global?: unknown }).announcement_global === true,
     announcement_message: typeof r.announcement_message === "string" ? r.announcement_message : null,
     announcement_cta_label:
       typeof (r as any).announcement_cta_label === "string"
@@ -195,6 +199,7 @@ export async function patchDashboardAdminSettings(input: {
   paywall_subtitle?: string | null;
   public_signups_paused?: boolean;
   announcement_enabled?: boolean;
+  announcement_global?: boolean;
   announcement_message?: string | null;
   announcement_cta_label?: string | null;
   announcement_cta_url?: string | null;
@@ -245,6 +250,9 @@ export async function patchDashboardAdminSettings(input: {
   }
   if (typeof input.announcement_enabled === "boolean") {
     next.announcement_enabled = input.announcement_enabled;
+  }
+  if (typeof input.announcement_global === "boolean") {
+    next.announcement_global = input.announcement_global;
   }
   if ("announcement_message" in input) {
     const a = input.announcement_message;
@@ -342,6 +350,7 @@ export async function patchDashboardAdminSettings(input: {
         paywall_subtitle: next.paywall_subtitle,
         public_signups_paused: next.public_signups_paused,
         announcement_enabled: next.announcement_enabled,
+        announcement_global: next.announcement_global,
         announcement_message: next.announcement_message,
         announcement_cta_label: next.announcement_cta_label,
         announcement_cta_url: next.announcement_cta_url,

@@ -62,6 +62,36 @@ export type MembershipAccessGateResult =
   | { ok: true; paidTier: ProductTier | null }
   | { ok: false; reason: "unverified_role" | "unpaid_role" | "missing_required_role" };
 
+export type HumanVerificationGateResult =
+  | { ok: true }
+  | { ok: false; reason: "unverified_role" };
+
+/**
+ * Human verification only (#verification channel). Unpaid = verified, not subscribed.
+ * Used for `/join/verify` redirects and membership checkout — not full dashboard access.
+ */
+export function humanVerificationGateFromRoleIds(
+  roleIds: readonly string[]
+): HumanVerificationGateResult | null {
+  const cfg = readMembershipRoleConfig();
+  const legacyUnverified = parseIdSet(process.env.DISCORD_UNVERIFIED_ROLE_IDS);
+
+  const unverifiedDeny = new Set<string>(legacyUnverified);
+  if (cfg) {
+    for (const id of cfg.unverifiedIds) unverifiedDeny.add(id);
+  }
+
+  if (unverifiedDeny.size === 0) {
+    return null;
+  }
+
+  const has = (id: string) => Boolean(id && roleIds.includes(id));
+  for (const id of unverifiedDeny) {
+    if (has(id)) return { ok: false, reason: "unverified_role" };
+  }
+  return { ok: true };
+}
+
 /**
  * Discord role ladder for dashboard access (when membership roles are configured):
  * - Deny if member has Unverified or Unpaid

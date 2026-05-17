@@ -8,6 +8,8 @@ export type SiteOperationalState = {
   paywall_subtitle: string | null;
   public_signups_paused: boolean;
   announcement_enabled: boolean;
+  /** When true, announcement may render on bare pages (verify, auth, subscribe). */
+  announcement_global: boolean;
   announcement_message: string | null;
   /** Optional shorter copy for narrow viewports (Tailwind below `sm`); empty means reuse `announcement_message` on small screens. */
   announcement_message_mobile: string | null;
@@ -38,6 +40,7 @@ function defaults(): SiteOperationalState {
     paywall_subtitle: null,
     public_signups_paused: false,
     announcement_enabled: false,
+    announcement_global: false,
     announcement_message: null,
     announcement_message_mobile: null,
     announcement_hide_on_mobile: false,
@@ -80,12 +83,14 @@ export async function getSiteOperationalState(): Promise<SiteOperationalState> {
           );
           return Boolean(raw && msg && inWindow);
         })(),
+        announcement_global: row.announcement_global === true,
         announcement_message: row.announcement_message,
         announcement_message_mobile: row.announcement_message_mobile,
         announcement_hide_on_mobile: row.announcement_hide_on_mobile === true,
         announcement_allow_user_dismiss: row.announcement_allow_user_dismiss === true,
         announcement_content_version: await computeAnnouncementContentVersion({
           announcement_enabled: row.announcement_enabled === true,
+          announcement_global: row.announcement_global === true,
           announcement_message: row.announcement_message,
           announcement_message_mobile: row.announcement_message_mobile,
           announcement_hide_on_mobile: row.announcement_hide_on_mobile === true,

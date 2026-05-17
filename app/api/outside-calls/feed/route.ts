@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { requireProFeatures } from "@/lib/subscription/productTierAccess";
+import { requireOutsideCallsAccess } from "@/lib/subscription/productTierAccess";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -33,8 +33,9 @@ export async function GET(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const proGate = await requireProFeatures(userId);
-  if (!proGate.ok) return proGate.response;
+  const accessGate = await requireOutsideCallsAccess(userId);
+  if (!accessGate.ok) return accessGate.response;
+  const { access } = accessGate;
 
   const db = getSupabaseAdmin();
   if (!db) {
@@ -44,8 +45,9 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const lim = Number(url.searchParams.get("limit") ?? "80");
   const limit = Number.isFinite(lim) && lim > 0 && lim <= 200 ? Math.floor(lim) : 80;
+  const fetchLimit = access.unlimited ? limit : Math.min(limit, access.dailyLimit ?? limit);
 
-  const { data, error } = await db
+  let query = db
     .from("outside_calls")
     .select(
       `
@@ -66,8 +68,13 @@ export async function GET(request: Request) {
       )
     `
     )
-    .order("posted_at", { ascending: false })
-    .limit(limit);
+    .order("posted_at", { ascending: false });
+
+  if (!access.unlimited) {
+    query = query.gte("posted_at", access.dayStartIso);
+  }
+
+  const { data, error } = await query.limit(fetchLimit);
 
   if (error) {
     console.error("[outside-calls/feed]", error);
@@ -99,5 +106,14 @@ export async function GET(request: Request) {
     })
     .filter(Boolean);
 
-  return Response.json({ success: true, calls });
+  return Response.json({
+    success: true,
+    calls,
+    outsideCallsAccess: {
+      productTier: access.tier,
+      unlimited: access.unlimited,
+      dailyLimit: access.dailyLimit,
+      dayStartIso: access.dayStartIso,
+    },
+  });
 }

@@ -10,6 +10,7 @@ import { discordTrustedProRoleId } from "@/lib/discordHonorRoleIds";
 import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
 import {
+  humanVerificationGateFromRoleIds,
   membershipAccessGateFromRoleIds,
   membershipRolesConfigured,
   syncMembershipDiscordRoles,
@@ -337,10 +338,14 @@ export const authOptions: NextAuthOptions = {
             const roleIds = await getDiscordGuildMemberRoleIds(discordId);
             if (Array.isArray(roleIds)) {
               (token as any).discordGuildRoleIds = roleIds;
-              const gate = membershipAccessGateFromRoleIds(roleIds);
-              if (gate && !gate.ok) {
+              const humanGate = humanVerificationGateFromRoleIds(roleIds);
+              const membershipGate = membershipAccessGateFromRoleIds(roleIds);
+              if (humanGate && !humanGate.ok) {
                 (token as any).discordNeedsVerification = true;
-                (token as any).discordBlockedReason = gate.reason;
+                (token as any).discordBlockedReason = humanGate.reason;
+              } else if (membershipGate && !membershipGate.ok) {
+                (token as any).discordNeedsVerification = false;
+                (token as any).discordBlockedReason = membershipGate.reason;
                 const subEnd =
                   typeof token.subscriptionActiveUntil === "string"
                     ? token.subscriptionActiveUntil

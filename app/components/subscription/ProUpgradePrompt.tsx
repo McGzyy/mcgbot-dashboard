@@ -4,12 +4,16 @@ import Link from "next/link";
 
 export function ProUpgradePrompt({
   title = "Pro membership required",
-  description = "Upgrade to Pro for Outside Calls, social feed ingest, and full personal alerts.",
+  description = "Upgrade to Pro for unlimited Outside Calls, social feed ingest, and full personal alerts.",
   className = "",
+  ctaHref = "/membership?line=pro",
+  ctaLabel = "View Pro plans",
 }: {
   title?: string;
   description?: string;
   className?: string;
+  ctaHref?: string;
+  ctaLabel?: string;
 }) {
   return (
     <div
@@ -19,10 +23,10 @@ export function ProUpgradePrompt({
       <h2 className="mt-2 text-lg font-semibold text-zinc-50">{title}</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-zinc-400">{description}</p>
       <Link
-        href="/membership?line=pro"
+        href={ctaHref}
         className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-sky-500 px-5 text-sm font-bold text-sky-950 transition hover:bg-sky-400"
       >
-        View Pro plans
+        {ctaLabel}
       </Link>
     </div>
   );

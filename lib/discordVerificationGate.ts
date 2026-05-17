@@ -1,16 +1,13 @@
 import {
-  membershipAccessGateFromRoleIds,
-  type MembershipAccessGateResult,
+  humanVerificationGateFromRoleIds,
+  type HumanVerificationGateResult,
 } from "@/lib/discordMembershipRoles";
 
-export type DiscordVerificationGateResult = MembershipAccessGateResult;
+export type DiscordVerificationGateResult = HumanVerificationGateResult;
 
-/**
- * @deprecated Prefer `membershipAccessGateFromRoleIds` — this re-exports the same ladder gate
- * (Unverified / Unpaid deny; Trencher / Pro allow) plus legacy env lists.
- */
+/** Human verification gate only — Unpaid does not block (use for checkout / verify redirects). */
 export function discordVerificationGateFromRoleIds(
   roleIds: readonly string[]
 ): DiscordVerificationGateResult | null {
-  return membershipAccessGateFromRoleIds(roleIds);
+  return humanVerificationGateFromRoleIds(roleIds);
 }

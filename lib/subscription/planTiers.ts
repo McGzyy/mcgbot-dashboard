@@ -1,10 +1,15 @@
 export type ProductTier = "basic" | "pro";
 
+export type TierFeatureValue = boolean | "limited" | "10_per_day";
+
 export type TierFeatureRow = {
   label: string;
-  basic: boolean | "limited";
-  pro: boolean | "limited";
+  basic: TierFeatureValue;
+  pro: TierFeatureValue;
 };
+
+/** Basic Outside Calls cap (UTC calendar day). */
+export const BASIC_OUTSIDE_CALLS_PER_DAY = 10;
 
 /** Canonical feature matrix — membership UI and future gates read from here. */
 export const MEMBERSHIP_TIER_FEATURES: TierFeatureRow[] = [
@@ -12,7 +17,7 @@ export const MEMBERSHIP_TIER_FEATURES: TierFeatureRow[] = [
   { label: "Leaderboard, profiles & desk intel", basic: true, pro: true },
   { label: "Caller intelligence on profiles", basic: true, pro: true },
   { label: "Contract watchlist (save CAs)", basic: true, pro: true },
-  { label: "Outside Calls & X ingest", basic: false, pro: true },
+  { label: "Outside Calls", basic: "10_per_day", pro: true },
   { label: "Social feed on home (when enabled)", basic: false, pro: true },
   { label: "Personal alerts (watchlist / follows)", basic: "limited", pro: true },
   { label: "Rich X digests & heavy scans", basic: false, pro: true },

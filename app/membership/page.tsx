@@ -6,7 +6,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { DISCORD_SERVER_INVITE_URL } from "@/lib/discordInvite";
+import { DISCORD_SERVER_INVITE_URL, resolveDiscordEntryUrl } from "@/lib/discordInvite";
 import { membershipPaywallUserMessage } from "@/lib/membershipPaywallUserMessage";
 import { MembershipBillingSection, type MembershipPlan } from "@/app/membership/MembershipBillingSection";
 import { MembershipProductCompare } from "@/app/membership/MembershipProductCompare";
@@ -46,6 +46,10 @@ function formatExpiry(iso: string): string {
 function resolveDiscordInviteUrl(siteFlags: SiteFlags | null): string {
   const fromSite = siteFlags?.discord_invite_url?.trim();
   return fromSite || DISCORD_SERVER_INVITE_URL;
+}
+
+function resolveDiscordUrl(siteFlags: SiteFlags | null, inGuild: boolean | null): string {
+  return resolveDiscordEntryUrl({ inGuild, siteInviteUrl: siteFlags?.discord_invite_url });
 }
 
 type GuildGateState =
@@ -674,7 +678,10 @@ export default function MembershipPage() {
     guildGateReady &&
     guildGate.guildMembershipKnown &&
     guildGate.inGuild === true &&
-    (!guildGate.verificationKnown || guildGate.needsVerification === true);
+    (!guildGate.verificationKnown ||
+      (guildGate.needsVerification === true &&
+        guildGate.verificationReason !== "unpaid_role" &&
+        guildGate.verificationReason !== "missing_required_role"));
 
   const guildBlocksCheckout =
     guildGateReady &&
@@ -910,11 +917,19 @@ export default function MembershipPage() {
               After verification updates in Discord, retry the membership check.
             </p>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <Link
-                href="/join/verify"
+              <a
+                href={resolveDiscordUrl(siteFlags, true)}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex h-11 items-center justify-center rounded-xl bg-violet-400 px-5 text-sm font-bold text-violet-950 transition hover:bg-violet-300"
               >
-                Open verification steps
+                Open #verification
+              </a>
+              <Link
+                href="/join/verify"
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-violet-300/35 bg-violet-500/10 px-5 text-sm font-semibold text-violet-50 transition hover:bg-violet-500/20"
+              >
+                Verification help
               </Link>
               <button
                 type="button"
@@ -959,7 +974,10 @@ export default function MembershipPage() {
           busy={busy}
           testCheckoutBusy={testCheckoutBusy}
           subscribeButtonLabel={siteFlags?.subscribe_button_label ?? null}
-          discordInviteUrl={resolveDiscordInviteUrl(siteFlags)}
+          discordInviteUrl={resolveDiscordUrl(
+            siteFlags,
+            guildGateReady && guildGate.status === "ready" ? guildGate.inGuild : null
+          )}
           checkoutError={checkoutError}
           pollNote={pollNote}
           showComplimentary={showComplimentary}

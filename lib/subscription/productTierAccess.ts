@@ -6,6 +6,7 @@ import {
   planProductTier,
 } from "@/lib/subscription/subscriptionDb";
 import {
+  BASIC_OUTSIDE_CALLS_PER_DAY,
   normalizeProductTier,
   tierIncludesProFeatures,
   type ProductTier,
@@ -88,6 +89,86 @@ export type ProGateFail = {
 };
 
 export type ProGateOk = { ok: true; tier: ProductTier };
+
+/** Start of current UTC calendar day (ISO). */
+export function utcDayStartIso(): string {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
+}
+
+export type OutsideCallsAccess = {
+  tier: ProductTier;
+  unlimited: boolean;
+  dailyLimit: number | null;
+  dayStartIso: string;
+};
+
+/** Active subscription (or staff/exempt) required; Basic is capped per UTC day. */
+export async function resolveOutsideCallsAccess(
+  discordId: string
+): Promise<OutsideCallsAccess | null> {
+  const id = discordId.trim();
+  if (!id) return null;
+
+  const helpTier = await resolveHelpTierAsync(id).catch(() => "user");
+  if (helpTier === "admin" || helpTier === "mod") {
+    return {
+      tier: "pro",
+      unlimited: true,
+      dailyLimit: null,
+      dayStartIso: utcDayStartIso(),
+    };
+  }
+
+  const exempt = await computeSubscriptionExempt(id).catch(() => false);
+  if (exempt) {
+    return {
+      tier: "pro",
+      unlimited: true,
+      dailyLimit: null,
+      dayStartIso: utcDayStartIso(),
+    };
+  }
+
+  const end = await getSubscriptionEnd(id);
+  if (!subscriptionActiveUntil(end)) return null;
+
+  const tier = await resolveUserProductTier(id);
+  const unlimited = tierIncludesProFeatures(tier);
+  return {
+    tier,
+    unlimited,
+    dailyLimit: unlimited ? null : BASIC_OUTSIDE_CALLS_PER_DAY,
+    dayStartIso: utcDayStartIso(),
+  };
+}
+
+export type OutsideCallsGateFail = {
+  ok: false;
+  response: Response;
+};
+
+export type OutsideCallsGateOk = { ok: true; access: OutsideCallsAccess };
+
+export async function requireOutsideCallsAccess(
+  discordId: string
+): Promise<OutsideCallsGateOk | OutsideCallsGateFail> {
+  const access = await resolveOutsideCallsAccess(discordId);
+  if (!access) {
+    return {
+      ok: false,
+      response: Response.json(
+        {
+          success: false,
+          code: "membership_required",
+          error: "An active membership is required for Outside Calls.",
+        },
+        { status: 403 }
+      ),
+    };
+  }
+  return { ok: true, access };
+}
 
 export async function requireProFeatures(discordId: string): Promise<ProGateOk | ProGateFail> {
   const tier = await resolveUserProductTier(discordId);

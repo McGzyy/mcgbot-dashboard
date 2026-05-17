@@ -1,5 +1,6 @@
 export type AnnouncementVersionSource = {
   announcement_enabled: boolean;
+  announcement_global: boolean;
   announcement_message: string | null;
   announcement_message_mobile: string | null;
   announcement_hide_on_mobile: boolean;
@@ -16,6 +17,7 @@ export async function computeAnnouncementContentVersion(
 ): Promise<string> {
   const parts = [
     i.announcement_enabled ? "1" : "0",
+    i.announcement_global ? "1" : "0",
     i.announcement_message ?? "",
     i.announcement_message_mobile ?? "",
     i.announcement_hide_on_mobile ? "1" : "0",

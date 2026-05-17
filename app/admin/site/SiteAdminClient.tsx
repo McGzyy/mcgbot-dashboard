@@ -22,6 +22,7 @@ type AppSettings = {
   paywall_subtitle: string | null;
   public_signups_paused: boolean;
   announcement_enabled: boolean;
+  announcement_global: boolean;
   announcement_message: string | null;
   announcement_cta_label: string | null;
   announcement_cta_url: string | null;
@@ -84,6 +85,7 @@ function mergeAppSettingsFromApi(row: AppSettings): AppSettings {
       typeof row.announcement_message_mobile === "string" ? row.announcement_message_mobile : null,
     announcement_hide_on_mobile: row.announcement_hide_on_mobile === true,
     announcement_allow_user_dismiss: row.announcement_allow_user_dismiss === true,
+    announcement_global: row.announcement_global === true,
   };
 }
 
@@ -211,6 +213,7 @@ export function SiteAdminClient() {
           paywall_subtitle: settings.paywall_subtitle,
           public_signups_paused: settings.public_signups_paused,
           announcement_enabled: settings.announcement_enabled,
+          announcement_global: settings.announcement_global,
           announcement_message: settings.announcement_message,
           announcement_message_mobile: settings.announcement_message_mobile,
           announcement_hide_on_mobile: settings.announcement_hide_on_mobile,
@@ -655,8 +658,8 @@ export function SiteAdminClient() {
 
               <SettingsSection
                 kicker="Banner"
-                title="Global announcement"
-                description="Banner below the top bar on dashboard routes and at the top on bare pages (including /membership). Optional schedule: leave times empty to follow the toggle only."
+                title="Announcement bar"
+                description="Shows below the top bar on the main dashboard when enabled. Optional schedule: leave times empty to follow the toggle only."
               >
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
                   <input
@@ -670,6 +673,23 @@ export function SiteAdminClient() {
                   <span>
                     <span className="block text-sm font-medium text-white">Show announcement bar</span>
                     <span className="mt-0.5 block text-xs text-zinc-500">Turn off when the message is no longer relevant.</span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-red-600 focus:ring-red-500/50"
+                    checked={settings.announcement_global}
+                    onChange={(e) =>
+                      setSettings((s) => (s ? { ...s, announcement_global: e.target.checked } : s))
+                    }
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-white">Global (all pages)</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      Also show on verify, auth, and subscribe pages. Off by default — those pages stay clean unless
+                      you need a site-wide alert.
+                    </span>
                   </span>
                 </label>
                 <label className="block text-xs font-medium uppercase tracking-wide text-zinc-400">

@@ -86,7 +86,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col">
       {bareLayout ? (
         <div className="flex min-h-0 flex-1 flex-col bg-[color:var(--mcg-page)]">
-          {showBareAnnouncement ? <AnnouncementBar variant="bare" /> : null}
+          {showBareAnnouncement ? <AnnouncementBar variant="bare" barePage /> : null}
           {children}
         </div>
       ) : (

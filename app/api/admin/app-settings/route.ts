@@ -86,6 +86,9 @@ export async function PATCH(req: Request) {
   if (typeof o.announcement_enabled === "boolean") {
     patch.announcement_enabled = o.announcement_enabled;
   }
+  if (typeof o.announcement_global === "boolean") {
+    patch.announcement_global = o.announcement_global;
+  }
   if ("announcement_message" in o) {
     patch.announcement_message =
       o.announcement_message == null ? null : String(o.announcement_message);

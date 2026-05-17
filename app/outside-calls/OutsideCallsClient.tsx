@@ -4,6 +4,7 @@ import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesig
 import { normalizeXHandle } from "@/lib/outsideXCalls/normalizeXHandle";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
+import { BASIC_OUTSIDE_CALLS_PER_DAY } from "@/lib/subscription/planTiers";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -88,18 +89,44 @@ export function OutsideCallsClient() {
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [adminErr, setAdminErr] = useState<string | null>(null);
+  const [accessCode, setAccessCode] = useState<string | null>(null);
+  const [outsideAccess, setOutsideAccess] = useState<{
+    unlimited: boolean;
+    dailyLimit: number | null;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
+    setAccessCode(null);
     try {
       const res = await fetch("/api/outside-calls/feed?limit=100", { credentials: "same-origin", cache: "no-store" });
-      const j = (await res.json().catch(() => ({}))) as { success?: boolean; calls?: FeedCall[]; error?: string };
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        calls?: FeedCall[];
+        error?: string;
+        code?: string;
+        outsideCallsAccess?: { unlimited?: boolean; dailyLimit?: number | null };
+      };
       if (!res.ok) {
+        setAccessCode(typeof j.code === "string" ? j.code : null);
         setErr(typeof j.error === "string" ? j.error : "Could not load Outside Calls.");
         setCalls([]);
+        setOutsideAccess(null);
         return;
       }
+      const access = j.outsideCallsAccess;
+      setOutsideAccess(
+        access && typeof access === "object"
+          ? {
+              unlimited: access.unlimited === true,
+              dailyLimit:
+                typeof access.dailyLimit === "number" && access.dailyLimit > 0
+                  ? access.dailyLimit
+                  : null,
+            }
+          : null
+      );
       setCalls(Array.isArray(j.calls) ? j.calls : []);
     } catch {
       setErr("Could not load Outside Calls.");
@@ -185,12 +212,14 @@ export function OutsideCallsClient() {
     }
   }, [displayName, load, xHandle]);
 
-  if (status === "authenticated" && !hasProFeatures) {
+  if (status === "authenticated" && accessCode === "membership_required") {
     return (
       <div className="mx-auto max-w-3xl px-4 pb-20 pt-10 sm:px-6">
         <ProUpgradePrompt
-          title="Outside Calls is a Pro feature"
-          description="Track allow-listed X monitors and a live outside-call tape. Basic membership includes the full desk, profiles, and watchlist."
+          title="Membership required"
+          description="Choose Basic or Pro on the membership page to unlock Outside Calls and the rest of the dashboard."
+          ctaHref="/membership"
+          ctaLabel="View membership"
         />
       </div>
     );
@@ -220,19 +249,34 @@ export function OutsideCallsClient() {
                 </>
               ) : null}
             </p>
+            {outsideAccess && !outsideAccess.unlimited ? (
+              <p className="mt-3 max-w-2xl rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100/90">
+                Basic includes up to{" "}
+                <span className="font-semibold text-amber-50">
+                  {outsideAccess.dailyLimit ?? BASIC_OUTSIDE_CALLS_PER_DAY} Outside Calls per UTC day
+                </span>
+                .{" "}
+                <Link href="/membership?line=pro&upgrade=1" className="font-semibold text-sky-300 hover:text-sky-200">
+                  Upgrade to Pro
+                </Link>{" "}
+                for unlimited.
+              </p>
+            ) : null}
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setSubmitErr(null);
-                setSubmitMsg(null);
-                setModalOpen(true);
-              }}
-              className="rounded-xl border border-cyan-500/35 bg-cyan-950/30 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-400/50 hover:bg-cyan-900/35"
-            >
-              Submit New Source
-            </button>
+            {hasProFeatures ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSubmitErr(null);
+                  setSubmitMsg(null);
+                  setModalOpen(true);
+                }}
+                className="rounded-xl border border-cyan-500/35 bg-cyan-950/30 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-400/50 hover:bg-cyan-900/35"
+              >
+                Submit New Source
+              </button>
+            ) : null}
             {isAdmin ? (
               <button
                 type="button"

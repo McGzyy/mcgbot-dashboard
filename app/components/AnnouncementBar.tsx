@@ -9,6 +9,7 @@ const DISMISS_STORAGE_KEY = "mcg_ann_dismiss_v1";
 
 type SiteFlagsAnnouncement = {
   announcement_enabled?: boolean;
+  announcement_global?: boolean;
   announcement_message?: string | null;
   announcement_message_mobile?: string | null;
   announcement_hide_on_mobile?: boolean;
@@ -32,9 +33,12 @@ export function AnnouncementBar({
   variant = "inset",
   /** When true (dashboard shell), sticky is applied outside `mainStage` so it is not broken by `overflow-x-hidden`. */
   stickyBelowTopBar = false,
+  /** Bare layouts (verify, auth, subscribe): only show when admin enabled "global". */
+  barePage = false,
 }: {
   variant?: AnnouncementBarVariant;
   stickyBelowTopBar?: boolean;
+  barePage?: boolean;
 }) {
   const [payload, setPayload] = useState<BarPayload | null>(null);
   const [userDismissed, setUserDismissed] = useState(false);
@@ -44,6 +48,10 @@ export function AnnouncementBar({
       const res = await fetch("/api/public/site-flags", { signal });
       const j = (await res.json().catch(() => null)) as SiteFlagsAnnouncement | null;
       if (!j) {
+        setPayload(null);
+        return;
+      }
+      if (barePage && j.announcement_global !== true) {
         setPayload(null);
         return;
       }
@@ -92,7 +100,7 @@ export function AnnouncementBar({
       if ((e as { name?: string }).name === "AbortError") return;
       setPayload(null);
     }
-  }, []);
+  }, [barePage]);
 
   useEffect(() => {
     const ac = new AbortController();
