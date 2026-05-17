@@ -130,6 +130,78 @@ export async function applyDashboardBotCallExclude(params: {
   return { callCa: ca, trackedUpdated, callPerformanceRows: supabaseRows };
 }
 
+export type DashboardBotCallExcludeBulkResult = {
+  results: DashboardBotCallExcludeResult[];
+  supabaseRowsUpdated: number;
+};
+
+/**
+ * Bulk exclude/restore: one Supabase update for all mints, tracked-store sync per mint.
+ */
+export async function applyDashboardBotCallExcludeBulk(params: {
+  callCas: string[];
+  excluded: boolean;
+  moderatedById: string | null;
+  moderatedByUsername: string | null;
+  reason?: string | null;
+  service?: TrackedCallsService | null;
+  supabase?: ReturnType<typeof createModServiceSupabase>;
+}): Promise<DashboardBotCallExcludeBulkResult> {
+  const unique = [...new Set(params.callCas.map((c) => c.trim()).filter(Boolean))];
+  const service = params.service ?? getBotTrackedCallsService();
+  const supabase = params.supabase ?? createModServiceSupabase();
+
+  if (service) {
+    await service.initTrackedCallsStore();
+  }
+
+  const results: DashboardBotCallExcludeResult[] = [];
+  for (const ca of unique) {
+    const row = await applyDashboardBotCallExclude({
+      callCa: ca,
+      excluded: params.excluded,
+      moderatedById: params.moderatedById,
+      moderatedByUsername: params.moderatedByUsername,
+      reason: params.reason,
+      initTrackedStore: false,
+      service,
+      supabase: null,
+    });
+    results.push(row);
+  }
+
+  let supabaseRowsUpdated = 0;
+  if (supabase && unique.length > 0) {
+    const nowIso = new Date().toISOString();
+    const patch = params.excluded
+      ? {
+          excluded_from_stats: true,
+          excluded_reason: "dashboard_bot_exclude",
+          excluded_at: nowIso,
+          excluded_by_discord_id: params.moderatedById,
+        }
+      : {
+          excluded_from_stats: false,
+          excluded_reason: null,
+          excluded_at: null,
+          excluded_by_discord_id: null,
+        };
+    const { data: rows, error: sbErr } = await supabase
+      .from("call_performance")
+      .update(patch)
+      .in("call_ca", unique)
+      .eq("source", "bot")
+      .select("id");
+    if (sbErr) {
+      console.error("[botDashboardCallExclude] bulk call_performance:", sbErr);
+    } else {
+      supabaseRowsUpdated = Array.isArray(rows) ? rows.length : 0;
+    }
+  }
+
+  return { results, supabaseRowsUpdated };
+}
+
 export function invalidateStatsAfterBotExcludeBatch(): void {
   invalidateStatsCutoverCache();
 }

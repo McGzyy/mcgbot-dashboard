@@ -225,6 +225,10 @@ function tapeThumbSymbol(r: TapeRow): string {
   return r.callCa ? `${r.callCa.slice(0, 4)}…` : "—";
 }
 
+function tapeRowKey(r: TapeRow): string {
+  return String(r.id || r.callCa + String(r.callTime));
+}
+
 function callTimeIso(callTime: unknown): string | null {
   if (typeof callTime === "string" && callTime.trim()) return callTime;
   if (typeof callTime === "number" && Number.isFinite(callTime)) {
@@ -271,8 +275,10 @@ export default function BotCallsPage() {
   const [bulkExcludeConfirm, setBulkExcludeConfirm] = useState<{
     cas: string[];
     excludedNext: boolean;
+    scope: "page" | "selected";
   } | null>(null);
   const [excludingBulk, setExcludingBulk] = useState(false);
+  const [selectedCas, setSelectedCas] = useState<Set<string>>(() => new Set());
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalCall, setTerminalCall] = useState<TapeRow | null>(null);
   const [resetCallsConfirmOpen, setResetCallsConfirmOpen] = useState(false);
@@ -626,6 +632,7 @@ export default function BotCallsPage() {
           createdAt: Date.now(),
           priority: "medium",
         });
+        setSelectedCas(new Set());
         await load();
       } catch {
         addNotification({
@@ -732,7 +739,12 @@ export default function BotCallsPage() {
 
   useEffect(() => {
     setOffset(0);
+    setSelectedCas(new Set());
   }, [timeWindow, minMultiple, showExcluded]);
+
+  useEffect(() => {
+    setSelectedCas(new Set());
+  }, [offset]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -751,6 +763,69 @@ export default function BotCallsPage() {
     () => rows.filter((r) => r.callCa.trim() && r.excludedFromStats).map((r) => r.callCa.trim()),
     [rows]
   );
+
+  const pageCounted = useMemo(
+    () => rows.filter((r) => !r.excludedFromStats).length,
+    [rows]
+  );
+  const pageExcluded = useMemo(
+    () => rows.filter((r) => r.excludedFromStats).length,
+    [rows]
+  );
+
+  const rangeLabel = useMemo(() => {
+    if (loading || total === 0) return null;
+    const from = offset + 1;
+    const to = Math.min(offset + rows.length, total);
+    return `Showing ${from.toLocaleString("en-US")}–${to.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`;
+  }, [loading, total, offset, rows.length]);
+
+  const pageSelectableCas = useMemo(
+    () => rows.map((r) => r.callCa.trim()).filter(Boolean),
+    [rows]
+  );
+
+  const allPageSelected =
+    pageSelectableCas.length > 0 && pageSelectableCas.every((ca) => selectedCas.has(ca));
+
+  const selectedExcludeCas = useMemo(() => {
+    const out: string[] = [];
+    for (const r of rows) {
+      const ca = r.callCa.trim();
+      if (!ca || !selectedCas.has(ca) || r.excludedFromStats) continue;
+      out.push(ca);
+    }
+    return out;
+  }, [rows, selectedCas]);
+
+  const selectedRestoreCas = useMemo(() => {
+    const out: string[] = [];
+    for (const r of rows) {
+      const ca = r.callCa.trim();
+      if (!ca || !selectedCas.has(ca) || !r.excludedFromStats) continue;
+      out.push(ca);
+    }
+    return out;
+  }, [rows, selectedCas]);
+
+  const toggleSelectedCa = useCallback((ca: string) => {
+    const mint = ca.trim();
+    if (!mint) return;
+    setSelectedCas((prev) => {
+      const next = new Set(prev);
+      if (next.has(mint)) next.delete(mint);
+      else next.add(mint);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAllPage = useCallback(() => {
+    setSelectedCas((prev) => {
+      if (pageSelectableCas.length === 0) return prev;
+      if (pageSelectableCas.every((ca) => prev.has(ca))) return new Set();
+      return new Set(pageSelectableCas);
+    });
+  }, [pageSelectableCas]);
 
   if (status === "loading") {
     return (
@@ -837,11 +912,59 @@ export default function BotCallsPage() {
           >
             {showExcluded ? "Showing excluded" : "Hide excluded"}
           </button>
-          {canExcludeCalls && pageCasForBulkExclude.length > 0 ? (
+          {canExcludeCalls && selectedExcludeCas.length > 0 ? (
             <button
               type="button"
               onClick={() =>
-                setBulkExcludeConfirm({ cas: pageCasForBulkExclude, excludedNext: true })
+                setBulkExcludeConfirm({
+                  cas: selectedExcludeCas,
+                  excludedNext: true,
+                  scope: "selected",
+                })
+              }
+              disabled={excludingBulk || loading}
+              className="rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-100 transition hover:border-red-400/50 hover:bg-red-500/15 disabled:opacity-50"
+              title="Exclude selected calls from public stats"
+            >
+              Exclude selected ({selectedExcludeCas.length})
+            </button>
+          ) : null}
+          {canExcludeCalls && selectedRestoreCas.length > 0 ? (
+            <button
+              type="button"
+              onClick={() =>
+                setBulkExcludeConfirm({
+                  cas: selectedRestoreCas,
+                  excludedNext: false,
+                  scope: "selected",
+                })
+              }
+              disabled={excludingBulk || loading}
+              className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition hover:border-emerald-400/50 hover:bg-emerald-500/15 disabled:opacity-50"
+              title="Restore selected calls for stats"
+            >
+              Restore selected ({selectedRestoreCas.length})
+            </button>
+          ) : null}
+          {canExcludeCalls && selectedCas.size > 0 ? (
+            <button
+              type="button"
+              onClick={() => setSelectedCas(new Set())}
+              disabled={excludingBulk || loading}
+              className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-3 py-1.5 text-xs font-semibold text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-200 disabled:opacity-50"
+            >
+              Clear selection
+            </button>
+          ) : null}
+          {canExcludeCalls && selectedCas.size === 0 && pageCasForBulkExclude.length > 0 ? (
+            <button
+              type="button"
+              onClick={() =>
+                setBulkExcludeConfirm({
+                  cas: pageCasForBulkExclude,
+                  excludedNext: true,
+                  scope: "page",
+                })
               }
               disabled={excludingBulk || loading}
               className="rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-100 transition hover:border-red-400/50 hover:bg-red-500/15 disabled:opacity-50"
@@ -850,11 +973,15 @@ export default function BotCallsPage() {
               Exclude all on page
             </button>
           ) : null}
-          {canExcludeCalls && pageCasForBulkRestore.length > 0 ? (
+          {canExcludeCalls && selectedCas.size === 0 && pageCasForBulkRestore.length > 0 ? (
             <button
               type="button"
               onClick={() =>
-                setBulkExcludeConfirm({ cas: pageCasForBulkRestore, excludedNext: false })
+                setBulkExcludeConfirm({
+                  cas: pageCasForBulkRestore,
+                  excludedNext: false,
+                  scope: "page",
+                })
               }
               disabled={excludingBulk || loading}
               className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition hover:border-emerald-400/50 hover:bg-emerald-500/15 disabled:opacity-50"
@@ -875,10 +1002,38 @@ export default function BotCallsPage() {
             </button>
           ) : null}
         </div>
-        <p className="text-xs tabular-nums text-zinc-500">
-          {loading ? "…" : `${total} call${total === 1 ? "" : "s"}`} in window
-        </p>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-2.5 py-1.5 text-xs font-semibold text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-200 disabled:opacity-40"
+          >
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+          <p className="text-xs tabular-nums text-zinc-500">
+            {rangeLabel ?? (loading ? "…" : `${total} call${total === 1 ? "" : "s"} in window`)}
+          </p>
+        </div>
       </div>
+
+      {!loading && rows.length > 0 ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="rounded-lg border border-zinc-700/70 bg-zinc-950/60 px-2.5 py-1 text-xs font-semibold tabular-nums text-zinc-300">
+            {pageCounted} counted on page
+          </span>
+          {pageExcluded > 0 ? (
+            <span className="rounded-lg border border-red-500/25 bg-red-500/[0.07] px-2.5 py-1 text-xs font-semibold tabular-nums text-red-200/90">
+              {pageExcluded} excluded on page
+            </span>
+          ) : null}
+          {canExcludeCalls && selectedCas.size > 0 ? (
+            <span className="rounded-lg border border-fuchsia-500/25 bg-fuchsia-500/[0.07] px-2.5 py-1 text-xs font-semibold text-fuchsia-100/90">
+              {selectedCas.size} selected
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {err ? (
         <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">
@@ -914,10 +1069,20 @@ export default function BotCallsPage() {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
+                      {canExcludeCalls && r.callCa ? (
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-zinc-600 bg-zinc-900 text-fuchsia-500 focus:ring-fuchsia-500/40"
+                          checked={selectedCas.has(r.callCa.trim())}
+                          onChange={() => toggleSelectedCa(r.callCa)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Select ${tapeThumbSymbol(r)}`}
+                        />
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => openTerminalModal(r)}
-                        className="w-full text-left"
+                        className="min-w-0 flex-1 text-left"
                       >
                         <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -1007,10 +1172,21 @@ export default function BotCallsPage() {
         </div>
 
         {/* Desktop/tablet: wide table */}
-        <div className="hidden overflow-x-auto sm:block">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="border-b border-zinc-800/90 bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="hidden max-h-[min(70vh,52rem)] overflow-auto no-scrollbar sm:block">
+          <table className="w-full min-w-[800px] text-left text-sm">
+            <thead className="sticky top-0 z-10 border-b border-zinc-800/90 bg-zinc-950/95 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 backdrop-blur-sm">
               <tr>
+                {canExcludeCalls ? (
+                  <th className="w-10 px-2 py-2">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 rounded border-zinc-600 bg-zinc-900 text-fuchsia-500 focus:ring-fuchsia-500/40"
+                      checked={allPageSelected}
+                      onChange={toggleSelectAllPage}
+                      aria-label="Select all calls on this page"
+                    />
+                  </th>
+                ) : null}
                 <th className="px-4 py-3">When</th>
                 <th className="px-4 py-3 min-w-[240px]">Call</th>
                 <th className="px-4 py-3 text-right">Live ×</th>
@@ -1022,28 +1198,32 @@ export default function BotCallsPage() {
             <tbody className="divide-y divide-zinc-800/60">
               {loading && rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-zinc-500">
+                  <td colSpan={canExcludeCalls ? 7 : 6} className="px-4 py-12 text-center text-zinc-500">
                     Loading…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-zinc-500">
+                  <td colSpan={canExcludeCalls ? 7 : 6} className="px-4 py-12 text-center text-zinc-500">
                     No bot calls in this window yet.
                   </td>
                 </tr>
               ) : (
                 rows.map((r) => {
                   const iso = callTimeIso(r.callTime);
-                  const k = String(r.id || r.callCa + String(r.callTime));
+                  const k = tapeRowKey(r);
                   const flash = flashKeys.has(k);
+                  const ca = r.callCa.trim();
+                  const isSelected = ca.length > 0 && selectedCas.has(ca);
                   return (
                     <tr
                       key={k}
                       className={`hover:bg-zinc-900/40 ${
                         flash
                           ? "bg-fuchsia-500/10 shadow-[inset_0_0_0_1px_rgba(217,70,239,0.35)]"
-                          : ""
+                          : isSelected
+                            ? "bg-fuchsia-500/[0.04] ring-1 ring-inset ring-fuchsia-500/20"
+                            : ""
                       }`}
                       role="button"
                       tabIndex={0}
@@ -1055,6 +1235,23 @@ export default function BotCallsPage() {
                         }
                       }}
                     >
+                      {canExcludeCalls ? (
+                        <td
+                          className="px-2 py-3"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          {ca ? (
+                            <input
+                              type="checkbox"
+                              className="h-3.5 w-3.5 rounded border-zinc-600 bg-zinc-900 text-fuchsia-500 focus:ring-fuchsia-500/40"
+                              checked={isSelected}
+                              onChange={() => toggleSelectedCa(ca)}
+                              aria-label={`Select ${tapeThumbSymbol(r)}`}
+                            />
+                          ) : null}
+                        </td>
+                      ) : null}
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-zinc-400">
                         {iso ? formatRelativeTime(iso) : "—"}
                       </td>
@@ -1154,6 +1351,10 @@ export default function BotCallsPage() {
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-zinc-500">
+          {rangeLabel ? (
+            <span className="tabular-nums text-zinc-400">{rangeLabel}</span>
+          ) : null}
+          {rangeLabel ? " · " : null}
           {timeWindow === "24h" ? "Auto-refreshing every 10s." : "Tip: switch to Live for auto-refresh."}
         </p>
         <div className="flex items-center gap-2">
@@ -1424,8 +1625,12 @@ export default function BotCallsPage() {
               <div>
                 <h3 className="text-sm font-semibold text-zinc-100">
                   {bulkExcludeConfirm.excludedNext
-                    ? `Exclude ${bulkExcludeConfirm.cas.length} call(s) on this page`
-                    : `Restore ${bulkExcludeConfirm.cas.length} call(s) on this page`}
+                    ? `Exclude ${bulkExcludeConfirm.cas.length} call(s) ${
+                        bulkExcludeConfirm.scope === "selected" ? "selected" : "on this page"
+                      }`
+                    : `Restore ${bulkExcludeConfirm.cas.length} call(s) ${
+                        bulkExcludeConfirm.scope === "selected" ? "selected" : "on this page"
+                      }`}
                 </h3>
                 <p className="mt-1 text-xs text-zinc-500">
                   {bulkExcludeConfirm.excludedNext

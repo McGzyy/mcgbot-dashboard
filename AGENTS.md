@@ -6,5 +6,5 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Product roadmap (dashboard)
 
-- **B4 — Bot calls moderation:** bulk exclude / restore for the current tape page (`/api/bot/call-exclude-bulk`, Bot Calls UI).
+- **B4 — Bot calls moderation:** done — bulk exclude/restore via `/api/bot/call-exclude-bulk`, page + row selection on Bot Calls.
 - **Activity feed — watchlist:** per-row `+` with confirm → add mint to private watchlist; compact relative times in the feed (`formatJoinedAt` compact style).

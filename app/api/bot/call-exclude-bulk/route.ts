@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
-  applyDashboardBotCallExclude,
+  applyDashboardBotCallExcludeBulk,
   getBotTrackedCallsService,
   invalidateStatsAfterBotExcludeBatch,
 } from "@/lib/botDashboardCallExclude";
@@ -55,34 +55,24 @@ export async function POST(request: Request) {
     const supabase = createModServiceSupabase();
 
     const service = getBotTrackedCallsService();
-    if (service) {
-      await service.initTrackedCallsStore();
-    }
-
-    const results: Awaited<ReturnType<typeof applyDashboardBotCallExclude>>[] = [];
-    for (const ca of callCas) {
-      const row = await applyDashboardBotCallExclude({
-        callCa: ca,
-        excluded,
-        moderatedById: gate.staffDiscordId,
-        moderatedByUsername,
-        reason,
-        initTrackedStore: false,
-        service,
-        supabase,
-      });
-      results.push(row);
-    }
+    const { results, supabaseRowsUpdated } = await applyDashboardBotCallExcludeBulk({
+      callCas,
+      excluded,
+      moderatedById: gate.staffDiscordId,
+      moderatedByUsername,
+      reason,
+      service,
+      supabase,
+    });
 
     invalidateStatsAfterBotExcludeBatch();
 
-    const supabaseHits = results.filter((r) => (r.callPerformanceRows ?? 0) > 0).length;
     return Response.json({
       success: true,
       excluded,
       requested: callCas.length,
       results,
-      supabaseRowsUpdated: supabaseHits,
+      supabaseRowsUpdated,
     });
   } catch (e) {
     console.error("[bot/call-exclude-bulk] POST:", e);
