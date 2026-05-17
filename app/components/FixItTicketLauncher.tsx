@@ -22,6 +22,8 @@ const envFabAllowed = process.env.NEXT_PUBLIC_FIX_IT_TICKET_BUTTON !== "false";
 type FixItTicketLauncherProps = {
   /** Sidebar nav entry (default). Legacy `fab` kept for compatibility but unused. */
   placement?: "sidebar" | "fab";
+  /** Shorter sidebar card when staff nav is dense (admin/mod). */
+  compact?: boolean;
 };
 
 function FixItTicketIcon() {
@@ -35,7 +37,7 @@ function FixItTicketIcon() {
   );
 }
 
-export function FixItTicketLauncher({ placement = "sidebar" }: FixItTicketLauncherProps) {
+export function FixItTicketLauncher({ placement = "sidebar", compact = false }: FixItTicketLauncherProps) {
   const pathname = usePathname() ?? "/";
   const { status } = useSession();
   const [open, setOpen] = useState(false);
@@ -173,23 +175,37 @@ export function FixItTicketLauncher({ placement = "sidebar" }: FixItTicketLaunch
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group flex w-full items-center gap-3 rounded-md border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2.5 text-left transition hover:border-amber-500/35 hover:bg-amber-500/[0.09] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/25"
+        className={`group flex w-full items-center rounded-md border border-amber-500/20 bg-amber-500/[0.05] text-left transition hover:border-amber-500/35 hover:bg-amber-500/[0.09] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/25 ${
+          compact ? "gap-2 px-2.5 py-2" : "gap-3 px-3 py-2.5"
+        }`}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-amber-500/25 bg-amber-500/10">
+        <span
+          className={`flex shrink-0 items-center justify-center rounded-md border border-amber-500/25 bg-amber-500/10 ${
+            compact ? "h-7 w-7" : "h-8 w-8"
+          }`}
+        >
           <FixItTicketIcon />
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
-            <span className="text-sm font-medium text-zinc-100 group-hover:text-white">Fix-it ticket</span>
+            <span className={`font-medium text-zinc-100 group-hover:text-white ${compact ? "text-xs" : "text-sm"}`}>
+              Fix-it ticket
+            </span>
             <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1 py-px text-[9px] font-bold uppercase tracking-[0.14em] text-amber-200/90">
               Beta
             </span>
           </span>
-          <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500 group-hover:text-zinc-400">
-            UI notes, ideas, quick feedback
-          </span>
+          {!compact ? (
+            <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500 group-hover:text-zinc-400">
+              UI notes, ideas, quick feedback
+            </span>
+          ) : (
+            <span className="mt-0.5 block truncate text-[10px] leading-snug text-zinc-500 group-hover:text-zinc-400">
+              Quick feedback
+            </span>
+          )}
         </span>
       </button>
     );

@@ -53,6 +53,8 @@ type SidebarBodyProps = {
   getNavItemClass: (active: boolean) => string;
   onNavigate?: () => void;
   hasProFeatures: boolean;
+  /** Tighter nav when staff/admin links are shown (avoids scrollbar with fix-it + expanded Call Feeds). */
+  denseNav: boolean;
 };
 
 function isCallsNavPath(pathname: string): boolean {
@@ -79,6 +81,7 @@ function SidebarBody({
   getNavItemClass,
   onNavigate,
   hasProFeatures,
+  denseNav,
 }: SidebarBodyProps) {
   const pick = onNavigate
     ? () => {
@@ -91,8 +94,9 @@ function SidebarBody({
     if (isCallsNavPath(pathname)) setCallsNavOpen(true);
   }, [pathname]);
 
+  const sectionGap = denseNav ? "mt-3" : "mt-5";
   const getSubNavItemClass = (active: boolean) =>
-    `relative flex items-center gap-2 rounded-md py-1.5 pl-3 pr-3 text-[13px] transition-all duration-150 hover:bg-zinc-900/55 ${
+    `relative flex items-center gap-2 rounded-md ${denseNav ? "py-1 pl-2.5 pr-2.5 text-[12px]" : "py-1.5 pl-3 pr-3 text-[13px]"} transition-all duration-150 hover:bg-zinc-900/55 ${
       active
         ? "bg-zinc-800/90 text-white border border-zinc-700/80 shadow-[0_0_8px_rgba(56,189,248,0.1)]"
         : "text-zinc-400 hover:text-zinc-100"
@@ -101,8 +105,8 @@ function SidebarBody({
   const callsGroupActive = isCallsNavPath(pathname);
 
   return (
-    <>
-      <div className="border-b border-zinc-800 px-4 py-3">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className={`shrink-0 border-b border-zinc-800 px-4 ${denseNav ? "py-2.5" : "py-3"}`}>
         <Link
           href="/"
           onClick={pick}
@@ -118,13 +122,16 @@ function SidebarBody({
             priority
             quality={100}
             sizes="(max-width: 1024px) 480px, 560px"
-            className="h-12 w-auto max-w-full object-contain object-left sm:h-14"
+            className={`w-auto max-w-full object-contain object-left ${denseNav ? "h-10 sm:h-11" : "h-12 sm:h-14"}`}
           />
         </Link>
       </div>
 
-      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label="Main">
-        <div className="mt-4 flex flex-col gap-1 px-2">
+      <nav
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain no-scrollbar"
+        aria-label="Main"
+      >
+        <div className={`${denseNav ? "mt-2" : "mt-4"} flex flex-col gap-0.5 px-2`}>
           <Link href="/" onClick={pick} data-tutorial="sidebar.nav.dashboard" className={getNavItemClass(isActive(pathname, "/"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
@@ -134,7 +141,9 @@ function SidebarBody({
             <span>Dashboard</span>
           </Link>
 
-          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Markets</p>
+          <p className={`${sectionGap} px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600`}>
+            Markets
+          </p>
           <div className="flex flex-col gap-0.5">
             <button
               type="button"
@@ -143,7 +152,7 @@ function SidebarBody({
               aria-expanded={callsNavOpen}
               aria-controls="sidebar-call-feeds-submenu"
               aria-label="Call Feeds menu"
-              className={`flex w-full items-center justify-between gap-2 rounded-md px-4 py-2 text-left text-sm transition hover:bg-zinc-900/60 ${
+              className={`flex w-full items-center justify-between gap-2 rounded-md px-4 ${denseNav ? "py-1.5" : "py-2"} text-left text-sm transition hover:bg-zinc-900/60 ${
                 callsGroupActive
                   ? "border border-zinc-700/70 bg-zinc-900/50 text-zinc-100"
                   : "text-zinc-400 hover:text-zinc-100"
@@ -285,7 +294,9 @@ function SidebarBody({
             <span>PnL Showcase</span>
           </Link>
 
-          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Workspace</p>
+          <p className={`${sectionGap} px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600`}>
+            Workspace
+          </p>
           <Link href="/calls" onClick={pick} data-tutorial="sidebar.nav.calls" className={getNavItemClass(isActive(pathname, "/calls"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
@@ -323,7 +334,9 @@ function SidebarBody({
             />
             <span>Watchlist</span>
           </Link>
-          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Community</p>
+          <p className={`${sectionGap} px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600`}>
+            Community
+          </p>
           <Link
             href="/lounge/discord-chats"
             onClick={() => {
@@ -380,7 +393,7 @@ function SidebarBody({
 
           {staffNav || adminNav ? (
             <>
-              <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
+              <p className={`${sectionGap} px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600`}>
                 Staff
               </p>
               {staffNav ? (
@@ -421,11 +434,11 @@ function SidebarBody({
         </div>
       </nav>
 
-      <div className="mt-auto shrink-0 px-2 pb-2 pt-1">
-        <FixItTicketLauncher placement="sidebar" />
+      <div className="shrink-0 px-2 pb-1.5 pt-1">
+        <FixItTicketLauncher placement="sidebar" compact={denseNav} />
       </div>
 
-      <div className="shrink-0 border-t border-zinc-800 p-3">
+      <div className={`shrink-0 border-t border-zinc-800 ${denseNav ? "p-2.5" : "p-3"}`}>
         <Link
           href={
             profileId
@@ -451,7 +464,7 @@ function SidebarBody({
           </div>
         </Link>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -667,8 +680,10 @@ export function Sidebar() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, setOpen]);
 
+  const denseNav = staffNav || adminNav;
+
   const getNavItemClass = (active: boolean) =>
-    `relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150 hover:bg-zinc-900/60 ${
+    `relative flex items-center gap-3 px-4 ${denseNav ? "py-1.5" : "py-2"} rounded-md text-sm transition-all duration-150 hover:bg-zinc-900/60 ${
       active
         ? "bg-zinc-800 text-white border border-zinc-700 shadow-[0_0_10px_rgba(56,189,248,0.12)]"
         : "text-zinc-400 hover:text-white hover:bg-zinc-900"
@@ -691,12 +706,13 @@ export function Sidebar() {
       session?.user?.hasProFeatures === true ||
       session?.user?.helpTier === "admin" ||
       session?.user?.helpTier === "mod",
+    denseNav: staffNav || adminNav,
   };
 
   return (
     <>
       <aside
-        className={`relative z-30 sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-gradient-to-b from-black via-zinc-950 to-black lg:flex ${dashboardChrome.sidebar}`}
+        className={`relative z-30 sticky top-0 hidden h-screen w-64 shrink-0 flex flex-col overflow-hidden bg-gradient-to-b from-black via-zinc-950 to-black lg:flex ${dashboardChrome.sidebar}`}
       >
         <SidebarBody {...bodyProps} />
       </aside>
@@ -729,7 +745,7 @@ export function Sidebar() {
                 </svg>
               </button>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain no-scrollbar">
               <SidebarBody {...bodyProps} onNavigate={() => setOpen(false)} />
             </div>
           </aside>
