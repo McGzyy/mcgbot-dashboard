@@ -163,7 +163,7 @@ export function ProfileTrackRecordChart({
 
   return (
     <div
-      className={`${terminalSurface.insetPanel} ${terminalSurface.insetEdgeSoft} flex h-full min-h-[260px] flex-col p-4`}
+      className={`${terminalSurface.insetPanel} ${terminalSurface.insetEdgeSoft} flex h-full min-h-[260px] flex-col p-4 ring-1 ring-zinc-800/40`}
     >
       <div className="mb-3">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-300/75">
