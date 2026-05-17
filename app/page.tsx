@@ -15,7 +15,7 @@ import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefresh
 import { DashboardWidgetEmpty } from "@/app/components/dashboard/DashboardWidgetEmpty";
 import { DeskIntelColumn } from "@/app/components/dashboard/DeskIntelColumn";
 import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
-import { HomeLogCallBar } from "@/app/components/dashboard/HomeLogCallBar";
+import { DeskCallQuotaChip } from "@/app/components/dashboard/DeskCallQuotaChip";
 import { SubmitDeskCallModal } from "@/app/components/dashboard/SubmitDeskCallModal";
 import { deskCallQuotaFromApi, type DeskCallQuotaUi } from "@/lib/deskCallQuotaDisplay";
 import { HodlDashboardDock } from "./components/HodlDashboardDock";
@@ -4625,11 +4625,33 @@ export default function Home() {
 
   const shortcutsBlock = widgetEnabled(widgets, "quick_actions") ? (
     <PanelCard
-      title="Shortcuts"
+      title="Quick Actions"
       data-tutorial="dashboard.quickActions"
       paddingClassName="px-4 pt-2.5 pb-3"
     >
       <div className="mt-3 space-y-3">
+        <button
+          type="button"
+          onClick={openSubmitCallModal}
+          data-tutorial="dashboard.quickActions.submitCall"
+          className="w-full rounded-xl bg-[color:var(--accent)] px-4 py-3 text-base font-semibold text-black shadow-lg shadow-black/40 transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/30"
+        >
+          Log call
+        </button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <DeskCallQuotaChip quota={deskCallQuota} loading={deskCallQuotaLoading} />
+          <div className="flex items-center gap-2 text-[11px] font-semibold">
+            <Link href="/calls" className="text-zinc-400 transition hover:text-zinc-100">
+              Call log
+            </Link>
+            <span className="text-zinc-700" aria-hidden>
+              ·
+            </span>
+            <Link href="/performance" className="text-zinc-400 transition hover:text-zinc-100">
+              Lab
+            </Link>
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <Link
             href={userProfileHref({
@@ -4687,14 +4709,6 @@ export default function Home() {
       <div className="space-y-8" data-tutorial="dashboard.pageIntro">
       <div className="mb-5" data-tutorial="dashboard.performanceChart">
         <PerformanceChart compact refreshNonce={homeDataRefreshNonce} />
-      </div>
-
-      <div className="mb-5">
-        <HomeLogCallBar
-          quota={deskCallQuota}
-          quotaLoading={deskCallQuotaLoading}
-          onSubmitCall={openSubmitCallModal}
-        />
       </div>
 
       {shortcutsBlock ? (

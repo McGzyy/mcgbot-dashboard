@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FIX_IT_PAGE_OPTIONS, resolveFixItPageFromPathname } from "@/lib/fixItTicketPages";
@@ -18,10 +19,27 @@ const TICKET_TYPES: { value: string; label: string; hint: string }[] = [
 
 const envFabAllowed = process.env.NEXT_PUBLIC_FIX_IT_TICKET_BUTTON !== "false";
 
-export function FixItTicketLauncher() {
+type FixItTicketLauncherProps = {
+  /** Sidebar nav entry (default). Legacy `fab` kept for compatibility but unused. */
+  placement?: "sidebar" | "fab";
+};
+
+function FixItTicketIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" className="text-amber-200/90" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6m-1 1v5h5m-2 9H8v-2h8v2m0-4H8v-2h5v2Z"
+      />
+    </svg>
+  );
+}
+
+export function FixItTicketLauncher({ placement = "sidebar" }: FixItTicketLauncherProps) {
   const pathname = usePathname() ?? "/";
   const { status } = useSession();
   const [open, setOpen] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
   const [pageKey, setPageKey] = useState("other");
   const [ticketType, setTicketType] = useState("ui_ux");
   const [description, setDescription] = useState("");
@@ -34,6 +52,10 @@ export function FixItTicketLauncher() {
   const [serverModuleEnabled, setServerModuleEnabled] = useState<boolean | null>(null);
 
   const resolved = useMemo(() => resolveFixItPageFromPathname(pathname), [pathname]);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     if (!envFabAllowed) return;
@@ -105,7 +127,16 @@ export function FixItTicketLauncher() {
       });
       const json = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
       if (!res.ok || !json.success) {
-        setErr(typeof json.error === "string" ? json.error : "Could not submit.");
+        const apiErr = typeof json.error === "string" ? json.error.trim() : "";
+        if (apiErr) {
+          setErr(apiErr);
+        } else if (res.status === 401) {
+          setErr("Please sign in again, then retry.");
+        } else if (res.status === 413) {
+          setErr("Screenshot is too large — try a smaller image or submit without one.");
+        } else {
+          setErr(`Could not submit (${res.status}).`);
+        }
         return;
       }
       setDone(true);
@@ -125,8 +156,8 @@ export function FixItTicketLauncher() {
   if (serverModuleEnabled === false) return null;
   if (serverModuleEnabled === null) return null;
 
-  return (
-    <>
+  const trigger =
+    placement === "fab" ? (
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -138,152 +169,177 @@ export function FixItTicketLauncher() {
         <span className="mt-0.5 block text-sm font-semibold text-zinc-50">Fix-it ticket</span>
         <span className="mt-0.5 hidden text-[11px] text-zinc-500 sm:block">UI, ideas, prefs — quick send</span>
       </button>
+    ) : (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group flex w-full items-center gap-3 rounded-md border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2.5 text-left transition hover:border-amber-500/35 hover:bg-amber-500/[0.09] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/25"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-amber-500/25 bg-amber-500/10">
+          <FixItTicketIcon />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="text-sm font-medium text-zinc-100 group-hover:text-white">Fix-it ticket</span>
+            <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1 py-px text-[9px] font-bold uppercase tracking-[0.14em] text-amber-200/90">
+              Beta
+            </span>
+          </span>
+          <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500 group-hover:text-zinc-400">
+            UI notes, ideas, quick feedback
+          </span>
+        </span>
+      </button>
+    );
 
-      {open ? (
-        <div
-          className={terminalUi.fixItTicketBackdrop}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Submit fix-it ticket"
-          onMouseDown={(ev) => {
-            if (ev.target === ev.currentTarget && !submitting) close();
-          }}
-        >
-          <div className={`relative z-10 ${terminalUi.modalPanel2xlWide}`}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-300/90">Build phase</p>
-                <h2 className="mt-1 text-lg font-semibold text-zinc-50">Fix-it ticket</h2>
-                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                  For tester notes: polish, ideas, and opinions. Use{" "}
-                  <span className="text-zinc-400">Settings → Report a bug</span> if something is outright broken and
-                  you need a tracked repro.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => close()}
-                className={terminalUi.modalCloseIconBtn}
-                aria-label="Close"
-                disabled={submitting}
-              >
-                ✕
-              </button>
-            </div>
-
-            {done ? (
-              <div className="mt-6 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-100">
-                Thanks — your note was saved. You can close this or send another.
-              </div>
-            ) : null}
-
-            {err ? (
-              <div className="mt-4 rounded-lg border border-red-500/30 bg-red-950/25 px-3 py-2 text-sm text-red-200">
-                {err}
-              </div>
-            ) : null}
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-medium text-zinc-500">Page</span>
-                <select
-                  className={`${terminalUi.formInput} mt-1`}
-                  value={pageKey}
-                  onChange={(e) => setPageKey(e.target.value)}
-                  disabled={submitting}
-                >
-                  {FIX_IT_PAGE_OPTIONS.map((o) => (
-                    <option key={o.key} value={o.key}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-[11px] text-zinc-600">
-                  Auto-selected from <span className="font-mono text-zinc-500">{pathname || "/"}</span> — change if
-                  needed.
-                </p>
-              </label>
-
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-medium text-zinc-500">Type</span>
-                <select
-                  className={`${terminalUi.formInput} mt-1`}
-                  value={ticketType}
-                  onChange={(e) => setTicketType(e.target.value)}
-                  disabled={submitting}
-                >
-                  {TICKET_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label} — {t.hint}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-medium text-zinc-500">What should we know?</span>
-                <textarea
-                  className={`${terminalUi.formInput} mt-1 min-h-[100px] resize-y`}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  maxLength={4000}
-                  placeholder="A few sentences is perfect — what you expected, what you got, and how strongly you feel."
-                  disabled={submitting}
-                />
-              </label>
-
-              <label className="block sm:col-span-2">
-                <span className="text-xs font-medium text-zinc-500">Screenshot (optional, one image)</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="mt-2 block w-full text-xs text-zinc-400 file:mr-3 file:rounded-lg file:border file:border-zinc-700 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-zinc-200 hover:file:bg-zinc-800"
-                  disabled={submitting}
-                  onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                />
-                {imagePreview ? (
-                  <div className="mt-3 overflow-hidden rounded-lg border border-zinc-800">
-                    <img src={imagePreview} alt="Preview" className="max-h-48 w-full object-contain bg-black/40" />
-                  </div>
-                ) : null}
-              </label>
-
-              <label className="flex cursor-pointer items-start gap-2 sm:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={allowContact}
-                  onChange={(e) => setAllowContact(e.target.checked)}
-                  disabled={submitting}
-                  className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-900"
-                />
-                <span className="text-sm text-zinc-400">
-                  OK to reach out in Discord if we need a quick follow-up (uses your linked account; no email stored
-                  here).
-                </span>
-              </label>
-            </div>
-
-            <div className="mt-6 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => close()}
-                disabled={submitting}
-                className="rounded-lg border border-zinc-700 bg-zinc-900/60 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-50"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                disabled={submitting || description.trim().length < 8}
-                onClick={() => void submit()}
-                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-black hover:bg-amber-400 disabled:opacity-50"
-              >
-                {submitting ? "Sending…" : "Submit"}
-              </button>
-            </div>
+  const modal = open ? (
+    <div
+      className={terminalUi.fixItTicketBackdrop}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Submit fix-it ticket"
+      onMouseDown={(ev) => {
+        if (ev.target === ev.currentTarget && !submitting) close();
+      }}
+    >
+      <div className={`relative z-10 ${terminalUi.modalPanel2xlWide}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-300/90">Build phase</p>
+            <h2 className="mt-1 text-lg font-semibold text-zinc-50">Fix-it ticket</h2>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+              For tester notes: polish, ideas, and opinions. Use{" "}
+              <span className="text-zinc-400">Settings → Report a bug</span> if something is outright broken and you
+              need a tracked repro.
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={() => close()}
+            className={terminalUi.modalCloseIconBtn}
+            aria-label="Close"
+            disabled={submitting}
+          >
+            ✕
+          </button>
         </div>
-      ) : null}
+
+        {done ? (
+          <div className="mt-6 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-100">
+            Thanks — your note was saved. You can close this or send another.
+          </div>
+        ) : null}
+
+        {err ? (
+          <div className="mt-4 rounded-lg border border-red-500/30 bg-red-950/25 px-3 py-2 text-sm text-red-200">{err}</div>
+        ) : null}
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <label className="block sm:col-span-2">
+            <span className="text-xs font-medium text-zinc-500">Page</span>
+            <select
+              className={`${terminalUi.formInput} mt-1`}
+              value={pageKey}
+              onChange={(e) => setPageKey(e.target.value)}
+              disabled={submitting}
+            >
+              {FIX_IT_PAGE_OPTIONS.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-zinc-600">
+              Auto-selected from <span className="font-mono text-zinc-500">{pathname || "/"}</span> — change if needed.
+            </p>
+          </label>
+
+          <label className="block sm:col-span-2">
+            <span className="text-xs font-medium text-zinc-500">Type</span>
+            <select
+              className={`${terminalUi.formInput} mt-1`}
+              value={ticketType}
+              onChange={(e) => setTicketType(e.target.value)}
+              disabled={submitting}
+            >
+              {TICKET_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label} — {t.hint}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block sm:col-span-2">
+            <span className="text-xs font-medium text-zinc-500">What should we know?</span>
+            <textarea
+              className={`${terminalUi.formInput} mt-1 min-h-[100px] resize-y`}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={4000}
+              placeholder="A few sentences is perfect — what you expected, what you got, and how strongly you feel."
+              disabled={submitting}
+            />
+          </label>
+
+          <label className="block sm:col-span-2">
+            <span className="text-xs font-medium text-zinc-500">Screenshot (optional, one image)</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="mt-2 block w-full text-xs text-zinc-400 file:mr-3 file:rounded-lg file:border file:border-zinc-700 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-zinc-200 hover:file:bg-zinc-800"
+              disabled={submitting}
+              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+            />
+            {imagePreview ? (
+              <div className="mt-3 overflow-hidden rounded-lg border border-zinc-800">
+                <img src={imagePreview} alt="Preview" className="max-h-48 w-full object-contain bg-black/40" />
+              </div>
+            ) : null}
+          </label>
+
+          <label className="flex cursor-pointer items-start gap-2 sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={allowContact}
+              onChange={(e) => setAllowContact(e.target.checked)}
+              disabled={submitting}
+              className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-900"
+            />
+            <span className="text-sm text-zinc-400">
+              OK to reach out in Discord if we need a quick follow-up (uses your linked account; no email stored here).
+            </span>
+          </label>
+        </div>
+
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => close()}
+            disabled={submitting}
+            className="rounded-lg border border-zinc-700 bg-zinc-900/60 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-50"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            disabled={submitting || description.trim().length < 8}
+            onClick={() => void submit()}
+            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-black hover:bg-amber-400 disabled:opacity-50"
+          >
+            {submitting ? "Sending…" : "Submit"}
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      {trigger}
+      {portalReady && modal ? createPortal(modal, document.body) : null}
     </>
   );
 }

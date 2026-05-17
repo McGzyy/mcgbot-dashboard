@@ -14,6 +14,7 @@ import {
 } from "@/lib/roleTierStyles";
 import { useMobileSidebar } from "@/app/contexts/MobileSidebarContext";
 import { userProfileHref } from "@/lib/userProfileHref";
+import { FixItTicketLauncher } from "@/app/components/FixItTicketLauncher";
 import { ProBadge } from "@/app/components/subscription/ProBadge";
 import {
   applyDashDiscordMarkReadPayload,
@@ -420,7 +421,11 @@ function SidebarBody({
         </div>
       </nav>
 
-      <div className="mt-auto border-t border-zinc-800 p-3">
+      <div className="mt-auto shrink-0 px-2 pb-2 pt-1">
+        <FixItTicketLauncher placement="sidebar" />
+      </div>
+
+      <div className="shrink-0 border-t border-zinc-800 p-3">
         <Link
           href={
             profileId

@@ -111,14 +111,31 @@ export async function POST(request: Request) {
 
   const { error: insErr } = await db.from("fix_it_tickets").insert(row);
   if (insErr) {
-    console.error("[me/fix-it-tickets] insert:", insErr);
-    if (insErr.code === "42P01" || /relation .* does not exist/i.test(insErr.message)) {
+    console.error("[me/fix-it-tickets] insert:", insErr.code, insErr.message, insErr.details);
+    if (
+      insErr.code === "42P01" ||
+      insErr.code === "PGRST205" ||
+      /relation .* does not exist|could not find the table/i.test(String(insErr.message || ""))
+    ) {
       return Response.json(
-        { success: false, error: "Fix-it tickets are not set up on this environment (missing table)." },
+        {
+          success: false,
+          error:
+            "Fix-it tickets are not set up yet (database migration pending). Please try again after the next deploy.",
+        },
         { status: 503 }
       );
     }
-    return Response.json({ success: false, error: "Could not save ticket." }, { status: 500 });
+    if (insErr.code === "42501" || /permission denied/i.test(String(insErr.message || ""))) {
+      return Response.json(
+        {
+          success: false,
+          error: "Fix-it tickets could not be saved (database permissions). Our team has been notified — try again shortly.",
+        },
+        { status: 500 }
+      );
+    }
+    return Response.json({ success: false, error: "Could not save ticket. Please try again." }, { status: 500 });
   }
 
   return Response.json({ success: true as const });

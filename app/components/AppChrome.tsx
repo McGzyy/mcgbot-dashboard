@@ -2,7 +2,6 @@
 
 import { AnnouncementBar } from "@/app/components/AnnouncementBar";
 import { DiscordChatDock } from "@/app/components/DiscordChatDock";
-import { FixItTicketLauncher } from "@/app/components/FixItTicketLauncher";
 import { MainShell } from "@/app/components/MainShell";
 import { Sidebar } from "@/app/components/Sidebar";
 import { TutorialProvider } from "@/app/components/TutorialProvider";
@@ -100,7 +99,6 @@ export function AppChrome({ children }: { children: ReactNode }) {
               <MainShell>{children}</MainShell>
             </TutorialProvider>
             <DiscordChatDock />
-            <FixItTicketLauncher />
           </div>
         </MobileSidebarProvider>
       )}

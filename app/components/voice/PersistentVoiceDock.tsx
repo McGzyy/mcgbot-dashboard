@@ -59,7 +59,7 @@ export function PersistentVoiceDock() {
 
   return (
     <div
-      className="pointer-events-auto fixed bottom-5 right-4 z-[40] w-[min(18rem,calc(100vw-2rem))] pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:bottom-6 sm:right-6"
+      className="pointer-events-auto fixed bottom-[calc(0.35rem+var(--mcg-dock-stack,3.25rem))] right-3 z-[50] w-[min(18rem,calc(100vw-1.5rem))] pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:bottom-[calc(0.45rem+var(--mcg-dock-stack,3.25rem))] sm:right-4 lg:right-6"
       role="region"
       aria-label="Active voice session"
     >
