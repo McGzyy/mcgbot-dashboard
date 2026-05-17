@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /** Server-side inbox kinds (system → user only; no user-to-user DMs). */
 export type UserInboxKind =
   | "info"
+  | "announcement"
   | "bug_closed"
   | "profile_report_resolved"
   | "profile_report_rejected"

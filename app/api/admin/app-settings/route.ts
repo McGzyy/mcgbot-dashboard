@@ -7,6 +7,10 @@ import { invalidateSocialFeedSettingsCache } from "@/lib/socialFeedSettings";
 import { invalidateSiteOperationalStateCache } from "@/lib/siteOperationalState";
 import { clearSessionInvalidationEpochCache } from "@/lib/sessionInvalidationEpoch";
 import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
+import {
+  broadcastAnnouncementToUserInboxes,
+  patchTouchesAnnouncement,
+} from "@/lib/announcementInboxBroadcast";
 import { assertAnnouncementScheduleOrder } from "@/lib/announcementSchedule";
 import { mergeDigestFormat } from "@/lib/xDigestTweetFormat";
 
@@ -314,6 +318,11 @@ export async function PATCH(req: Request) {
       },
       { status: 500 }
     );
+  }
+  if (patchTouchesAnnouncement(patch as Record<string, unknown>)) {
+    void broadcastAnnouncementToUserInboxes(row).catch((e) => {
+      console.error("[admin/app-settings] announcement inbox broadcast:", e);
+    });
   }
   invalidateSiteOperationalStateCache();
   invalidateSocialFeedSettingsCache();

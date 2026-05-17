@@ -49,6 +49,8 @@ export type DashboardAdminSettingsRow = {
   x_leaderboard_digest_format: unknown | null;
   /** Home Social Feed panel + X Bearer timeline ingest. */
   social_feed_enabled: boolean;
+  /** Last announcement content version fan-out to user inboxes (dedupe). */
+  announcement_inbox_broadcast_version: string | null;
   updated_at: string;
   updated_by_discord_id: string | null;
 };
@@ -87,6 +89,7 @@ function defaultRow(): DashboardAdminSettingsRow {
     tutorial_auto_start_enabled: true,
     x_leaderboard_digest_format: null,
     social_feed_enabled: false,
+    announcement_inbox_broadcast_version: null,
     updated_at: now,
     updated_by_discord_id: null,
   };
@@ -188,6 +191,12 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
       return v as Record<string, unknown>;
     })(),
     social_feed_enabled: (r as { social_feed_enabled?: unknown }).social_feed_enabled === true,
+    announcement_inbox_broadcast_version:
+      typeof (r as { announcement_inbox_broadcast_version?: unknown }).announcement_inbox_broadcast_version ===
+      "string"
+        ? String((r as { announcement_inbox_broadcast_version: string }).announcement_inbox_broadcast_version).trim() ||
+          null
+        : null,
     updated_at: typeof r.updated_at === "string" ? r.updated_at : new Date().toISOString(),
     updated_by_discord_id: typeof r.updated_by_discord_id === "string" ? r.updated_by_discord_id : null,
   };

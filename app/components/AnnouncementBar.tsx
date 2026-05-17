@@ -189,10 +189,13 @@ export function AnnouncementBar({
       <>
         <div className="announcement-marquee min-w-0 flex-1 sm:hidden" aria-label={mobileMessage}>
           <div className="announcement-marquee-track">
-            <span className="announcement-marquee-gap text-[14px] font-medium leading-none tracking-tight">
+            <span className="announcement-marquee-gap shrink-0 whitespace-nowrap text-[14px] font-medium leading-none tracking-tight">
               {mobileMessage}
             </span>
-            <span className="announcement-marquee-gap text-[14px] font-medium leading-none tracking-tight" aria-hidden>
+            <span
+              className="announcement-marquee-gap shrink-0 whitespace-nowrap text-[14px] font-medium leading-none tracking-tight"
+              aria-hidden
+            >
               {mobileMessage}
             </span>
           </div>
@@ -203,10 +206,13 @@ export function AnnouncementBar({
           aria-label={payload.message}
         >
           <div className="announcement-marquee-track">
-            <span className="announcement-marquee-gap text-[14px] font-medium leading-none tracking-tight">
+            <span className="announcement-marquee-gap shrink-0 whitespace-nowrap text-[14px] font-medium leading-none tracking-tight">
               {desktopMessage}
             </span>
-            <span className="announcement-marquee-gap text-[14px] font-medium leading-none tracking-tight" aria-hidden>
+            <span
+              className="announcement-marquee-gap shrink-0 whitespace-nowrap text-[14px] font-medium leading-none tracking-tight"
+              aria-hidden
+            >
               {desktopMessage}
             </span>
           </div>
