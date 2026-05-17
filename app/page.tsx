@@ -12,6 +12,7 @@ import { DashboardAlertsModal } from "./components/DashboardAlertsModal";
 import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
 import { DashboardChatPanel } from "./components/DashboardChatPanel";
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import { DashboardWidgetEmpty } from "@/app/components/dashboard/DashboardWidgetEmpty";
 import { DeskIntelColumn } from "@/app/components/dashboard/DeskIntelColumn";
 import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
 import { DeskCallQuotaChip } from "@/app/components/dashboard/DeskCallQuotaChip";
@@ -79,12 +80,6 @@ function discordSignInSafe() {
   void signIn("discord", { callbackUrl: "/" });
 }
 
-/** Mock trending rows; `mint` is a placeholder Solana mint for Dexscreener charts. */
-const TRENDING_TOKENS_MOCK = [
-  { symbol: "SOLXYZ", stat: 2.4, mint: "So11111111111111111111111111111111111111112" },
-  { symbol: "ABC", stat: 1.8, mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" },
-  { symbol: "DEV123", stat: 3.1, mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" },
-] as const;
 
 type TrendingTokenRow = {
   /** Ticker / short symbol (e.g. from pair base token). */
@@ -103,152 +98,6 @@ type TrendingTokenRow = {
   timeframe: "5m" | "1h" | "24h";
 };
 
-const TRENDING_TOKENS_ELITE_MOCK: TrendingTokenRow[] = [
-  {
-    symbol: "WIF",
-    mint: "EKpQGSJtjMFqKZ9q8i7vNQkWQwGJcD3u3wqBzQk9sYtX",
-    priceUsd: 2.41,
-    marketCapUsd: 890_000_000,
-    changePct: 8.2,
-    liquidityUsd: 12_400_000,
-    volumeUsd: 18_900_000,
-    holders: 184_230,
-    source: "Dexscreener",
-    timeframe: "1h",
-  },
-  {
-    symbol: "JUP",
-    mint: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
-    priceUsd: 1.13,
-    marketCapUsd: 1_400_000_000,
-    changePct: -1.4,
-    liquidityUsd: 31_800_000,
-    volumeUsd: 9_400_000,
-    holders: 612_990,
-    source: "Dexscreener",
-    timeframe: "24h",
-  },
-  {
-    symbol: "BONK",
-    mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
-    priceUsd: 0.000028,
-    marketCapUsd: 980_000_000,
-    changePct: 3.0,
-    liquidityUsd: 9_200_000,
-    volumeUsd: 7_600_000,
-    holders: 742_100,
-    source: "Gecko",
-    timeframe: "24h",
-  },
-  {
-    symbol: "PYTH",
-    mint: "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
-    priceUsd: 0.49,
-    marketCapUsd: 520_000_000,
-    changePct: 0.9,
-    liquidityUsd: 6_700_000,
-    volumeUsd: 3_200_000,
-    holders: 221_540,
-    source: "Axiom",
-    timeframe: "1h",
-  },
-  {
-    symbol: "BOME",
-    mint: "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82",
-    priceUsd: 0.0142,
-    marketCapUsd: 410_000_000,
-    changePct: 5.6,
-    liquidityUsd: 4_900_000,
-    volumeUsd: 8_100_000,
-    holders: 129_870,
-    source: "Dexscreener",
-    timeframe: "1h",
-  },
-  {
-    symbol: "MEW",
-    mint: "MEW1gQWJ3nEXg2qZrJ2Jc8Gd8oZ2e2u9X1pQGqVJ9uQ",
-    priceUsd: 0.0068,
-    marketCapUsd: 420_000_000,
-    changePct: 12.4,
-    liquidityUsd: 2_700_000,
-    volumeUsd: 5_900_000,
-    holders: 74_220,
-    source: "Axiom",
-    timeframe: "5m",
-  },
-  {
-    symbol: "POPCAT",
-    mint: "7GCihgDB8Y1sZp8V7H9rYw1d3oY5eHc8GQyYqZQKQp5",
-    priceUsd: 0.86,
-    marketCapUsd: 870_000_000,
-    changePct: -3.8,
-    liquidityUsd: 3_300_000,
-    volumeUsd: 2_500_000,
-    holders: 43_110,
-    source: "Gecko",
-    timeframe: "1h",
-  },
-  {
-    symbol: "JTO",
-    mint: "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6YVqT7b",
-    priceUsd: 2.94,
-    marketCapUsd: 490_000_000,
-    changePct: 2.1,
-    liquidityUsd: 11_100_000,
-    volumeUsd: 4_400_000,
-    holders: 98_420,
-    source: "Dexscreener",
-    timeframe: "24h",
-  },
-  {
-    symbol: "RAY",
-    mint: "4k3Dyjzvzp8eMZWK5oAi6n3yJqfY1c7VQ9TzJpJpW6t",
-    priceUsd: 1.92,
-    marketCapUsd: 760_000_000,
-    changePct: 4.7,
-    liquidityUsd: 14_600_000,
-    volumeUsd: 6_200_000,
-    holders: 201_330,
-    source: "Axiom",
-    timeframe: "24h",
-  },
-  {
-    symbol: "ORCA",
-    mint: "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
-    priceUsd: 3.19,
-    marketCapUsd: 310_000_000,
-    changePct: -0.6,
-    liquidityUsd: 8_900_000,
-    volumeUsd: 1_900_000,
-    holders: 164_250,
-    source: "Gecko",
-    timeframe: "24h",
-  },
-  {
-    symbol: "DRIFT",
-    mint: "DRiFt11111111111111111111111111111111111111",
-    priceUsd: 1.07,
-    marketCapUsd: 380_000_000,
-    changePct: 6.9,
-    liquidityUsd: 5_800_000,
-    volumeUsd: 3_600_000,
-    holders: 56_880,
-    source: "Dexscreener",
-    timeframe: "1h",
-  },
-  {
-    symbol: "KMNO",
-    mint: "KMNo111111111111111111111111111111111111111",
-    priceUsd: 0.092,
-    marketCapUsd: 250_000_000,
-    changePct: 9.8,
-    liquidityUsd: 1_600_000,
-    volumeUsd: 2_200_000,
-    holders: 18_430,
-    source: "Axiom",
-    timeframe: "5m",
-  },
-];
 
 function formatCompactUsd(n: number): string {
   const abs = Math.abs(n);
@@ -698,7 +547,7 @@ type SocialFeedItem = {
   authorVerified?: boolean;
   postedAtLabel: string;
   text: string;
-  /** Legacy single chip (mocks / old API). */
+  /** Deprecated; prefer structured engagement counts. */
   metricLabel?: string;
   likeCount?: number | null;
   replyCount?: number | null;
@@ -864,262 +713,6 @@ function optSocialNumber(v: unknown): number | null {
   return null;
 }
 
-const SOCIAL_FEED_RAW: Array<{
-  id: string;
-  platform: SocialPlatform;
-  authorName: string;
-  authorHandle: string;
-  postedAtLabel: string;
-  text: string;
-  metricLabel?: string;
-  authorAvatarUrl?: string;
-  authorVerified?: boolean;
-  likeCount?: number;
-  replyCount?: number;
-  retweetCount?: number;
-  quoteCount?: number;
-  impressionCount?: number | null;
-}> = [
-  {
-    id: "x-1",
-    platform: "x",
-    authorName: "Onchain Radar",
-    authorHandle: "@onchainradar",
-    postedAtLabel: "12m",
-    text: "SOL memecoin rotation picking up again. Watch for liquidity returning to midcaps — narratives are shifting fast.",
-    authorAvatarUrl: "https://api.dicebear.com/9.x/notionists/png?seed=onchainradar&size=128",
-    authorVerified: true,
-    likeCount: 4200,
-    replyCount: 118,
-    retweetCount: 412,
-    quoteCount: 64,
-    impressionCount: 52000,
-  },
-  {
-    id: "ig-1",
-    platform: "instagram",
-    authorName: "Market Narratives",
-    authorHandle: "@marketnarratives",
-    postedAtLabel: "38m",
-    text: "Viral clip: “Why narratives win cycles.” Quick breakdown of how attention flows across Telegram → X → charts.",
-    metricLabel: "18.9K",
-  },
-  {
-    id: "x-2",
-    platform: "x",
-    authorName: "Dex Pulse",
-    authorHandle: "@dexpulse",
-    postedAtLabel: "1h",
-    text: "Trending pairs: volume spikes on SOL with improving depth. If you’re scanning, focus on liquidity + holder distribution — https://dexscreener.com/solana",
-    authorAvatarUrl: "https://api.dicebear.com/9.x/notionists/png?seed=dexpulse&size=128",
-    authorVerified: true,
-    likeCount: 2100,
-    replyCount: 44,
-    retweetCount: 89,
-    quoteCount: 12,
-    impressionCount: 31000,
-  },
-  {
-    id: "x-3",
-    platform: "x",
-    authorName: "Flow Watch",
-    authorHandle: "@flowwatch",
-    postedAtLabel: "2h",
-    text: "Heatmap check: buy pressure building on SOL perps. If this holds, expect meme beta to follow.",
-    metricLabel: "6.8K",
-  },
-  {
-    id: "ig-2",
-    platform: "instagram",
-    authorName: "Chart Room",
-    authorHandle: "@chartroom",
-    postedAtLabel: "2h",
-    text: "3-step checklist before entering: trend → volume → invalidation. Keep it simple, keep it repeatable.",
-    metricLabel: "9.4K",
-  },
-  {
-    id: "x-4",
-    platform: "x",
-    authorName: "Liquidity Lens",
-    authorHandle: "@liq_lens",
-    postedAtLabel: "3h",
-    text: "Midcaps waking up: watch pools with steady adds (not single-sided). That’s the tell before breakout.",
-    metricLabel: "3.7K",
-  },
-  {
-    id: "ig-3",
-    platform: "instagram",
-    authorName: "Signal Digest",
-    authorHandle: "@signaldigest",
-    postedAtLabel: "3h",
-    text: "Attention rotates in waves. Track mentions + chart reactions, not just raw likes.",
-    metricLabel: "14.1K",
-  },
-  {
-    id: "x-5",
-    platform: "x",
-    authorName: "Narrative Desk",
-    authorHandle: "@narrativedesk",
-    postedAtLabel: "4h",
-    text: "What’s trending isn’t always what’s tradable. Focus on liquidity depth + clean distribution.",
-    metricLabel: "1.9K",
-  },
-  {
-    id: "x-6",
-    platform: "x",
-    authorName: "Dex Wire",
-    authorHandle: "@dexwire",
-    postedAtLabel: "5h",
-    text: "New pairs: watch the first 10 minutes — spread + depth tells you everything.",
-    metricLabel: "5.3K",
-  },
-  {
-    id: "ig-4",
-    platform: "instagram",
-    authorName: "Alpha Board",
-    authorHandle: "@alphaboard",
-    postedAtLabel: "6h",
-    text: "When the chart is noisy: zoom out, define the range, trade the edges.",
-    metricLabel: "21.3K",
-  },
-  {
-    id: "x-7",
-    platform: "x",
-    authorName: "Orderflow Notes",
-    authorHandle: "@of_notes",
-    postedAtLabel: "7h",
-    text: "If you can’t name the invalidation level, you don’t have a trade — you have a hope.",
-    metricLabel: "7.1K",
-  },
-  {
-    id: "ig-5",
-    platform: "instagram",
-    authorName: "Volume Lab",
-    authorHandle: "@volumelab",
-    postedAtLabel: "8h",
-    text: "Low float + rising volume can be explosive. Confirm depth before sizing up.",
-    metricLabel: "11.8K",
-  },
-  {
-    id: "x-8",
-    platform: "x",
-    authorName: "Whale Watch",
-    authorHandle: "@whalewatch",
-    postedAtLabel: "9h",
-    text: "Wallet clustering looks clean. If liquidity keeps increasing, that’s your green light.",
-    metricLabel: "12.6K",
-  },
-  {
-    id: "ig-6",
-    platform: "instagram",
-    authorName: "Cycle Theory",
-    authorHandle: "@cycletheory",
-    postedAtLabel: "10h",
-    text: "Narratives don’t move the chart alone — the chart moves narratives. Track both.",
-    metricLabel: "16.0K",
-  },
-  {
-    id: "x-9",
-    platform: "x",
-    authorName: "SOL Metrics",
-    authorHandle: "@solmetrics",
-    postedAtLabel: "12h",
-    text: "SOL dominance creeping up. Meme baskets usually respond with a lag — watch the leaders first.",
-    metricLabel: "8.9K",
-  },
-  {
-    id: "ig-7",
-    platform: "instagram",
-    authorName: "Community Pulse",
-    authorHandle: "@communitypulse",
-    postedAtLabel: "14h",
-    text: "Best traders I know: fewer positions, clearer thesis, faster exits.",
-    metricLabel: "19.6K",
-  },
-  {
-    id: "x-10",
-    platform: "x",
-    authorName: "Tape Reader",
-    authorHandle: "@tapereader",
-    postedAtLabel: "18h",
-    text: "When you see the bids stepping up consistently, that’s your cue. Don’t chase tops, wait for structure.",
-    metricLabel: "2.7K",
-  },
-  {
-    id: "ig-8",
-    platform: "instagram",
-    authorName: "Risk First",
-    authorHandle: "@riskfirst",
-    postedAtLabel: "22h",
-    text: "Your edge is risk management. The rest is just entries.",
-    metricLabel: "25.2K",
-  },
-];
-
-const SOCIAL_FEED_CATEGORY_ROTATE = SOCIAL_FEED_CATEGORY_OPTIONS.map((o) => o.id);
-
-const SOCIAL_FEED_MOCK: SocialFeedItem[] = SOCIAL_FEED_RAW.map((row, i) => {
-  const slug = SOCIAL_FEED_CATEGORY_ROTATE[i % SOCIAL_FEED_CATEGORY_ROTATE.length]!;
-  return {
-    ...row,
-    categorySlug: slug,
-    categoryOther: slug === "other" ? "Curated highlight" : null,
-  };
-});
-
-const SOCIAL_AUTHOR_POOL: Array<{
-  platform: SocialPlatform;
-  authorName: string;
-  authorHandle: string;
-  categorySlug: SocialFeedCategorySlug;
-}> = [
-  { platform: "x", authorName: "Onchain Radar", authorHandle: "@onchainradar", categorySlug: "crypto" },
-  { platform: "x", authorName: "Dex Pulse", authorHandle: "@dexpulse", categorySlug: "crypto" },
-  { platform: "x", authorName: "Liquidity Lens", authorHandle: "@liq_lens", categorySlug: "crypto" },
-  { platform: "x", authorName: "Tape Reader", authorHandle: "@tapereader", categorySlug: "crypto" },
-  { platform: "x", authorName: "Whale Watch", authorHandle: "@whalewatch", categorySlug: "economy" },
-  { platform: "instagram", authorName: "Market Narratives", authorHandle: "@marketnarratives", categorySlug: "politics" },
-  { platform: "instagram", authorName: "Chart Room", authorHandle: "@chartroom", categorySlug: "economy" },
-  { platform: "instagram", authorName: "Volume Lab", authorHandle: "@volumelab", categorySlug: "culture" },
-  { platform: "instagram", authorName: "Risk First", authorHandle: "@riskfirst", categorySlug: "economy" },
-  { platform: "instagram", authorName: "Alpha Board", authorHandle: "@alphaboard", categorySlug: "culture" },
-];
-
-const SOCIAL_TEXT_POOL: string[] = [
-  "New listings popping up — check depth before you size.",
-  "Quick reminder: liquidity > followers. Always.",
-  "If the bid ladder keeps stepping up, don’t fade it.",
-  "Rotation watch: leaders move first, runners follow.",
-  "Spread tight + depth rising is the cleanest setup.",
-  "Conviction is fine. Invalidation is mandatory.",
-  "Watch for distribution: steady adds beat single spikes.",
-  "When attention shifts, charts usually front-run the narrative.",
-];
-
-function makeNewSocialPost(forcePlatform?: SocialPlatform): SocialFeedItem {
-  const pool = forcePlatform
-    ? SOCIAL_AUTHOR_POOL.filter((a) => a.platform === forcePlatform)
-    : SOCIAL_AUTHOR_POOL;
-  const author = pool[Math.floor(Math.random() * pool.length)] ?? SOCIAL_AUTHOR_POOL[0]!;
-  const text = SOCIAL_TEXT_POOL[Math.floor(Math.random() * SOCIAL_TEXT_POOL.length)] ?? SOCIAL_TEXT_POOL[0]!;
-  return {
-    id: `mock-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    platform: author.platform,
-    categorySlug: author.categorySlug,
-    categoryOther: author.categorySlug === "other" ? "Live sample" : null,
-    authorName: author.authorName,
-    authorHandle: author.authorHandle,
-    authorAvatarUrl: `https://api.dicebear.com/9.x/notionists/png?seed=${encodeURIComponent(author.authorHandle)}&size=128`,
-    authorVerified: author.platform === "x" && Math.random() > 0.55,
-    postedAtLabel: "now",
-    text,
-    likeCount: 400 + Math.floor(Math.random() * 12000),
-    replyCount: Math.floor(Math.random() * 180),
-    retweetCount: Math.floor(Math.random() * 90),
-    quoteCount: Math.floor(Math.random() * 40),
-    impressionCount: Math.random() > 0.25 ? Math.floor(Math.random() * 80000) : null,
-  };
-}
 
 type ActivityItem = {
   type: "win" | "call";
@@ -1803,15 +1396,6 @@ function OpportunitiesSkeletonRows() {
   );
 }
 
-function NotesPanel() {
-  return (
-    <section className="mb-8">
-      <PanelCard title="Notes" titleClassName="normal-case">
-        <p className="mt-2 text-sm text-zinc-500">No notes yet.</p>
-      </PanelCard>
-    </section>
-  );
-}
 
 function TrendingPanel() {
   const [timeframe, setTimeframe] = useState<"5m" | "1h" | "24h">("1h");
@@ -2624,7 +2208,70 @@ type ActivityFeedPanelProps = {
   viewerId?: string;
   viewerName?: string | null;
   hasProFeatures?: boolean;
+  onSubmitCall?: () => void;
 };
+
+function activityFeedEmptyCopy(
+  feedMode: ActivityFeedPanelProps["feedMode"],
+  followingCount: number,
+  onSubmitCall?: () => void,
+): {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  actionHref?: string;
+  badge: string;
+} {
+  switch (feedMode) {
+    case "me":
+      return {
+        badge: "Activity",
+        title: "No calls logged yet",
+        description:
+          "Submit a verified desk call — it appears here, on the tape, and in Performance Lab.",
+        actionLabel: "Submit call",
+        onAction: onSubmitCall,
+      };
+    case "following":
+      return followingCount === 0
+        ? {
+            badge: "Following",
+            title: "You're not following anyone",
+            description:
+              "Follow members from the leaderboard or their profile to see their calls here.",
+            actionLabel: "Browse leaderboard",
+            actionHref: "/leaderboard?period=rolling24h",
+          }
+        : {
+            badge: "Following",
+            title: "Quiet from your follows",
+            description:
+              "When people you follow log calls or hit milestones, they show up here.",
+          };
+    case "milestones":
+      return {
+        badge: "Wins",
+        title: "No wins on tape yet",
+        description: "2× and higher milestones from verified desk calls land here in real time.",
+      };
+    case "calls":
+      return {
+        badge: "Calls",
+        title: "No desk calls yet",
+        description: "The live call stream fills as members submit verified entries.",
+        actionLabel: "Submit call",
+        onAction: onSubmitCall,
+      };
+    default:
+      return {
+        badge: "Activity",
+        title: "The desk is warming up",
+        description:
+          "Verified calls and milestones from the room stream here as members trade.",
+      };
+  }
+}
 
 function activityFeedRowTintClass(item: ActivityItem): string {
   if (item.type === "win") {
@@ -2675,7 +2322,9 @@ function ActivityFeedPanel({
   viewerId,
   viewerName,
   hasProFeatures = true,
+  onSubmitCall,
 }: ActivityFeedPanelProps) {
+  const emptyFeed = activityFeedEmptyCopy(feedMode, followingIds.size, onSubmitCall);
   const filteredActivity = useMemo(() => {
     let rows = activity;
     if (feedMode === "me") {
@@ -2804,19 +2453,7 @@ function ActivityFeedPanel({
         {loadingActivity ? (
           <ActivityFeedSkeleton />
         ) : filteredActivity.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-zinc-500">
-              {feedMode === "me"
-                ? "No activity from you yet"
-                : feedMode === "following"
-                ? "No activity from people you follow"
-                : feedMode === "milestones"
-                  ? "No milestones yet"
-                  : feedMode === "calls"
-                    ? "No calls yet"
-                    : "No activity yet"}
-            </p>
-          </div>
+          <DashboardWidgetEmpty {...emptyFeed} />
         ) : (
           <ul className="space-y-2.5 text-sm sm:space-y-0">
             {filteredActivity.map((item, i) => {
@@ -2968,58 +2605,6 @@ function ActivityFeedPanel({
   );
 }
 
-type FollowingFeedItem = {
-  user: string;
-  action: "called" | "hit 2x" | "hit 3x";
-  token: string;
-  multiple: number;
-  time: string;
-};
-
-const FOLLOWING_FEED_MOCK: FollowingFeedItem[] = [
-  { user: "McGzyy", action: "called", token: "ABC", multiple: 2.4, time: "2m ago" },
-  { user: "Luna", action: "hit 2x", token: "SOLXYZ", multiple: 2.1, time: "8m ago" },
-  { user: "Dex", action: "called", token: "DEV123", multiple: 1.3, time: "14m ago" },
-  { user: "Nova", action: "hit 3x", token: "PEPE2", multiple: 3.2, time: "22m ago" },
-  { user: "Artemis", action: "called", token: "WIF", multiple: 1.9, time: "35m ago" },
-  { user: "Kairo", action: "hit 2x", token: "BOME", multiple: 2.6, time: "49m ago" },
-  { user: "Vega", action: "called", token: "JUP", multiple: 1.1, time: "1h ago" },
-];
-
-function FollowingFeedPanel() {
-  return (
-    <PanelCard title="Following Feed">
-      <ul className="mt-2 max-h-[300px] overflow-y-auto pr-1 text-sm">
-        {FOLLOWING_FEED_MOCK.slice(0, 10).map((item, i) => (
-          <li
-            key={`${item.user}-${item.token}-${item.time}-${i}`}
-            className="border-b border-zinc-800/90 last:border-b-0"
-          >
-            <div className="-mx-1 flex items-start justify-between gap-3 rounded-md py-2 pl-1 pr-1 transition-colors duration-150 hover:bg-zinc-800/30 sm:pl-2 sm:pr-2">
-              <div className="min-w-0">
-                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <span className="min-w-0 truncate font-medium text-zinc-100">
-                    {item.user}
-                  </span>
-                  <span className="text-zinc-500">{item.action}</span>
-                  <span className="font-medium text-zinc-200">{item.token}</span>
-                </p>
-                <p className="mt-0.5 text-xs text-zinc-500">
-                  {item.time}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="font-semibold tabular-nums text-zinc-100">
-                  {Number.isFinite(item.multiple) ? `${item.multiple.toFixed(1)}x` : "-"}
-                </p>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </PanelCard>
-  );
-}
 
 function SocialFeedMetricPill({
   label,
@@ -3874,92 +3459,6 @@ type OpportunitySetup = {
   note: string;
 };
 
-const OPPORTUNITIES_MOCK: OpportunitySetup[] = [
-  {
-    id: "opp-1",
-    symbol: "WIF",
-    mint: "EKpQGSJtjMFqKZ9q8i7vNQkWQwGJcD3u3wqBzQk9sYtX",
-    setup: "Breakout",
-    score: 88,
-    timeframe: "5m",
-    market: "SOL Memes",
-    trigger: "Break above $2.45 with volume confirmation",
-    invalidation: "Lose $2.34 (range low)",
-    liquidityUsd: 12_400_000,
-    volumeUsd: 18_900_000,
-    note: "Tight range + rising bids. Let it prove strength.",
-  },
-  {
-    id: "opp-2",
-    symbol: "JUP",
-    mint: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
-    setup: "Reclaim",
-    score: 76,
-    timeframe: "1h",
-    market: "Majors",
-    trigger: "Reclaim $1.15 and hold above VWAP",
-    invalidation: "Close below $1.09",
-    liquidityUsd: 31_800_000,
-    volumeUsd: 9_400_000,
-    note: "Cleaner structure; patience beats chasing.",
-  },
-  {
-    id: "opp-3",
-    symbol: "BOME",
-    mint: "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82",
-    setup: "Sweep",
-    score: 81,
-    timeframe: "5m",
-    market: "SOL Memes",
-    trigger: "Sweep lows then reclaim $0.0140",
-    invalidation: "Lower low + no reclaim",
-    liquidityUsd: 4_900_000,
-    volumeUsd: 8_100_000,
-    note: "Watch for quick reclaim; don’t marry it.",
-  },
-  {
-    id: "opp-4",
-    symbol: "PYTH",
-    mint: "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
-    setup: "VWAP Bounce",
-    score: 72,
-    timeframe: "1h",
-    market: "Majors",
-    trigger: "Bounce VWAP with higher low",
-    invalidation: "VWAP loss + weak bids",
-    liquidityUsd: 6_700_000,
-    volumeUsd: 3_200_000,
-    note: "If it holds VWAP twice, runners usually follow.",
-  },
-  {
-    id: "opp-5",
-    symbol: "MEW",
-    mint: "MEW1gQWJ3nEXg2qZrJ2Jc8Gd8oZ2e2u9X1pQGqVJ9uQ",
-    setup: "Rotation Leader",
-    score: 84,
-    timeframe: "5m",
-    market: "New Pairs",
-    trigger: "Hold above launch VWAP, then push highs",
-    invalidation: "Break below VWAP with heavy sells",
-    liquidityUsd: 2_700_000,
-    volumeUsd: 5_900_000,
-    note: "Lead coin behavior. Size only after confirmation.",
-  },
-  {
-    id: "opp-6",
-    symbol: "ORCA",
-    mint: "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
-    setup: "Reclaim",
-    score: 69,
-    timeframe: "4h",
-    market: "Majors",
-    trigger: "Reclaim $3.25 and hold on retest",
-    invalidation: "Fail retest; back into range",
-    liquidityUsd: 8_900_000,
-    volumeUsd: 1_900_000,
-    note: "Higher timeframe: wait for retest confirmation.",
-  },
-];
 
 function OpportunitiesPanel() {
   const [timeframe, setTimeframe] = useState<SetupTimeframe>("5m");
@@ -4071,7 +3570,16 @@ function OpportunitiesPanel() {
           </div>
         </div>
         <div className="text-[11px] text-zinc-500">
-          {apiLoading ? "Loading…" : "Live • feed wired"}
+          {apiLoading ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400/80" aria-hidden />
+              Loading
+            </span>
+          ) : rows.length > 0 ? (
+            <span>{rows.length} setup{rows.length === 1 ? "" : "s"}</span>
+          ) : (
+            "No matches"
+          )}
         </div>
       </div>
 
@@ -4090,16 +3598,11 @@ function OpportunitiesPanel() {
           {apiLoading && rows.length === 0 ? (
             <OpportunitiesSkeletonRows />
           ) : rows.length === 0 ? (
-            <div className="flex h-full items-center justify-center px-3 py-10">
-              <div className="text-center">
-                <p className="text-sm font-semibold text-zinc-200">
-                  No setups
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Try a different timeframe or market.
-                </p>
-              </div>
-            </div>
+            <DashboardWidgetEmpty
+              badge="Setups"
+              title="No setups right now"
+              description="Scanners refresh on a short cadence. Try another timeframe or market filter."
+            />
           ) : (
             <ul className="space-y-1">
               {rows.map((row, i) => (
@@ -5101,10 +4604,6 @@ export default function Home() {
       </div>
     );
 
-  // TODO: add badges next to usernames
-  // TODO: allow widget resizing / layout control
-  // TODO: move referral link under banner
-
   const showRankWidget = widgetEnabled(widgets, "rank");
   const showTrendingWidget = widgetEnabled(widgets, "trending");
 
@@ -5269,9 +4768,7 @@ export default function Home() {
 
       <div className="mb-6 grid min-w-0 max-w-full grid-cols-1 items-start gap-4 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_minmax(280px,20rem)]">
         <div className="flex min-w-0 max-w-full flex-col gap-5 overflow-x-clip">
-          {!showSocialFeedPanel ? (
-            <DeskIntelColumn refreshNonce={homeDataRefreshNonce} />
-          ) : null}
+          <DeskIntelColumn refreshNonce={homeDataRefreshNonce} />
           {showSocialProUpsell ? (
             <div data-tutorial="dashboard.socialFeedPro">
               <ProUpgradePrompt
@@ -5299,6 +4796,7 @@ export default function Home() {
                 viewerId={session.user.id}
                 viewerName={session.user.name}
                 hasProFeatures={hasProFeatures}
+                onSubmitCall={openSubmitCallModal}
               />
             </div>
           )}
@@ -5476,11 +4974,14 @@ export default function Home() {
                   <HomeRecentCallsSkeleton />
                 </div>
               ) : recentCalls.length === 0 ? (
-                <div className="mt-3 flex min-h-[5.5rem] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800/60 bg-zinc-950/20 px-3 py-8 text-center">
-                  <p className="text-sm font-medium text-zinc-300">No calls yet</p>
-                  <p className="mt-1 max-w-[14rem] text-xs leading-relaxed text-zinc-500">
-                    Verified rows show here after you log calls from the terminal.
-                  </p>
+                <div className="mt-3 rounded-xl border border-dashed border-zinc-800/60 bg-zinc-950/20">
+                  <DashboardWidgetEmpty
+                    badge="Calls"
+                    title="No calls yet"
+                    description="Verified rows show here after you log a desk call from Quick Actions."
+                    actionLabel="Submit call"
+                    onAction={openSubmitCallModal}
+                  />
                 </div>
               ) : (
                 <div className={`mt-3 ${terminalSurface.dashboardListWell}`}>
