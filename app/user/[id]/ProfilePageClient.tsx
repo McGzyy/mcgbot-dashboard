@@ -27,15 +27,18 @@ import { useNotifications } from "@/app/contexts/NotificationsContext";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  terminalChrome,
+  terminalPage,
+  terminalSurface,
+  terminalUi,
+} from "@/lib/terminalDesignTokens";
 
 const CARD_HOVER =
   "transition-[box-shadow,border-color,transform,filter] duration-200 ease-out motion-safe:hover:border-zinc-600/55 motion-safe:hover:shadow-lg motion-safe:hover:shadow-black/40 motion-safe:hover:-translate-y-0.5";
 
-/** Profile hero + shared deck framing — readable on shares / screenshots. */
-const PROFILE_HERO_SHELL =
-  "relative mb-10 overflow-hidden rounded-[1.75rem] border border-zinc-800/75 bg-zinc-950/50 shadow-[0_40px_120px_-52px_rgba(0,0,0,0.92)] ring-1 ring-white/[0.06] backdrop-blur-[2px]";
+const PROFILE_HERO_SHELL = `${terminalSurface.routeHeroFrame} ${terminalSurface.insetEdge} relative mb-10 overflow-hidden`;
 
 /** In-page anchors — offset matches TopBar + optional announcement (see dashboardStickyChrome). */
 const PROFILE_STICKY_BELOW_CHROME =
@@ -43,8 +46,47 @@ const PROFILE_STICKY_BELOW_CHROME =
 const PROFILE_SECTION_SCROLL =
   "scroll-mt-[var(--dashboard-sticky-below-chrome,6rem)]";
 
-const TROPHY_TIER_WELL =
-  "rounded-xl border border-zinc-800/50 bg-gradient-to-b from-zinc-900/45 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.14)] ring-1 ring-white/[0.03]";
+const PROFILE_PRIMARY_BTN =
+  "rounded-lg border border-zinc-700/80 bg-gradient-to-b from-zinc-800/95 to-zinc-900/95 px-3.5 py-2 text-xs font-semibold text-zinc-100 shadow-md shadow-black/25 transition hover:border-cyan-500/35 hover:from-zinc-700/95 hover:to-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/35 disabled:opacity-50 motion-safe:active:scale-[0.98]";
+
+const TROPHY_TIER_WELL = `${terminalSurface.insetPanel} ${terminalSurface.insetEdgeSoft} p-3`;
+
+function profileNavLinkClass(active: boolean): string {
+  return active
+    ? "block rounded-md border-l-2 border-cyan-400/90 bg-cyan-500/10 py-2 pl-2.5 -ml-px text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-100"
+    : "block rounded-md py-2 pl-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 transition hover:bg-zinc-900/80 hover:text-zinc-200";
+}
+
+function profileNavPillClass(active: boolean): string {
+  return active
+    ? "shrink-0 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-100"
+    : "shrink-0 rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 transition hover:border-zinc-700 hover:text-zinc-200";
+}
+
+function ProfileSectionHeader({
+  kicker,
+  title,
+  hint,
+  badge,
+}: {
+  kicker: string;
+  title: string;
+  hint?: string;
+  badge?: ReactNode;
+}) {
+  return (
+    <div className="relative z-[1] mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-zinc-800/60 pb-4">
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-300/75">
+          {kicker}
+        </p>
+        <h2 className={`${terminalPage.sectionTitle} mt-1.5 text-lg sm:text-xl`}>{title}</h2>
+        {hint ? <p className={`${terminalPage.sectionHint} mt-1 max-w-2xl`}>{hint}</p> : null}
+      </div>
+      {badge ?? null}
+    </div>
+  );
+}
 
 function TrophyEmptyHint({ short }: { short?: boolean }) {
   return (
@@ -276,12 +318,11 @@ function PinnedCallSpotlight({
       : fmt.display;
   return (
     <section
-      className="relative isolate overflow-hidden rounded-2xl border border-emerald-500/35 bg-gradient-to-br from-zinc-900 via-zinc-950 to-emerald-950/45 p-6 shadow-2xl shadow-black/50 ring-1 ring-emerald-500/25 sm:p-8"
+      className={`relative isolate overflow-hidden ${terminalSurface.routeHeroFrame} border-emerald-500/30 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-emerald-950/35 p-6 ring-emerald-500/15 sm:p-8`}
       aria-label="Pinned call showcase"
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/55 to-transparent" />
-      <div className="pointer-events-none absolute -right-28 -top-28 h-80 w-80 rounded-full bg-emerald-400/18 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 left-0 h-60 w-60 rounded-full bg-cyan-500/12 blur-3xl" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[2] h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
+      <div className="pointer-events-none absolute -right-20 -top-16 h-48 w-48 rounded-full bg-emerald-500/[0.08] blur-3xl" aria-hidden />
       <div className="relative grid gap-6 sm:grid-cols-[1fr_auto] sm:items-end">
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-emerald-400/95">
@@ -323,7 +364,7 @@ function PinnedCallSpotlight({
 function PinnedCallSpotlightSkeleton() {
   return (
     <section
-      className="relative isolate overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 sm:p-8"
+      className={`relative isolate overflow-hidden ${terminalSurface.insetPanel} p-6 sm:p-8`}
       aria-busy
       aria-label="Loading pinned call"
     >
@@ -616,10 +657,8 @@ function StatCard({
 }) {
   return (
     <div
-      className={`relative isolate flex min-h-[5.75rem] flex-col justify-between overflow-hidden rounded-xl border px-4 py-3.5 shadow-md backdrop-blur-sm ${CARD_HOVER} motion-safe:hover:brightness-[1.04] ${
-        accent
-          ? "border-cyan-400/25 bg-gradient-to-br from-cyan-950/40 via-zinc-900/90 to-zinc-950 shadow-[inset_0_1px_0_0_rgba(34,211,238,0.14)] ring-1 ring-cyan-500/10"
-          : "border-zinc-800/50 bg-gradient-to-br from-zinc-900/75 to-zinc-950 ring-1 ring-zinc-700/20 shadow-black/30"
+      className={`${terminalPage.statTile} relative isolate flex min-h-[5.75rem] flex-col justify-between ${CARD_HOVER} motion-safe:hover:brightness-[1.03] ${
+        accent ? "border-cyan-500/25 ring-1 ring-cyan-500/10" : ""
       }`}
     >
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -660,11 +699,12 @@ function PanelCard({
   return (
     <div
       data-tutorial={dataTutorial}
-      className={`${terminalSurface.insetPanel} relative isolate w-full px-4 py-4 sm:px-5 sm:py-4 ${CARD_HOVER} ${className}`.trim()}
+      className={`${terminalSurface.insetPanel} ${terminalSurface.insetEdge} relative isolate w-full px-4 py-4 sm:px-5 sm:py-5 ${CARD_HOVER} ${className}`.trim()}
     >
-      <h2 className="mb-3 flex items-center gap-2.5 border-b border-zinc-800/45 pb-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-zinc-400">
+      <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/25 to-transparent sm:inset-x-5" />
+      <h2 className="relative mb-3 flex items-center gap-2.5 border-b border-zinc-800/50 pb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
         <span
-          className="inline-flex h-1 w-1 shrink-0 rounded-full bg-cyan-400/90 shadow-[0_0_14px_rgba(34,211,238,0.5)]"
+          className="inline-flex h-1 w-1 shrink-0 rounded-full bg-cyan-400/90 shadow-[0_0_10px_rgba(34,211,238,0.45)]"
           aria-hidden
         />
         {title}
@@ -679,8 +719,7 @@ function DepthMetricsGrid({
 }: {
   keyStats: NonNullable<ProfilePayload["keyStats"]>;
 }) {
-  const baseTile =
-    "rounded-xl border px-3.5 py-3 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.16)] ring-1 ring-zinc-700/20";
+  const baseTile = terminalPage.statTile;
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       {ks.bestMultiple != null ? (
@@ -1687,6 +1726,59 @@ export default function ProfilePageClient() {
     show_pinned_call: profile?.profile_visibility?.show_pinned_call ?? true,
   };
 
+  const profileNavItems = useMemo(() => {
+    const items: { href: string; id: string; label: string }[] = [];
+    if (visibility.show_pinned_call) {
+      items.push({ href: "#signature-pick", id: "signature-pick", label: "Signature" });
+    }
+    if (visibility.show_stats) {
+      items.push({ href: "#performance", id: "performance", label: "Performance" });
+    }
+    if (visibility.show_trophies) {
+      items.push({ href: "#trophies", id: "trophies", label: "Trophies" });
+    }
+    items.push({ href: "#distribution", id: "distribution", label: "Distribution" });
+    if (isTrustedPro) {
+      items.push({ href: "#trusted-pro", id: "trusted-pro", label: "Trusted Pro" });
+    }
+    if (visibility.show_calls) {
+      items.push({ href: "#recent-calls", id: "recent-calls", label: "Recent calls" });
+    }
+    return items;
+  }, [
+    visibility.show_pinned_call,
+    visibility.show_stats,
+    visibility.show_trophies,
+    visibility.show_calls,
+    isTrustedPro,
+  ]);
+
+  const [activeProfileSection, setActiveProfileSection] = useState(
+    () => profileNavItems[0]?.id ?? "performance"
+  );
+
+  useEffect(() => {
+    if (profileNavItems.length === 0) return;
+    const elements = profileNavItems
+      .map((item) => document.getElementById(item.id))
+      .filter((el): el is HTMLElement => el != null);
+    if (elements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        const top = visible[0]?.target;
+        if (top?.id) setActiveProfileSection(top.id);
+      },
+      { rootMargin: "-18% 0px -58% 0px", threshold: [0.08, 0.2, 0.45] }
+    );
+
+    for (const el of elements) observer.observe(el);
+    return () => observer.disconnect();
+  }, [profileNavItems, loading]);
+
   const keyStatsPayload = profile?.keyStats;
   const hasDepthMetrics = Boolean(
     keyStatsPayload &&
@@ -1788,15 +1880,15 @@ export default function ProfilePageClient() {
   return (
     <div className="min-w-0">
       <div
-        className="relative mx-auto max-w-4xl animate-fade-in px-2 pb-16 selection:bg-cyan-500/20 selection:text-zinc-50 sm:px-0 lg:max-w-6xl"
+        className="relative mx-auto max-w-6xl animate-fade-in px-4 pb-[calc(4rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] pt-2 selection:bg-cyan-500/20 selection:text-zinc-50 sm:px-6"
         data-tutorial="profile.pageIntro"
       >
         <div
-          className="pointer-events-none absolute -left-24 top-0 hidden h-72 w-72 rounded-full bg-cyan-500/[0.06] blur-3xl lg:block"
+          className="pointer-events-none absolute -left-32 top-8 hidden h-64 w-64 rounded-full bg-cyan-500/[0.04] blur-3xl lg:block"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -right-32 top-48 hidden h-96 w-96 rounded-full bg-violet-600/[0.05] blur-3xl lg:block"
+          className="pointer-events-none absolute -right-40 top-56 hidden h-72 w-72 rounded-full bg-violet-600/[0.03] blur-3xl lg:block"
           aria-hidden
         />
 
@@ -1850,10 +1942,10 @@ export default function ProfilePageClient() {
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
-                      Trader profile
+                      Trader desk
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-2">
-                      <h1 className="text-[1.65rem] font-semibold tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.55)] sm:text-[2.125rem] sm:leading-tight">
+                      <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.55)] sm:text-4xl sm:leading-tight">
                         {showNameSkeleton ? (
                           <span className="inline-block h-9 w-52 max-w-full animate-pulse rounded-md bg-zinc-800/90" />
                         ) : (
@@ -2007,7 +2099,7 @@ export default function ProfilePageClient() {
                       <Link
                         href="#performance"
                         scroll
-                        className="group w-full min-w-[12rem] rounded-xl border border-zinc-700/50 bg-gradient-to-b from-zinc-900/80 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] ring-1 ring-white/[0.04] transition motion-safe:hover:border-cyan-500/25 motion-safe:hover:ring-cyan-500/10 sm:flex-1 lg:flex-none lg:text-right"
+                        className={`group w-full min-w-[12rem] ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} p-3 transition motion-safe:hover:border-cyan-500/25 sm:flex-1 lg:flex-none lg:text-right`}
                       >
                         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                           Track record
@@ -2069,7 +2161,50 @@ export default function ProfilePageClient() {
         <p className="mt-8 text-sm text-red-400/90">{error}</p>
       ) : null}
 
-      <div className="mt-10 grid grid-cols-12 gap-6 lg:items-start lg:gap-8">
+      {profileNavItems.length > 1 ? (
+        <nav
+          className={`mt-8 flex gap-1.5 overflow-x-auto pb-1 lg:hidden ${terminalChrome.scrollYHidden}`}
+          aria-label="Profile sections"
+        >
+          {profileNavItems.map(({ href, id, label }) => (
+            <a
+              key={href}
+              href={href}
+              aria-current={activeProfileSection === id ? "location" : undefined}
+              className={profileNavPillClass(activeProfileSection === id)}
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+      ) : null}
+
+      <div className="mt-8 lg:mt-10 lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-x-10 xl:grid-cols-[13rem_minmax(0,1fr)] xl:gap-x-12">
+        {profileNavItems.length > 1 ? (
+          <aside className="mb-6 hidden lg:block">
+            <nav
+              className={`sticky ${PROFILE_STICKY_BELOW_CHROME} z-[35] ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} space-y-0.5 p-2`}
+              aria-label="Profile sections"
+            >
+              <p className="px-2.5 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
+                On this desk
+              </p>
+              {profileNavItems.map(({ href, id, label }) => (
+                <a
+                  key={href}
+                  href={href}
+                  aria-current={activeProfileSection === id ? "location" : undefined}
+                  className={profileNavLinkClass(activeProfileSection === id)}
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
+          </aside>
+        ) : null}
+
+        <div className="min-w-0">
+      <div className="grid grid-cols-12 gap-6 lg:items-start lg:gap-8">
         {visibility.show_stats ? (
         <section
           id="performance"
@@ -2077,22 +2212,21 @@ export default function ProfilePageClient() {
           data-tutorial="profile.performance"
         >
           <div
-            className={`relative isolate overflow-hidden ${terminalSurface.routeHeroFrame} p-5 sm:p-6`}
+            className={`relative isolate overflow-hidden ${terminalSurface.routeHeroFrame} ${terminalSurface.insetEdge} p-5 sm:p-6`}
           >
-            <div className="pointer-events-none absolute -right-24 top-0 h-48 w-48 rounded-full bg-cyan-500/[0.07] blur-3xl" aria-hidden />
-            <div className="pointer-events-none absolute -left-20 bottom-0 h-40 w-40 rounded-full bg-emerald-600/[0.06] blur-3xl" aria-hidden />
             <div className="pointer-events-none absolute inset-x-4 top-0 z-[2] h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent sm:inset-x-6" />
-            <div className="relative z-[1] mb-5 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.22em] text-zinc-300">
-                <span className="h-px w-12 rounded-full bg-gradient-to-r from-cyan-400 via-cyan-400/50 to-transparent" />
-                Performance
-              </h2>
-              {profile && profile.stats.totalCalls > 0 ? (
-                <span className="rounded-full border border-zinc-700/45 bg-zinc-950/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] tabular-nums">
-                  {profile.stats.totalCalls} recorded
-                </span>
-              ) : null}
-            </div>
+            <ProfileSectionHeader
+              kicker="Track record"
+              title="Performance"
+              hint="Aggregated call stats — exclusions and visibility settings apply."
+              badge={
+                profile && profile.stats.totalCalls > 0 ? (
+                  <span className="rounded-full border border-zinc-700/45 bg-zinc-950/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 tabular-nums shadow-[inset_0_1px_0_0_rgba(63,63,70,0.2)]">
+                    {profile.stats.totalCalls} recorded
+                  </span>
+                ) : null
+              }
+            />
             <div className="relative z-[1] grid gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
               <StatCard
                 title="Avg X"
@@ -2145,12 +2279,12 @@ export default function ProfilePageClient() {
         ) : visibility.show_key_stats && hasDepthMetrics && keyStatsPayload ? (
         <section id="depth-metrics" className={`col-span-12 ${PROFILE_SECTION_SCROLL}`}>
           <div className={`relative isolate ${terminalSurface.routeHeroFrame} overflow-hidden p-5 sm:p-6`}>
-            <div className="pointer-events-none absolute -right-16 top-4 h-36 w-36 rounded-full bg-cyan-500/[0.06] blur-3xl" aria-hidden />
             <div className="pointer-events-none absolute inset-x-4 top-0 z-[2] h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent sm:inset-x-6" />
-            <h2 className="relative z-[1] mb-5 flex items-center gap-3 border-b border-zinc-800/45 pb-4 text-xs font-bold uppercase tracking-[0.22em] text-zinc-300">
-              <span className="h-px w-12 rounded-full bg-gradient-to-r from-cyan-400 via-cyan-400/50 to-transparent" />
-              Depth metrics
-            </h2>
+            <ProfileSectionHeader
+              kicker="Advanced"
+              title="Depth metrics"
+              hint="Peak, median, and recency-weighted multiples."
+            />
             <div className="relative z-[1]">
               <DepthMetricsGrid keyStats={keyStatsPayload} />
             </div>
@@ -2162,10 +2296,6 @@ export default function ProfilePageClient() {
           {visibility.show_trophies ? (
           <section id="trophies" className={`mb-4 ${PROFILE_SECTION_SCROLL}`} data-tutorial="profile.trophies">
             <PanelCard title="Trophy Case" className="relative overflow-visible">
-              <div
-                className="pointer-events-none absolute -right-12 top-24 h-44 w-44 rounded-full bg-amber-400/[0.06] blur-3xl sm:top-28"
-                aria-hidden
-              />
               {trophiesLoading ? (
                 <div className="mt-3 space-y-4" aria-busy aria-label="Loading trophies">
                   <div className="grid gap-3 sm:grid-cols-3">
@@ -2262,7 +2392,7 @@ export default function ProfilePageClient() {
                 }
 
                 return (
-                  <div className="mt-3 rounded-xl border border-zinc-800/40 bg-zinc-950/30 p-4 ring-1 ring-white/[0.03]">
+                  <div className={`mt-3 ${terminalPage.statTile} p-4`}>
                     <div className="space-y-3">
                       {rows.map((r) => {
                         const pct =
@@ -2640,21 +2770,23 @@ export default function ProfilePageClient() {
               </PanelCard>
             ) : null}
 
-            <PanelCard title="Alpha Score" className="relative overflow-hidden">
-              <div className="pointer-events-none absolute -right-6 -top-10 h-36 w-36 rounded-full bg-amber-400/12 blur-3xl" aria-hidden />
-              <div className="pointer-events-none absolute -bottom-8 left-1/3 h-28 w-28 rounded-full bg-orange-600/10 blur-3xl" aria-hidden />
-              <div className="relative mt-1 flex flex-col gap-1">
-                <p className="bg-gradient-to-br from-amber-50 via-amber-200 to-orange-300 bg-clip-text text-4xl font-black tabular-nums tracking-tight text-transparent drop-shadow-[0_2px_28px_rgba(251,191,36,0.12)] sm:text-[2.75rem] sm:leading-none">
-                  {alphaScore ? alphaScore.toFixed(2) : "—"}
-                </p>
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-                  Composite score
-                </p>
-              </div>
-            </PanelCard>
+            <div
+              className={`relative overflow-hidden ${terminalSurface.routeHeroFrame} ${terminalSurface.insetEdge} p-5`}
+            >
+              <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent" />
+              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-300/85">
+                Desk rating
+              </p>
+              <p className="mt-2 bg-gradient-to-br from-amber-50 via-amber-200 to-orange-300 bg-clip-text text-4xl font-black tabular-nums tracking-tight text-transparent sm:text-[2.75rem] sm:leading-none">
+                {alphaScore ? alphaScore.toFixed(2) : "—"}
+              </p>
+              <p className={`${terminalPage.sectionHint} mt-2`}>
+                Composite of avg X, median, recent form, and win rate.
+              </p>
+            </div>
 
             <PanelCard title="Profile Summary">
-              <div className="mt-2 space-y-0 overflow-hidden rounded-xl border border-zinc-800/45 bg-zinc-950/40 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+              <div className={`mt-2 space-y-0 overflow-hidden ${terminalSurface.insetPanel} ${terminalSurface.insetEdgeSoft}`}>
                 {xHandle ? (
                   <div className="border-b border-zinc-800/40 px-3.5 py-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
@@ -2773,6 +2905,8 @@ export default function ProfilePageClient() {
 
           </div>
         </aside>
+      </div>
+        </div>
       </div>
 
       {editOpen ? (
