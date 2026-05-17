@@ -4,6 +4,12 @@ import { getToken } from "next-auth/jwt";
 import { isAwaitingMembershipRole } from "@/lib/discordMembershipRoles";
 import { liveDashboardAccessForDiscordId } from "@/lib/dashboardGate";
 import { resolveHelpTier } from "@/lib/helpRole";
+import {
+  discordIdFromTokenFields,
+  isProtectedFromGuildFalsePositive,
+  isStaffFromToken,
+  subscriptionActiveFromToken,
+} from "@/lib/tokenDashboardGate";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
 import { isPublicProfileApi, isPublicProfilePage } from "@/lib/publicProfileRoutes";
 
@@ -68,31 +74,26 @@ function isSubscriptionProtectedApi(pathname: string): boolean {
   );
 }
 
-function subscriptionActive(token: Record<string, unknown> | null): boolean {
-  const end = token?.subscriptionActiveUntil;
-  if (typeof end !== "string" || !end) return false;
-  const t = new Date(end).getTime();
-  return Number.isFinite(t) && t > Date.now();
-}
-
 function hasDashboardAccess(token: Record<string, unknown> | null): boolean {
   if (!token) return false;
   // Staff should never be paywalled by subscription checks.
   if (token.helpTier === "admin" || token.helpTier === "mod") return true;
   if (token.canModerate === true) return true;
   if (token.subscriptionExempt === true) return true;
-  return subscriptionActive(token);
-}
-
-function isStaffToken(token: Record<string, unknown>): boolean {
-  const tier = token.helpTier;
-  return tier === "admin" || tier === "mod" || token.canModerate === true;
+  return subscriptionActiveFromToken(token);
 }
 
 function discordGateStatus(token: Record<string, unknown>): "ok" | "needs_verification" | "not_in_guild" {
-  const staffBypass = isStaffToken(token);
+  const discordId = discordIdFromTokenFields(token);
+  const staffBypass = isStaffFromToken(token, discordId);
   const inGuild = (token as Record<string, unknown> & { discordInGuild?: unknown }).discordInGuild;
-  if (inGuild === false && !staffBypass) return "not_in_guild";
+  if (
+    inGuild === false &&
+    !staffBypass &&
+    !isProtectedFromGuildFalsePositive(token, discordId)
+  ) {
+    return "not_in_guild";
+  }
   const needsVerification = (token as Record<string, unknown> & { discordNeedsVerification?: unknown })
     .discordNeedsVerification === true;
   const blockedReason = (token as Record<string, unknown> & { discordBlockedReason?: unknown })
@@ -103,18 +104,6 @@ function discordGateStatus(token: Record<string, unknown>): "ok" | "needs_verifi
     return "needs_verification";
   }
   return "ok";
-}
-
-function discordIdFromToken(token: Record<string, unknown> | null): string {
-  const pick = (v: unknown): string => {
-    if (typeof v === "string" && v.trim()) return v.trim();
-    return "";
-  };
-  const fromDiscord = pick(token?.discord_id);
-  if (fromDiscord) return fromDiscord;
-  const sub = pick(token?.sub);
-  if (sub) return sub;
-  return pick(token?.id);
 }
 
 /** Cookie claims first; if denied, re-check server (fixes stale JWT after env/code changes). */
@@ -136,7 +125,7 @@ async function hasDashboardAccessResolved(
   if (gate === "needs_verification") return false;
   if (gate === "not_in_guild") return false;
   if (hasDashboardAccess(token)) return true;
-  const id = discordIdFromToken(token);
+  const id = discordIdFromTokenFields(token);
   if (!id) return false;
   const envTier = resolveHelpTier(id);
   if (envTier === "admin" || envTier === "mod") return true;

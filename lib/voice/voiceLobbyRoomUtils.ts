@@ -13,7 +13,17 @@ import type { HelpTier } from "@/lib/helpRole";
 import { VOICE_LOBBIES, type VoiceLobbyId } from "@/lib/voice/lobbies";
 import { tierMeetsLobby } from "@/lib/voice/tierGate";
 
-export type VoiceRoomMember = { identity: string; name: string; isLocal: boolean };
+export type VoiceRoomMember = {
+  identity: string;
+  name: string;
+  isLocal: boolean;
+  /** True when the participant muted their mic (self-mute or mic disabled). */
+  micMuted: boolean;
+};
+
+function micMutedForParticipant(p: Participant): boolean {
+  return !p.isMicrophoneEnabled;
+}
 
 export type BindRoomPresenceOptions = {
   /** Fired when a remote participant connects (not you). */
@@ -40,11 +50,13 @@ export function bindRoomPresence(
         identity: lp.identity,
         name: (lp.name && lp.name.trim()) || lp.identity,
         isLocal: true,
+        micMuted: micMutedForParticipant(lp),
       },
       ...Array.from(room.remoteParticipants.values()).map((p) => ({
         identity: p.identity,
         name: (p.name && p.name.trim()) || p.identity,
         isLocal: false as const,
+        micMuted: micMutedForParticipant(p),
       })),
     ];
     members.sort((a, b) => {
@@ -75,14 +87,28 @@ export function bindRoomPresence(
     }
   };
 
+  const onTrackMuteChange = () => syncMembers();
+
   room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
   room.on(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
   room.on(RoomEvent.ActiveSpeakersChanged, onSpeakers);
+  room.on(RoomEvent.TrackMuted, onTrackMuteChange);
+  room.on(RoomEvent.TrackUnmuted, onTrackMuteChange);
+  room.on(RoomEvent.TrackPublished, onTrackMuteChange);
+  room.on(RoomEvent.TrackUnpublished, onTrackMuteChange);
+  room.on(RoomEvent.LocalTrackPublished, onTrackMuteChange);
+  room.on(RoomEvent.LocalTrackUnpublished, onTrackMuteChange);
 
   return () => {
     room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
     room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
     room.off(RoomEvent.ActiveSpeakersChanged, onSpeakers);
+    room.off(RoomEvent.TrackMuted, onTrackMuteChange);
+    room.off(RoomEvent.TrackUnmuted, onTrackMuteChange);
+    room.off(RoomEvent.TrackPublished, onTrackMuteChange);
+    room.off(RoomEvent.TrackUnpublished, onTrackMuteChange);
+    room.off(RoomEvent.LocalTrackPublished, onTrackMuteChange);
+    room.off(RoomEvent.LocalTrackUnpublished, onTrackMuteChange);
   };
 }
 

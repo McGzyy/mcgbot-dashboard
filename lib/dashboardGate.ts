@@ -120,7 +120,7 @@ export async function liveDashboardAccessForDiscordId(discordId: string): Promis
     accessCache.set(id, { ok: true, exp: now + CACHE_MS });
     return true;
   }
-  if (roleOk === false && !tierFailed && !exemptFailed && !subFailed) {
+  if (roleOk === false && !tierFailed && !exemptFailed && !subFailed && !subActive) {
     accessCache.set(id, { ok: false, exp: now + DENY_CACHE_MS });
     return false;
   }

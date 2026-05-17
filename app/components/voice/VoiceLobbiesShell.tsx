@@ -10,6 +10,7 @@ import {
   lobbyJoinAllowed,
   lobbyRequiresLabel,
 } from "@/lib/voice/voiceLobbyRoomUtils";
+import { VoiceMicMutedBadge } from "@/app/components/voice/VoiceMicMutedBadge";
 
 const shellClass =
   "relative overflow-hidden rounded-2xl border border-zinc-700/35 bg-gradient-to-b from-zinc-900/70 via-zinc-950 to-black px-5 py-5 shadow-[0_0_0_1px_rgba(63,63,70,0.35),0_28px_80px_-28px_rgba(0,0,0,0.9),inset_0_1px_0_0_rgba(63,63,70,0.3)] backdrop-blur-md transition-shadow duration-500 hover:shadow-[0_0_0_1px_rgba(82,82,91,0.45),0_32px_100px_-24px_rgba(57,255,20,0.08),inset_0_1px_0_0_rgba(63,63,70,0.35)]";
@@ -220,6 +221,7 @@ export function VoiceLobbiesShell({
                     >
                       {m.name}
                     </span>
+                    {m.micMuted ? <VoiceMicMutedBadge /> : null}
                     {m.isLocal ? (
                       <span className="shrink-0 rounded-md bg-[color:var(--accent)]/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[color:var(--accent)] ring-1 ring-[color:var(--accent)]/30">
                         You
@@ -347,6 +349,7 @@ export function VoiceLobbiesShell({
                     >
                       {p.name}
                     </span>
+                    {p.micMuted ? <VoiceMicMutedBadge /> : null}
                   </span>
                   <span className="flex shrink-0 gap-1">
                     <button

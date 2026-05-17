@@ -2,6 +2,10 @@ import type { NextAuthOptions } from "next-auth";
 import { createClient } from "@supabase/supabase-js";
 import DiscordProvider from "next-auth/providers/discord";
 import { meetsModerationMinTier, resolveHelpTierAsync } from "@/lib/helpRole";
+import {
+  isProtectedFromGuildFalsePositive,
+  isStaffFromToken,
+} from "@/lib/tokenDashboardGate";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import { getSubscriptionEnd } from "@/lib/subscription/subscriptionDb";
 import { resolveUserProductTier } from "@/lib/subscription/productTierAccess";
@@ -228,8 +232,15 @@ export const authOptions: NextAuthOptions = {
         Boolean(discordId) &&
         (typeof (token as any).discordInGuild !== "boolean" ||
           typeof (token as any).discordNeedsVerification !== "boolean");
-      const guildStaleMs =
-        (token as any).discordInGuild === false ? GUILD_REFRESH_MS_AFTER_FALSE : GUILD_REFRESH_MS;
+      const guildProtected = isProtectedFromGuildFalsePositive(
+        token as Record<string, unknown>,
+        discordId
+      );
+      const guildStaleMs = guildProtected
+        ? 5 * 60 * 1000
+        : (token as any).discordInGuild === false
+          ? GUILD_REFRESH_MS_AFTER_FALSE
+          : GUILD_REFRESH_MS;
       const guildGateStale =
         Boolean(discordId) && Date.now() - guildLastRefresh > guildStaleMs;
       const shouldRefreshGuildGate =
@@ -328,11 +339,10 @@ export const authOptions: NextAuthOptions = {
           }
 
           if (inGuild === false) {
-            const staffSticky =
-              token.helpTier === "admin" ||
-              token.helpTier === "mod" ||
-              token.canModerate === true;
-            if (!staffSticky) {
+            const staffSticky = isStaffFromToken(token as Record<string, unknown>, discordId);
+            const protectedMember =
+              staffSticky || isProtectedFromGuildFalsePositive(token as Record<string, unknown>, discordId);
+            if (!protectedMember) {
               await syncGuildMembershipToUsers(discordId, false);
               (token as any).discordInGuild = false;
               (token as any).discordNeedsVerification = false;
@@ -443,13 +453,23 @@ export const authOptions: NextAuthOptions = {
       const tierEarly = token.helpTier;
       const helpTierOk =
         tierEarly === "admin" || tierEarly === "mod" || tierEarly === "user" ? tierEarly : "user";
-      const staffVerificationBypass = helpTierOk === "admin" || helpTierOk === "mod";
+      const discordIdForSession = (token.discord_id as string | undefined) ?? token.sub ?? "";
+      const staffVerificationBypass = isStaffFromToken(
+        token as Record<string, unknown>,
+        typeof discordIdForSession === "string" ? discordIdForSession : ""
+      );
       const rawNeedsVerification = (token as any).discordNeedsVerification === true;
       const effectiveNeedsVerification = rawNeedsVerification && !staffVerificationBypass;
-      const staffSubscriptionBypass = helpTierOk === "admin" || helpTierOk === "mod";
-      // Staff can always use tools even if a transient Discord member lookup returned 404.
+      const staffSubscriptionBypass = staffVerificationBypass;
+      const protectedMember = isProtectedFromGuildFalsePositive(
+        token as Record<string, unknown>,
+        typeof discordIdForSession === "string" ? discordIdForSession : ""
+      );
+      // Staff / subscribers: do not paywall on transient Discord "not in guild" API flakes.
       const guildAllowsDashboard =
-        staffSubscriptionBypass || (token as any).discordInGuild !== false;
+        staffSubscriptionBypass ||
+        protectedMember ||
+        (token as any).discordInGuild !== false;
       const totpEnabled = (token as { totpEnabled?: boolean }).totpEnabled === true;
       const trustMs = (token as { totpTrustExpiresAt?: unknown }).totpTrustExpiresAt;
       const trustOk = typeof trustMs === "number" && Number.isFinite(trustMs) && trustMs > Date.now();
