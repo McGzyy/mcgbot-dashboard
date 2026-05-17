@@ -1,38 +1,16 @@
 "use client";
 
 import {
-  BASIC_DAILY_CALLS_LIMIT,
-  MEMBERSHIP_TIER_FEATURES,
+  TIER_COMPARE_HIGHLIGHTS,
+  TIER_DAILY_ROUTINE,
   TIER_MARKETING,
   type ProductTier,
-  type TierFeatureValue,
 } from "@/lib/subscription/planTiers";
 
 type MembershipProductCompareProps = {
   productLine: ProductTier;
   onProductLineChange: (line: ProductTier) => void;
 };
-
-function FeatureCell({ value }: { value: TierFeatureValue }) {
-  if (value === true) {
-    return (
-      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-bold text-emerald-300">
-        ✓
-      </span>
-    );
-  }
-  if (value === "10_per_day") {
-    return (
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-200/90">
-        {BASIC_DAILY_CALLS_LIMIT}/day
-      </span>
-    );
-  }
-  if (value === "limited") {
-    return <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-200/90">Limited</span>;
-  }
-  return <span className="text-zinc-600">—</span>;
-}
 
 function TierCard({
   tier,
@@ -45,6 +23,7 @@ function TierCard({
 }) {
   const meta = TIER_MARKETING[tier];
   const isPro = tier === "pro";
+  const highlights = TIER_COMPARE_HIGHLIGHTS[tier];
 
   const shell = isPro
     ? selected
@@ -69,7 +48,11 @@ function TierCard({
         <span className="absolute -top-px left-1/2 -translate-x-1/2 rounded-b-lg border border-sky-400/30 border-t-0 bg-sky-500/20 px-3 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-sky-100">
           Full stack
         </span>
-      ) : null}
+      ) : (
+        <span className="absolute -top-px left-1/2 -translate-x-1/2 rounded-b-lg border border-emerald-400/30 border-t-0 bg-emerald-500/15 px-3 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-100">
+          Daily desk
+        </span>
+      )}
 
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -92,13 +75,23 @@ function TierCard({
         </span>
       </div>
 
-      <ul className="mt-5 flex-1 space-y-2 border-t border-white/[0.06] pt-5">
-        {MEMBERSHIP_TIER_FEATURES.map((row) => (
-          <li key={`${tier}-${row.label}`} className="flex items-center gap-2.5 text-[13px]">
-            <span className="shrink-0">
-              <FeatureCell value={row[tier]} />
+      <p
+        className={`mt-4 rounded-xl border px-3 py-2.5 text-[13px] leading-relaxed ${
+          isPro
+            ? "border-sky-500/20 bg-sky-500/5 text-sky-100/90"
+            : "border-emerald-500/20 bg-emerald-500/5 text-emerald-50/95"
+        }`}
+      >
+        {TIER_DAILY_ROUTINE[tier]}
+      </p>
+
+      <ul className="mt-4 flex-1 space-y-2 border-t border-white/[0.06] pt-4">
+        {highlights.map((line) => (
+          <li key={line} className="flex items-start gap-2 text-[13px] text-zinc-400">
+            <span className={`mt-0.5 shrink-0 ${isPro ? "text-sky-400" : "text-emerald-400"}`} aria-hidden>
+              ✓
             </span>
-            <span className={row[tier] === false ? "text-zinc-600" : "text-zinc-400"}>{row.label}</span>
+            <span>{line}</span>
           </li>
         ))}
       </ul>
@@ -123,7 +116,8 @@ export function MembershipProductCompare({
             Choose your tier
           </h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
-            Basic is the full desk. Pro unlocks Outside Calls, social feed, and unlimited desk submissions.
+            Most members live on <span className="font-medium text-emerald-300/90">Basic</span> — a
+            daily call log and desk stats. Pick Pro when you need Outside Calls or the social column.
           </p>
         </div>
         <p className="text-xs text-zinc-600 sm:pb-1">Then pick monthly or annual below</p>
@@ -141,6 +135,12 @@ export function MembershipProductCompare({
           onSelect={() => onProductLineChange("pro")}
         />
       </div>
+
+      <p className="mt-4 text-center text-xs leading-relaxed text-zinc-600">
+        Already on Basic? Upgrade to Pro from{" "}
+        <span className="text-zinc-500">Outside Calls</span> or the social feed when you hit those
+        surfaces — not required for the core desk loop.
+      </p>
     </section>
   );
 }

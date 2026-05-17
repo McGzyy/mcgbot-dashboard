@@ -30,14 +30,35 @@ export const TIER_MARKETING: Record<
 > = {
   basic: {
     title: "Basic",
-    tagline: "Full desk access — calls, stats, watchlist, and profiles.",
+    tagline: "Your daily desk — log calls, read the tape, and track performance.",
     accent: "emerald",
   },
   pro: {
     title: "Pro",
-    tagline: "Everything in Basic plus features that run ongoing API & credit cost.",
+    tagline: "Everything in Basic, plus Outside Calls, social ingest, and unlimited submissions.",
     accent: "sky",
   },
+};
+
+/** One-line “what you do daily” — shown on membership, not a feature matrix. */
+export const TIER_DAILY_ROUTINE: Record<ProductTier, string> = {
+  basic: `Log up to ${BASIC_DAILY_CALLS_LIMIT} verified desk calls per day, follow live activity, and review your edge in Performance Lab.`,
+  pro: "Run unlimited desk calls, monitor outside sources, and use the live X social column when you need API-heavy workflows.",
+};
+
+/** Short bullets on tier cards (3–4 each). Full matrix stays in docs/admin. */
+export const TIER_COMPARE_HIGHLIGHTS: Record<ProductTier, string[]> = {
+  basic: [
+    "Submit desk calls from the terminal",
+    "Live activity, 24h leaderboard & desk intel",
+    "Call log, Performance Lab & watchlist",
+  ],
+  pro: [
+    "Unlimited desk submissions per day",
+    "Outside Calls tape + monitor submissions",
+    "Home social feed when enabled",
+    "Full personal alerts & rich X digests",
+  ],
 };
 
 export function normalizeProductTier(raw: unknown): ProductTier {

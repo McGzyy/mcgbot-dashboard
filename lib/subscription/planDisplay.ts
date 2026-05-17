@@ -47,3 +47,31 @@ export function billingPeriodNoun(billingMonths: number): string {
   if (m === 12) return "year";
   return `${m} months`;
 }
+
+export type PlanPriceSlice = { priceUsd: number; billingMonths: number };
+
+/** Compare annual checkout to twelve monthly payments (same tier line). */
+export function annualSavingsVsMonthly(
+  monthlyPlan: PlanPriceSlice | null | undefined,
+  annualPlan: PlanPriceSlice | null | undefined,
+): {
+  savingsUsd: number;
+  savingsPercent: number;
+  monthlyIfAnnual: number;
+  yearlyIfMonthly: number;
+} | null {
+  if (!monthlyPlan || !annualPlan) return null;
+  if (monthlyPlan.billingMonths !== 1 || annualPlan.billingMonths !== 12) return null;
+  const monthly = Number(monthlyPlan.priceUsd);
+  const annual = Number(annualPlan.priceUsd);
+  if (!Number.isFinite(monthly) || !Number.isFinite(annual) || monthly <= 0) return null;
+  const yearlyIfMonthly = monthly * 12;
+  if (yearlyIfMonthly <= annual) return null;
+  const savingsUsd = yearlyIfMonthly - annual;
+  return {
+    savingsUsd,
+    savingsPercent: Math.round((savingsUsd / yearlyIfMonthly) * 100),
+    monthlyIfAnnual: annual / 12,
+    yearlyIfMonthly,
+  };
+}

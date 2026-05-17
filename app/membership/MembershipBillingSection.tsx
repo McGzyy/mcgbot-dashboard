@@ -5,6 +5,7 @@ import {
   MembershipSolPayNote,
 } from "@/app/membership/MembershipSolCheckout";
 import {
+  annualSavingsVsMonthly,
   billingCadenceLabel,
   billingPeriodNoun,
   formatUsd,
@@ -117,6 +118,12 @@ export function MembershipBillingSection({
       ? planMonthlyEquivalent(selectedPlan.priceUsd, selectedPlan.billingMonths)
       : null;
 
+  const monthlyPlan = plansForLine.find((p) => p.billingMonths === 1) ?? null;
+  const annualPlan = plansForLine.find((p) => p.billingMonths === 12) ?? null;
+  const annualSavings = annualSavingsVsMonthly(monthlyPlan, annualPlan);
+  const selectedAnnualSavings =
+    selectedPlan?.billingMonths === 12 ? annualSavings : null;
+
   return (
     <section className="mx-auto w-full max-w-4xl" aria-labelledby="membership-billing-heading">
       <div className="overflow-hidden rounded-3xl border border-zinc-800/60 bg-[linear-gradient(168deg,rgba(18,18,20,0.95)_0%,rgba(6,6,8,0.98)_48%,rgba(0,0,0,0.85)_100%)] shadow-[0_32px_120px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.04]">
@@ -174,6 +181,39 @@ export function MembershipBillingSection({
               No {isPro ? "Pro" : "Basic"} billing options are configured yet.
             </p>
           ) : (
+            <>
+            {annualSavings ? (
+              <div
+                className={`mb-4 max-w-xl rounded-2xl border px-4 py-3.5 sm:px-5 ${
+                  isPro
+                    ? "border-sky-500/25 bg-sky-500/10"
+                    : "border-emerald-500/25 bg-emerald-500/10"
+                }`}
+              >
+                <p
+                  className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
+                    isPro ? "text-sky-300/90" : "text-emerald-300/90"
+                  }`}
+                >
+                  Save with annual
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-zinc-200">
+                  Pay{" "}
+                  <span className="font-semibold tabular-nums text-white">
+                    {formatUsd(annualSavings.savingsUsd)}
+                  </span>{" "}
+                  less than twelve monthly payments (
+                  <span className="font-semibold tabular-nums text-zinc-300">
+                    {annualSavings.savingsPercent}% off
+                  </span>
+                  ) — about{" "}
+                  <span className="font-semibold tabular-nums text-zinc-300">
+                    {formatUsd(annualSavings.monthlyIfAnnual)}/mo
+                  </span>{" "}
+                  effective on annual billing.
+                </p>
+              </div>
+            ) : null}
             <div
               className={
                 planCardsVisuallyLocked
@@ -257,6 +297,11 @@ export function MembershipBillingSection({
                       ) : (
                         <p className="mt-1 h-[15px]" aria-hidden />
                       )}
+                      {p.billingMonths === 12 && annualSavings ? (
+                        <p className="mt-1 text-[11px] font-semibold text-emerald-300/95">
+                          Save {formatUsd(annualSavings.savingsUsd)} vs 12× monthly
+                        </p>
+                      ) : null}
                       {showDiscount ? (
                         <p className="mt-1.5 text-[10px] leading-relaxed text-zinc-500">
                           <span className="tabular-nums line-through decoration-zinc-600/80">
@@ -279,6 +324,7 @@ export function MembershipBillingSection({
                 );
               })}
             </div>
+            </>
           )}
 
           <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_280px] lg:items-start">
@@ -379,6 +425,16 @@ export function MembershipBillingSection({
                   {selectedMonthly != null && selectedPlan.billingMonths > 1 ? (
                     <p className="mt-1 text-right text-[11px] text-zinc-600">
                       {formatUsd(selectedMonthly)}/mo effective
+                    </p>
+                  ) : null}
+                  {selectedAnnualSavings ? (
+                    <p className="mt-2 rounded-lg border border-emerald-500/20 bg-emerald-500/8 px-3 py-2 text-[11px] leading-relaxed text-emerald-100/90">
+                      You save{" "}
+                      <span className="font-semibold tabular-nums text-emerald-50">
+                        {formatUsd(selectedAnnualSavings.savingsUsd)}
+                      </span>{" "}
+                      ({selectedAnnualSavings.savingsPercent}% off) compared with paying monthly
+                      for a year.
                     </p>
                   ) : null}
                   {!checkoutAllowed ? (

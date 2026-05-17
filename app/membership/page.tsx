@@ -735,7 +735,7 @@ export default function MembershipPage() {
           </h1>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-zinc-500">
             {siteFlags?.paywall_subtitle?.trim() ||
-              "Choose Basic or Pro, pick monthly or annual billing, then checkout with Stripe or SOL."}
+              "Start with Basic for the daily desk loop — log calls, track performance, compete on the board. Annual billing saves vs monthly."}
           </p>
 
           <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-2">
@@ -969,7 +969,9 @@ export default function MembershipPage() {
           onStartCheckout={() => void startCheckout()}
           onRedeemComplimentary={() => void redeemComplimentary()}
           onSolActivated={async () => {
-            setPollNote("Payment confirmed. Activating your session?");
+            markMembershipWelcome();
+            setShowActivationWelcome(true);
+            setPollNote("Payment confirmed — unlocking your desk…");
             await update({ refreshAccess: true });
           }}
           maintenanceNote={

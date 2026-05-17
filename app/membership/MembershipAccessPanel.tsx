@@ -111,15 +111,6 @@ export function MembershipAccessPanel({
         </ul>
       ) : null}
 
-      {!isWelcome && active && !hasProFeatures && !exempt ? (
-        <p className="mt-4 text-sm text-zinc-400">
-          Upgrade to Pro for Outside Calls, social feed, and full alerts.{" "}
-          <Link href="/membership?line=pro&upgrade=1" className="font-semibold text-sky-300 hover:text-sky-200">
-            View Pro plans
-          </Link>
-        </p>
-      ) : null}
-
       <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {isWelcome ? (
           <>
