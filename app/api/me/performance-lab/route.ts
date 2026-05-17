@@ -19,6 +19,10 @@ import {
   computeActiveDaysStreakUtc,
   hitRate2xInLastMs,
 } from "@/lib/callPerformanceUserStats";
+import {
+  computePeriodCompare,
+  type PerformanceLabWindow,
+} from "@/lib/performanceLabInsights";
 import { buildDailyCallBuckets, computeMultipleDistribution } from "@/lib/performanceSeries";
 import { rollingSevenDaysStartUtcMs } from "@/lib/leaderboardTimeWindows";
 import { filterCallRowsForStats, getStatsCutoverUtcMs, mergeStatsCutoverIntoMin } from "@/lib/statsCutover";
@@ -71,8 +75,16 @@ export async function GET() {
     const bestX30d = bestXInLastMs(rows, ROLLING_30D_MS, now);
     const hitRate2x30d = hitRate2xInLastMs(rows, ROLLING_30D_MS, now);
 
+    const series7d = buildDailyCallBuckets(rows, 7, now);
     const series14d = buildDailyCallBuckets(rows, 14, now);
+    const series30d = buildDailyCallBuckets(rows, 30, now);
     const distribution = computeMultipleDistribution(rows);
+
+    const periodCompare: Record<PerformanceLabWindow, ReturnType<typeof computePeriodCompare>> = {
+      "7d": computePeriodCompare(rows, "7d", now),
+      "14d": computePeriodCompare(rows, "14d", now),
+      "30d": computePeriodCompare(rows, "30d", now),
+    };
 
     const minRolling = mergeStatsCutoverIntoMin(rollingSevenDaysStartUtcMs(now), cutoverMs);
     const { rows: allUserRows, error: allErr } = await fetchCallPerformanceForSource(supabase, "user");
@@ -105,7 +117,10 @@ export async function GET() {
         bestX30d,
         hitRate2x30d,
       },
+      series7d,
       series14d,
+      series30d,
+      periodCompare,
       distribution,
       rank7d,
       totalRanked7d,

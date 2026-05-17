@@ -1,9 +1,19 @@
 "use client";
 
+import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import { PerformancePeriodCompare } from "@/app/components/performance/PerformancePeriodCompare";
+import { PerformanceWeeklyCard } from "@/app/components/performance/PerformanceWeeklyCard";
 import Link from "next/link";
+import {
+  buildWeeklySummary,
+  pickSeriesForWindow,
+  type PerformanceLabWindow,
+  type PeriodCompare,
+} from "@/lib/performanceLabInsights";
+import type { DailyCallBucket } from "@/lib/performanceSeries";
 import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -18,15 +28,7 @@ import {
   YAxis,
 } from "recharts";
 
-type DailyBucket = {
-  dayKey: string;
-  label: string;
-  calls: number;
-  avgX: number;
-  bestX: number;
-  wins?: number;
-  winRate?: number;
-};
+type DailyBucket = DailyCallBucket;
 type Distribution = { under2: number; twoToFive: number; fivePlus: number; total: number };
 
 type LabPayload = {
@@ -42,12 +44,21 @@ type LabPayload = {
     bestX30d: number;
     hitRate2x30d: number;
   };
+  series7d?: DailyBucket[];
   series14d?: DailyBucket[];
+  series30d?: DailyBucket[];
+  periodCompare?: Record<PerformanceLabWindow, PeriodCompare>;
   distribution?: Distribution;
   rank7d?: number | null;
   totalRanked7d?: number;
   error?: string;
 };
+
+const LAB_WINDOWS: { id: PerformanceLabWindow; label: string }[] = [
+  { id: "7d", label: "7d" },
+  { id: "14d", label: "14d" },
+  { id: "30d", label: "30d" },
+];
 
 const CHART_MARGIN_COMPOSED = { top: 10, right: 10, left: 4, bottom: 6 } as const;
 const CHART_MARGIN_DIST = { top: 8, right: 14, left: 6, bottom: 8 } as const;
@@ -120,32 +131,54 @@ export default function PerformanceLabPage() {
   const { status } = useSession();
   const [data, setData] = useState<LabPayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [window, setWindow] = useState<PerformanceLabWindow>("14d");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { background?: boolean }) => {
     if (status !== "authenticated") return;
-    setLoading(true);
-    setErr(null);
+    const background = opts?.background === true;
+    if (background) setRefreshing(true);
+    else {
+      setLoading(true);
+      setErr(null);
+    }
     try {
-      const res = await fetch("/api/me/performance-lab", { credentials: "same-origin" });
+      const res = await fetch("/api/me/performance-lab", { credentials: "same-origin", cache: "no-store" });
       const json = (await res.json().catch(() => ({}))) as LabPayload;
       if (!res.ok || json.success !== true) {
         setErr(typeof json.error === "string" ? json.error : "Could not load performance.");
-        setData(null);
+        if (!background) setData(null);
         return;
       }
       setData(json);
+      setErr(null);
     } catch {
       setErr("Could not load performance.");
-      setData(null);
+      if (!background) setData(null);
     } finally {
-      setLoading(false);
+      if (background) setRefreshing(false);
+      else setLoading(false);
     }
   }, [status]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const weeklySummary = useMemo(() => {
+    const s = data?.stats;
+    const periodCompare = data?.periodCompare?.[window] ?? null;
+    const dist = data?.distribution;
+    if (!s || !periodCompare) return null;
+    return buildWeeklySummary({
+      stats: s,
+      compare: periodCompare,
+      rank7d: data?.rank7d ?? null,
+      totalRanked7d: data?.totalRanked7d ?? 0,
+      distribution: dist,
+    });
+  }, [data, window]);
 
   if (status === "loading") {
     return (
@@ -173,8 +206,10 @@ export default function PerformanceLabPage() {
   }
 
   const s = data?.stats;
-  const series = data?.series14d ?? [];
+  const series = pickSeriesForWindow(data ?? {}, window);
   const dist = data?.distribution;
+  const periodCompare = data?.periodCompare?.[window] ?? null;
+
   const distChart =
     dist && dist.total > 0
       ? [
@@ -187,23 +222,42 @@ export default function PerformanceLabPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
       <header className={`${terminalChrome.headerRule} pb-8 pt-2`} data-tutorial="performance.header">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">Your terminal</p>
-        <h1 className="mt-2 bg-gradient-to-r from-white via-emerald-50/95 to-emerald-300/85 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
-          Performance lab
-        </h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/80">
+              Your terminal
+            </p>
+            <h1 className="mt-2 bg-gradient-to-r from-white via-emerald-50/95 to-emerald-300/85 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
+              Performance lab
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={() => void load({ background: true })}
+            disabled={loading || refreshing}
+            className="shrink-0 rounded-lg border border-zinc-700/80 bg-zinc-950/60 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white disabled:opacity-50"
+          >
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          <span className="font-medium text-zinc-200">Same data as Call log</span>, but summarized: averages, win
-          rate, 14-day activity, how your multiples stack, and your spot on the weekly caller list.{" "}
+          <span className="font-medium text-zinc-200">Proof-of-edge workspace</span> — period compare, shareable
+          weekly snapshot, and deeper charts. The home dashboard chart is a quick pulse; the lab is where you
+          study trends and export your numbers.{" "}
           <Link href="/calls" className="font-medium text-emerald-300/90 underline-offset-2 hover:underline">
-            Call log
+            My Call Log
           </Link>{" "}
-          is the line-by-line list;{" "}
+          for every row;{" "}
           <Link href="/leaderboard" className="font-medium text-emerald-300/90 underline-offset-2 hover:underline">
             Leaderboards
           </Link>{" "}
-          is still where the whole community competes.
+          for the full community.
         </p>
       </header>
+
+      <PerformanceWeeklyCard summary={weeklySummary} loading={loading && !weeklySummary} />
+
+      <PerformancePeriodCompare compare={periodCompare} loading={loading && !periodCompare} />
 
       {err ? (
         <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">{err}</div>
@@ -263,13 +317,36 @@ export default function PerformanceLabPage() {
         />
       </div>
 
-      <div className="mt-9 grid gap-6 lg:grid-cols-5">
-        <section className="lg:col-span-3" data-tutorial="performance.activity">
-          <h2 className="text-base font-semibold tracking-tight text-white">Last 14 days · activity</h2>
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3" data-tutorial="performance.window">
+        <div className="flex flex-wrap gap-2">
+          {LAB_WINDOWS.map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              onClick={() => setWindow(w.id)}
+              className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
+                window === w.id
+                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-100 shadow-[0_0_14px_-4px_rgba(16,185,129,0.35)]"
+                  : "border-zinc-700/80 bg-zinc-950/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+              }`}
+            >
+              {w.label} UTC
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-zinc-500">Charts and compare follow the selected window.</p>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-5">
+        <section className="relative lg:col-span-3" data-tutorial="performance.activity">
+          <DashboardRefreshBar active={refreshing} />
+          <h2 className="text-base font-semibold tracking-tight text-white">
+            Activity · last {window === "7d" ? "7" : window === "30d" ? "30" : "14"} UTC days
+          </h2>
           <p className="mt-1 text-xs text-zinc-500">
             Bars = call count per UTC day · line = average ATH multiple that day.
           </p>
-          <div className="mt-3 h-64 rounded-2xl border border-emerald-500/15 bg-gradient-to-b from-emerald-950/20 to-black/40 p-3 pl-0 ring-1 ring-emerald-500/10">
+          <div className="relative mt-3 h-64 rounded-2xl border border-emerald-500/15 bg-gradient-to-b from-emerald-950/20 to-black/40 p-3 pl-0 ring-1 ring-emerald-500/10">
             {loading && series.length === 0 ? (
               <ChartSkeleton />
             ) : series.length === 0 ? (
@@ -331,12 +408,13 @@ export default function PerformanceLabPage() {
           </div>
         </section>
 
-        <section className="lg:col-span-2" data-tutorial="performance.distribution">
-          <h2 className="text-base font-semibold tracking-tight text-white">Multiple mix</h2>
+        <section className="relative lg:col-span-2" data-tutorial="performance.distribution">
+          <DashboardRefreshBar active={refreshing} />
+          <h2 className="text-base font-semibold tracking-tight text-white">Multiple mix · all-time tape</h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Buckets use ATH multiple since each call (peak ÷ entry MC).
+            Buckets use ATH multiple since each call (peak ÷ entry MC) across your full eligible history.
           </p>
-          <div className="mt-3 h-64 rounded-2xl border border-zinc-800/90 bg-zinc-950/50 p-3 ring-1 ring-zinc-700/20">
+          <div className="relative mt-3 h-64 rounded-2xl border border-zinc-800/90 bg-zinc-950/50 p-3 ring-1 ring-zinc-700/20">
             {loading && distChart.length === 0 ? (
               <ChartSkeleton />
             ) : distChart.length === 0 || !dist || dist.total === 0 ? (
