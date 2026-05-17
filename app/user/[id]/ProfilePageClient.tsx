@@ -33,7 +33,15 @@ import { useNotifications } from "@/app/contexts/NotificationsContext";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import {
   terminalChrome,
   terminalPage,
@@ -96,22 +104,36 @@ function ProfileDeskNavLink({
   );
 }
 
+function readStickyBelowChromePx(): number {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(
+    "--dashboard-sticky-below-chrome"
+  );
+  const parsed = parseFloat(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 96;
+}
+
 function ProfileDeskNavFixed({
   items,
   activeId,
   leftPx,
+  topPx,
+  navRef,
 }: {
   items: { href: string; id: string; label: string }[];
   activeId: string;
   leftPx: number | null;
+  topPx: number | null;
+  navRef: RefObject<HTMLElement | null>;
 }) {
+  const ready = leftPx != null && topPx != null;
   return (
     <aside
+      ref={navRef}
       className="pointer-events-none fixed z-[35] hidden w-[12.5rem] lg:block xl:w-[13rem]"
       style={{
-        left: leftPx != null ? `${leftPx}px` : undefined,
-        top: "var(--dashboard-sticky-below-chrome, 6rem)",
-        visibility: leftPx == null ? "hidden" : "visible",
+        left: ready ? `${leftPx}px` : undefined,
+        top: ready ? `${topPx}px` : undefined,
+        visibility: ready ? "visible" : "hidden",
       }}
       aria-label="Profile section navigation"
     >
@@ -1923,35 +1945,54 @@ export default function ProfilePageClient() {
   );
 
   const profilePageColumnRef = useRef<HTMLDivElement>(null);
+  const profileHeroRef = useRef<HTMLDivElement>(null);
+  const deskNavRef = useRef<HTMLElement>(null);
   const [deskNavLeftPx, setDeskNavLeftPx] = useState<number | null>(null);
+  const [deskNavTopPx, setDeskNavTopPx] = useState<number | null>(null);
 
   useEffect(() => {
     const column = profilePageColumnRef.current;
-    if (!column || profileNavItems.length <= 1) {
+    const hero = profileHeroRef.current;
+    if (!column || !hero || profileNavItems.length <= 1) {
       setDeskNavLeftPx(null);
+      setDeskNavTopPx(null);
       return;
     }
 
-    const syncDeskNavLeft = () => {
+    const syncDeskNavPosition = () => {
       if (!window.matchMedia("(min-width: 1024px)").matches) {
         setDeskNavLeftPx(null);
+        setDeskNavTopPx(null);
         return;
       }
-      const rect = column.getBoundingClientRect();
+      const nav = deskNavRef.current;
+      if (!nav) return;
+
+      const columnRect = column.getBoundingClientRect();
+      const heroBottom = hero.getBoundingClientRect().bottom;
+      const navHeight = nav.offsetHeight;
+      const stickyTop = readStickyBelowChromePx();
+
       setDeskNavLeftPx(
-        Math.max(12, rect.left - PROFILE_DESK_NAV_WIDTH_PX - PROFILE_DESK_NAV_GAP_PX)
+        Math.max(12, columnRect.left - PROFILE_DESK_NAV_WIDTH_PX - PROFILE_DESK_NAV_GAP_PX)
       );
+      setDeskNavTopPx(Math.max(stickyTop, heroBottom - navHeight));
     };
 
-    syncDeskNavLeft();
-    const observer = new ResizeObserver(syncDeskNavLeft);
+    syncDeskNavPosition();
+    const raf = requestAnimationFrame(syncDeskNavPosition);
+    const observer = new ResizeObserver(syncDeskNavPosition);
     observer.observe(column);
-    window.addEventListener("resize", syncDeskNavLeft);
-    window.addEventListener("scroll", syncDeskNavLeft, { passive: true });
+    observer.observe(hero);
+    const navEl = deskNavRef.current;
+    if (navEl) observer.observe(navEl);
+    window.addEventListener("resize", syncDeskNavPosition);
+    window.addEventListener("scroll", syncDeskNavPosition, { passive: true });
     return () => {
+      cancelAnimationFrame(raf);
       observer.disconnect();
-      window.removeEventListener("resize", syncDeskNavLeft);
-      window.removeEventListener("scroll", syncDeskNavLeft);
+      window.removeEventListener("resize", syncDeskNavPosition);
+      window.removeEventListener("scroll", syncDeskNavPosition);
     };
   }, [profileNavItems.length, loading]);
 
@@ -2097,7 +2138,7 @@ export default function ProfilePageClient() {
           />
         ) : null}
 
-        <div className={`${PROFILE_HERO_SHELL}`}>
+        <div ref={profileHeroRef} className={`${PROFILE_HERO_SHELL}`}>
           <div className="relative h-[7rem] w-full overflow-hidden sm:h-[8.25rem]">
             {profile?.banner_url ? (
               <img
@@ -2330,6 +2371,8 @@ export default function ProfilePageClient() {
           items={profileNavItems}
           activeId={activeProfileSection}
           leftPx={deskNavLeftPx}
+          topPx={deskNavTopPx}
+          navRef={deskNavRef}
         />
       ) : null}
 
