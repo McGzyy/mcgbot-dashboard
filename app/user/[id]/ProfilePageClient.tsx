@@ -63,6 +63,35 @@ function profileNavPillClass(active: boolean): string {
     : "shrink-0 rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 transition hover:border-zinc-700 hover:text-zinc-200";
 }
 
+const PROFILE_LIST_SCROLL = `max-h-[min(28rem,52vh)] overflow-y-auto overscroll-contain ${terminalChrome.scrollYHidden}`;
+
+const PROFILE_CHIP_BTN_CYAN =
+  "rounded-md border border-cyan-500/25 bg-cyan-950/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-200/90 transition hover:border-cyan-400/40 hover:bg-cyan-950/50 hover:text-cyan-50 disabled:opacity-50";
+
+function ProfileEmptyState({
+  icon,
+  title,
+  description,
+  compact,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`mt-3 flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700/50 ${terminalSurface.insetPanel} ${terminalSurface.insetEdgeSoft} px-6 text-center ${compact ? "py-8" : "py-10"}`}
+    >
+      <span className={`${compact ? "text-xl" : "text-2xl"} opacity-30`} aria-hidden>
+        {icon}
+      </span>
+      <p className="text-sm font-medium text-zinc-400">{title}</p>
+      <p className="max-w-[18rem] text-xs leading-relaxed text-zinc-600">{description}</p>
+    </div>
+  );
+}
+
 function ProfileSectionHeader({
   kicker,
   title,
@@ -687,11 +716,13 @@ function StatCard({
 
 function PanelCard({
   title,
+  badge,
   children,
   className = "",
   "data-tutorial": dataTutorial,
 }: {
   title: string;
+  badge?: ReactNode;
   children: ReactNode;
   className?: string;
   "data-tutorial"?: string;
@@ -702,13 +733,20 @@ function PanelCard({
       className={`${terminalSurface.insetPanel} ${terminalSurface.insetEdge} relative isolate w-full px-4 py-4 sm:px-5 sm:py-5 ${CARD_HOVER} ${className}`.trim()}
     >
       <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/25 to-transparent sm:inset-x-5" />
-      <h2 className="relative mb-3 flex items-center gap-2.5 border-b border-zinc-800/50 pb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
-        <span
-          className="inline-flex h-1 w-1 shrink-0 rounded-full bg-cyan-400/90 shadow-[0_0_10px_rgba(34,211,238,0.45)]"
-          aria-hidden
-        />
-        {title}
-      </h2>
+      <div className="relative mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/50 pb-3">
+        <h2 className="flex min-w-0 items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
+          <span
+            className="inline-flex h-1 w-1 shrink-0 rounded-full bg-cyan-400/90 shadow-[0_0_10px_rgba(34,211,238,0.45)]"
+            aria-hidden
+          />
+          {title}
+        </h2>
+        {badge != null ? (
+          <span className="shrink-0 rounded-full border border-zinc-700/45 bg-zinc-950/70 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 tabular-nums">
+            {badge}
+          </span>
+        ) : null}
+      </div>
       {children}
     </div>
   );
@@ -2137,8 +2175,9 @@ export default function ProfilePageClient() {
               timeLabel={formatJoinedAt(callTimeMs(pinnedCall.time), nowMs)}
             />
           ) : isOwnProfile ? (
-            <div className="relative flex items-start gap-4 overflow-hidden rounded-2xl border border-zinc-700/40 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-zinc-950 px-5 py-5 shadow-[0_20px_60px_-36px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.04] sm:items-center sm:gap-5 sm:px-7 sm:py-5">
-              <div className="pointer-events-none absolute -right-16 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-cyan-500/[0.06] blur-3xl" aria-hidden />
+            <div
+              className={`relative flex items-start gap-4 overflow-hidden ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} px-5 py-5 sm:items-center sm:gap-5 sm:px-7 sm:py-5`}
+            >
               <span
                 className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-500/20 bg-gradient-to-br from-zinc-800/90 to-zinc-950 text-lg shadow-inner shadow-black/40"
                 aria-hidden
@@ -2393,6 +2432,11 @@ export default function ProfilePageClient() {
 
                 return (
                   <div className={`mt-3 ${terminalPage.statTile} p-4`}>
+                    {total > 0 ? (
+                      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                        {total.toLocaleString()} calls in distribution
+                      </p>
+                    ) : null}
                     <div className="space-y-3">
                       {rows.map((r) => {
                         const pct =
@@ -2437,15 +2481,12 @@ export default function ProfilePageClient() {
                   <p className="text-xs text-zinc-600">Loading Trusted Pro calls…</p>
                 </div>
               ) : trustedProCalls.length === 0 ? (
-                <div className="mt-3 flex min-h-[100px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700/45 bg-zinc-950/25 px-6 py-10 text-center">
-                  <span className="text-xl opacity-30" aria-hidden>
-                    ✦
-                  </span>
-                  <p className="text-sm font-medium text-zinc-400">No Trusted Pro calls yet</p>
-                  <p className="max-w-xs text-xs text-zinc-600">
-                    Approved thesis posts appear here for verified callers.
-                  </p>
-                </div>
+                <ProfileEmptyState
+                  compact
+                  icon="✦"
+                  title="No Trusted Pro calls yet"
+                  description="Approved thesis posts appear here for verified callers."
+                />
               ) : (
                 <>
                   <p className="mt-2 rounded-lg border border-violet-500/15 bg-violet-950/15 px-3 py-2 text-[11px] leading-snug text-zinc-500">
@@ -2453,11 +2494,12 @@ export default function ProfilePageClient() {
                       ? "Showing all statuses (owner/staff view)."
                       : "Showing approved-only."}
                   </p>
-                  <ul className="mt-3 divide-y divide-zinc-800/30 rounded-xl border border-zinc-800/35 bg-zinc-950/20 text-sm ring-1 ring-white/[0.02]">
+                  <div className={`${terminalSurface.dashboardListWell} mt-3`}>
+                  <ul className={`${terminalUi.notificationsList} text-sm`}>
                     {trustedProCalls.map((c) => (
                       <li
                         key={c.id}
-                        className="group flex flex-wrap items-start justify-between gap-3 px-2 py-3 transition first:rounded-t-xl last:rounded-b-xl hover:bg-zinc-800/[0.15]"
+                        className="group flex flex-wrap items-start justify-between gap-3 px-2 py-3 transition hover:bg-zinc-900/40 sm:px-3"
                       >
                         <div className="min-w-0">
                           <p className="text-xs text-zinc-500">
@@ -2479,6 +2521,7 @@ export default function ProfilePageClient() {
                       </li>
                     ))}
                   </ul>
+                  </div>
                 </>
               )}
             </PanelCard>
@@ -2487,7 +2530,15 @@ export default function ProfilePageClient() {
 
           {visibility.show_calls ? (
           <section id="recent-calls" className={`mb-4 ${PROFILE_SECTION_SCROLL}`}>
-            <PanelCard title="Recent Calls" data-tutorial="profile.recentCalls">
+            <PanelCard
+              title="Recent Calls"
+              badge={
+                profile && profile.recentCalls.length > 0
+                  ? `${profile.recentCalls.length} rows`
+                  : undefined
+              }
+              data-tutorial="profile.recentCalls"
+            >
               {loading ? (
                 <div className="mt-3 flex min-h-[100px] flex-col items-center justify-center gap-3 rounded-xl border border-zinc-800/35 bg-zinc-950/25 py-10">
                   <div className="h-5 w-36 animate-pulse rounded-md bg-zinc-800/80" aria-busy />
@@ -2495,29 +2546,24 @@ export default function ProfilePageClient() {
                   <p className="text-xs text-zinc-600">Loading calls…</p>
                 </div>
               ) : !profile || profile.recentCalls.length === 0 ? (
-                <div className="mt-3 flex min-h-[112px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700/45 bg-gradient-to-b from-zinc-950/40 to-zinc-950/20 px-6 py-10 text-center">
-                  <span className="text-2xl opacity-25" aria-hidden>
-                    📈
-                  </span>
-                  <p className="text-sm font-medium text-zinc-400">No calls yet</p>
-                  <p className="max-w-[18rem] text-xs leading-relaxed text-zinc-600">
-                    Calls you log on the dashboard build your public track record here.
-                  </p>
-                </div>
+                <ProfileEmptyState
+                  icon="📈"
+                  title="No calls yet"
+                  description="Calls you log on the dashboard build your public track record here."
+                />
               ) : (
                 <>
+                  <div className={`${terminalSurface.dashboardListWell} mt-3`}>
                   <div
-                    className="mt-3 hidden grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-700/40 pb-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 sm:grid sm:gap-x-4 sm:px-2"
+                    className="hidden grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-zinc-800/70 px-2 pb-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 sm:grid sm:gap-x-4"
                     aria-hidden
                   >
                     <span>Call</span>
                     <span className="text-right">Result</span>
                     <span className="text-right">Time</span>
                   </div>
-                  <div
-                    className="max-h-[min(26rem,48vh)] overflow-y-auto overscroll-contain sm:mt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                  >
-                  <ul className="divide-y divide-zinc-800/30 rounded-xl border border-zinc-800/35 bg-zinc-950/20 text-sm ring-1 ring-white/[0.02]">
+                  <div className={PROFILE_LIST_SCROLL}>
+                  <ul className={`${terminalUi.notificationsList} text-sm`}>
                     {profile.recentCalls.map((call, i) => {
                       const ca = call.token.trim();
                       const dexUrl =
@@ -2539,7 +2585,7 @@ export default function ProfilePageClient() {
                       return (
                       <li
                         key={`${call.token}-${String(call.time)}-${i}`}
-                        className="group flex flex-col gap-2 px-2 py-3 text-zinc-300 transition first:rounded-t-xl last:rounded-b-xl hover:bg-zinc-800/[0.18] sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-x-4 sm:py-2.5"
+                        className="group flex flex-col gap-2 px-2 py-3 text-zinc-300 transition hover:bg-zinc-900/40 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-x-4 sm:px-3 sm:py-2.5"
                       >
                         <span className="min-w-0 text-[13px] leading-snug">
                           <div className="flex min-w-0 items-start gap-2">
@@ -2584,7 +2630,7 @@ export default function ProfilePageClient() {
                               <button
                                 type="button"
                                 onClick={() => pinCall(call.id!)}
-                                className="rounded-md border border-cyan-500/20 bg-cyan-950/25 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-cyan-200/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] transition hover:border-cyan-400/35 hover:bg-cyan-950/45 hover:text-cyan-50"
+                                className={PROFILE_CHIP_BTN_CYAN}
                               >
                                 Pin
                               </button>
@@ -2655,6 +2701,7 @@ export default function ProfilePageClient() {
                     );
                     })}
                   </ul>
+                  </div>
                   </div>
                 </>
               )}
@@ -2835,7 +2882,7 @@ export default function ProfilePageClient() {
 
             <PanelCard title="Call snapshot">
               <div className="mt-3 grid gap-4 sm:grid-cols-2 sm:gap-3">
-                <div className="rounded-xl border border-zinc-800/45 bg-gradient-to-b from-zinc-900/50 to-zinc-950/90 p-3.5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.12)]">
+                <div className={`${terminalPage.statTile} p-3.5`}>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                     Best call
                   </p>
@@ -2873,7 +2920,7 @@ export default function ProfilePageClient() {
                     Highest in recent history
                   </p>
                 </div>
-                <div className="rounded-xl border border-zinc-800/45 bg-gradient-to-b from-zinc-900/50 to-zinc-950/90 p-3.5 shadow-[inset_0_1px_0_0_rgba(63,63,70,0.12)]">
+                <div className={`${terminalPage.statTile} p-3.5`}>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                     Recent form
                   </p>
@@ -2922,17 +2969,18 @@ export default function ProfilePageClient() {
           <div className={terminalUi.modalPanelLgXl}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-sm font-semibold text-zinc-100">
-                  Edit Profile
-                </h3>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Customize your profile. Add a bio, banner, and social links.
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-300/75">
+                  Profile editor
+                </p>
+                <h3 className={`${terminalPage.sectionTitle} mt-1.5`}>Edit profile</h3>
+                <p className={`${terminalPage.sectionHint} mt-1`}>
+                  Bio, banner crop, and display handle.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setEditOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/25"
+                className={terminalUi.modalCloseIconBtn}
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
@@ -2952,7 +3000,7 @@ export default function ProfilePageClient() {
                   maxLength={BIO_MAX + 50}
                   rows={4}
                   disabled={editLoading || editSaving}
-                  className="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
+                  className={`mt-1 w-full resize-none ${terminalUi.formInput}`}
                   placeholder="A short bio…"
                 />
                 <p className="mt-1 text-xs text-zinc-500">
@@ -2977,7 +3025,7 @@ export default function ProfilePageClient() {
                   value={editBannerUrl}
                   onChange={(e) => setEditBannerUrl(e.target.value)}
                   disabled={editLoading || editSaving}
-                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
+                  className={`mt-1 w-full ${terminalUi.formInput}`}
                   placeholder="https://…"
                 />
                 <div className="mt-3 space-y-3">
@@ -3059,7 +3107,7 @@ export default function ProfilePageClient() {
                       setEditBannerCropY(50);
                     }}
                     disabled={editLoading || editSaving}
-                    className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                    className={terminalUi.secondaryButtonSm}
                   >
                     Reset crop
                   </button>
@@ -3075,7 +3123,7 @@ export default function ProfilePageClient() {
                   value={editXHandle}
                   onChange={(e) => setEditXHandle(e.target.value)}
                   disabled={editLoading || editSaving}
-                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-[#0b0d12] px-3 py-2 text-sm text-zinc-200 outline-none ring-sky-500/30 focus:ring-2 disabled:opacity-60"
+                  className={`mt-1 w-full ${terminalUi.formInput}`}
                   placeholder="Enter your X handle (e.g. mcgzyy)"
                 />
               </div>
@@ -3085,7 +3133,7 @@ export default function ProfilePageClient() {
                   type="button"
                   onClick={() => setEditOpen(false)}
                   disabled={editSaving}
-                  className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-900 disabled:opacity-60"
+                  className={terminalUi.secondaryButtonSm}
                 >
                   Cancel
                 </button>
@@ -3093,7 +3141,7 @@ export default function ProfilePageClient() {
                   type="button"
                   onClick={handleSave}
                   disabled={editLoading || editSaving || editBio.length > BIO_MAX}
-                  className="rounded-md bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-sky-400 disabled:opacity-60"
+                  className={`${PROFILE_PRIMARY_BTN} px-4`}
                 >
                   {editSaving ? "Saving…" : "Save"}
                 </button>
