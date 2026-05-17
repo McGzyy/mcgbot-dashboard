@@ -20,10 +20,13 @@ import {
   compareMilestoneKeys,
 } from "@/lib/milestoneTrophies";
 import { CallerIntelligencePanel } from "@/app/components/profile/CallerIntelligencePanel";
-import { ProfileCallStripChart } from "@/app/components/profile/ProfileCallStripChart";
-import { ProfileDistributionChart } from "@/app/components/profile/ProfileDistributionChart";
 import { ProfileDeskUpsell } from "@/app/components/profile/ProfileDeskUpsell";
-import { buildProfileCallStripSeries } from "@/lib/profileChartData";
+import { ProfileTrackRecordChart } from "@/app/components/profile/ProfileTrackRecordChart";
+import {
+  buildProfileDistributionSegments,
+  buildProfileTrackChartView,
+  type ProfileTrackMetric,
+} from "@/lib/profileChartData";
 import type { CallerProfileIntel } from "@/lib/callerProfileIntel";
 import { parseTopCallerTimesFromBadges } from "@/lib/topCallerBadgeDisplay";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
@@ -681,17 +684,21 @@ function StatCard({
   value,
   loading,
   accent,
+  selected,
+  onSelect,
 }: {
   title: string;
   value: ReactNode;
   loading?: boolean;
   accent?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
 }) {
-  return (
+  const tile = (
     <div
       className={`${terminalPage.statTile} relative isolate flex min-h-[5.75rem] flex-col justify-between ${CARD_HOVER} motion-safe:hover:brightness-[1.03] ${
         accent ? "border-cyan-500/25 ring-1 ring-cyan-500/10" : ""
-      }`}
+      } ${selected ? "border-cyan-400/45 ring-2 ring-cyan-400/35" : ""}`}
     >
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
         {title}
@@ -714,6 +721,19 @@ function StatCard({
         </div>
       )}
     </div>
+  );
+
+  if (!onSelect) return tile;
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className="w-full rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40"
+    >
+      {tile}
+    </button>
   );
 }
 
@@ -1756,9 +1776,28 @@ export default function ProfilePageClient() {
     winRate: winRate,
   });
 
-  const callStripSeries = useMemo(
-    () => buildProfileCallStripSeries(profile?.recentCalls ?? [], 20, nowMs),
-    [profile?.recentCalls, nowMs]
+  const [trackChartMetric, setTrackChartMetric] = useState<ProfileTrackMetric>("avg_x");
+
+  const trackChartView = useMemo(
+    () =>
+      buildProfileTrackChartView(
+        trackChartMetric,
+        {
+          recentCalls: profile?.recentCalls ?? [],
+          callDistribution: profile?.callDistribution,
+          stats: profile?.stats ?? { avgX: 0, winRate: 0, totalCalls: 0 },
+          hitRates,
+        },
+        nowMs
+      ),
+    [
+      trackChartMetric,
+      profile?.recentCalls,
+      profile?.callDistribution,
+      profile?.stats,
+      hitRates,
+      nowMs,
+    ]
   );
 
   const xHandle = profile?.x_handle?.trim() || "";
@@ -2226,20 +2265,14 @@ export default function ProfilePageClient() {
         </nav>
       ) : null}
 
-      <div
-        className={
-          profileNavItems.length > 1
-            ? "mt-6 lg:mt-8 lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:items-start lg:gap-6 xl:grid-cols-[13rem_minmax(0,1fr)] xl:gap-8"
-            : "mt-6 lg:mt-8"
-        }
-      >
+      <div className="relative mt-6 lg:mt-8">
         {profileNavItems.length > 1 ? (
           <aside
-            className="hidden min-w-0 lg:block"
+            className="pointer-events-none absolute top-0 right-full z-[35] mr-5 hidden w-[12.5rem] lg:block xl:mr-6 xl:w-[13rem]"
             aria-label="Profile section navigation"
           >
             <nav
-              className={`sticky ${PROFILE_STICKY_BELOW_CHROME} ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} space-y-0.5 p-2`}
+              className={`pointer-events-auto sticky ${PROFILE_STICKY_BELOW_CHROME} ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} space-y-0.5 p-2`}
               aria-label="Profile sections"
             >
               <p className="px-2.5 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
@@ -2283,45 +2316,50 @@ export default function ProfilePageClient() {
                 ) : null
               }
             />
-            <div className="relative z-[1] grid gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
-              <StatCard
-                title="Avg X"
-                loading={loading}
-                accent
-                value={profile ? `${profile.stats.avgX.toFixed(1)}x` : "—"}
-              />
-              <StatCard
-                title="Win Rate"
-                loading={loading}
-                value={profile ? `${profile.stats.winRate.toFixed(0)}%` : "—"}
-              />
-              <StatCard
-                title="Total Calls"
-                loading={loading}
-                value={profile ? profile.stats.totalCalls : "—"}
-              />
-              <StatCard
-                title="2x Rate"
-                loading={loading}
-                value={hitRates.rate2x ? `${Math.round(hitRates.rate2x)}%` : "-"}
-              />
-              <StatCard
-                title="3x+ Rate"
-                loading={loading}
-                value={hitRates.rate3x ? `${Math.round(hitRates.rate3x)}%` : "-"}
-              />
+            <div className="relative z-[1] mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)] lg:items-stretch">
+              <ProfileTrackRecordChart view={trackChartView} loading={loading} />
+              <div className="grid grid-cols-2 gap-3">
+                <StatCard
+                  title="Avg X"
+                  loading={loading}
+                  accent
+                  selected={trackChartMetric === "avg_x"}
+                  onSelect={() => setTrackChartMetric("avg_x")}
+                  value={profile ? `${profile.stats.avgX.toFixed(1)}x` : "—"}
+                />
+                <StatCard
+                  title="Win Rate"
+                  loading={loading}
+                  selected={trackChartMetric === "win_rate"}
+                  onSelect={() => setTrackChartMetric("win_rate")}
+                  value={profile ? `${profile.stats.winRate.toFixed(0)}%` : "—"}
+                />
+                <StatCard
+                  title="Total Calls"
+                  loading={loading}
+                  selected={trackChartMetric === "total_calls"}
+                  onSelect={() => setTrackChartMetric("total_calls")}
+                  value={profile ? profile.stats.totalCalls : "—"}
+                />
+                <StatCard
+                  title="2x Rate"
+                  loading={loading}
+                  selected={trackChartMetric === "rate_2x"}
+                  onSelect={() => setTrackChartMetric("rate_2x")}
+                  value={hitRates.rate2x ? `${Math.round(hitRates.rate2x)}%` : "-"}
+                />
+                <StatCard
+                  title="3x+ Rate"
+                  loading={loading}
+                  selected={trackChartMetric === "rate_3x"}
+                  onSelect={() => setTrackChartMetric("rate_3x")}
+                  value={hitRates.rate3x ? `${Math.round(hitRates.rate3x)}%` : "-"}
+                />
+              </div>
             </div>
-            <div className="relative z-[1] mt-5 border-t border-zinc-800/60 pt-4">
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                Recent call multiples
-              </p>
-              <ProfileCallStripChart data={callStripSeries} loading={loading} />
-              {callStripSeries.length > 0 ? (
-                <p className="mt-2 text-[11px] leading-snug text-zinc-600">
-                  Last {callStripSeries.length} calls · oldest → newest · dashed lines at 1× and 2×
-                </p>
-              ) : null}
-            </div>
+            <p className="relative z-[1] mt-3 text-[11px] text-zinc-600">
+              Click a stat to change the chart.
+            </p>
             {visibility.show_key_stats && hasDepthMetrics && keyStatsPayload ? (
               <div id="depth-metrics" className="relative z-[1] mt-5 border-t border-zinc-800/60 pt-4">
                 <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -2434,7 +2472,60 @@ export default function ProfilePageClient() {
 
           <section id="distribution" className={`mb-4 ${PROFILE_SECTION_SCROLL}`} data-tutorial="profile.distribution">
             <PanelCard title="Call Distribution">
-              <ProfileDistributionChart distribution={profile?.callDistribution} loading={loading} />
+              {loading ? (
+                <div className={`mt-3 ${terminalPage.statTile} space-y-3 p-4`} aria-busy>
+                  {buildProfileDistributionSegments({
+                    under1: 0,
+                    oneToTwo: 0,
+                    twoToFive: 0,
+                    fivePlus: 0,
+                    total: 0,
+                  }).map((s) => (
+                    <div key={s.key} className="flex items-center gap-3">
+                      <div className="h-3 w-10 animate-pulse rounded bg-zinc-800/80" />
+                      <div className="h-2 flex-1 animate-pulse rounded bg-zinc-800/70" />
+                    </div>
+                  ))}
+                </div>
+              ) : profile?.callDistribution && profile.callDistribution.total > 0 ? (
+                <div className={`mt-3 ${terminalPage.statTile} space-y-2.5 p-4`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    {profile.callDistribution.total.toLocaleString()} calls in distribution
+                  </p>
+                  {buildProfileDistributionSegments(profile.callDistribution).map((s) => {
+                    const pct = Math.round(
+                      (s.count / profile.callDistribution!.total) * 100
+                    );
+                    return (
+                      <div key={s.key} className="flex items-center gap-3">
+                        <span className="w-[3.25rem] shrink-0 font-mono text-[11px] font-medium tabular-nums text-zinc-500">
+                          {s.label}
+                        </span>
+                        <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-black/40 ring-1 ring-zinc-700/35">
+                          <div
+                            className="h-full rounded-full transition-[width] duration-500 ease-out"
+                            style={{
+                              width: `${pct}%`,
+                              backgroundColor: s.fill,
+                            }}
+                          />
+                        </div>
+                        <span className="w-[4.5rem] shrink-0 text-right text-[11px] tabular-nums text-zinc-400">
+                          <span className="font-semibold text-zinc-300">{s.count}</span>
+                          <span className="text-zinc-600"> · {pct}%</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <ProfileEmptyState
+                  compact
+                  icon="◎"
+                  title="No distribution yet"
+                  description="Bucket breakdown appears once calls are recorded on this desk."
+                />
+              )}
             </PanelCard>
           </section>
 
