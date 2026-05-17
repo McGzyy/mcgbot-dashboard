@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { isAwaitingMembershipRole } from "@/lib/discordMembershipRoles";
 import { liveDashboardAccessForDiscordId } from "@/lib/dashboardGate";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
 
@@ -87,7 +88,13 @@ function discordGateStatus(token: Record<string, unknown>): "ok" | "needs_verifi
   const staffBypass = tier === "admin" || tier === "mod";
   const needsVerification = (token as Record<string, unknown> & { discordNeedsVerification?: unknown })
     .discordNeedsVerification === true;
-  if (needsVerification && !staffBypass) return "needs_verification";
+  const blockedReason = (token as Record<string, unknown> & { discordBlockedReason?: unknown })
+    .discordBlockedReason;
+  if (needsVerification && !staffBypass) {
+    const reason = typeof blockedReason === "string" ? blockedReason : null;
+    if (isAwaitingMembershipRole(reason)) return "ok";
+    return "needs_verification";
+  }
   return "ok";
 }
 

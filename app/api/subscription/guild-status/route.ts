@@ -27,11 +27,21 @@ export async function GET() {
       const gate = discordVerificationGateFromRoleIds(roles);
       if (gate === null || gate.ok) {
         needsVerification = false;
+        verificationReason = null;
       } else {
         needsVerification = true;
         verificationReason = gate.reason;
       }
+    } else {
+      // Discord role API failed — do not block checkout on unknown state.
+      verificationKnown = false;
+      needsVerification = null;
+      verificationReason = null;
     }
+  } else if (inGuild === false) {
+    verificationKnown = true;
+    needsVerification = false;
+    verificationReason = null;
   }
 
   return Response.json({

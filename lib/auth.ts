@@ -11,6 +11,7 @@ import { getDiscordGuildMemberRoleIds } from "@/lib/discordGuildMember";
 import { isDiscordGuildMember } from "@/lib/discordGuildMember";
 import {
   humanVerificationGateFromRoleIds,
+  isAwaitingMembershipRole,
   membershipAccessGateFromRoleIds,
   membershipRolesConfigured,
   syncMembershipDiscordRoles,
@@ -368,6 +369,13 @@ export const authOptions: NextAuthOptions = {
                 }
               } else {
                 (token as any).discordNeedsVerification = false;
+                (token as any).discordBlockedReason = null;
+              }
+            } else {
+              // Role fetch failed — do not keep a stale "unverified" lock from an earlier refresh.
+              (token as any).discordNeedsVerification = false;
+              const prevReason = (token as any).discordBlockedReason;
+              if (!isAwaitingMembershipRole(prevReason)) {
                 (token as any).discordBlockedReason = null;
               }
             }

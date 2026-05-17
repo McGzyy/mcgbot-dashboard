@@ -74,9 +74,12 @@ export function AppChrome({ children }: { children: ReactNode }) {
   // If the user is signed in but Discord marks them unverified, route them to the verify-required page.
   useEffect(() => {
     if (status !== "authenticated") return;
-    const needs = Boolean((session?.user as any)?.discordNeedsVerification);
+    const needs = Boolean((session?.user as { discordNeedsVerification?: boolean } | undefined)?.discordNeedsVerification);
     if (!needs) return;
-    if (pathname.startsWith("/join/verify")) return;
+    const reason = (session?.user as { discordBlockedReason?: string | null } | undefined)
+      ?.discordBlockedReason;
+    if (reason === "unpaid_role" || reason === "missing_required_role") return;
+    if (pathname.startsWith("/join/verify") || pathname.startsWith("/membership")) return;
     router.replace("/join/verify");
   }, [pathname, router, session?.user, status]);
 

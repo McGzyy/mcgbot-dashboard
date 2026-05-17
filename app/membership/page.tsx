@@ -678,10 +678,8 @@ export default function MembershipPage() {
     guildGateReady &&
     guildGate.guildMembershipKnown &&
     guildGate.inGuild === true &&
-    (!guildGate.verificationKnown ||
-      (guildGate.needsVerification === true &&
-        guildGate.verificationReason !== "unpaid_role" &&
-        guildGate.verificationReason !== "missing_required_role"));
+    guildGate.verificationKnown === true &&
+    guildGate.needsVerification === true;
 
   const guildBlocksCheckout =
     guildGateReady &&

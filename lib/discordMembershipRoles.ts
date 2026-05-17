@@ -66,6 +66,11 @@ export type HumanVerificationGateResult =
   | { ok: true }
   | { ok: false; reason: "unverified_role" };
 
+/** Human-verified in Discord but no paid role yet — should reach /membership, not /join/verify. */
+export function isAwaitingMembershipRole(reason: string | null | undefined): boolean {
+  return reason === "unpaid_role" || reason === "missing_required_role";
+}
+
 /**
  * Human verification only (#verification channel). Unpaid = verified, not subscribed.
  * Used for `/join/verify` redirects and membership checkout — not full dashboard access.

@@ -6,9 +6,9 @@ import { useEffect, useRef } from "react";
 const DEBOUNCE_MS = 20_000;
 
 /**
- * If the JWT briefly marks the user as not-in-guild or subscription fields lag reality,
- * refetching session on focus/visibility helps recover without signing out (pairs with
- * `refreshAccess` handling in `lib/auth.ts` jwt callback).
+ * Refetch session on focus when Discord/subscription gates look stuck.
+ * Skips the membership funnel (verified in Discord, no paid sub yet) to avoid
+ * hammering Discord and flipping verification state on every tab focus.
  */
 export function SessionGateRecovery() {
   const { data: session, status, update } = useSession();
@@ -17,6 +17,29 @@ export function SessionGateRecovery() {
   useEffect(() => {
     if (status !== "authenticated") return;
     if (session?.user?.hasDashboardAccess === true) return;
+
+    const u = session.user as {
+      discordInGuild?: boolean | null;
+      discordNeedsVerification?: boolean;
+      discordBlockedReason?: string | null;
+      hasActiveSubscription?: boolean;
+    };
+
+    const onMembershipFunnel =
+      u.discordInGuild === true &&
+      !u.discordNeedsVerification &&
+      (u.discordBlockedReason === "unpaid_role" ||
+        u.discordBlockedReason === "missing_required_role" ||
+        !u.hasActiveSubscription);
+
+    if (onMembershipFunnel) return;
+
+    const needsRecovery =
+      u.discordInGuild === false ||
+      u.discordNeedsVerification === true ||
+      u.discordInGuild == null;
+
+    if (!needsRecovery) return;
 
     const bump = () => {
       const now = Date.now();
@@ -35,7 +58,7 @@ export function SessionGateRecovery() {
       window.removeEventListener("focus", bump);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [status, session?.user?.hasDashboardAccess, update]);
+  }, [status, session?.user, update]);
 
   return null;
 }
