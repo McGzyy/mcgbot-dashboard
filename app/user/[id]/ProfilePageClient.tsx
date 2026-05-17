@@ -20,13 +20,10 @@ import {
   compareMilestoneKeys,
 } from "@/lib/milestoneTrophies";
 import { CallerIntelligencePanel } from "@/app/components/profile/CallerIntelligencePanel";
+import { ProfileCallStripChart } from "@/app/components/profile/ProfileCallStripChart";
+import { ProfileDistributionChart } from "@/app/components/profile/ProfileDistributionChart";
 import { ProfileDeskUpsell } from "@/app/components/profile/ProfileDeskUpsell";
-import { ProfileTrackRecordChart } from "@/app/components/profile/ProfileTrackRecordChart";
-import {
-  buildProfileDistributionSegments,
-  buildProfileTrackChartView,
-  type ProfileTrackMetric,
-} from "@/lib/profileChartData";
+import { buildProfileCallStripSeries } from "@/lib/profileChartData";
 import type { CallerProfileIntel } from "@/lib/callerProfileIntel";
 import { parseTopCallerTimesFromBadges } from "@/lib/topCallerBadgeDisplay";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
@@ -46,6 +43,10 @@ const CARD_HOVER =
 
 const PROFILE_HERO_SHELL = `${terminalSurface.routeHeroFrame} ${terminalSurface.insetEdge} relative mb-6 overflow-hidden`;
 
+/** Left-floating desk nav width + padding for main two-column body (lg+). */
+const PROFILE_DESK_CONTENT_PAD =
+  "lg:pl-[calc(12.5rem+2.5rem)] xl:pl-[calc(13rem+3rem)]";
+
 /** In-page anchors — offset matches TopBar + optional announcement (see dashboardStickyChrome). */
 const PROFILE_STICKY_BELOW_CHROME =
   "top-[var(--dashboard-sticky-below-chrome,6rem)]";
@@ -56,6 +57,18 @@ const PROFILE_PRIMARY_BTN =
   "rounded-lg border border-zinc-700/80 bg-gradient-to-b from-zinc-800/95 to-zinc-900/95 px-3.5 py-2 text-xs font-semibold text-zinc-100 shadow-md shadow-black/25 transition hover:border-cyan-500/35 hover:from-zinc-700/95 hover:to-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/35 disabled:opacity-50 motion-safe:active:scale-[0.98]";
 
 const TROPHY_TIER_WELL = `${terminalSurface.insetPanel} ${terminalSurface.insetEdgeSoft} p-3`;
+
+function profileNavLinkClass(active: boolean): string {
+  return active
+    ? "block rounded-md border-l-2 border-cyan-400/90 bg-cyan-500/10 py-2 pl-2.5 -ml-px text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-100"
+    : "block rounded-md py-2 pl-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 transition hover:bg-zinc-900/80 hover:text-zinc-200";
+}
+
+function profileNavPillClass(active: boolean): string {
+  return active
+    ? "shrink-0 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-100"
+    : "shrink-0 rounded-lg border border-zinc-800/90 bg-zinc-950/60 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 transition hover:border-zinc-700 hover:text-zinc-200";
+}
 
 const PROFILE_LIST_SCROLL = `max-h-[min(28rem,52vh)] overflow-y-auto overscroll-contain ${terminalChrome.scrollYHidden}`;
 
@@ -672,21 +685,17 @@ function StatCard({
   value,
   loading,
   accent,
-  selected,
-  onSelect,
 }: {
   title: string;
   value: ReactNode;
   loading?: boolean;
   accent?: boolean;
-  selected?: boolean;
-  onSelect?: () => void;
 }) {
-  const tile = (
+  return (
     <div
       className={`${terminalPage.statTile} relative isolate flex min-h-[5.75rem] flex-col justify-between ${CARD_HOVER} motion-safe:hover:brightness-[1.03] ${
         accent ? "border-cyan-500/25 ring-1 ring-cyan-500/10" : ""
-      } ${selected ? "border-cyan-400/45 ring-2 ring-cyan-400/35" : ""}`}
+      }`}
     >
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
         {title}
@@ -709,19 +718,6 @@ function StatCard({
         </div>
       )}
     </div>
-  );
-
-  if (!onSelect) return tile;
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40 rounded-xl"
-    >
-      {tile}
-    </button>
   );
 }
 
@@ -1764,28 +1760,9 @@ export default function ProfilePageClient() {
     winRate: winRate,
   });
 
-  const [trackChartMetric, setTrackChartMetric] = useState<ProfileTrackMetric>("avg_x");
-
-  const trackChartView = useMemo(
-    () =>
-      buildProfileTrackChartView(
-        trackChartMetric,
-        {
-          recentCalls: profile?.recentCalls ?? [],
-          callDistribution: profile?.callDistribution,
-          stats: profile?.stats ?? { avgX: 0, winRate: 0, totalCalls: 0 },
-          hitRates,
-        },
-        nowMs
-      ),
-    [
-      trackChartMetric,
-      profile?.recentCalls,
-      profile?.callDistribution,
-      profile?.stats,
-      hitRates,
-      nowMs,
-    ]
+  const callStripSeries = useMemo(
+    () => buildProfileCallStripSeries(profile?.recentCalls ?? [], 20, nowMs),
+    [profile?.recentCalls, nowMs]
   );
 
   const xHandle = profile?.x_handle?.trim() || "";
@@ -1798,6 +1775,59 @@ export default function ProfilePageClient() {
     show_key_stats: profile?.profile_visibility?.show_key_stats ?? true,
     show_pinned_call: profile?.profile_visibility?.show_pinned_call ?? true,
   };
+
+  const profileNavItems = useMemo(() => {
+    const items: { href: string; id: string; label: string }[] = [];
+    if (visibility.show_pinned_call) {
+      items.push({ href: "#signature-pick", id: "signature-pick", label: "Signature" });
+    }
+    if (visibility.show_stats) {
+      items.push({ href: "#performance", id: "performance", label: "Performance" });
+    }
+    if (visibility.show_trophies) {
+      items.push({ href: "#trophies", id: "trophies", label: "Trophies" });
+    }
+    items.push({ href: "#distribution", id: "distribution", label: "Distribution" });
+    if (isTrustedPro) {
+      items.push({ href: "#trusted-pro", id: "trusted-pro", label: "Trusted Pro" });
+    }
+    if (visibility.show_calls) {
+      items.push({ href: "#recent-calls", id: "recent-calls", label: "Recent calls" });
+    }
+    return items;
+  }, [
+    visibility.show_pinned_call,
+    visibility.show_stats,
+    visibility.show_trophies,
+    visibility.show_calls,
+    isTrustedPro,
+  ]);
+
+  const [activeProfileSection, setActiveProfileSection] = useState(
+    () => profileNavItems[0]?.id ?? "performance"
+  );
+
+  useEffect(() => {
+    if (profileNavItems.length === 0) return;
+    const elements = profileNavItems
+      .map((item) => document.getElementById(item.id))
+      .filter((el): el is HTMLElement => el != null);
+    if (elements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        const top = visible[0]?.target;
+        if (top?.id) setActiveProfileSection(top.id);
+      },
+      { rootMargin: "-18% 0px -58% 0px", threshold: [0.08, 0.2, 0.45] }
+    );
+
+    for (const el of elements) observer.observe(el);
+    return () => observer.disconnect();
+  }, [profileNavItems, loading]);
 
   const keyStatsPayload = profile?.keyStats;
   const hasDepthMetrics = Boolean(
@@ -1900,7 +1930,7 @@ export default function ProfilePageClient() {
   return (
     <div className="min-w-0">
       <div
-        className="relative mx-auto w-full max-w-[1680px] animate-fade-in px-4 pb-[calc(4rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] pt-2 selection:bg-cyan-500/20 selection:text-zinc-50 sm:px-6"
+        className="relative mx-auto max-w-6xl animate-fade-in px-4 pb-[calc(4rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] pt-2 selection:bg-cyan-500/20 selection:text-zinc-50 sm:px-6"
         data-tutorial="profile.pageIntro"
       >
         <div
@@ -1919,7 +1949,7 @@ export default function ProfilePageClient() {
         ) : null}
 
         <div className={`${PROFILE_HERO_SHELL}`}>
-          <div className="relative h-[9rem] w-full overflow-hidden sm:h-[10.5rem] lg:h-[11rem]">
+          <div className="relative h-[7rem] w-full overflow-hidden sm:h-[8.25rem]">
             {profile?.banner_url ? (
               <img
                 src={profile.banner_url}
@@ -1940,12 +1970,12 @@ export default function ProfilePageClient() {
           </div>
 
           <header
-            className="relative px-4 pb-6 pt-4 sm:px-6 sm:pb-7 sm:pt-5 lg:px-8"
+            className="relative px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5 lg:px-8"
             data-tutorial="profile.header"
           >
             <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent sm:inset-x-6 lg:inset-x-8" />
-            <div className="grid gap-5 sm:grid-cols-[auto_minmax(0,1fr)] lg:grid-cols-[auto_minmax(0,1fr)_12.5rem] lg:gap-x-8 lg:gap-y-4">
-              <div className="relative shrink-0 lg:row-span-2">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6 lg:gap-8">
+              <div className="relative shrink-0">
                 <div
                   className="pointer-events-none absolute -inset-1.5 rounded-[1.05rem] bg-gradient-to-br from-cyan-500/20 via-transparent to-violet-600/15 opacity-60 blur-md sm:-inset-2 sm:rounded-2xl"
                   aria-hidden
@@ -1953,13 +1983,14 @@ export default function ProfilePageClient() {
                 <img
                   src={avatarSrc}
                   alt=""
-                  width={128}
-                  height={128}
-                  className="relative -mt-10 h-28 w-28 rounded-xl border border-white/10 bg-zinc-900 object-cover shadow-[0_20px_48px_-14px_rgba(0,0,0,0.88)] ring-[3px] ring-zinc-950 sm:-mt-12 sm:h-32 sm:w-32 sm:rounded-2xl"
+                  width={112}
+                  height={112}
+                  className="relative -mt-9 h-24 w-24 rounded-xl border border-white/10 bg-zinc-900 object-cover shadow-[0_20px_48px_-14px_rgba(0,0,0,0.88)] ring-[3px] ring-zinc-950 sm:-mt-11 sm:h-[7.25rem] sm:w-[7.25rem] sm:rounded-2xl"
                 />
               </div>
-              <div className="min-w-0 pt-0.5 sm:col-start-2 lg:row-start-1">
-                  <div className="min-w-0">
+              <div className="min-w-0 flex-1 pt-0.5 sm:pb-0 sm:pt-0">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+                  <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
                       Trader desk
                     </p>
@@ -1988,10 +2019,72 @@ export default function ProfilePageClient() {
                         </span>
                       ) : null}
                     </div>
+                    {!loading &&
+                    profile &&
+                    profile.username.trim() !== "" &&
+                    profile.displayName.trim() !== profile.username.trim() ? (
+                      <p className="mt-3 text-sm text-zinc-500">
+                        <span className="text-zinc-500">@{profile.username}</span>
+                      </p>
+                    ) : null}
+                    {!loading && (bioText || joinedText) ? (
+                      <>
+                        {bioText ? (
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
+                            {bioText}
+                          </p>
+                        ) : null}
+                        {joinedText ? (
+                          <p
+                            className={`${
+                              bioText ? "mt-1" : "mt-2"
+                            } text-sm text-zinc-500`}
+                          >
+                            {joinedText}
+                          </p>
+                        ) : null}
+                      </>
+                    ) : null}
+                    {!loading && xHandle ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <a
+                          href={`https://x.com/${encodeURIComponent(xHandle)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600/50 bg-zinc-950/60 px-2.5 py-1 text-sm font-medium text-sky-300 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] transition hover:border-sky-500/35 hover:bg-sky-950/35 hover:text-sky-200"
+                        >
+                          <span className="text-zinc-500">𝕏</span>@{xHandle}
+                        </a>
+                        {xVerified ? (
+                          <span className="inline-flex items-center rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+                            Verified
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <div className="mt-4 inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-xl border border-zinc-700/35 bg-zinc-950/55 px-4 py-2.5 text-xs text-zinc-400 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] backdrop-blur-sm">
+                      {followStats ? (
+                        <>
+                          <span className="tabular-nums font-semibold text-zinc-100">
+                            {followStats.followers.toLocaleString()}
+                          </span>
+                          <span className="text-zinc-500">followers</span>
+                          <span className="text-zinc-600">·</span>
+                          <span className="tabular-nums font-semibold text-zinc-100">
+                            {followStats.following.toLocaleString()}
+                          </span>
+                          <span className="text-zinc-500">following</span>
+                        </>
+                      ) : (
+                        <span
+                          className="inline-block h-4 w-44 max-w-full animate-pulse rounded bg-zinc-800/80"
+                          aria-hidden
+                        />
+                      )}
+                    </div>
                   </div>
-              </div>
 
-              <aside className="flex w-full shrink-0 flex-col gap-2 sm:col-span-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2 lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:flex-col lg:items-stretch">
+                  <aside className="flex w-full shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2 lg:w-[12rem] lg:flex-col lg:items-stretch xl:w-52">
                     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                       {isOwnProfile ? (
                         <button
@@ -2076,61 +2169,8 @@ export default function ProfilePageClient() {
                         </p>
                       </Link>
                     ) : null}
-              </aside>
-
-              {!loading && bioText ? (
-                <p className="min-w-0 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300 sm:col-start-2 lg:col-span-2 lg:row-start-2 lg:max-w-4xl">
-                  {bioText}
-                </p>
-              ) : null}
-
-              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 text-sm sm:col-start-2 lg:col-span-2 lg:row-start-3">
-                {!loading &&
-                profile &&
-                profile.username.trim() !== "" &&
-                profile.displayName.trim() !== profile.username.trim() ? (
-                  <span className="text-zinc-500">@{profile.username}</span>
-                ) : null}
-                {!loading && joinedText ? (
-                  <span className="text-zinc-500">{joinedText}</span>
-                ) : null}
-                {!loading && xHandle ? (
-                  <>
-                    <a
-                      href={`https://x.com/${encodeURIComponent(xHandle)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-600/50 bg-zinc-950/60 px-2.5 py-1 text-sm font-medium text-sky-300 transition hover:border-sky-500/35 hover:bg-sky-950/35 hover:text-sky-200"
-                    >
-                      <span className="text-zinc-500">𝕏</span>@{xHandle}
-                    </a>
-                    {xVerified ? (
-                      <span className="inline-flex items-center rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
-                        Verified
-                      </span>
-                    ) : null}
-                  </>
-                ) : null}
-                <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-xl border border-zinc-700/35 bg-zinc-950/55 px-3 py-1.5 text-xs text-zinc-400">
-                  {followStats ? (
-                    <>
-                      <span className="tabular-nums font-semibold text-zinc-100">
-                        {followStats.followers.toLocaleString()}
-                      </span>
-                      <span className="text-zinc-500">followers</span>
-                      <span className="text-zinc-600">·</span>
-                      <span className="tabular-nums font-semibold text-zinc-100">
-                        {followStats.following.toLocaleString()}
-                      </span>
-                      <span className="text-zinc-500">following</span>
-                    </>
-                  ) : (
-                    <span
-                      className="inline-block h-4 w-36 max-w-full animate-pulse rounded bg-zinc-800/80"
-                      aria-hidden
-                    />
-                  )}
-                </span>
+                  </aside>
+                </div>
               </div>
             </div>
           </header>
@@ -2172,7 +2212,55 @@ export default function ProfilePageClient() {
         <p className="mt-6 text-sm text-red-400/90">{error}</p>
       ) : null}
 
-      <div className="mt-6 lg:mt-8 grid grid-cols-12 gap-5 lg:items-start lg:gap-6 xl:gap-8">
+      {profileNavItems.length > 1 ? (
+        <nav
+          className={`mt-6 flex gap-1.5 overflow-x-auto pb-1 lg:hidden ${terminalChrome.scrollYHidden}`}
+          aria-label="Profile sections"
+        >
+          {profileNavItems.map(({ href, id, label }) => (
+            <a
+              key={href}
+              href={href}
+              aria-current={activeProfileSection === id ? "location" : undefined}
+              className={profileNavPillClass(activeProfileSection === id)}
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+      ) : null}
+
+      <div className="relative mt-6 lg:mt-8">
+        {profileNavItems.length > 1 ? (
+          <aside
+            className="pointer-events-none absolute left-0 top-0 z-[35] hidden w-[12.5rem] lg:block xl:w-[13rem]"
+            aria-label="Profile section navigation"
+          >
+            <nav
+              className={`pointer-events-auto sticky ${PROFILE_STICKY_BELOW_CHROME} ${terminalSurface.insetPanel} ${terminalSurface.insetEdge} space-y-0.5 p-2`}
+              aria-label="Profile sections"
+            >
+              <p className="px-2.5 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
+                On this desk
+              </p>
+              {profileNavItems.map(({ href, id, label }) => (
+                <a
+                  key={href}
+                  href={href}
+                  aria-current={activeProfileSection === id ? "location" : undefined}
+                  className={profileNavLinkClass(activeProfileSection === id)}
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
+          </aside>
+        ) : null}
+
+        <div
+          className={`min-w-0 ${profileNavItems.length > 1 ? PROFILE_DESK_CONTENT_PAD : ""}`}
+        >
+      <div className="grid grid-cols-12 gap-5 lg:items-start lg:gap-6 xl:gap-8">
         {visibility.show_stats ? (
         <section
           id="performance"
@@ -2195,50 +2283,45 @@ export default function ProfilePageClient() {
                 ) : null
               }
             />
-            <div className="relative z-[1] mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)] lg:items-stretch">
-              <ProfileTrackRecordChart view={trackChartView} loading={loading} />
-              <div className="grid grid-cols-2 gap-3">
-                <StatCard
-                  title="Avg X"
-                  loading={loading}
-                  accent
-                  selected={trackChartMetric === "avg_x"}
-                  onSelect={() => setTrackChartMetric("avg_x")}
-                  value={profile ? `${profile.stats.avgX.toFixed(1)}x` : "—"}
-                />
-                <StatCard
-                  title="Win Rate"
-                  loading={loading}
-                  selected={trackChartMetric === "win_rate"}
-                  onSelect={() => setTrackChartMetric("win_rate")}
-                  value={profile ? `${profile.stats.winRate.toFixed(0)}%` : "—"}
-                />
-                <StatCard
-                  title="Total Calls"
-                  loading={loading}
-                  selected={trackChartMetric === "total_calls"}
-                  onSelect={() => setTrackChartMetric("total_calls")}
-                  value={profile ? profile.stats.totalCalls : "—"}
-                />
-                <StatCard
-                  title="2x Rate"
-                  loading={loading}
-                  selected={trackChartMetric === "rate_2x"}
-                  onSelect={() => setTrackChartMetric("rate_2x")}
-                  value={hitRates.rate2x ? `${Math.round(hitRates.rate2x)}%` : "-"}
-                />
-                <StatCard
-                  title="3x+ Rate"
-                  loading={loading}
-                  selected={trackChartMetric === "rate_3x"}
-                  onSelect={() => setTrackChartMetric("rate_3x")}
-                  value={hitRates.rate3x ? `${Math.round(hitRates.rate3x)}%` : "-"}
-                />
-              </div>
+            <div className="relative z-[1] grid gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
+              <StatCard
+                title="Avg X"
+                loading={loading}
+                accent
+                value={profile ? `${profile.stats.avgX.toFixed(1)}x` : "—"}
+              />
+              <StatCard
+                title="Win Rate"
+                loading={loading}
+                value={profile ? `${profile.stats.winRate.toFixed(0)}%` : "—"}
+              />
+              <StatCard
+                title="Total Calls"
+                loading={loading}
+                value={profile ? profile.stats.totalCalls : "—"}
+              />
+              <StatCard
+                title="2x Rate"
+                loading={loading}
+                value={hitRates.rate2x ? `${Math.round(hitRates.rate2x)}%` : "-"}
+              />
+              <StatCard
+                title="3x+ Rate"
+                loading={loading}
+                value={hitRates.rate3x ? `${Math.round(hitRates.rate3x)}%` : "-"}
+              />
             </div>
-            <p className="relative z-[1] mt-3 text-[11px] text-zinc-600">
-              Click a stat to change the chart view.
-            </p>
+            <div className="relative z-[1] mt-5 border-t border-zinc-800/60 pt-4">
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                Recent call multiples
+              </p>
+              <ProfileCallStripChart data={callStripSeries} loading={loading} />
+              {callStripSeries.length > 0 ? (
+                <p className="mt-2 text-[11px] leading-snug text-zinc-600">
+                  Last {callStripSeries.length} calls · oldest → newest · dashed lines at 1× and 2×
+                </p>
+              ) : null}
+            </div>
             {visibility.show_key_stats && hasDepthMetrics && keyStatsPayload ? (
               <div id="depth-metrics" className="relative z-[1] mt-5 border-t border-zinc-800/60 pt-4">
                 <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -2351,60 +2434,7 @@ export default function ProfilePageClient() {
 
           <section id="distribution" className={`mb-4 ${PROFILE_SECTION_SCROLL}`} data-tutorial="profile.distribution">
             <PanelCard title="Call Distribution">
-              {loading ? (
-                <div className={`mt-3 ${terminalPage.statTile} space-y-3 p-4`} aria-busy>
-                  {buildProfileDistributionSegments({
-                    under1: 0,
-                    oneToTwo: 0,
-                    twoToFive: 0,
-                    fivePlus: 0,
-                    total: 0,
-                  }).map((s) => (
-                    <div key={s.key} className="flex items-center gap-3">
-                      <div className="h-3 w-10 animate-pulse rounded bg-zinc-800/80" />
-                      <div className="h-2 flex-1 animate-pulse rounded bg-zinc-800/70" />
-                    </div>
-                  ))}
-                </div>
-              ) : profile?.callDistribution && profile.callDistribution.total > 0 ? (
-                <div className={`mt-3 ${terminalPage.statTile} space-y-2.5 p-4`}>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                    {profile.callDistribution.total.toLocaleString()} calls in distribution
-                  </p>
-                  {buildProfileDistributionSegments(profile.callDistribution).map((s) => {
-                    const pct = Math.round(
-                      (s.count / profile.callDistribution!.total) * 100
-                    );
-                    return (
-                      <div key={s.key} className="flex items-center gap-3">
-                        <span className="w-[3.25rem] shrink-0 font-mono text-[11px] font-medium tabular-nums text-zinc-500">
-                          {s.label}
-                        </span>
-                        <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-black/40 ring-1 ring-zinc-700/35">
-                          <div
-                            className="h-full rounded-full transition-[width] duration-500 ease-out"
-                            style={{
-                              width: `${pct}%`,
-                              backgroundColor: s.fill,
-                            }}
-                          />
-                        </div>
-                        <span className="w-[4.5rem] shrink-0 text-right text-[11px] tabular-nums text-zinc-400">
-                          <span className="font-semibold text-zinc-300">{s.count}</span>
-                          <span className="text-zinc-600"> · {pct}%</span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <ProfileEmptyState
-                  compact
-                  icon="◎"
-                  title="No distribution yet"
-                  description="Bucket breakdown appears once calls are recorded on this desk."
-                />
-              )}
+              <ProfileDistributionChart distribution={profile?.callDistribution} loading={loading} />
             </PanelCard>
           </section>
 
@@ -2892,6 +2922,8 @@ export default function ProfilePageClient() {
 
           </div>
         </aside>
+      </div>
+        </div>
       </div>
 
       {editOpen ? (
