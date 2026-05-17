@@ -37,12 +37,15 @@ export function SubmitDeskCallModal({
   quota,
   onQuotaChange,
   onSubmitted,
+  initialMint,
 }: {
   open: boolean;
   onClose: () => void;
   quota: DeskCallQuotaUi | null;
   onQuotaChange: (q: DeskCallQuotaUi) => void;
   onSubmitted?: () => void;
+  /** Prefill CA when opening from call log “log again”. */
+  initialMint?: string | null;
 }) {
   const { addNotification } = useNotifications();
   const { openTokenChart } = useTokenChartModal();
@@ -71,8 +74,11 @@ export function SubmitDeskCallModal({
     if (!open) {
       resetForm();
       setSubmitting(false);
+      return;
     }
-  }, [open, resetForm]);
+    const mint = initialMint?.trim();
+    if (mint) setValue(mint);
+  }, [open, initialMint, resetForm]);
 
   useEffect(() => {
     if (!open || !parsedMint) {
@@ -574,6 +580,13 @@ function DonePanel({
               className="rounded-md bg-[color:var(--accent)] px-3 py-2 text-xs font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-green-500"
             >
               View in call log
+            </Link>
+            <Link
+              href="/performance"
+              onClick={onClose}
+              className="rounded-md border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/15"
+            >
+              Performance Lab
             </Link>
             <button
               type="button"

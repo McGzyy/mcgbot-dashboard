@@ -9,6 +9,8 @@ type DashboardWidgetEmptyProps = {
   actionLabel?: string;
   onAction?: () => void;
   actionHref?: string;
+  secondaryActionLabel?: string;
+  secondaryActionHref?: string;
   badge?: string;
   icon?: ReactNode;
 };
@@ -19,11 +21,15 @@ export function DashboardWidgetEmpty({
   actionLabel,
   onAction,
   actionHref,
+  secondaryActionLabel,
+  secondaryActionHref,
   badge = "Desk",
   icon,
 }: DashboardWidgetEmptyProps) {
   const actionClass =
-    "mt-4 inline-flex items-center justify-center rounded-lg border border-[color:var(--accent)]/40 bg-[color:var(--accent)]/10 px-3 py-1.5 text-xs font-semibold text-[color:var(--accent)] transition hover:bg-[color:var(--accent)]/20";
+    "inline-flex items-center justify-center rounded-lg border border-[color:var(--accent)]/40 bg-[color:var(--accent)]/10 px-3 py-1.5 text-xs font-semibold text-[color:var(--accent)] transition hover:bg-[color:var(--accent)]/20";
+  const secondaryClass =
+    "inline-flex items-center justify-center rounded-lg border border-zinc-700/70 bg-zinc-900/50 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800/60";
 
   return (
     <div className="flex h-full min-h-[12rem] flex-col items-center justify-center px-4 py-10 text-center">
@@ -38,15 +44,24 @@ export function DashboardWidgetEmpty({
       )}
       <p className="mt-3 text-sm font-semibold text-zinc-200">{title}</p>
       <p className="mt-1 max-w-xs text-xs leading-relaxed text-zinc-500">{description}</p>
-      {actionLabel && onAction ? (
-        <button type="button" onClick={onAction} className={actionClass}>
-          {actionLabel}
-        </button>
-      ) : null}
-      {actionLabel && actionHref && !onAction ? (
-        <Link href={actionHref} className={actionClass}>
-          {actionLabel}
-        </Link>
+      {actionLabel || (secondaryActionLabel && secondaryActionHref) ? (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          {actionLabel && onAction ? (
+            <button type="button" onClick={onAction} className={actionClass}>
+              {actionLabel}
+            </button>
+          ) : null}
+          {actionLabel && actionHref && !onAction ? (
+            <Link href={actionHref} className={actionClass}>
+              {actionLabel}
+            </Link>
+          ) : null}
+          {secondaryActionLabel && secondaryActionHref ? (
+            <Link href={secondaryActionHref} className={secondaryClass}>
+              {secondaryActionLabel}
+            </Link>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
