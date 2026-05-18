@@ -12,6 +12,7 @@ import {
 } from "@/lib/tokenDashboardGate";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
 import { isPublicProfileApi, isPublicProfilePage } from "@/lib/publicProfileRoutes";
+import { isAffiliatePortalPath } from "@/lib/affiliate/affiliatePortalPaths";
 import { affiliatePostAuthPath } from "@/lib/affiliate/affiliatePostAuthPath";
 import {
   affiliateSessionFullyVerified,
@@ -35,6 +36,7 @@ function isPublicForAnonymous(pathname: string): boolean {
   if (pathname.startsWith("/membership")) return true;
   if (pathname.startsWith("/ref")) return true;
   if (pathname.startsWith("/affiliate/r/")) return true;
+  if (isAffiliatePortalPath(pathname)) return true;
   if (isPublicProfilePage(pathname)) return true;
   return false;
 }
@@ -320,12 +322,64 @@ async function hasDashboardAccessResolved(
   }
 }
 
+function affiliateDedicatedPortalHost(): string | null {
+  const raw = process.env.NEXT_PUBLIC_AFFILIATE_PORTAL_URL?.trim();
+  if (!raw) return null;
+  try {
+    return new URL(raw).hostname;
+  } catch {
+    return null;
+  }
+}
+
+/** When the request hits the dedicated affiliate host, only serve the partner/ops portal. */
+function affiliateDedicatedHostMiddleware(req: NextRequest): NextResponse | null {
+  const portalHost = affiliateDedicatedPortalHost();
+  if (!portalHost || req.nextUrl.hostname !== portalHost) return null;
+
+  const pathname = req.nextUrl.pathname;
+  if (
+    pathname.startsWith("/api/affiliate") ||
+    pathname.startsWith("/api/auth") ||
+    isAffiliatePortalPath(pathname)
+  ) {
+    return NextResponse.next();
+  }
+
+  const url = req.nextUrl.clone();
+  url.pathname = "/affiliate/login";
+  url.search = "";
+  return NextResponse.redirect(url);
+}
+
+/** Optional: send /affiliate/* on the main site to the dedicated portal origin. */
+function redirectAffiliateToDedicatedPortal(req: NextRequest): NextResponse | null {
+  const raw = process.env.NEXT_PUBLIC_AFFILIATE_PORTAL_URL?.trim();
+  if (!raw || !isAffiliatePortalPath(req.nextUrl.pathname)) return null;
+  let portal: URL;
+  try {
+    portal = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (req.nextUrl.hostname === portal.hostname) return null;
+
+  const target = new URL(req.nextUrl.pathname + req.nextUrl.search, portal.origin);
+  return NextResponse.redirect(target);
+}
+
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
   if (isStaticPath(pathname)) {
     return NextResponse.next();
   }
+
+  const dedicatedHostRes = affiliateDedicatedHostMiddleware(req);
+  if (dedicatedHostRes) return dedicatedHostRes;
+
+  const portalRedirect = redirectAffiliateToDedicatedPortal(req);
+  if (portalRedirect) return portalRedirect;
 
   /** Server redirect to Discord invite; must bypass subscription gate for signed-in non-members. */
   if (pathname === "/join") {

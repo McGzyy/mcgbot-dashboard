@@ -6,6 +6,7 @@ import { MainShell } from "@/app/components/MainShell";
 import { Sidebar } from "@/app/components/Sidebar";
 import { TutorialProvider } from "@/app/components/TutorialProvider";
 import { MobileSidebarProvider } from "@/app/contexts/MobileSidebarContext";
+import { isAffiliatePortalPath } from "@/lib/affiliate/affiliatePortalPaths";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -17,7 +18,9 @@ export function AppChrome({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { data: session, status, update } = useSession();
   const totpBootstrapStartedRef = useRef(false);
+  const affiliatePortal = isAffiliatePortalPath(pathname);
   const bareLayout =
+    affiliatePortal ||
     pathname.startsWith("/subscribe") ||
     pathname.startsWith("/membership") ||
     pathname.startsWith("/join/verify") ||
@@ -25,6 +28,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
 
   // Optional app TOTP after Discord — must complete before other dashboard routes.
   useEffect(() => {
+    if (affiliatePortal) return;
     if (status !== "authenticated") return;
     const needsDiscord = Boolean((session?.user as { discordNeedsVerification?: boolean } | undefined)?.discordNeedsVerification);
     if (needsDiscord) return;
@@ -68,10 +72,11 @@ export function AppChrome({ children }: { children: ReactNode }) {
       cancelled = true;
       totpBootstrapStartedRef.current = false;
     };
-  }, [pathname, router, session?.user, status, update]);
+  }, [affiliatePortal, pathname, router, session?.user, status, update]);
 
   // If the user is signed in but Discord marks them unverified, route them to the verify-required page.
   useEffect(() => {
+    if (affiliatePortal) return;
     if (status !== "authenticated") return;
     const needs = Boolean((session?.user as { discordNeedsVerification?: boolean } | undefined)?.discordNeedsVerification);
     if (!needs) return;
@@ -80,14 +85,20 @@ export function AppChrome({ children }: { children: ReactNode }) {
     if (reason === "unpaid_role" || reason === "missing_required_role") return;
     if (pathname.startsWith("/join/verify") || pathname.startsWith("/membership")) return;
     router.replace("/join/verify");
-  }, [pathname, router, session?.user, status]);
+  }, [affiliatePortal, pathname, router, session?.user, status]);
 
-  const showBareAnnouncement = bareLayout && !pathname.startsWith("/membership");
+  const showBareAnnouncement = bareLayout && !affiliatePortal && !pathname.startsWith("/membership");
 
   return (
     <div className="flex min-h-screen flex-col">
       {bareLayout ? (
-        <div className="flex min-h-0 flex-1 flex-col bg-[color:var(--mcg-page)]">
+        <div
+          className={
+            affiliatePortal
+              ? "flex min-h-0 flex-1 flex-col bg-zinc-50 text-zinc-900"
+              : "flex min-h-0 flex-1 flex-col bg-[color:var(--mcg-page)]"
+          }
+        >
           {showBareAnnouncement ? <AnnouncementBar variant="bare" requireGlobal /> : null}
           {children}
         </div>
