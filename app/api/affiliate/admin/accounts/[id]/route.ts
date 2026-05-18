@@ -1,4 +1,4 @@
-import { requireDashboardAdmin } from "@/lib/adminGate";
+import { requireAffiliateOpsAdmin } from "@/lib/affiliate/requireAffiliateOpsAccess";
 import {
   updateAffiliateAccountCommissionRateBps,
   updateAffiliateAccountStatus,
@@ -12,7 +12,7 @@ export async function PATCH(
   request: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const gate = await requireDashboardAdmin();
+  const gate = await requireAffiliateOpsAdmin();
   if (!gate.ok) return gate.response;
 
   const { id } = await ctx.params;

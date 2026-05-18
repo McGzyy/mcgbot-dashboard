@@ -1,4 +1,4 @@
-import { requireDashboardAdmin } from "@/lib/adminGate";
+import { requireAffiliateOpsAdmin } from "@/lib/affiliate/requireAffiliateOpsAccess";
 import { createAffiliateAccount, listAffiliateAccounts } from "@/lib/affiliate/affiliateDb";
 import type { AffiliateAccountStatus } from "@/lib/affiliate/affiliateSession";
 
@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const gate = await requireDashboardAdmin();
+  const gate = await requireAffiliateOpsAdmin();
   if (!gate.ok) return gate.response;
 
   const accounts = await listAffiliateAccounts();
@@ -14,7 +14,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const gate = await requireDashboardAdmin();
+  const gate = await requireAffiliateOpsAdmin();
   if (!gate.ok) return gate.response;
 
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;

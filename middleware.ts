@@ -18,6 +18,7 @@ import {
   affiliateSessionFullyVerified,
   getAffiliateSessionFromRequest,
 } from "@/lib/affiliate/affiliateSession";
+import { getAffiliateOpsSessionFromRequest } from "@/lib/affiliate/affiliateOpsSession";
 
 function isStaticPath(pathname: string): boolean {
   if (pathname.startsWith("/_next")) return true;
@@ -66,11 +67,26 @@ function isAffiliatePublicPath(pathname: string, method: string): boolean {
   return false;
 }
 
+function isAffiliateAdminPublicPath(pathname: string, method: string): boolean {
+  if (pathname === "/affiliate/admin/enter") return true;
+  if (pathname === "/affiliate/admin/denied") return true;
+  if (pathname === "/affiliate/admin/login") return true;
+  if (pathname.startsWith("/affiliate/admin/auth/totp")) return true;
+  if (pathname === "/api/affiliate/admin/totp/verify" && method === "POST") return true;
+  return false;
+}
+
 async function affiliateAdminMiddleware(req: NextRequest): Promise<NextResponse | null> {
   const pathname = req.nextUrl.pathname;
   if (!isAffiliateAdminPath(pathname)) return null;
 
   if (pathname === "/affiliate/admin/login" || pathname.startsWith("/affiliate/admin/login/")) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/affiliate/admin/enter";
+    return NextResponse.redirect(url);
+  }
+
+  if (isAffiliateAdminPublicPath(pathname, req.method)) {
     return NextResponse.next();
   }
 
@@ -88,7 +104,21 @@ async function affiliateAdminMiddleware(req: NextRequest): Promise<NextResponse 
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const url = req.nextUrl.clone();
-    url.pathname = "/affiliate/admin/login";
+    url.pathname = "/affiliate/admin/denied";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  const ops = await getAffiliateOpsSessionFromRequest(req);
+  if (!ops || ops.discordId !== discordId) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Affiliate ops 2FA required", code: "affiliate_ops_2fa_required" },
+        { status: 403 }
+      );
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/affiliate/admin/enter";
     url.search = "";
     const returnPath = pathname + (req.nextUrl.search ?? "");
     url.searchParams.set("returnTo", returnPath);
@@ -213,7 +243,9 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (pathname === "/api/public/site-flags" && method === "GET") return true;
   if (pathname.startsWith("/ref")) return true;
   if (pathname.startsWith("/affiliate/r/")) return true;
-  if (pathname.startsWith("/affiliate/admin/login")) return true;
+  if (pathname.startsWith("/affiliate/admin/enter")) return true;
+  if (pathname.startsWith("/affiliate/admin/denied")) return true;
+  if (pathname.startsWith("/affiliate/admin/auth/totp")) return true;
   if (pathname === "/api/copy-trade/bot-7d" && method === "GET") return true;
   if (pathname === "/api/subscription/plans" && method === "GET") return true;
   if (pathname === "/api/subscription/stripe/webhook" && method === "POST") return true;

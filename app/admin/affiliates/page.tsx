@@ -4,8 +4,8 @@ import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { affiliatePortalPath } from "@/lib/affiliate/affiliatePortalUrl";
 
 export default function AdminAffiliatesHubPage() {
-  const opsLogin = affiliatePortalPath("/affiliate/admin/login?returnTo=%2Faffiliate%2Fadmin");
-  const opsPartners = affiliatePortalPath("/affiliate/admin/login?returnTo=%2Faffiliate%2Fadmin%2Fpartners");
+  const opsLogin = affiliatePortalPath("/affiliate/admin/enter?returnTo=%2Faffiliate%2Fadmin");
+  const opsPartners = affiliatePortalPath("/affiliate/admin/enter?returnTo=%2Faffiliate%2Fadmin%2Fpartners");
   const partnerRegister = affiliatePortalPath("/affiliate/register");
 
   return (
@@ -35,7 +35,8 @@ export default function AdminAffiliatesHubPage() {
           </Link>
         </div>
         <p className="mt-4 text-xs text-zinc-600">
-          Ops uses Discord admin sign-in on the affiliate portal only. Set{" "}
+          Ops opens from your existing McGBot admin session plus authenticator 2FA — no Discord sign-in on the partner
+          portal. Set{" "}
           <span className="font-mono text-zinc-500">NEXT_PUBLIC_AFFILIATE_PORTAL_URL</span> (e.g.{" "}
           <span className="font-mono text-zinc-500">https://partners.mcgbot.xyz</span>) to host the portal on its own
           domain.

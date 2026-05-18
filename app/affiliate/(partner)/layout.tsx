@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { AffiliatePortalLogo } from "@/app/components/AffiliatePortalLogo";
 import { AFFILIATE_PORTAL_BUILD_ID } from "@/lib/affiliate/affiliatePortalBuild";
 
 /**
@@ -11,12 +12,7 @@ export default function AffiliatePartnerShellLayout({ children }: { children: Re
     <div className="flex min-h-screen flex-col bg-zinc-50 text-zinc-900 antialiased selection:bg-violet-200/80 selection:text-violet-950">
       <header className="sticky top-0 z-40 border-b border-zinc-200/90 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/85">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
-          <Link href="/affiliate/login" className="group min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-700/90">Partner program</p>
-            <p className="truncate text-sm font-bold tracking-tight text-zinc-900 group-hover:text-violet-800">
-              McGBot Affiliate
-            </p>
-          </Link>
+          <AffiliatePortalLogo href="/affiliate/login" subtitle="Partner program" />
           <nav className="flex flex-wrap items-center gap-1 sm:gap-2" aria-label="Partner navigation">
             <Link
               href="/affiliate/login"

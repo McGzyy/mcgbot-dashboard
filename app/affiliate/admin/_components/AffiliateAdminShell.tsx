@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { AffiliatePortalLogo } from "@/app/components/AffiliatePortalLogo";
 import { AFFILIATE_PORTAL_BUILD_ID } from "@/lib/affiliate/affiliatePortalBuild";
 
 type NavItem = { href: string; label: string; description: string };
@@ -43,7 +44,7 @@ export function AffiliateAdminShell({ children }: { children: ReactNode }) {
         aria-hidden
       />
       <header className="relative border-b border-zinc-200/90 pb-8">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-violet-700/90">Affiliate ops</p>
+        <AffiliatePortalLogo href="/affiliate/admin" subtitle="Ops console" className="mb-4" />
         <h1 className="mt-2 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-600 bg-clip-text text-3xl font-bold tracking-tight text-transparent">
           Partner control plane
         </h1>
