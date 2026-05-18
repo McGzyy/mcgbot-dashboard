@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { referralCookieOptions, serializeReferrerCookie } from "@/lib/referralCookie";
+import { upsertReferralFromWebAttribution } from "@/lib/referralRewards";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { isValidDiscordSnowflake } from "@/lib/subscription/exemptAllowlistDb";
 
@@ -44,6 +45,12 @@ export async function POST(request: Request) {
   if (ownerId === selfId) {
     return NextResponse.json({ error: "Self-referral is not allowed" }, { status: 400 });
   }
+
+  await upsertReferralFromWebAttribution({
+    referredUserId: selfId,
+    ownerDiscordId: ownerId,
+    attributionSource: "web_membership_claim",
+  });
 
   const opts = referralCookieOptions();
   const clickMs = Date.now();

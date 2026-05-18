@@ -52,6 +52,7 @@ export async function processStripeInvoicePaidForReferrals(opts: {
     await upsertReferralFromWebAttribution({
       referredUserId: discordId,
       ownerDiscordId: refOwnerRaw,
+      attributionSource: "web_cookie_checkout",
     });
   }
 

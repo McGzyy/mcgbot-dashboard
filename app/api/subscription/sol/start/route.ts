@@ -1,4 +1,5 @@
 import { encodeURL } from "@solana/pay";
+import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import BigNumber from "bignumber.js";
 import { Keypair, PublicKey } from "@solana/web3.js";
@@ -14,6 +15,7 @@ import {
   hasPendingSolInvoiceForDiscord,
 } from "@/lib/subscription/subscriptionDb";
 import { fetchSolUsdPrice, usdToLamportsCeil } from "@/lib/subscription/solUsdQuote";
+import { applyReferralAttributionFromCookies } from "@/lib/referralAttributionFromCookies";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -186,6 +188,13 @@ export async function POST(request: Request) {
   const reference = Keypair.generate();
   const refStr = reference.publicKey.toBase58();
   const quoteExpiresAt = new Date(Date.now() + QUOTE_TTL_MS);
+
+  try {
+    const jar = await cookies();
+    await applyReferralAttributionFromCookies(discordId, jar, "web_cookie_sol_checkout");
+  } catch (e) {
+    console.warn("[sol/start] referral attribution", e);
+  }
 
   const invoiceId = await createInvoiceRow({
     discordId,

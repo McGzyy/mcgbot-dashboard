@@ -9,6 +9,7 @@ import { getPlanById, getPlanBySlug, getSubscriptionStripeCustomerId } from "@/l
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
+import { applyReferralAttributionFromCookies } from "@/lib/referralAttributionFromCookies";
 import { readReferrerStripeMetadataFromCookies } from "@/lib/subscription/stripeReferralInvoice";
 
 export const runtime = "nodejs";
@@ -176,6 +177,11 @@ export async function POST(request: Request) {
     const existingCustomerId = await getSubscriptionStripeCustomerId(discordId);
 
     const jar = await cookies();
+    try {
+      await applyReferralAttributionFromCookies(discordId, jar, "web_cookie_checkout");
+    } catch (e) {
+      console.warn("[create-checkout-session] referral attribution", e);
+    }
     const refMetaRaw = readReferrerStripeMetadataFromCookies(jar);
     const refMeta =
       refMetaRaw && refMetaRaw.referrer_discord_id.trim() !== discordId.trim() ? refMetaRaw : null;

@@ -632,8 +632,8 @@ export function ReferralsClient() {
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
               You earn <span className="font-medium text-zinc-300">10%</span> of each referred member’s qualifying
               payment (USD) as account credit, up to <span className="font-medium text-zinc-300">six list-price months</span>{" "}
-              per person in their first 24 months paid. Credit becomes spendable after a short refund window; redeem in
-              whole-month bundles at public tier prices on <Link href="/membership" className="text-violet-300 underline">Membership</Link>.
+              per person in their first 24 months paid. Credit becomes spendable after a short refund window; apply it on{" "}
+              <Link href="/membership" className="text-violet-300 underline">Membership</Link> toward any selected billing period.
             </p>
           </div>
 

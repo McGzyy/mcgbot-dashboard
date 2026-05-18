@@ -4,6 +4,7 @@ import {
   MembershipSolCheckout,
   MembershipSolPayNote,
 } from "@/app/membership/MembershipSolCheckout";
+import { MembershipReferralCreditPanel } from "@/app/membership/MembershipReferralCreditPanel";
 import {
   annualSavingsVsMonthly,
   billingCadenceLabel,
@@ -53,6 +54,7 @@ type MembershipBillingSectionProps = {
   onStartCheckout: () => void;
   onRedeemComplimentary: () => void;
   onSolActivated: () => Promise<void>;
+  onReferralCreditRedeemed?: (message: string) => void;
   maintenanceNote?: React.ReactNode;
   signupsPausedNote?: React.ReactNode;
   signupsPausedAdminNote?: React.ReactNode;
@@ -98,6 +100,7 @@ export function MembershipBillingSection({
   onStartCheckout,
   onRedeemComplimentary,
   onSolActivated,
+  onReferralCreditRedeemed,
   maintenanceNote,
   signupsPausedNote,
   signupsPausedAdminNote,
@@ -332,6 +335,13 @@ export function MembershipBillingSection({
               <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-600">
                 Step 3 · Pay
               </p>
+              {onReferralCreditRedeemed ? (
+                <MembershipReferralCreditPanel
+                  isLoggedIn={isLoggedIn}
+                  selectedPlan={selectedPlan}
+                  onRedeemed={onReferralCreditRedeemed}
+                />
+              ) : null}
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <button
                   type="button"

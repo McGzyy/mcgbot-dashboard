@@ -89,9 +89,16 @@ async function sumCreditCentsForPairInWindow(
 /**
  * Apply web checkout attribution: last click at conversion overwrites Discord invite row.
  */
+export type ReferralAttributionSource =
+  | "discord_invite"
+  | "web_cookie_checkout"
+  | "web_membership_claim"
+  | "web_cookie_sol_checkout";
+
 export async function upsertReferralFromWebAttribution(input: {
   referredUserId: string;
   ownerDiscordId: string;
+  attributionSource?: ReferralAttributionSource;
 }): Promise<boolean> {
   const referred = input.referredUserId.trim();
   const owner = input.ownerDiscordId.trim();
@@ -99,13 +106,14 @@ export async function upsertReferralFromWebAttribution(input: {
   const db = getSupabaseAdmin();
   if (!db) return false;
 
+  const source = input.attributionSource ?? "web_cookie_checkout";
   const joinedAt = Date.now();
   const { error } = await db.from("referrals").upsert(
     {
       owner_discord_id: owner,
       referred_user_id: referred,
       joined_at: joinedAt,
-      attribution_source: "web_cookie_checkout",
+      attribution_source: source,
     },
     { onConflict: "referred_user_id" }
   );

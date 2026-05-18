@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/subscription-exempt-expiry",
       "schedule": "5 * * * *"
+    },
+    {
+      "path": "/api/cron/referral-credit-settle",
+      "schedule": "30 * * * *"
     }
   ]
 }

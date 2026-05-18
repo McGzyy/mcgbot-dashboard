@@ -977,6 +977,13 @@ export default function MembershipPage() {
             setPollNote("Payment confirmed — unlocking your desk…");
             await update({ refreshAccess: true });
           }}
+          onReferralCreditRedeemed={async (message) => {
+            markMembershipWelcome();
+            setShowActivationWelcome(true);
+            setPollNote(message);
+            setCheckoutError(null);
+            await update({ refreshAccess: true });
+          }}
           maintenanceNote={
             siteFlags?.maintenance_enabled && isDashboardAdmin ? (
               <p className="mb-4 rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
