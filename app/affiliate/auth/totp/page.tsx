@@ -34,7 +34,7 @@ export default function AffiliateTotpVerifyPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-lg space-y-5 px-4 py-10 sm:py-14">
       <div>
         <h1 className="text-xl font-semibold text-zinc-50">Authenticator required</h1>
         <p className="mt-2 text-sm text-zinc-500">Enter a code from your app or a recovery code.</p>

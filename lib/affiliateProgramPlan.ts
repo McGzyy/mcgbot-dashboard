@@ -21,6 +21,11 @@ export const AFFILIATE_PROGRAM_BOUNDARIES = [
 /** Shipped in foundation milestone. */
 export const AFFILIATE_PROGRAM_ROUTES = {
   partnerLogin: "/affiliate/login",
+  partnerRegister: "/affiliate/register",
   partnerDashboard: "/affiliate/dashboard",
-  adminProvision: "/admin/affiliates",
+  partnerPending: "/affiliate/pending",
+  /** Discord-admin-only ops console (not in member nav). */
+  adminConsole: "/affiliate/admin",
+  /** Hub link from McGBot /admin (optional). */
+  dashboardAdminHub: "/admin/affiliates",
 } as const;

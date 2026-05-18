@@ -61,7 +61,7 @@ export default function AffiliateDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-lg space-y-6 px-4 py-10 sm:py-14">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-300/80">Affiliate dashboard</p>

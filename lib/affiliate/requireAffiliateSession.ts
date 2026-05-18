@@ -9,6 +9,8 @@ type Ok = { ok: true; session: AffiliateSessionClaims };
 
 export async function requireAffiliateSession(options?: {
   requireVerified?: boolean;
+  /** Partner dashboard and payouts require admin-approved (active) status. */
+  requireActive?: boolean;
 }): Promise<Ok | Fail> {
   const session = await getAffiliateSessionFromCookies();
   if (!session) {
@@ -19,6 +21,9 @@ export async function requireAffiliateSession(options?: {
   }
   if (options?.requireVerified && !affiliateSessionFullyVerified(session)) {
     return { ok: false, response: Response.json({ error: "2FA required" }, { status: 403 }) };
+  }
+  if (options?.requireActive && session.status !== "active") {
+    return { ok: false, response: Response.json({ error: "Account pending approval" }, { status: 403 }) };
   }
   return { ok: true, session };
 }

@@ -93,7 +93,7 @@ export default function AffiliateTotpSetupPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-lg space-y-5 px-4 py-10 sm:py-14">
       <div>
         <h1 className="text-xl font-semibold text-zinc-50">Set up authenticator 2FA</h1>
         <p className="mt-2 text-sm text-zinc-500">Required for all affiliate accounts before accessing payouts.</p>

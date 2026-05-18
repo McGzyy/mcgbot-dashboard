@@ -174,3 +174,47 @@ export async function buildAffiliateSessionForAccount(
     pendingTotpVerification: account.totpEnabled,
   });
 }
+
+/** Public self-serve application — always starts as pending until admin approval. */
+export async function registerAffiliateApplication(input: {
+  email: string;
+  password: string;
+  displayName?: string | null;
+}): Promise<
+  | { ok: true; account: AffiliateAccountRow; sessionToken: string }
+  | { ok: false; error: string }
+> {
+  const created = await createAffiliateAccount({
+    email: input.email,
+    password: input.password,
+    displayName: input.displayName,
+    status: "pending",
+  });
+  if (!created.ok) return created;
+
+  const sessionToken = await buildAffiliateSessionForAccount(created.account);
+  if (!sessionToken) {
+    return { ok: false, error: "Session signing is not configured." };
+  }
+  return { ok: true, account: created.account, sessionToken };
+}
+
+export async function updateAffiliateAccountStatus(
+  affiliateId: string,
+  status: AffiliateAccountStatus
+): Promise<boolean> {
+  const id = affiliateId.trim();
+  if (!id) return false;
+  if (status !== "pending" && status !== "active" && status !== "suspended") return false;
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) {
+    console.error("[affiliateDb] update status", error);
+    return false;
+  }
+  return true;
+}

@@ -12,6 +12,7 @@ import {
 } from "@/lib/tokenDashboardGate";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
 import { isPublicProfileApi, isPublicProfilePage } from "@/lib/publicProfileRoutes";
+import { affiliatePostAuthPath } from "@/lib/affiliate/affiliatePostAuthPath";
 import {
   affiliateSessionFullyVerified,
   getAffiliateSessionFromRequest,
@@ -45,19 +46,52 @@ function isCronApi(pathname: string): boolean {
   return pathname.startsWith("/api/cron/");
 }
 
-function isAffiliatePath(pathname: string): boolean {
+function isAffiliateAdminPath(pathname: string): boolean {
+  return pathname.startsWith("/affiliate/admin") || pathname.startsWith("/api/affiliate/admin");
+}
+
+function isAffiliatePartnerPath(pathname: string): boolean {
+  if (isAffiliateAdminPath(pathname)) return false;
   return pathname.startsWith("/affiliate") || pathname.startsWith("/api/affiliate");
 }
 
 function isAffiliatePublicPath(pathname: string, method: string): boolean {
   if (pathname === "/affiliate/login") return true;
+  if (pathname === "/affiliate/register") return true;
   if (pathname === "/api/affiliate/auth/login" && method === "POST") return true;
+  if (pathname === "/api/affiliate/auth/register" && method === "POST") return true;
   return false;
 }
 
-async function affiliateMiddleware(req: NextRequest): Promise<NextResponse | null> {
+async function affiliateAdminMiddleware(req: NextRequest): Promise<NextResponse | null> {
   const pathname = req.nextUrl.pathname;
-  if (!isAffiliatePath(pathname)) return null;
+  if (!isAffiliateAdminPath(pathname)) return null;
+
+  const secret = process.env.NEXTAUTH_SECRET;
+  const token = secret
+    ? ((await getToken({ req, secret })) as Record<string, unknown> | null)
+    : null;
+  const discordId = discordIdFromTokenFields(token);
+  const isAdmin =
+    token?.helpTier === "admin" ||
+    (discordId ? (await resolveHelpTier(discordId)) === "admin" : false);
+
+  if (!isAdmin) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
+}
+
+async function affiliatePartnerMiddleware(req: NextRequest): Promise<NextResponse | null> {
+  const pathname = req.nextUrl.pathname;
+  if (!isAffiliatePartnerPath(pathname)) return null;
 
   if (isAffiliatePublicPath(pathname, req.method)) {
     return NextResponse.next();
@@ -93,6 +127,8 @@ async function affiliateMiddleware(req: NextRequest): Promise<NextResponse | nul
     pathname === "/api/affiliate/auth/session";
   const onTotpVerify =
     pathname === "/affiliate/auth/totp" || pathname === "/api/affiliate/totp/verify-session";
+  const needsActivePartner =
+    pathname === "/affiliate/dashboard" || pathname === "/api/affiliate/dashboard";
 
   if (session.needsTotpEnrollment && !onSetup) {
     if (pathname.startsWith("/api/")) {
@@ -112,13 +148,18 @@ async function affiliateMiddleware(req: NextRequest): Promise<NextResponse | nul
     return NextResponse.redirect(url);
   }
 
-  if (pathname === "/affiliate/login") {
+  if (session.status === "pending" && needsActivePartner) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Account pending approval" }, { status: 403 });
+    }
     const url = req.nextUrl.clone();
-    url.pathname = affiliateSessionFullyVerified(session)
-      ? "/affiliate/dashboard"
-      : session.needsTotpEnrollment
-        ? "/affiliate/auth/setup"
-        : "/affiliate/auth/totp";
+    url.pathname = "/affiliate/pending";
+    return NextResponse.redirect(url);
+  }
+
+  if (pathname === "/affiliate/login" || pathname === "/affiliate/register") {
+    const url = req.nextUrl.clone();
+    url.pathname = affiliatePostAuthPath(session);
     return NextResponse.redirect(url);
   }
 
@@ -127,7 +168,19 @@ async function affiliateMiddleware(req: NextRequest): Promise<NextResponse | nul
     affiliateSessionFullyVerified(session)
   ) {
     const url = req.nextUrl.clone();
+    url.pathname = affiliatePostAuthPath(session);
+    return NextResponse.redirect(url);
+  }
+
+  if (session.status === "active" && pathname === "/affiliate/pending") {
+    const url = req.nextUrl.clone();
     url.pathname = "/affiliate/dashboard";
+    return NextResponse.redirect(url);
+  }
+
+  if (session.status === "pending" && pathname === "/affiliate/dashboard") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/affiliate/pending";
     return NextResponse.redirect(url);
   }
 
@@ -273,8 +326,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const affiliateRes = await affiliateMiddleware(req);
-  if (affiliateRes) return affiliateRes;
+  const affiliateAdminRes = await affiliateAdminMiddleware(req);
+  if (affiliateAdminRes) return affiliateAdminRes;
+
+  const affiliatePartnerRes = await affiliatePartnerMiddleware(req);
+  if (affiliatePartnerRes) return affiliatePartnerRes;
 
   const secret = process.env.NEXTAUTH_SECRET;
   const token = secret

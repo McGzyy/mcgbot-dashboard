@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const auth = await requireAffiliateSession({ requireVerified: true });
+  const auth = await requireAffiliateSession({ requireVerified: true, requireActive: true });
   if (!auth.ok) return auth.response;
 
   const account = await getAffiliateById(auth.session.affiliateId);

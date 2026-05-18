@@ -73,10 +73,10 @@ export default function AdminOverviewPage() {
           hint="Reads · Supabase"
         />
         <OverviewCard
-          href="/admin/affiliates"
+          href="/affiliate/admin"
           title="Affiliate partners"
-          subtitle="Create partner accounts with separate login; affiliates must enable authenticator 2FA."
-          hint="Writes · Supabase"
+          subtitle="Open the partner ops console — approve applications, provision accounts (separate from member UI)."
+          hint="Admin · Supabase"
         />
         <OverviewCard
           href="/admin/subscription-exempt"
