@@ -181,7 +181,7 @@ export default function AffiliateDashboardPage() {
       )}
 
       <p className="text-xs text-zinc-500">
-        See Earnings for commission detail and Resources for brand assets.
+        Use Campaigns for tracked sub-links. See Earnings for commission detail and Resources for brand assets.
       </p>
     </div>
   );

@@ -70,10 +70,12 @@ function isAffiliatePublicPath(pathname: string, method: string): boolean {
 function isAffiliatePartnerHubPath(pathname: string): boolean {
   return (
     pathname === "/affiliate/dashboard" ||
+    pathname === "/affiliate/campaigns" ||
     pathname === "/affiliate/earnings" ||
     pathname === "/affiliate/resources" ||
     pathname === "/affiliate/settings" ||
-    pathname === "/api/affiliate/dashboard"
+    pathname === "/api/affiliate/dashboard" ||
+    pathname === "/api/affiliate/campaigns"
   );
 }
 

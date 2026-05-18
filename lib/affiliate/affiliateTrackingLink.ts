@@ -8,7 +8,10 @@ export function affiliateSiteBaseUrl(): string {
   return base.replace(/\/$/, "");
 }
 
-export function affiliateTrackingUrl(slug: string): string {
+export function affiliateTrackingUrl(slug: string, campaignSlug?: string | null): string {
   const s = normalizeAffiliateSlug(slug);
-  return `${affiliateSiteBaseUrl()}/affiliate/r/${encodeURIComponent(s)}`;
+  const base = `${affiliateSiteBaseUrl()}/affiliate/r/${encodeURIComponent(s)}`;
+  const c = campaignSlug ? normalizeAffiliateSlug(campaignSlug) : "";
+  if (!c) return base;
+  return `${base}?${new URLSearchParams({ c }).toString()}`;
 }
