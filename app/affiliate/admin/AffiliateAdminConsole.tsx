@@ -1,6 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  AFFILIATE_AUDIENCE_LABELS,
+  AFFILIATE_PRIMARY_CHANNEL_LABELS,
+} from "@/lib/affiliate/validateAffiliateApplication";
+
+type AffiliateApplication = {
+  legalName: string | null;
+  companyName: string | null;
+  country: string | null;
+  primaryChannel: string | null;
+  audienceSize: string | null;
+  promoMethods: string | null;
+  socialLinks: string | null;
+  websiteUrl: string | null;
+  notes: string | null;
+  submittedAt: string | null;
+  adminReviewNotes: string | null;
+};
 
 type AffiliateRow = {
   id: string;
@@ -11,6 +29,7 @@ type AffiliateRow = {
   totpEnabled: boolean;
   affiliateSlug: string | null;
   createdAt: string;
+  application?: AffiliateApplication;
 };
 
 export function AffiliateAdminConsole() {
@@ -19,6 +38,8 @@ export function AffiliateAdminConsole() {
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [reviewNotesDraft, setReviewNotesDraft] = useState("");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -139,6 +160,36 @@ export function AffiliateAdminConsole() {
   }
 
   const pendingCount = accounts.filter((a) => a.status === "pending").length;
+  const selected = accounts.find((a) => a.id === selectedId) ?? null;
+
+  useEffect(() => {
+    setReviewNotesDraft(selected?.application?.adminReviewNotes ?? "");
+  }, [selected?.id, selected?.application?.adminReviewNotes]);
+
+  async function saveReviewNotes(id: string) {
+    setBusy(`notes:${id}`);
+    setErr(null);
+    setNote(null);
+    try {
+      const res = await fetch(`/api/affiliate/admin/accounts/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ adminReviewNotes: reviewNotesDraft.trim() || null }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || !j.success) {
+        setErr(typeof j.error === "string" ? j.error : "Could not save notes.");
+        return;
+      }
+      setNote("Review notes saved.");
+      await load();
+    } catch {
+      setErr("Could not save notes.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -241,10 +292,17 @@ export function AffiliateAdminConsole() {
                 </tr>
               ) : (
                 accounts.map((a) => (
-                  <tr key={a.id} className="text-zinc-800">
+                  <tr
+                    key={a.id}
+                    className={`cursor-pointer text-zinc-800 ${selectedId === a.id ? "bg-violet-50/80" : "hover:bg-zinc-50"}`}
+                    onClick={() => setSelectedId(a.id)}
+                  >
                     <td className="px-3 py-2">
                       <span className="block text-sm font-medium text-zinc-900">{a.email}</span>
                       {a.displayName ? <span className="text-zinc-500">{a.displayName}</span> : null}
+                      {a.application?.legalName ? (
+                        <span className="block text-[10px] text-zinc-400">{a.application.legalName}</span>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2 capitalize text-zinc-700">{a.status}</td>
                     <td className="px-3 py-2 text-zinc-600">{a.totpEnabled ? "Enabled" : "Required"}</td>
@@ -267,7 +325,7 @@ export function AffiliateAdminConsole() {
                     <td className="px-3 py-2 font-mono text-[10px] text-zinc-500">
                       {a.status === "active" && a.affiliateSlug ? `/affiliate/r/${a.affiliateSlug}` : "—"}
                     </td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-wrap justify-end gap-1">
                         {a.status === "pending" ? (
                           <button
@@ -308,6 +366,88 @@ export function AffiliateAdminConsole() {
           </table>
         </div>
       </section>
+
+      {selected ? (
+        <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:p-5">
+          <h3 className="text-sm font-semibold text-zinc-900">Application — {selected.email}</h3>
+          {selected.application?.submittedAt ? (
+            <p className="mt-1 text-xs text-zinc-500">
+              Submitted {new Date(selected.application.submittedAt).toLocaleString()}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-zinc-500">No application fields (manual account).</p>
+          )}
+          {selected.application ? (
+            <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-zinc-500">Legal name</dt>
+                <dd className="font-medium text-zinc-900">{selected.application.legalName ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">Company</dt>
+                <dd className="font-medium text-zinc-900">{selected.application.companyName ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">Country</dt>
+                <dd className="font-medium text-zinc-900">{selected.application.country ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">Channel</dt>
+                <dd className="font-medium text-zinc-900">
+                  {selected.application.primaryChannel
+                    ? (AFFILIATE_PRIMARY_CHANNEL_LABELS[selected.application.primaryChannel] ??
+                      selected.application.primaryChannel)
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">Audience</dt>
+                <dd className="font-medium text-zinc-900">
+                  {selected.application.audienceSize
+                    ? (AFFILIATE_AUDIENCE_LABELS[selected.application.audienceSize] ??
+                      selected.application.audienceSize)
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">Website</dt>
+                <dd className="break-all font-medium text-zinc-900">{selected.application.websiteUrl ?? "—"}</dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-zinc-500">Promotion plan</dt>
+                <dd className="mt-1 whitespace-pre-wrap text-zinc-800">{selected.application.promoMethods ?? "—"}</dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-zinc-500">Social links</dt>
+                <dd className="mt-1 whitespace-pre-wrap text-zinc-800">{selected.application.socialLinks ?? "—"}</dd>
+              </div>
+              {selected.application.notes ? (
+                <div className="sm:col-span-2">
+                  <dt className="text-zinc-500">Applicant notes</dt>
+                  <dd className="mt-1 whitespace-pre-wrap text-zinc-800">{selected.application.notes}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+          <label className="mt-4 block">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Ops review notes</span>
+            <textarea
+              value={reviewNotesDraft}
+              onChange={(e) => setReviewNotesDraft(e.target.value)}
+              className="mt-1 min-h-[72px] w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-400"
+              placeholder="Internal notes for approve/deny decisions…"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => void saveReviewNotes(selected.id)}
+            className="mt-3 h-9 rounded-lg border border-violet-300 bg-violet-600 px-4 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-45"
+          >
+            {busy === `notes:${selected.id}` ? "Saving…" : "Save review notes"}
+          </button>
+        </section>
+      ) : null}
 
       <p className="text-xs text-zinc-500">
         Self-serve apply URL (share directly, not on member site):{" "}

@@ -2,6 +2,7 @@ import { requireAffiliateOpsAdmin } from "@/lib/affiliate/requireAffiliateOpsAcc
 import {
   updateAffiliateAccountCommissionRateBps,
   updateAffiliateAccountStatus,
+  updateAffiliateAdminReviewNotes,
 } from "@/lib/affiliate/affiliateDb";
 import type { AffiliateAccountStatus } from "@/lib/affiliate/affiliateSession";
 
@@ -23,9 +24,18 @@ export async function PATCH(
 
   const hasBps = body?.commissionRateBps !== undefined && body?.commissionRateBps !== null;
   const bps = hasBps ? Math.floor(Number(body?.commissionRateBps)) : NaN;
+  const hasReviewNotes = body !== null && Object.prototype.hasOwnProperty.call(body, "adminReviewNotes");
+  const adminReviewNotes = hasReviewNotes
+    ? typeof body?.adminReviewNotes === "string"
+      ? body.adminReviewNotes
+      : null
+    : undefined;
 
-  if (!status && !hasBps) {
-    return Response.json({ success: false, error: "Provide status and/or commissionRateBps" }, { status: 400 });
+  if (!status && !hasBps && !hasReviewNotes) {
+    return Response.json(
+      { success: false, error: "Provide status, commissionRateBps, and/or adminReviewNotes" },
+      { status: 400 }
+    );
   }
 
   if (hasBps && (!Number.isFinite(bps) || bps < 0 || bps > 10000)) {
@@ -46,5 +56,17 @@ export async function PATCH(
     }
   }
 
-  return Response.json({ success: true, status: status ?? undefined, commissionRateBps: hasBps ? bps : undefined });
+  if (hasReviewNotes) {
+    const ok = await updateAffiliateAdminReviewNotes(id, adminReviewNotes ?? null);
+    if (!ok) {
+      return Response.json({ success: false, error: "Review notes update failed" }, { status: 500 });
+    }
+  }
+
+  return Response.json({
+    success: true,
+    status: status ?? undefined,
+    commissionRateBps: hasBps ? bps : undefined,
+    adminReviewNotes: hasReviewNotes ? adminReviewNotes : undefined,
+  });
 }

@@ -67,6 +67,16 @@ function isAffiliatePublicPath(pathname: string, method: string): boolean {
   return false;
 }
 
+function isAffiliatePartnerHubPath(pathname: string): boolean {
+  return (
+    pathname === "/affiliate/dashboard" ||
+    pathname === "/affiliate/earnings" ||
+    pathname === "/affiliate/resources" ||
+    pathname === "/affiliate/settings" ||
+    pathname === "/api/affiliate/dashboard"
+  );
+}
+
 function isAffiliateAdminPublicPath(pathname: string, method: string): boolean {
   if (pathname === "/affiliate/admin/enter") return true;
   if (pathname === "/affiliate/admin/denied") return true;
@@ -171,8 +181,10 @@ async function affiliatePartnerMiddleware(req: NextRequest): Promise<NextRespons
     pathname === "/api/affiliate/auth/refresh-session";
   const onTotpVerify =
     pathname === "/affiliate/auth/totp" || pathname === "/api/affiliate/totp/verify-session";
-  const needsActivePartner =
-    pathname === "/affiliate/dashboard" || pathname === "/api/affiliate/dashboard";
+  const onAgreement =
+    pathname === "/affiliate/auth/agreement" ||
+    (pathname === "/api/affiliate/agreement/sign" && req.method === "POST");
+  const needsActivePartner = isAffiliatePartnerHubPath(pathname);
 
   if (session.needsTotpEnrollment && !onSetup) {
     if (pathname.startsWith("/api/")) {
@@ -198,6 +210,29 @@ async function affiliatePartnerMiddleware(req: NextRequest): Promise<NextRespons
     }
     const url = req.nextUrl.clone();
     url.pathname = "/affiliate/pending";
+    return NextResponse.redirect(url);
+  }
+
+  if (
+    session.status === "active" &&
+    session.needsAgreement &&
+    needsActivePartner &&
+    !onAgreement
+  ) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Partner agreement required" }, { status: 403 });
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/affiliate/auth/agreement";
+    return NextResponse.redirect(url);
+  }
+
+  if (onAgreement && !session.needsAgreement && affiliateSessionFullyVerified(session)) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.next();
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/affiliate/dashboard";
     return NextResponse.redirect(url);
   }
 

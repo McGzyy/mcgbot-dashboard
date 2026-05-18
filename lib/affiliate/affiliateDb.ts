@@ -7,7 +7,26 @@ import {
 } from "@/lib/affiliate/affiliatePassword";
 import type { AffiliateAccountStatus, AffiliateSessionClaims } from "@/lib/affiliate/affiliateSession";
 import { encodeAffiliateSession } from "@/lib/affiliate/affiliateSession";
+import {
+  CURRENT_PARTNER_AGREEMENT_VERSION,
+  partnerHasSignedCurrentAgreement,
+} from "@/lib/affiliate/partnerAgreement";
+import type { AffiliateApplicationInput } from "@/lib/affiliate/validateAffiliateApplication";
 import { ensureUniqueAffiliateSlug, normalizeAffiliateSlug, slugBaseFromEmail } from "@/lib/affiliate/affiliateSlug";
+
+export type AffiliateApplicationRow = {
+  legalName: string | null;
+  companyName: string | null;
+  country: string | null;
+  primaryChannel: string | null;
+  audienceSize: string | null;
+  promoMethods: string | null;
+  socialLinks: string | null;
+  websiteUrl: string | null;
+  notes: string | null;
+  submittedAt: string | null;
+  adminReviewNotes: string | null;
+};
 
 export type AffiliateAccountRow = {
   id: string;
@@ -18,7 +37,18 @@ export type AffiliateAccountRow = {
   totpEnabled: boolean;
   affiliateSlug: string | null;
   createdAt: string;
+  agreementVersion: string | null;
+  agreementSignedAt: string | null;
+  application: AffiliateApplicationRow;
 };
+
+export function accountNeedsAgreement(account: Pick<AffiliateAccountRow, "status" | "agreementVersion" | "agreementSignedAt">): boolean {
+  if (account.status !== "active") return false;
+  return !partnerHasSignedCurrentAgreement({
+    agreementVersion: account.agreementVersion,
+    agreementSignedAt: account.agreementSignedAt,
+  });
+}
 
 function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
   const id = typeof data.id === "string" ? data.id : "";
@@ -41,11 +71,52 @@ function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
         ? data.affiliate_slug.trim().toLowerCase()
         : null,
     createdAt: typeof data.created_at === "string" ? data.created_at : "",
+    agreementVersion:
+      typeof data.agreement_version === "string" ? data.agreement_version.trim() : null,
+    agreementSignedAt:
+      typeof data.agreement_signed_at === "string" ? data.agreement_signed_at : null,
+    application: {
+      legalName:
+        typeof data.application_legal_name === "string" ? data.application_legal_name.trim() : null,
+      companyName:
+        typeof data.application_company_name === "string"
+          ? data.application_company_name.trim()
+          : null,
+      country: typeof data.application_country === "string" ? data.application_country.trim() : null,
+      primaryChannel:
+        typeof data.application_primary_channel === "string"
+          ? data.application_primary_channel.trim()
+          : null,
+      audienceSize:
+        typeof data.application_audience_size === "string"
+          ? data.application_audience_size.trim()
+          : null,
+      promoMethods:
+        typeof data.application_promo_methods === "string"
+          ? data.application_promo_methods.trim()
+          : null,
+      socialLinks:
+        typeof data.application_social_links === "string"
+          ? data.application_social_links.trim()
+          : null,
+      websiteUrl:
+        typeof data.application_website_url === "string"
+          ? data.application_website_url.trim()
+          : null,
+      notes: typeof data.application_notes === "string" ? data.application_notes.trim() : null,
+      submittedAt:
+        typeof data.application_submitted_at === "string" ? data.application_submitted_at : null,
+      adminReviewNotes:
+        typeof data.admin_review_notes === "string" ? data.admin_review_notes.trim() : null,
+    },
   };
 }
 
-const ACCOUNT_SELECT =
-  "id, email, display_name, status, commission_rate_bps, totp_enabled, affiliate_slug, created_at";
+const ACCOUNT_SELECT = `id, email, display_name, status, commission_rate_bps, totp_enabled, affiliate_slug, created_at,
+  agreement_version, agreement_signed_at,
+  application_legal_name, application_company_name, application_country, application_primary_channel,
+  application_audience_size, application_promo_methods, application_social_links, application_website_url,
+  application_notes, application_submitted_at, admin_review_notes`;
 
 export async function getAffiliateByEmail(email: string): Promise<(AffiliateAccountRow & { passwordHash: string }) | null> {
   const db = getSupabaseAdmin();
@@ -114,12 +185,29 @@ export async function listAffiliateAccounts(limit = 100): Promise<AffiliateAccou
     .filter((r): r is AffiliateAccountRow => Boolean(r));
 }
 
+function applicationInsertPayload(app: AffiliateApplicationInput, submittedAt: string): Record<string, unknown> {
+  return {
+    application_legal_name: app.legalName,
+    application_company_name: app.companyName,
+    application_country: app.country,
+    application_primary_channel: app.primaryChannel,
+    application_audience_size: app.audienceSize,
+    application_promo_methods: app.promoMethods,
+    application_social_links: app.socialLinks,
+    application_website_url: app.websiteUrl,
+    application_notes: app.notes,
+    application_draft_terms_accepted_at: submittedAt,
+    application_submitted_at: submittedAt,
+  };
+}
+
 export async function createAffiliateAccount(input: {
   email: string;
   password: string;
   displayName?: string | null;
   status?: AffiliateAccountStatus;
   commissionRateBps?: number;
+  application?: AffiliateApplicationInput;
 }): Promise<{ ok: true; account: AffiliateAccountRow } | { ok: false; error: string }> {
   if (!isValidAffiliateEmail(input.email)) {
     return { ok: false, error: "Invalid email." };
@@ -138,17 +226,22 @@ export async function createAffiliateAccount(input: {
   );
 
   const affiliateSlug = await ensureUniqueAffiliateSlug(slugBaseFromEmail(email));
+  const submittedAt = new Date().toISOString();
+  const insertRow: Record<string, unknown> = {
+    email,
+    password_hash: hashAffiliatePassword(input.password),
+    display_name: input.displayName?.trim() || input.application?.legalName || null,
+    status,
+    commission_rate_bps: commissionRateBps,
+    affiliate_slug: affiliateSlug,
+  };
+  if (input.application) {
+    Object.assign(insertRow, applicationInsertPayload(input.application, submittedAt));
+  }
 
   const { data, error } = await db
     .from("affiliate_accounts")
-    .insert({
-      email,
-      password_hash: hashAffiliatePassword(input.password),
-      display_name: input.displayName?.trim() || null,
-      status,
-      commission_rate_bps: commissionRateBps,
-      affiliate_slug: affiliateSlug,
-    })
+    .insert(insertRow)
     .select(ACCOUNT_SELECT)
     .single();
 
@@ -184,6 +277,7 @@ export async function authenticateAffiliate(
     status: row.status,
     needsTotpEnrollment: !row.totpEnabled,
     pendingTotpVerification: row.totpEnabled,
+    needsAgreement: accountNeedsAgreement(row),
   };
 
   const sessionToken = await encodeAffiliateSession(claims);
@@ -204,7 +298,48 @@ export async function buildAffiliateSessionForAccount(
     status: account.status,
     needsTotpEnrollment: !account.totpEnabled,
     pendingTotpVerification: account.totpEnabled,
+    needsAgreement: accountNeedsAgreement(account),
   });
+}
+
+export async function signPartnerAgreement(affiliateId: string): Promise<boolean> {
+  const id = affiliateId.trim();
+  if (!id) return false;
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const now = new Date().toISOString();
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({
+      agreement_version: CURRENT_PARTNER_AGREEMENT_VERSION,
+      agreement_signed_at: now,
+      updated_at: now,
+    })
+    .eq("id", id)
+    .eq("status", "active");
+  if (error) {
+    console.error("[affiliateDb] sign agreement", error);
+    return false;
+  }
+  return true;
+}
+
+export async function updateAffiliateAdminReviewNotes(
+  affiliateId: string,
+  notes: string | null
+): Promise<boolean> {
+  const id = affiliateId.trim();
+  if (!id) return false;
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({
+      admin_review_notes: notes?.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  return !error;
 }
 
 /** Public self-serve application — always starts as pending until admin approval. */
@@ -212,6 +347,7 @@ export async function registerAffiliateApplication(input: {
   email: string;
   password: string;
   displayName?: string | null;
+  application: AffiliateApplicationInput;
 }): Promise<
   | { ok: true; account: AffiliateAccountRow; sessionToken: string }
   | { ok: false; error: string }
@@ -219,8 +355,9 @@ export async function registerAffiliateApplication(input: {
   const created = await createAffiliateAccount({
     email: input.email,
     password: input.password,
-    displayName: input.displayName,
+    displayName: input.displayName ?? input.application.legalName,
     status: "pending",
+    application: input.application,
   });
   if (!created.ok) return created;
 

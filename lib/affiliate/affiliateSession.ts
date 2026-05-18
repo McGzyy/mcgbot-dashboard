@@ -12,6 +12,8 @@ export type AffiliateSessionClaims = {
   status: AffiliateAccountStatus;
   pendingTotpVerification: boolean;
   needsTotpEnrollment: boolean;
+  /** Active partner must sign current agreement before hub access. */
+  needsAgreement: boolean;
 };
 
 function sessionSecret(): string | null {
@@ -36,6 +38,7 @@ export async function encodeAffiliateSession(claims: AffiliateSessionClaims): Pr
       status: claims.status,
       pendingTotpVerification: claims.pendingTotpVerification,
       needsTotpEnrollment: claims.needsTotpEnrollment,
+      needsAgreement: claims.needsAgreement,
       kind: "affiliate",
     },
     secret,
@@ -61,6 +64,7 @@ export async function decodeAffiliateSessionToken(
     status,
     pendingTotpVerification: decoded.pendingTotpVerification === true,
     needsTotpEnrollment: decoded.needsTotpEnrollment === true,
+    needsAgreement: decoded.needsAgreement === true,
   };
 }
 

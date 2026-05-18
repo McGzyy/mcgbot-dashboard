@@ -94,7 +94,7 @@ export default function AffiliateDashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-10 sm:py-14">
+    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:py-10">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Partner dashboard</p>
@@ -181,8 +181,7 @@ export default function AffiliateDashboardPage() {
       )}
 
       <p className="text-xs text-zinc-500">
-        Campaigns, branding packs, and agreement signing are coming next. Payout requests will follow once ops approves
-        pending balances.
+        See Earnings for commission detail and Resources for brand assets.
       </p>
     </div>
   );

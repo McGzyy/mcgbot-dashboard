@@ -7,5 +7,6 @@ export function affiliatePostAuthPath(session: AffiliateSessionClaims): string {
   if (session.pendingTotpVerification) return "/affiliate/auth/totp";
   if (!affiliateSessionFullyVerified(session)) return "/affiliate/auth/totp";
   if (session.status === "pending") return "/affiliate/pending";
+  if (session.needsAgreement) return "/affiliate/auth/agreement";
   return "/affiliate/dashboard";
 }

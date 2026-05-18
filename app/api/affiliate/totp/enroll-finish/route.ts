@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getAffiliateById } from "@/lib/affiliate/affiliateDb";
+import { buildAffiliateSessionForAccount, getAffiliateById } from "@/lib/affiliate/affiliateDb";
 import { finishAffiliateTotpEnrollment } from "@/lib/affiliate/affiliateTotp";
 import { requireAffiliateSession } from "@/lib/affiliate/requireAffiliateSession";
-import { applyAffiliateSessionCookie, encodeAffiliateSession } from "@/lib/affiliate/affiliateSession";
+import { applyAffiliateSessionCookie } from "@/lib/affiliate/affiliateSession";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,13 +27,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Account not found." }, { status: 404 });
   }
 
-  const sessionToken = await encodeAffiliateSession({
-    affiliateId: account.id,
-    email: account.email,
-    status: account.status,
-    needsTotpEnrollment: false,
-    pendingTotpVerification: false,
-  });
+  const sessionToken = await buildAffiliateSessionForAccount(account);
   if (!sessionToken) {
     return NextResponse.json({ success: false, error: "Could not refresh session." }, { status: 500 });
   }

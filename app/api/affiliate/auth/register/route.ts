@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { registerAffiliateApplication } from "@/lib/affiliate/affiliateDb";
 import { affiliateSessionAvailable, applyAffiliateSessionCookie } from "@/lib/affiliate/affiliateSession";
+import { validateAffiliateApplication } from "@/lib/affiliate/validateAffiliateApplication";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Email and password required." }, { status: 400 });
   }
 
-  const result = await registerAffiliateApplication({ email, password, displayName });
+  const appParsed = validateAffiliateApplication(body ?? {});
+  if (!appParsed.ok) {
+    return NextResponse.json({ success: false, error: appParsed.error }, { status: 400 });
+  }
+
+  const result = await registerAffiliateApplication({
+    email,
+    password,
+    displayName,
+    application: appParsed.value,
+  });
   if (!result.ok) {
     return NextResponse.json({ success: false, error: result.error }, { status: 400 });
   }
