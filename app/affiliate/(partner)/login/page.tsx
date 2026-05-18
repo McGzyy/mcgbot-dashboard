@@ -59,14 +59,15 @@ export default function AffiliateLoginPage() {
   return (
     <div className="mx-auto max-w-lg space-y-6 px-4 py-10 sm:py-14">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-300/80">Affiliate program</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Partner sign in</h1>
-        <p className="mt-2 text-sm text-zinc-500">
-          Separate login from the member dashboard. Authenticator 2FA is required after sign-in.
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Affiliate program</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">Partner sign in</h1>
+        <p className="mt-2 text-sm text-zinc-600">
+          Separate from the member McGBot dashboard. Use your partner email and password; authenticator 2FA is
+          required after sign-in.
         </p>
       </div>
 
-      <form onSubmit={submit} className="space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-5">
+      <form onSubmit={submit} className="space-y-4 rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm">
         <label className="block">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Email</span>
           <input
@@ -74,7 +75,7 @@ export default function AffiliateLoginPage() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 h-10 w-full rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-3 text-sm text-zinc-100 outline-none focus:border-zinc-600"
+            className="mt-1 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400"
             required
           />
         </label>
@@ -85,23 +86,23 @@ export default function AffiliateLoginPage() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 h-10 w-full rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-3 text-sm text-zinc-100 outline-none focus:border-zinc-600"
+            className="mt-1 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400"
             required
           />
         </label>
-        {err ? <p className="text-sm text-red-300">{err}</p> : null}
+        {err ? <p className="text-sm text-red-700">{err}</p> : null}
         <button
           type="submit"
           disabled={busy}
-          className="h-10 w-full rounded-lg border border-violet-500/35 bg-violet-500/15 text-sm font-semibold text-violet-50 disabled:opacity-45"
+          className="h-10 w-full rounded-lg bg-violet-600 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:opacity-45"
         >
           {busy ? "Signing in…" : "Sign in"}
         </button>
       </form>
 
-      <p className="text-center text-xs text-zinc-500">
+      <p className="text-center text-xs text-zinc-600">
         New partner?{" "}
-        <Link href="/affiliate/register" className="text-violet-300/90 underline-offset-2 hover:underline">
+        <Link href="/affiliate/register" className="font-semibold text-violet-700 underline-offset-2 hover:underline">
           Apply for access
         </Link>
       </p>

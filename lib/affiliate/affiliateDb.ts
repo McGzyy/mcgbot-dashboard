@@ -272,3 +272,23 @@ export async function updateAffiliateAccountStatus(
   }
   return true;
 }
+
+export async function updateAffiliateAccountCommissionRateBps(
+  affiliateId: string,
+  commissionRateBps: number
+): Promise<boolean> {
+  const id = affiliateId.trim();
+  if (!id) return false;
+  const bps = Math.min(10000, Math.max(0, Math.floor(Number(commissionRateBps) || 0)));
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({ commission_rate_bps: bps, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) {
+    console.error("[affiliateDb] update commission_rate_bps", error);
+    return false;
+  }
+  return true;
+}

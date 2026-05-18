@@ -21,11 +21,11 @@ export default function AffiliatePendingPage() {
       const st = typeof j.account?.status === "string" ? j.account.status : "";
       setStatus(st);
       if (st === "active") {
-        const refresh = await fetch("/api/affiliate/auth/refresh-session", {
+        const refreshSession = await fetch("/api/affiliate/auth/refresh-session", {
           method: "POST",
           credentials: "same-origin",
         });
-        if (refresh.ok) {
+        if (refreshSession.ok) {
           router.replace("/affiliate/dashboard");
         }
       }
@@ -48,8 +48,8 @@ export default function AffiliatePendingPage() {
   return (
     <div className="mx-auto max-w-lg space-y-6 px-4 py-10 sm:py-14">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-50">Application under review</h1>
-        <p className="mt-2 text-sm text-zinc-500">
+        <h1 className="text-xl font-semibold text-zinc-900">Application under review</h1>
+        <p className="mt-2 text-sm text-zinc-600">
           Your account{status ? ` (${status})` : ""} is pending admin approval. You can sign out and return later —
           we will email you when approval is available (coming soon).
         </p>
@@ -57,14 +57,14 @@ export default function AffiliatePendingPage() {
       <button
         type="button"
         onClick={() => void refresh()}
-        className="h-10 w-full rounded-lg border border-zinc-700/80 bg-zinc-900/60 text-sm font-semibold text-zinc-200"
+        className="h-10 w-full rounded-lg border border-zinc-200 bg-white text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
       >
         Check status
       </button>
       <button
         type="button"
         onClick={() => void logout()}
-        className="h-10 w-full rounded-lg border border-zinc-800/80 text-sm font-semibold text-zinc-500"
+        className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 text-sm font-semibold text-zinc-600 hover:bg-zinc-100"
       >
         Sign out
       </button>

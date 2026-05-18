@@ -100,3 +100,87 @@ export async function voidAffiliateCommissionsForStripeInvoice(
 
   return { voided };
 }
+
+export type AffiliateCommissionAdminRow = {
+  id: string;
+  affiliateId: string;
+  affiliateEmail: string | null;
+  referredUserId: string | null;
+  paymentAmountCents: number | null;
+  commissionCents: number;
+  status: string;
+  source: string | null;
+  stripeInvoiceId: string | null;
+  createdAt: string;
+};
+
+export async function listAffiliateCommissionsForAdmin(
+  limit = 200
+): Promise<AffiliateCommissionAdminRow[]> {
+  const db = getSupabaseAdmin();
+  if (!db) return [];
+  const lim = Math.min(500, Math.max(1, limit));
+  const { data, error } = await db
+    .from("affiliate_commissions")
+    .select(
+      "id, affiliate_id, referred_user_id, payment_amount_cents, commission_cents, status, source, stripe_invoice_id, created_at"
+    )
+    .order("created_at", { ascending: false })
+    .limit(lim);
+  if (error || !Array.isArray(data)) {
+    if (error) console.error("[affiliateCommissions] admin list", error);
+    return [];
+  }
+  const base: Omit<AffiliateCommissionAdminRow, "affiliateEmail">[] = [];
+  for (const raw of data as Record<string, unknown>[]) {
+    const id = typeof raw.id === "string" ? raw.id : "";
+    const affiliateId = typeof raw.affiliate_id === "string" ? raw.affiliate_id : "";
+    if (!id || !affiliateId) continue;
+    base.push({
+      id,
+      affiliateId,
+      referredUserId: typeof raw.referred_user_id === "string" ? raw.referred_user_id : null,
+      paymentAmountCents:
+        raw.payment_amount_cents == null ? null : Math.floor(Number(raw.payment_amount_cents)),
+      commissionCents: Math.floor(Number(raw.commission_cents)) || 0,
+      status: typeof raw.status === "string" ? raw.status : "",
+      source: typeof raw.source === "string" ? raw.source : null,
+      stripeInvoiceId: typeof raw.stripe_invoice_id === "string" ? raw.stripe_invoice_id : null,
+      createdAt: typeof raw.created_at === "string" ? raw.created_at : "",
+    });
+  }
+  const ids = [...new Set(base.map((r) => r.affiliateId))];
+  const emailById = new Map<string, string>();
+  if (ids.length > 0) {
+    const { data: accs, error: accErr } = await db
+      .from("affiliate_accounts")
+      .select("id, email")
+      .in("id", ids);
+    if (!accErr && Array.isArray(accs)) {
+      for (const a of accs as { id?: string; email?: string }[]) {
+        const aid = typeof a.id === "string" ? a.id : "";
+        const em = typeof a.email === "string" ? a.email.trim().toLowerCase() : "";
+        if (aid && em) emailById.set(aid, em);
+      }
+    }
+  }
+  return base.map((r) => ({
+    ...r,
+    affiliateEmail: emailById.get(r.affiliateId) ?? null,
+  }));
+}
+
+export async function voidAffiliateCommissionById(commissionId: string): Promise<boolean> {
+  const id = commissionId.trim();
+  if (!id) return false;
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const { data, error } = await db
+    .from("affiliate_commissions")
+    .update({ status: "voided", updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .in("status", ["pending", "approved"])
+    .select("id");
+  if (error || !Array.isArray(data) || data.length === 0) return false;
+  return true;
+}

@@ -68,6 +68,10 @@ async function affiliateAdminMiddleware(req: NextRequest): Promise<NextResponse 
   const pathname = req.nextUrl.pathname;
   if (!isAffiliateAdminPath(pathname)) return null;
 
+  if (pathname === "/affiliate/admin/login" || pathname.startsWith("/affiliate/admin/login/")) {
+    return NextResponse.next();
+  }
+
   const secret = process.env.NEXTAUTH_SECRET;
   const token = secret
     ? ((await getToken({ req, secret })) as Record<string, unknown> | null)
@@ -82,8 +86,10 @@ async function affiliateAdminMiddleware(req: NextRequest): Promise<NextResponse 
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const url = req.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/affiliate/admin/login";
     url.search = "";
+    const returnPath = pathname + (req.nextUrl.search ?? "");
+    url.searchParams.set("returnTo", returnPath);
     return NextResponse.redirect(url);
   }
 
@@ -205,6 +211,7 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (pathname === "/api/public/site-flags" && method === "GET") return true;
   if (pathname.startsWith("/ref")) return true;
   if (pathname.startsWith("/affiliate/r/")) return true;
+  if (pathname.startsWith("/affiliate/admin/login")) return true;
   if (pathname === "/api/copy-trade/bot-7d" && method === "GET") return true;
   if (pathname === "/api/subscription/plans" && method === "GET") return true;
   if (pathname === "/api/subscription/stripe/webhook" && method === "POST") return true;

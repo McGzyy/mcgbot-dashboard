@@ -1,6 +1,7 @@
 /**
  * Affiliate program (commission payouts, partner dashboard).
  * Foundation: /affiliate/login, mandatory TOTP, /admin/affiliates provisioning.
+ * Partner + ops UIs use a light standalone shell (not the member terminal chrome).
  * Not used by member referral credit.
  */
 

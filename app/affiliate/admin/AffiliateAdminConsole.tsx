@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 type AffiliateRow = {
@@ -114,44 +113,58 @@ export function AffiliateAdminConsole() {
     }
   }
 
+  async function saveCommissionRate(id: string, bps: number) {
+    setBusy(`bps:${id}`);
+    setErr(null);
+    setNote(null);
+    try {
+      const res = await fetch(`/api/affiliate/admin/accounts/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ commissionRateBps: bps }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || !j.success) {
+        setErr(typeof j.error === "string" ? j.error : "Rate update failed.");
+        return;
+      }
+      setNote("Commission rate saved.");
+      await load();
+    } catch {
+      setErr("Rate update failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const pendingCount = accounts.filter((a) => a.status === "pending").length;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-red-300/80">
-            Affiliate ops · admin only
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Partner console</h1>
-          <p className="mt-2 max-w-xl text-sm text-zinc-500">
-            Provision partners, approve self-serve applications, and manage commission rates. Not linked from the
-            member dashboard.
-          </p>
-        </div>
-        <Link
-          href="/admin"
-          className="rounded-lg border border-zinc-700/80 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800/60"
-        >
-          ← McGBot admin
-        </Link>
+      <div>
+        <h2 className="text-lg font-semibold text-zinc-900">Partners</h2>
+        <p className="mt-1 text-sm text-zinc-600">
+          Approve self-serve applications, suspend accounts, set commission basis points (1000 = 10%), and copy
+          tracking paths for active partners.
+        </p>
       </div>
 
       {pendingCount > 0 ? (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-sm text-amber-100">
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           {pendingCount} application{pendingCount === 1 ? "" : "s"} awaiting approval.
         </p>
       ) : null}
 
-      <section className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-4 sm:p-5">
-        <h2 className="text-sm font-semibold text-zinc-100">Create affiliate (manual)</h2>
+      <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:p-5">
+        <h3 className="text-sm font-semibold text-zinc-900">Create affiliate (manual)</h3>
         <form onSubmit={createAccount} className="mt-4 grid gap-3 sm:grid-cols-2">
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="h-9 rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-3 text-sm text-zinc-100"
+            className="h-9 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-violet-400"
             required
           />
           <input
@@ -159,7 +172,7 @@ export function AffiliateAdminConsole() {
             placeholder="Password (12+ chars)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-9 rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-3 text-sm text-zinc-100"
+            className="h-9 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-violet-400"
             minLength={12}
             required
           />
@@ -167,12 +180,12 @@ export function AffiliateAdminConsole() {
             placeholder="Display name"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            className="h-9 rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-3 text-sm text-zinc-100"
+            className="h-9 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-violet-400"
           />
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value as "pending" | "active" | "suspended")}
-            className="h-9 rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-3 text-sm text-zinc-100"
+            className="h-9 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-violet-400"
           >
             <option value="pending">Pending</option>
             <option value="active">Active</option>
@@ -182,38 +195,38 @@ export function AffiliateAdminConsole() {
             placeholder="Commission bps (1000 = 10%)"
             value={commissionRateBps}
             onChange={(e) => setCommissionRateBps(e.target.value)}
-            className="h-9 rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-3 text-sm text-zinc-100 sm:col-span-2"
+            className="h-9 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-violet-400 sm:col-span-2"
           />
           <button
             type="submit"
             disabled={busy !== null}
-            className="h-9 rounded-lg border border-violet-500/35 bg-violet-500/15 text-sm font-semibold text-violet-50 disabled:opacity-45 sm:col-span-2"
+            className="h-9 rounded-lg border border-violet-300 bg-violet-600 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:opacity-45 sm:col-span-2"
           >
             {busy === "create" ? "Creating…" : "Create account"}
           </button>
         </form>
       </section>
 
-      {err ? <p className="text-sm text-red-300">{err}</p> : null}
-      {note ? <p className="text-sm text-emerald-300/90">{note}</p> : null}
+      {err ? <p className="text-sm text-red-700">{err}</p> : null}
+      {note ? <p className="text-sm text-emerald-800">{note}</p> : null}
 
-      <section className="overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/40">
-        <div className="border-b border-zinc-800/80 px-4 py-3">
-          <h2 className="text-sm font-semibold text-zinc-100">All accounts</h2>
+      <section className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-sm">
+        <div className="border-b border-zinc-200 px-4 py-3">
+          <h3 className="text-sm font-semibold text-zinc-900">All accounts</h3>
         </div>
         <div className="max-h-[28rem] overflow-auto">
-          <table className="w-full min-w-[720px] text-left text-xs">
-            <thead className="sticky top-0 bg-zinc-950/95 text-[10px] uppercase tracking-wider text-zinc-500">
+          <table className="w-full min-w-[860px] text-left text-xs">
+            <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="px-3 py-2">Email</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">2FA</th>
-                <th className="px-3 py-2">Rate</th>
+                <th className="px-3 py-2">Rate (bps)</th>
                 <th className="px-3 py-2">Link</th>
                 <th className="px-3 py-2 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/60">
+            <tbody className="divide-y divide-zinc-100">
               {loading ? (
                 <tr>
                   <td colSpan={6} className="px-3 py-6 text-center text-zinc-500">
@@ -228,14 +241,29 @@ export function AffiliateAdminConsole() {
                 </tr>
               ) : (
                 accounts.map((a) => (
-                  <tr key={a.id} className="text-zinc-300">
+                  <tr key={a.id} className="text-zinc-800">
                     <td className="px-3 py-2">
-                      <span className="block font-medium text-zinc-100">{a.email}</span>
+                      <span className="block text-sm font-medium text-zinc-900">{a.email}</span>
                       {a.displayName ? <span className="text-zinc-500">{a.displayName}</span> : null}
                     </td>
-                    <td className="px-3 py-2 capitalize">{a.status}</td>
-                    <td className="px-3 py-2">{a.totpEnabled ? "Enabled" : "Required"}</td>
-                    <td className="px-3 py-2 tabular-nums">{(a.commissionRateBps / 100).toFixed(2)}%</td>
+                    <td className="px-3 py-2 capitalize text-zinc-700">{a.status}</td>
+                    <td className="px-3 py-2 text-zinc-600">{a.totpEnabled ? "Enabled" : "Required"}</td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={10000}
+                        key={`${a.id}-${a.commissionRateBps}`}
+                        defaultValue={a.commissionRateBps}
+                        disabled={busy !== null}
+                        className="w-24 rounded border border-zinc-200 bg-white px-2 py-1 font-mono text-xs text-zinc-900"
+                        onBlur={(e) => {
+                          const n = Math.floor(Number(e.target.value));
+                          if (!Number.isFinite(n) || n < 0 || n > 10000 || n === a.commissionRateBps) return;
+                          void saveCommissionRate(a.id, n);
+                        }}
+                      />
+                    </td>
                     <td className="px-3 py-2 font-mono text-[10px] text-zinc-500">
                       {a.status === "active" && a.affiliateSlug ? `/affiliate/r/${a.affiliateSlug}` : "—"}
                     </td>
@@ -246,7 +274,7 @@ export function AffiliateAdminConsole() {
                             type="button"
                             disabled={busy !== null}
                             onClick={() => void setAccountStatus(a.id, "active")}
-                            className="rounded border border-emerald-500/35 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-100 disabled:opacity-45"
+                            className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-900 disabled:opacity-45"
                           >
                             Approve
                           </button>
@@ -256,7 +284,7 @@ export function AffiliateAdminConsole() {
                             type="button"
                             disabled={busy !== null}
                             onClick={() => void setAccountStatus(a.id, "suspended")}
-                            className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-[10px] font-semibold text-red-200 disabled:opacity-45"
+                            className="rounded border border-red-300 bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-900 disabled:opacity-45"
                           >
                             Suspend
                           </button>
@@ -266,7 +294,7 @@ export function AffiliateAdminConsole() {
                             type="button"
                             disabled={busy !== null}
                             onClick={() => void setAccountStatus(a.id, "active")}
-                            className="rounded border border-zinc-600 bg-zinc-800/60 px-2 py-1 text-[10px] font-semibold text-zinc-200 disabled:opacity-45"
+                            className="rounded border border-zinc-300 bg-zinc-50 px-2 py-1 text-[10px] font-semibold text-zinc-800 disabled:opacity-45"
                           >
                             Reactivate
                           </button>
@@ -281,9 +309,9 @@ export function AffiliateAdminConsole() {
         </div>
       </section>
 
-      <p className="text-xs text-zinc-600">
+      <p className="text-xs text-zinc-500">
         Self-serve apply URL (share directly, not on member site):{" "}
-        <span className="font-mono text-zinc-400">/affiliate/register</span>
+        <span className="font-mono text-zinc-700">/affiliate/register</span>
       </p>
     </div>
   );
