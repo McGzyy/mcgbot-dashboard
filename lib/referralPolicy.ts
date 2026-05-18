@@ -1,4 +1,7 @@
-/** Product constants for member referral credit (not affiliates). */
+/**
+ * Product constants for member referral credit (not affiliates).
+ * Future affiliate program: separate login + mandatory 2FA — see `lib/affiliateProgramPlan.ts`.
+ */
 
 export const REFERRAL_CREDIT_PERCENT = 0.1;
 
