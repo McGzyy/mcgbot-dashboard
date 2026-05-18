@@ -494,6 +494,69 @@ export async function getReferralRewardSummaryForOwner(ownerDiscordId: string): 
  * Void referral ledger rows tied to a Stripe invoice (refund / dispute).
  * Claws back granted credit from owner balance when applicable.
  */
+/** Void a single ledger row by id (admin or support tooling). */
+export async function voidReferralRewardById(
+  rewardId: string
+): Promise<{ ok: true; clawedBackCents: number } | { ok: false; error: string }> {
+  const id = rewardId.trim();
+  if (!id) return { ok: false, error: "missing_id" };
+
+  const db = getSupabaseAdmin();
+  if (!db) return { ok: false, error: "db_not_configured" };
+
+  const { data: row, error } = await db
+    .from("referral_rewards")
+    .select("id, owner_discord_id, status, credit_cents")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !row) return { ok: false, error: "not_found" };
+
+  const owner = typeof (row as { owner_discord_id?: string }).owner_discord_id === "string"
+    ? (row as { owner_discord_id: string }).owner_discord_id.trim()
+    : "";
+  const st = typeof (row as { status?: string }).status === "string" ? (row as { status: string }).status.trim() : "";
+  const cents = Math.floor(Number((row as { credit_cents?: unknown }).credit_cents));
+  if (!owner) return { ok: false, error: "invalid_row" };
+  if (st !== "pending" && st !== "granted") return { ok: false, error: "not_voidable" };
+
+  const { data: upd, error: upErr } = await db
+    .from("referral_rewards")
+    .update({ status: "voided" })
+    .eq("id", id)
+    .in("status", ["pending", "granted"])
+    .select("id");
+  if (upErr || !Array.isArray(upd) || upd.length === 0) return { ok: false, error: "update_failed" };
+
+  let clawedBackCents = 0;
+  if (st === "granted" && Number.isFinite(cents) && cents > 0) {
+    const { data: bal } = await db
+      .from("referral_credit_balances")
+      .select("balance_cents")
+      .eq("discord_id", owner)
+      .maybeSingle();
+    const prev =
+      bal && typeof bal === "object"
+        ? Math.floor(Number((bal as { balance_cents?: unknown }).balance_cents))
+        : 0;
+    const next = Math.max(0, (Number.isFinite(prev) ? prev : 0) - cents);
+    const { error: balErr } = await db.from("referral_credit_balances").upsert(
+      {
+        discord_id: owner,
+        balance_cents: next,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "discord_id" }
+    );
+    if (balErr) {
+      console.error("[referralRewards] voidReferralRewardById balance", balErr);
+      return { ok: false, error: "balance_failed" };
+    }
+    clawedBackCents = cents;
+  }
+
+  return { ok: true, clawedBackCents };
+}
+
 export async function voidReferralRewardsForStripeInvoice(
   stripeInvoiceId: string
 ): Promise<{ voided: number; clawedBackCents: number }> {

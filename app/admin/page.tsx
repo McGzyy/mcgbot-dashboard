@@ -67,6 +67,12 @@ export default function AdminOverviewPage() {
           data-tutorial="admin.card.treasury"
         />
         <OverviewCard
+          href="/admin/referrals"
+          title="Referrals & rewards"
+          subtitle="Look up referrers, review the credit ledger, run settlement, or void rows after refunds."
+          hint="Reads · Supabase"
+        />
+        <OverviewCard
           href="/admin/subscription-exempt"
           title="Subscription access"
           subtitle="Database bypass list and env-based exempt Discord IDs."
