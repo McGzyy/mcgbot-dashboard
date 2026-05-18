@@ -324,7 +324,15 @@ async function hasDashboardAccessResolved(
   if (gate === "not_in_guild") {
     if (isProtectedFromGuildFalsePositive(token, id) || isStaffFromToken(token, id)) {
       // Fall through — protected members may keep discordInGuild=false in JWT during API flakes.
+    } else if (!id) {
+      return false;
     } else {
+      // JWT `discordInGuild: false` is often stale while Supabase/Discord still grant access — verify live.
+      try {
+        if (await liveDashboardAccessForDiscordId(id)) return true;
+      } catch (e) {
+        console.warn("[middleware] live access check (not_in_guild):", e);
+      }
       return false;
     }
   }
@@ -572,6 +580,10 @@ export async function middleware(req: NextRequest) {
         pathname.startsWith("/membership") ||
         pathname.startsWith("/subscribe")
       ) {
+        return NextResponse.next();
+      }
+      // Paying members often keep a stale `discordInGuild: false` in the JWT — check live before paywalling.
+      if (await hasDashboardAccessResolved(token)) {
         return NextResponse.next();
       }
       const url = req.nextUrl.clone();

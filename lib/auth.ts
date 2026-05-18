@@ -352,10 +352,35 @@ export const authOptions: NextAuthOptions = {
 
           if (inGuild === false) {
             if (!protectedMember) {
-              await syncGuildMembershipToUsers(discordId, false);
-              (token as any).discordInGuild = false;
-              (token as any).discordNeedsVerification = false;
-              (token as any).discordBlockedReason = "not_in_guild";
+              // JWT subscription fields may be stale — confirm DB before locking the user out.
+              let stillEntitled = false;
+              try {
+                const [end, exempt] = await Promise.all([
+                  getSubscriptionEnd(discordId),
+                  computeSubscriptionExempt(discordId),
+                ]);
+                const subActive =
+                  typeof end === "string" &&
+                  end.length > 0 &&
+                  new Date(end).getTime() > Date.now();
+                if (subActive) {
+                  token.subscriptionActiveUntil = end;
+                  stillEntitled = true;
+                }
+                if (exempt === true) {
+                  token.subscriptionExempt = true;
+                  stillEntitled = true;
+                }
+              } catch (e) {
+                console.warn("[auth] guild deny entitlement recheck:", e);
+              }
+
+              if (!stillEntitled) {
+                await syncGuildMembershipToUsers(discordId, false);
+                (token as any).discordInGuild = false;
+                (token as any).discordNeedsVerification = false;
+                (token as any).discordBlockedReason = "not_in_guild";
+              }
             }
             (token as any).discordGuildRefreshAt = Date.now();
             // Keep the session cookie so they can land on /membership, join, then session refetch
