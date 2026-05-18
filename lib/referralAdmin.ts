@@ -34,6 +34,16 @@ export type ReferralAdminSnapshot = {
   performance: Awaited<ReturnType<typeof getReferralPerformanceForOwner>>;
 };
 
+export type ReferralProgramHealth = {
+  attributionRows: number;
+  pendingRewardRows: number;
+  readyToSettleRows: number;
+  grantedRewardRows: number;
+  voidedRewardRows: number;
+  totalBalanceCents: number;
+  ownersWithBalance: number;
+};
+
 export async function resolveOwnerDiscordIdFromQuery(raw: string): Promise<string | null> {
   const q = raw.trim();
   if (!q) return null;
@@ -157,5 +167,60 @@ export async function getReferralAdminSnapshot(ownerDiscordId: string): Promise<
     referrals: referrals.sort((a, b) => b.joinedAt - a.joinedAt),
     recentRewards,
     performance,
+  };
+}
+
+/** Program-wide counters for admin launch / ops monitoring. */
+export async function getReferralProgramHealth(): Promise<ReferralProgramHealth | null> {
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+
+  const nowIso = new Date().toISOString();
+
+  const [
+    { count: attributionRows },
+    { count: pendingRewardRows },
+    { count: readyToSettleRows },
+    { count: grantedRewardRows },
+    { count: voidedRewardRows },
+    { data: balanceRows, error: balErr },
+  ] = await Promise.all([
+    db.from("referrals").select("*", { count: "exact", head: true }),
+    db.from("referral_rewards").select("*", { count: "exact", head: true }).eq("status", "pending"),
+    db
+      .from("referral_rewards")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending")
+      .lte("available_at", nowIso)
+      .gt("credit_cents", 0),
+    db.from("referral_rewards").select("*", { count: "exact", head: true }).eq("status", "granted"),
+    db.from("referral_rewards").select("*", { count: "exact", head: true }).eq("status", "voided"),
+    db.from("referral_credit_balances").select("balance_cents").gt("balance_cents", 0),
+  ]);
+
+  if (balErr) {
+    console.error("[referralAdmin] program health balances", balErr);
+    return null;
+  }
+
+  let totalBalanceCents = 0;
+  let ownersWithBalance = 0;
+  if (Array.isArray(balanceRows)) {
+    for (const row of balanceRows as { balance_cents?: unknown }[]) {
+      const c = Math.floor(Number(row.balance_cents));
+      if (!Number.isFinite(c) || c <= 0) continue;
+      ownersWithBalance += 1;
+      totalBalanceCents += c;
+    }
+  }
+
+  return {
+    attributionRows: attributionRows ?? 0,
+    pendingRewardRows: pendingRewardRows ?? 0,
+    readyToSettleRows: readyToSettleRows ?? 0,
+    grantedRewardRows: grantedRewardRows ?? 0,
+    voidedRewardRows: voidedRewardRows ?? 0,
+    totalBalanceCents,
+    ownersWithBalance,
   };
 }

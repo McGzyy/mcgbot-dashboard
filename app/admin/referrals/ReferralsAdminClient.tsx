@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
+import { MEMBER_REFERRAL_LAUNCH_CHECKLIST } from "@/lib/memberReferralLaunch";
 
 type Snapshot = {
   ownerDiscordId: string;
@@ -45,6 +46,16 @@ type Snapshot = {
   }>;
 };
 
+type ProgramHealth = {
+  attributionRows: number;
+  pendingRewardRows: number;
+  readyToSettleRows: number;
+  grantedRewardRows: number;
+  voidedRewardRows: number;
+  totalBalanceCents: number;
+  ownersWithBalance: number;
+};
+
 function fmtUsdCents(cents: number): string {
   const n = Math.max(0, Math.floor(Number(cents) || 0)) / 100;
   return n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
@@ -61,13 +72,40 @@ function statusPill(status: string): string {
 export function ReferralsAdminClient() {
   const [query, setQuery] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [health, setHealth] = useState<ProgramHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [showLaunchChecklist, setShowLaunchChecklist] = useState(false);
 
   const [attribOwner, setAttribOwner] = useState("");
   const [attribReferred, setAttribReferred] = useState("");
+
+  const loadHealth = useCallback(async () => {
+    setHealthLoading(true);
+    try {
+      const res = await fetch("/api/admin/referrals?view=health", { credentials: "same-origin" });
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        health?: ProgramHealth;
+      };
+      if (res.ok && json.success && json.health) {
+        setHealth(json.health);
+      } else {
+        setHealth(null);
+      }
+    } catch {
+      setHealth(null);
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadHealth();
+  }, [loadHealth]);
 
   const load = useCallback(async (q: string) => {
     const trimmed = q.trim();
@@ -123,6 +161,7 @@ export function ReferralsAdminClient() {
         }
         if (action === "settle_due") {
           setNote(`Settled ${json.settled ?? 0} pending reward row(s).`);
+          await loadHealth();
         } else if (action === "void_reward") {
           setNote(
             json.clawedBackCents
@@ -135,13 +174,16 @@ export function ReferralsAdminClient() {
         if (snapshot?.ownerDiscordId) {
           await load(snapshot.ownerDiscordId);
         }
+        if (action === "void_reward") {
+          await loadHealth();
+        }
       } catch {
         setError("Action failed.");
       } finally {
         setBusy(null);
       }
     },
-    [load, snapshot?.ownerDiscordId]
+    [load, loadHealth, snapshot?.ownerDiscordId]
   );
 
   return (
@@ -150,6 +192,68 @@ export function ReferralsAdminClient() {
         title="Referrals & rewards"
         description="Look up a referrer by Discord snowflake or vanity slug. Review ledger rows, run settlement, or void rewards after refunds."
       />
+
+      <AdminPanel className="p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-zinc-100">Program health</h3>
+          <button
+            type="button"
+            onClick={() => void loadHealth()}
+            disabled={healthLoading}
+            className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 disabled:opacity-45"
+          >
+            {healthLoading ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
+        {healthLoading && !health ? (
+          <p className="mt-3 text-sm text-zinc-500">Loading program metrics…</p>
+        ) : health ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-zinc-500">Attributions</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-zinc-50">{health.attributionRows}</p>
+            </div>
+            <div className="rounded-lg border border-amber-500/25 bg-amber-950/15 px-3 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-amber-200/80">Pending ledger</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-zinc-50">{health.pendingRewardRows}</p>
+              <p className="mt-1 text-[11px] text-amber-200/70">
+                {health.readyToSettleRows} ready to settle now
+              </p>
+            </div>
+            <div className="rounded-lg border border-emerald-500/25 bg-emerald-950/20 px-3 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-emerald-300/80">Spendable (all)</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-zinc-50">
+                {fmtUsdCents(health.totalBalanceCents)}
+              </p>
+              <p className="mt-1 text-[11px] text-emerald-200/70">
+                {health.ownersWithBalance} member{health.ownersWithBalance === 1 ? "" : "s"}
+              </p>
+            </div>
+            <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-zinc-500">Ledger granted / voided</p>
+              <p className="mt-1 text-lg font-bold tabular-nums text-zinc-50">
+                {health.grantedRewardRows} / {health.voidedRewardRows}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-zinc-500">Could not load program metrics.</p>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowLaunchChecklist((v) => !v)}
+          className="mt-4 text-xs font-semibold text-violet-300/90 hover:text-violet-200"
+        >
+          {showLaunchChecklist ? "Hide" : "Show"} launch checklist
+        </button>
+        {showLaunchChecklist ? (
+          <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-zinc-500">
+            {MEMBER_REFERRAL_LAUNCH_CHECKLIST.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ) : null}
+      </AdminPanel>
 
       <AdminPanel className="p-4 sm:p-5">
         <form

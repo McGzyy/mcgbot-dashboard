@@ -1,6 +1,7 @@
 import { requireDashboardAdmin } from "@/lib/adminGate";
 import {
   getReferralAdminSnapshot,
+  getReferralProgramHealth,
   resolveOwnerDiscordIdFromQuery,
 } from "@/lib/referralAdmin";
 import {
@@ -16,6 +17,15 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const gate = await requireDashboardAdmin();
   if (!gate.ok) return gate.response;
+
+  const view = new URL(request.url).searchParams.get("view")?.trim() ?? "";
+  if (view === "health") {
+    const health = await getReferralProgramHealth();
+    if (!health) {
+      return Response.json({ success: false, error: "Could not load program health." }, { status: 503 });
+    }
+    return Response.json({ success: true, health });
+  }
 
   const q = new URL(request.url).searchParams.get("q")?.trim() ?? "";
   const ownerId = await resolveOwnerDiscordIdFromQuery(q);

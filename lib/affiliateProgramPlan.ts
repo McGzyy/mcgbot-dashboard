@@ -1,6 +1,7 @@
 /**
  * Future affiliate program (commission payouts, partner dashboard).
- * Not used by member referral v1 — documents requirements before implementation.
+ * Member referral v1 is complete; affiliate is the next phase.
+ * Not used by member referral credit — documents requirements before implementation.
  */
 
 export const AFFILIATE_PROGRAM_REQUIREMENTS = {
