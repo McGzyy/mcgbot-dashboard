@@ -5,6 +5,7 @@ import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefresh
 import { DashboardWidgetEmpty } from "@/app/components/dashboard/DashboardWidgetEmpty";
 import { DeskCallQuotaChip } from "@/app/components/dashboard/DeskCallQuotaChip";
 import { CallTapeTableSkeleton } from "@/app/components/dashboard/dashboardRouteSkeletons";
+import { MyCallLogMobileList } from "@/app/components/dashboard/MyCallLogMobileList";
 import { SubmitDeskCallModal } from "@/app/components/dashboard/SubmitDeskCallModal";
 import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
@@ -225,7 +226,7 @@ export default function CallTapePage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
+    <div className="mx-auto min-w-0 max-w-6xl px-4 pb-20 pt-4 sm:px-6">
       <header className={`${terminalChrome.headerRule} pb-8 pt-2`} data-tutorial="calls.header">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Your terminal</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">My Call Log</h1>
@@ -334,8 +335,21 @@ export default function CallTapePage() {
 
       <div className={`relative mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ${terminalSurface.insetEdge}`}>
         <DashboardRefreshBar active={loading && rows.length > 0} />
-        <div className="max-h-[min(70vh,52rem)] overflow-auto no-scrollbar">
-          <table className="min-w-[760px] w-full text-left text-sm">
+        <div className="lg:hidden">
+          <MyCallLogMobileList
+            rows={rows}
+            loading={loading}
+            tapeWindow={tapeWindow}
+            highlightMint={highlightMint}
+            bestAthRowKey={bestAthRowKey}
+            rowRefs={rowRefs}
+            onOpenSubmitCall={openSubmitCall}
+            onShowAllTime={() => setTapeWindow("all")}
+            onOpenTokenChart={openTokenChart}
+          />
+        </div>
+        <div className="hidden max-h-[min(70vh,52rem)] overflow-auto no-scrollbar lg:block">
+          <table className="w-full text-left text-sm lg:min-w-[760px]">
             <thead
               className="sticky top-0 z-10 border-b border-zinc-800/90 bg-zinc-950/95 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 backdrop-blur-sm"
               data-tutorial="calls.table"

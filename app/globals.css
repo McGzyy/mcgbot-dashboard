@@ -24,9 +24,16 @@
   }
 }
 
+html {
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background: var(--mcg-page);
   color: inherit;
+  min-width: 0;
+  overflow-x: clip;
 }
 
 @keyframes dashboard-fade-in {

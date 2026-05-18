@@ -70,7 +70,7 @@ export const dashboardChrome = {
   mainGrid: "hidden",
   /** No z-index here: a low z would trap `position:fixed` modals below the sticky announcement (z-45). DOM order keeps this above the absolute glow/grid. */
   contentWell:
-    "relative mx-auto w-full max-w-[1680px] px-3 pb-10 pt-1 sm:px-8 sm:pb-14 sm:pt-2 min-[480px]:px-5",
+    "relative mx-auto w-full min-w-0 max-w-[1680px] overflow-x-clip px-3 pb-10 pt-1 sm:px-8 sm:pb-14 sm:pt-2 min-[480px]:px-5",
   /** Bottom edge uses `topBarBottomRule` so the line fades left like the market strip (no full-width `border-b`). */
   topBar:
     "relative bg-zinc-950/85 backdrop-blur-xl shadow-[0_1px_0_0_rgba(56,189,248,0.07),0_12px_40px_-20px_rgba(0,0,0,0.65)]",

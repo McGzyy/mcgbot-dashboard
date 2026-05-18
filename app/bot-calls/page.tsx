@@ -1046,7 +1046,7 @@ export default function BotCallsPage() {
         data-tutorial="botCalls.table"
       >
         {/* Mobile: stacked rows (avoid horizontal scroll) */}
-        <div className="sm:hidden">
+        <div className="lg:hidden">
           {loading && rows.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-zinc-500">Loading…</div>
           ) : rows.length === 0 ? (
@@ -1172,8 +1172,8 @@ export default function BotCallsPage() {
         </div>
 
         {/* Desktop/tablet: wide table */}
-        <div className="hidden max-h-[min(70vh,52rem)] overflow-auto no-scrollbar sm:block">
-          <table className="w-full min-w-[800px] text-left text-sm">
+        <div className="hidden max-h-[min(70vh,52rem)] overflow-auto no-scrollbar lg:block">
+          <table className="w-full text-left text-sm lg:min-w-[800px]">
             <thead className="sticky top-0 z-10 border-b border-zinc-800/90 bg-zinc-950/95 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 backdrop-blur-sm">
               <tr>
                 {canExcludeCalls ? (

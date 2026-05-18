@@ -1067,9 +1067,8 @@ export default function LeaderboardPage() {
   }) => {
     return (
       <div className="rounded-xl border border-emerald-500/15 bg-black/30 p-4 ring-1 ring-emerald-500/10">
-        <div className="overflow-x-auto">
-          <div className="min-w-[720px]">
-            <div className="flex items-end justify-between gap-3 border-b border-emerald-500/10 pb-2 text-[10px] font-medium uppercase tracking-widest text-zinc-600 sm:text-[11px]">
+        <div className="min-w-0">
+            <div className="hidden items-end justify-between gap-3 border-b border-emerald-500/10 pb-2 text-[10px] font-medium uppercase tracking-widest text-zinc-600 lg:flex sm:text-[11px]">
               <div className="min-w-0 flex-1 pl-1">User</div>
               <div className="w-12 shrink-0 text-center">Δ</div>
               <div className="flex shrink-0 items-end gap-2 sm:gap-3">
@@ -1100,7 +1099,7 @@ export default function LeaderboardPage() {
                   <div
                     key={`${r.rank}-${r.username}`}
                     className={[
-                      "group/row flex items-center justify-between gap-3 rounded-xl border px-2.5 py-2 transition-all duration-200 sm:px-3",
+                      "group/row flex flex-col gap-2 rounded-xl border px-2.5 py-2 transition-all duration-200 max-lg:items-stretch lg:flex-row lg:items-center lg:justify-between lg:gap-3 sm:px-3",
                       "hover:bg-emerald-950/30 hover:shadow-[0_0_18px_-6px_rgba(16,185,129,0.12)]",
                       podiumRowClass(r.rank),
                       isYou
@@ -1145,16 +1144,23 @@ export default function LeaderboardPage() {
                       </div>
                     </div>
 
-                    <div className="flex w-12 shrink-0 items-center justify-center">
-                      <RankDelta delta={r.rankDelta} />
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-                      <div className="text-right min-w-[56px] text-xs font-semibold tabular-nums text-emerald-400">
-                        {fmtX(r.avgX)}
+                    <div className="flex items-center justify-between gap-3 max-lg:w-full lg:contents">
+                      <div className="flex w-12 shrink-0 items-center justify-center lg:order-none">
+                        <RankDelta delta={r.rankDelta} />
                       </div>
-                      <div className="text-right min-w-[56px] text-xs font-semibold tabular-nums text-amber-300">
-                        {fmtX(r.bestX)}
+                      <div className="flex shrink-0 items-center gap-3 lg:order-none">
+                        <div className="text-right text-xs font-semibold tabular-nums text-emerald-400">
+                          <span className="mr-1 text-[10px] font-medium uppercase tracking-wider text-zinc-600 lg:hidden">
+                            Avg
+                          </span>
+                          {fmtX(r.avgX)}
+                        </div>
+                        <div className="text-right text-xs font-semibold tabular-nums text-amber-300">
+                          <span className="mr-1 text-[10px] font-medium uppercase tracking-wider text-zinc-600 lg:hidden">
+                            Best
+                          </span>
+                          {fmtX(r.bestX)}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1164,7 +1170,6 @@ export default function LeaderboardPage() {
             </div>
           </div>
         </div>
-      </div>
     );
   };
 

@@ -226,7 +226,7 @@ export function FixItTicketLauncher({ placement = "sidebar", compact = false }: 
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-300/90">Build phase</p>
             <h2 className="mt-1 text-lg font-semibold text-zinc-50">Fix-it ticket</h2>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              For tester notes: polish, ideas, and opinions. Use{" "}
+              Share polish, ideas, and opinions. Use{" "}
               <span className="text-zinc-400">Settings → Report a bug</span> if something is outright broken and you
               need a tracked repro.
             </p>

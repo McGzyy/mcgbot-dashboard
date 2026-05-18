@@ -400,23 +400,23 @@ function computeHitRates(
 ) {
   const list = callsEligibleForSnapshot(calls);
   if (!list.length) {
-    return { rate3x: null, rate5x: null };
+    return { rate2x: null, rate4x: null };
   }
 
   const multiples = list.map(c => c.multiple).filter(n => typeof n === "number");
 
   if (multiples.length === 0) {
-    return { rate3x: null, rate5x: null };
+    return { rate2x: null, rate4x: null };
   }
 
   const total = multiples.length;
 
-  const hit3x = multiples.filter((m) => m >= 3).length;
-  const hit5x = multiples.filter((m) => m >= 5).length;
+  const hit2x = multiples.filter((m) => m >= 2).length;
+  const hit4x = multiples.filter((m) => m >= 4).length;
 
   return {
-    rate3x: (hit3x / total) * 100,
-    rate5x: (hit5x / total) * 100,
+    rate2x: (hit2x / total) * 100,
+    rate4x: (hit4x / total) * 100,
   };
 }
 
@@ -2479,18 +2479,18 @@ export default function ProfilePageClient() {
                   value={profile ? profile.stats.totalCalls : "—"}
                 />
                 <StatCard
-                  title="3× Rate"
+                  title="2× Rate"
                   loading={loading}
-                  selected={trackChartMetric === "rate_3x"}
-                  onSelect={() => setTrackChartMetric("rate_3x")}
-                  value={hitRates.rate3x != null ? `${Math.round(hitRates.rate3x)}%` : "—"}
+                  selected={trackChartMetric === "rate_2x"}
+                  onSelect={() => setTrackChartMetric("rate_2x")}
+                  value={hitRates.rate2x != null ? `${Math.round(hitRates.rate2x)}%` : "—"}
                 />
                 <StatCard
-                  title="5× Rate"
+                  title="4× Rate"
                   loading={loading}
-                  selected={trackChartMetric === "rate_5x"}
-                  onSelect={() => setTrackChartMetric("rate_5x")}
-                  value={hitRates.rate5x != null ? `${Math.round(hitRates.rate5x)}%` : "—"}
+                  selected={trackChartMetric === "rate_4x"}
+                  onSelect={() => setTrackChartMetric("rate_4x")}
+                  value={hitRates.rate4x != null ? `${Math.round(hitRates.rate4x)}%` : "—"}
                 />
               </div>
             </div>
