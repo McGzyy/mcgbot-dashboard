@@ -73,6 +73,12 @@ export default function AdminOverviewPage() {
           hint="Reads · Supabase"
         />
         <OverviewCard
+          href="/admin/affiliates"
+          title="Affiliate partners"
+          subtitle="Create partner accounts with separate login; affiliates must enable authenticator 2FA."
+          hint="Writes · Supabase"
+        />
+        <OverviewCard
           href="/admin/subscription-exempt"
           title="Subscription access"
           subtitle="Database bypass list and env-based exempt Discord IDs."

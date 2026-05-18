@@ -12,6 +12,10 @@ import {
 } from "@/lib/tokenDashboardGate";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
 import { isPublicProfileApi, isPublicProfilePage } from "@/lib/publicProfileRoutes";
+import {
+  affiliateSessionFullyVerified,
+  getAffiliateSessionFromRequest,
+} from "@/lib/affiliate/affiliateSession";
 
 function isStaticPath(pathname: string): boolean {
   if (pathname.startsWith("/_next")) return true;
@@ -39,6 +43,95 @@ function isAuthApi(pathname: string): boolean {
 
 function isCronApi(pathname: string): boolean {
   return pathname.startsWith("/api/cron/");
+}
+
+function isAffiliatePath(pathname: string): boolean {
+  return pathname.startsWith("/affiliate") || pathname.startsWith("/api/affiliate");
+}
+
+function isAffiliatePublicPath(pathname: string, method: string): boolean {
+  if (pathname === "/affiliate/login") return true;
+  if (pathname === "/api/affiliate/auth/login" && method === "POST") return true;
+  return false;
+}
+
+async function affiliateMiddleware(req: NextRequest): Promise<NextResponse | null> {
+  const pathname = req.nextUrl.pathname;
+  if (!isAffiliatePath(pathname)) return null;
+
+  if (isAffiliatePublicPath(pathname, req.method)) {
+    return NextResponse.next();
+  }
+
+  const session = await getAffiliateSessionFromRequest(req);
+  if (!session) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/affiliate/login";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  if (session.status === "suspended") {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Account suspended" }, { status: 403 });
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/affiliate/login";
+    url.search = "suspended=1";
+    return NextResponse.redirect(url);
+  }
+
+  const onSetup =
+    pathname === "/affiliate/auth/setup" ||
+    pathname === "/api/affiliate/totp/enroll-start" ||
+    pathname === "/api/affiliate/totp/enroll-finish" ||
+    pathname === "/api/affiliate/totp/status" ||
+    pathname === "/api/affiliate/auth/logout" ||
+    pathname === "/api/affiliate/auth/session";
+  const onTotpVerify =
+    pathname === "/affiliate/auth/totp" || pathname === "/api/affiliate/totp/verify-session";
+
+  if (session.needsTotpEnrollment && !onSetup) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "2FA enrollment required" }, { status: 403 });
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/affiliate/auth/setup";
+    return NextResponse.redirect(url);
+  }
+
+  if (session.pendingTotpVerification && !onTotpVerify) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "2FA verification required" }, { status: 403 });
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/affiliate/auth/totp";
+    return NextResponse.redirect(url);
+  }
+
+  if (pathname === "/affiliate/login") {
+    const url = req.nextUrl.clone();
+    url.pathname = affiliateSessionFullyVerified(session)
+      ? "/affiliate/dashboard"
+      : session.needsTotpEnrollment
+        ? "/affiliate/auth/setup"
+        : "/affiliate/auth/totp";
+    return NextResponse.redirect(url);
+  }
+
+  if (
+    (pathname === "/affiliate/auth/setup" || pathname === "/affiliate/auth/totp") &&
+    affiliateSessionFullyVerified(session)
+  ) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/affiliate/dashboard";
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
 }
 
 /** Paths that stay available when `maintenance_enabled` (non-admins). */
@@ -179,6 +272,9 @@ export async function middleware(req: NextRequest) {
   if (isCronApi(pathname)) {
     return NextResponse.next();
   }
+
+  const affiliateRes = await affiliateMiddleware(req);
+  if (affiliateRes) return affiliateRes;
 
   const secret = process.env.NEXTAUTH_SECRET;
   const token = secret

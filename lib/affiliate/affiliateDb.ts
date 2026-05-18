@@ -1,0 +1,176 @@
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  hashAffiliatePassword,
+  isValidAffiliateEmail,
+  normalizeAffiliateEmail,
+  verifyAffiliatePassword,
+} from "@/lib/affiliate/affiliatePassword";
+import type { AffiliateAccountStatus, AffiliateSessionClaims } from "@/lib/affiliate/affiliateSession";
+import { encodeAffiliateSession } from "@/lib/affiliate/affiliateSession";
+
+export type AffiliateAccountRow = {
+  id: string;
+  email: string;
+  displayName: string | null;
+  status: AffiliateAccountStatus;
+  commissionRateBps: number;
+  totpEnabled: boolean;
+  createdAt: string;
+};
+
+function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
+  const id = typeof data.id === "string" ? data.id : "";
+  const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
+  if (!id || !email) return null;
+  const status = data.status;
+  if (status !== "pending" && status !== "active" && status !== "suspended") return null;
+  return {
+    id,
+    email,
+    displayName:
+      typeof data.display_name === "string" && data.display_name.trim()
+        ? data.display_name.trim()
+        : null,
+    status,
+    commissionRateBps: Math.floor(Number(data.commission_rate_bps)) || 0,
+    totpEnabled: data.totp_enabled === true,
+    createdAt: typeof data.created_at === "string" ? data.created_at : "",
+  };
+}
+
+export async function getAffiliateByEmail(email: string): Promise<(AffiliateAccountRow & { passwordHash: string }) | null> {
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const normalized = normalizeAffiliateEmail(email);
+  const { data, error } = await db
+    .from("affiliate_accounts")
+    .select(
+      "id, email, display_name, status, commission_rate_bps, totp_enabled, password_hash, created_at"
+    )
+    .eq("email", normalized)
+    .maybeSingle();
+  if (error || !data || typeof data !== "object") return null;
+  const row = mapRow(data as Record<string, unknown>);
+  const passwordHash =
+    typeof (data as { password_hash?: string }).password_hash === "string"
+      ? (data as { password_hash: string }).password_hash
+      : "";
+  if (!row || !passwordHash) return null;
+  return { ...row, passwordHash };
+}
+
+export async function getAffiliateById(id: string): Promise<AffiliateAccountRow | null> {
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const { data, error } = await db
+    .from("affiliate_accounts")
+    .select("id, email, display_name, status, commission_rate_bps, totp_enabled, created_at")
+    .eq("id", id.trim())
+    .maybeSingle();
+  if (error || !data || typeof data !== "object") return null;
+  return mapRow(data as Record<string, unknown>);
+}
+
+export async function listAffiliateAccounts(limit = 100): Promise<AffiliateAccountRow[]> {
+  const db = getSupabaseAdmin();
+  if (!db) return [];
+  const { data, error } = await db
+    .from("affiliate_accounts")
+    .select("id, email, display_name, status, commission_rate_bps, totp_enabled, created_at")
+    .order("created_at", { ascending: false })
+    .limit(Math.min(200, Math.max(1, limit)));
+  if (error || !Array.isArray(data)) return [];
+  return data
+    .map((r) => mapRow(r as Record<string, unknown>))
+    .filter((r): r is AffiliateAccountRow => Boolean(r));
+}
+
+export async function createAffiliateAccount(input: {
+  email: string;
+  password: string;
+  displayName?: string | null;
+  status?: AffiliateAccountStatus;
+  commissionRateBps?: number;
+}): Promise<{ ok: true; account: AffiliateAccountRow } | { ok: false; error: string }> {
+  if (!isValidAffiliateEmail(input.email)) {
+    return { ok: false, error: "Invalid email." };
+  }
+  if (input.password.length < 12) {
+    return { ok: false, error: "Password must be at least 12 characters." };
+  }
+  const db = getSupabaseAdmin();
+  if (!db) return { ok: false, error: "Database not configured." };
+
+  const email = normalizeAffiliateEmail(input.email);
+  const status = input.status ?? "pending";
+  const commissionRateBps = Math.min(
+    10000,
+    Math.max(0, Math.floor(Number(input.commissionRateBps) || 1000))
+  );
+
+  const { data, error } = await db
+    .from("affiliate_accounts")
+    .insert({
+      email,
+      password_hash: hashAffiliatePassword(input.password),
+      display_name: input.displayName?.trim() || null,
+      status,
+      commission_rate_bps: commissionRateBps,
+    })
+    .select("id, email, display_name, status, commission_rate_bps, totp_enabled, created_at")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") return { ok: false, error: "Email already registered." };
+    console.error("[affiliateDb] create", error);
+    return { ok: false, error: "Could not create affiliate." };
+  }
+  const account = mapRow(data as Record<string, unknown>);
+  if (!account) return { ok: false, error: "Could not read created affiliate." };
+  return { ok: true, account };
+}
+
+export async function authenticateAffiliate(
+  email: string,
+  password: string
+): Promise<
+  | { ok: true; sessionToken: string; account: AffiliateAccountRow }
+  | { ok: false; error: string; status?: number }
+> {
+  const row = await getAffiliateByEmail(email);
+  if (!row) return { ok: false, error: "Invalid email or password.", status: 401 };
+  if (row.status === "suspended") {
+    return { ok: false, error: "This affiliate account is suspended.", status: 403 };
+  }
+  if (!verifyAffiliatePassword(password, row.passwordHash)) {
+    return { ok: false, error: "Invalid email or password.", status: 401 };
+  }
+
+  const claims: AffiliateSessionClaims = {
+    affiliateId: row.id,
+    email: row.email,
+    status: row.status,
+    needsTotpEnrollment: !row.totpEnabled,
+    pendingTotpVerification: row.totpEnabled,
+  };
+
+  const sessionToken = await encodeAffiliateSession(claims);
+  if (!sessionToken) {
+    return { ok: false, error: "Session signing is not configured.", status: 503 };
+  }
+
+  const { passwordHash: _, ...account } = row;
+  return { ok: true, sessionToken, account };
+}
+
+export async function buildAffiliateSessionForAccount(
+  account: AffiliateAccountRow
+): Promise<string | null> {
+  return encodeAffiliateSession({
+    affiliateId: account.id,
+    email: account.email,
+    status: account.status,
+    needsTotpEnrollment: !account.totpEnabled,
+    pendingTotpVerification: account.totpEnabled,
+  });
+}

@@ -1,7 +1,7 @@
 /**
- * Future affiliate program (commission payouts, partner dashboard).
- * Member referral v1 is complete; affiliate is the next phase.
- * Not used by member referral credit — documents requirements before implementation.
+ * Affiliate program (commission payouts, partner dashboard).
+ * Foundation: /affiliate/login, mandatory TOTP, /admin/affiliates provisioning.
+ * Not used by member referral credit.
  */
 
 export const AFFILIATE_PROGRAM_REQUIREMENTS = {
@@ -11,9 +11,16 @@ export const AFFILIATE_PROGRAM_REQUIREMENTS = {
   mandatoryTwoFactor: true as const,
 } as const;
 
-/** Implementation guardrails when affiliate work starts. */
+/** Implementation guardrails — still apply as commission accrual grows. */
 export const AFFILIATE_PROGRAM_BOUNDARIES = [
   "Do not extend member referral_rewards / referral_credit_balances for affiliate commission tiers.",
   "Use separate auth tables, sessions, and RLS policies from the member dashboard.",
-  "Reuse users_totp_2fa patterns where possible, but scope credentials to affiliate accounts only.",
+  "Affiliate TOTP uses affiliate_accounts + affiliate_recovery_codes (not public.users).",
 ] as const;
+
+/** Shipped in foundation milestone. */
+export const AFFILIATE_PROGRAM_ROUTES = {
+  partnerLogin: "/affiliate/login",
+  partnerDashboard: "/affiliate/dashboard",
+  adminProvision: "/admin/affiliates",
+} as const;
