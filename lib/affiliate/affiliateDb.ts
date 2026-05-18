@@ -12,7 +12,13 @@ import {
   partnerHasSignedCurrentAgreement,
 } from "@/lib/affiliate/partnerAgreement";
 import type { AffiliateApplicationInput } from "@/lib/affiliate/validateAffiliateApplication";
-import { ensureUniqueAffiliateSlug, normalizeAffiliateSlug, slugBaseFromEmail } from "@/lib/affiliate/affiliateSlug";
+import { AFFILIATE_SLUG_CHANGE_COOLDOWN_DAYS } from "@/lib/affiliate/affiliateSlugPolicy";
+import {
+  ensureUniqueAffiliateSlug,
+  isValidAffiliateSlug,
+  normalizeAffiliateSlug,
+  slugBaseFromEmail,
+} from "@/lib/affiliate/affiliateSlug";
 
 export type AffiliateApplicationRow = {
   legalName: string | null;
@@ -39,6 +45,8 @@ export type AffiliateAccountRow = {
   createdAt: string;
   agreementVersion: string | null;
   agreementSignedAt: string | null;
+  slugChangedAt: string | null;
+  slugChangePending: string | null;
   application: AffiliateApplicationRow;
 };
 
@@ -75,6 +83,11 @@ function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
       typeof data.agreement_version === "string" ? data.agreement_version.trim() : null,
     agreementSignedAt:
       typeof data.agreement_signed_at === "string" ? data.agreement_signed_at : null,
+    slugChangedAt: typeof data.slug_changed_at === "string" ? data.slug_changed_at : null,
+    slugChangePending:
+      typeof data.slug_change_pending === "string" && data.slug_change_pending.trim()
+        ? data.slug_change_pending.trim().toLowerCase()
+        : null,
     application: {
       legalName:
         typeof data.application_legal_name === "string" ? data.application_legal_name.trim() : null,
@@ -113,7 +126,7 @@ function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
 }
 
 const ACCOUNT_SELECT = `id, email, display_name, status, commission_rate_bps, totp_enabled, affiliate_slug, created_at,
-  agreement_version, agreement_signed_at,
+  agreement_version, agreement_signed_at, slug_changed_at, slug_change_pending,
   application_legal_name, application_company_name, application_country, application_primary_channel,
   application_audience_size, application_promo_methods, application_social_links, application_website_url,
   application_notes, application_submitted_at, admin_review_notes`;
@@ -368,6 +381,39 @@ export async function registerAffiliateApplication(input: {
   return { ok: true, account: created.account, sessionToken };
 }
 
+async function isSlugTakenGlobally(slug: string, exceptAffiliateId?: string): Promise<boolean> {
+  const db = getSupabaseAdmin();
+  if (!db) return true;
+  const s = normalizeAffiliateSlug(slug);
+  const { data: acct } = await db
+    .from("affiliate_accounts")
+    .select("id")
+    .eq("affiliate_slug", s)
+    .maybeSingle();
+  if (acct && typeof acct === "object") {
+    const id = typeof (acct as { id?: string }).id === "string" ? (acct as { id: string }).id : "";
+    if (!exceptAffiliateId || id !== exceptAffiliateId) return true;
+  }
+  const { data: alias } = await db.from("affiliate_slug_aliases").select("affiliate_id").eq("slug", s).maybeSingle();
+  if (alias && typeof alias === "object") {
+    const id =
+      typeof (alias as { affiliate_id?: string }).affiliate_id === "string"
+        ? (alias as { affiliate_id: string }).affiliate_id
+        : "";
+    if (!exceptAffiliateId || id !== exceptAffiliateId) return true;
+  }
+  const { data: pending } = await db
+    .from("affiliate_accounts")
+    .select("id")
+    .eq("slug_change_pending", s)
+    .maybeSingle();
+  if (pending && typeof pending === "object") {
+    const id = typeof (pending as { id?: string }).id === "string" ? (pending as { id: string }).id : "";
+    if (!exceptAffiliateId || id !== exceptAffiliateId) return true;
+  }
+  return false;
+}
+
 export async function getAffiliateBySlug(slug: string): Promise<AffiliateAccountRow | null> {
   const db = getSupabaseAdmin();
   if (!db) return null;
@@ -377,10 +423,166 @@ export async function getAffiliateBySlug(slug: string): Promise<AffiliateAccount
     .select(ACCOUNT_SELECT)
     .eq("affiliate_slug", s)
     .maybeSingle();
-  if (error || !data || typeof data !== "object") return null;
-  const row = mapRow(data as Record<string, unknown>);
-  if (!row || row.status === "suspended") return null;
-  return row;
+  if (!error && data && typeof data === "object") {
+    const row = mapRow(data as Record<string, unknown>);
+    if (row && row.status !== "suspended") return row;
+  }
+
+  const { data: aliasRow } = await db
+    .from("affiliate_slug_aliases")
+    .select("affiliate_id")
+    .eq("slug", s)
+    .maybeSingle();
+  const affiliateId =
+    aliasRow && typeof aliasRow === "object" && typeof (aliasRow as { affiliate_id?: string }).affiliate_id === "string"
+      ? (aliasRow as { affiliate_id: string }).affiliate_id
+      : "";
+  if (!affiliateId) return null;
+  return getAffiliateById(affiliateId);
+}
+
+export async function updateAffiliatePassword(
+  affiliateId: string,
+  newPassword: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (newPassword.length < 12) {
+    return { ok: false, error: "Password must be at least 12 characters." };
+  }
+  const db = getSupabaseAdmin();
+  if (!db) return { ok: false, error: "Database not configured." };
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({
+      password_hash: hashAffiliatePassword(newPassword),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", affiliateId.trim());
+  if (error) return { ok: false, error: "Could not update password." };
+  return { ok: true };
+}
+
+export async function updateAffiliateDisplayName(
+  affiliateId: string,
+  displayName: string | null
+): Promise<boolean> {
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const name = displayName?.trim() || null;
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({ display_name: name, updated_at: new Date().toISOString() })
+    .eq("id", affiliateId.trim());
+  return !error;
+}
+
+function slugChangeCooldownEndsAt(account: Pick<AffiliateAccountRow, "slugChangedAt" | "createdAt">): Date {
+  const base = account.slugChangedAt ?? account.createdAt;
+  const d = new Date(base);
+  d.setUTCDate(d.getUTCDate() + AFFILIATE_SLUG_CHANGE_COOLDOWN_DAYS);
+  return d;
+}
+
+export async function requestAffiliateSlugChange(
+  affiliateId: string,
+  newSlug: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const account = await getAffiliateById(affiliateId);
+  if (!account || account.status !== "active") {
+    return { ok: false, error: "Account not active." };
+  }
+  if (account.slugChangePending) {
+    return { ok: false, error: "You already have a slug change awaiting approval." };
+  }
+  const slug = normalizeAffiliateSlug(newSlug);
+  if (!isValidAffiliateSlug(slug)) {
+    return { ok: false, error: "Invalid slug format." };
+  }
+  if (slug === account.affiliateSlug) {
+    return { ok: false, error: "That is already your current slug." };
+  }
+  if (slugChangeCooldownEndsAt(account) > new Date()) {
+    return {
+      ok: false,
+      error: `Slug can only be changed once every ${AFFILIATE_SLUG_CHANGE_COOLDOWN_DAYS} days.`,
+    };
+  }
+  if (await isSlugTakenGlobally(slug, account.id)) {
+    return { ok: false, error: "That slug is not available." };
+  }
+
+  const db = getSupabaseAdmin();
+  if (!db) return { ok: false, error: "Database not configured." };
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({
+      slug_change_pending: slug,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", account.id);
+  if (error) return { ok: false, error: "Could not submit slug request." };
+  return { ok: true };
+}
+
+export async function approveAffiliateSlugChange(affiliateId: string): Promise<boolean> {
+  const account = await getAffiliateById(affiliateId);
+  if (!account?.slugChangePending) return false;
+  const newSlug = account.slugChangePending;
+  if (await isSlugTakenGlobally(newSlug, account.id)) return false;
+
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const now = new Date().toISOString();
+
+  if (account.affiliateSlug) {
+    const { error: aliasErr } = await db.from("affiliate_slug_aliases").upsert({
+      slug: account.affiliateSlug,
+      affiliate_id: account.id,
+      created_at: now,
+    });
+    if (aliasErr) {
+      console.error("[affiliateDb] slug alias", aliasErr);
+      return false;
+    }
+  }
+
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({
+      affiliate_slug: newSlug,
+      slug_change_pending: null,
+      slug_changed_at: now,
+      updated_at: now,
+    })
+    .eq("id", account.id);
+  return !error;
+}
+
+export async function rejectAffiliateSlugChange(affiliateId: string): Promise<boolean> {
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({
+      slug_change_pending: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", affiliateId.trim());
+  return !error;
+}
+
+export async function listAffiliateSlugChangeRequests(): Promise<AffiliateAccountRow[]> {
+  const db = getSupabaseAdmin();
+  if (!db) return [];
+  const { data, error } = await db
+    .from("affiliate_accounts")
+    .select(ACCOUNT_SELECT)
+    .not("slug_change_pending", "is", null)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+  if (error || !Array.isArray(data)) return [];
+  return data
+    .map((r) => mapRow(r as Record<string, unknown>))
+    .filter((r): r is AffiliateAccountRow => Boolean(r));
 }
 
 /** Re-issue session cookie from database (e.g. after admin approval). */

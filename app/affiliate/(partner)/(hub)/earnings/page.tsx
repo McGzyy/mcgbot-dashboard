@@ -12,6 +12,21 @@ type CommissionSummary = {
   bonusCents: number;
 };
 
+type PayoutBalance = {
+  approvedCents: number;
+  reservedCents: number;
+  availableCents: number;
+  minRequestCents: number;
+};
+
+type PayoutRequest = {
+  id: string;
+  amountCents: number;
+  status: string;
+  partnerNote: string | null;
+  createdAt: string;
+};
+
 function fmtUsd(cents: number): string {
   return (Math.max(0, cents) / 100).toLocaleString(undefined, {
     style: "currency",
@@ -22,26 +37,81 @@ function fmtUsd(cents: number): string {
 
 export default function AffiliateEarningsPage() {
   const [summary, setSummary] = useState<CommissionSummary | null>(null);
+  const [balance, setBalance] = useState<PayoutBalance | null>(null);
+  const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [amountUsd, setAmountUsd] = useState("");
+  const [payoutNote, setPayoutNote] = useState("");
+  const [payoutTotp, setPayoutTotp] = useState("");
 
   const load = useCallback(async () => {
     setErr(null);
     try {
-      const res = await fetch("/api/affiliate/dashboard", { credentials: "same-origin" });
-      const j = (await res.json().catch(() => ({}))) as {
+      const [dashRes, payRes] = await Promise.all([
+        fetch("/api/affiliate/dashboard", { credentials: "same-origin" }),
+        fetch("/api/affiliate/payouts", { credentials: "same-origin" }),
+      ]);
+      const j = (await dashRes.json().catch(() => ({}))) as {
         success?: boolean;
         error?: string;
         commissionSummary?: CommissionSummary;
       };
-      if (!res.ok || !j.success || !j.commissionSummary) {
+      if (!dashRes.ok || !j.success || !j.commissionSummary) {
         setErr(typeof j.error === "string" ? j.error : "Could not load earnings.");
         return;
       }
       setSummary(j.commissionSummary);
+
+      const pj = (await payRes.json().catch(() => ({}))) as {
+        success?: boolean;
+        balance?: PayoutBalance;
+        requests?: PayoutRequest[];
+      };
+      if (payRes.ok && pj.success) {
+        setBalance(pj.balance ?? null);
+        setPayouts(Array.isArray(pj.requests) ? pj.requests : []);
+      }
     } catch {
       setErr("Network error.");
     }
   }, []);
+
+  async function requestPayout(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    setNote(null);
+    const dollars = Number(amountUsd);
+    const amountCents = Math.round(dollars * 100);
+    try {
+      const res = await fetch("/api/affiliate/payouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          amountCents,
+          partnerNote: payoutNote.trim() || null,
+          totpCode: payoutTotp,
+        }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || !j.success) {
+        setErr(typeof j.error === "string" ? j.error : "Payout request failed.");
+        return;
+      }
+      setAmountUsd("");
+      setPayoutNote("");
+      setPayoutTotp("");
+      setNote("Payout request submitted.");
+      await load();
+    } catch {
+      setErr("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -87,8 +157,70 @@ export default function AffiliateEarningsPage() {
         <p className="text-sm text-zinc-500">Loading…</p>
       )}
 
+      {balance ? (
+        <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm space-y-3">
+          <h2 className="text-sm font-semibold text-zinc-900">Request payout</h2>
+          <p className="text-xs text-zinc-600">
+            Available: {fmtUsd(balance.availableCents)} (minimum {fmtUsd(balance.minRequestCents)}). Ops reviews
+            requests manually.
+          </p>
+          <form onSubmit={requestPayout} className="space-y-3">
+            <label className="block text-xs">
+              <span className="font-semibold text-zinc-600">Amount (USD)</span>
+              <input
+                type="number"
+                min={balance.minRequestCents / 100}
+                step="0.01"
+                value={amountUsd}
+                onChange={(e) => setAmountUsd(e.target.value)}
+                className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-3 text-sm"
+                required
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="font-semibold text-zinc-600">Note (optional)</span>
+              <input
+                value={payoutNote}
+                onChange={(e) => setPayoutNote(e.target.value)}
+                className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-3 text-sm"
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="font-semibold text-zinc-600">Authenticator code</span>
+              <input
+                value={payoutTotp}
+                onChange={(e) => setPayoutTotp(e.target.value)}
+                className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-3 text-sm"
+                required
+                inputMode="numeric"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={busy}
+              className="h-9 rounded-lg bg-violet-600 px-4 text-xs font-semibold text-white disabled:opacity-45"
+            >
+              {busy ? "Submitting…" : "Submit payout request"}
+            </button>
+          </form>
+          {payouts.length > 0 ? (
+            <ul className="mt-2 divide-y divide-zinc-100 border-t border-zinc-100 pt-2 text-xs">
+              {payouts.map((p) => (
+                <li key={p.id} className="flex justify-between gap-2 py-2">
+                  <span>
+                    {fmtUsd(p.amountCents)} · <span className="capitalize">{p.status}</span>
+                  </span>
+                  <span className="text-zinc-500">{new Date(p.createdAt).toLocaleDateString()}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+
+      {note ? <p className="text-sm text-emerald-800">{note}</p> : null}
+
       <p className="text-xs text-zinc-500">
-        Payout requests and per-invoice export are coming soon.{" "}
         <Link href="/affiliate/dashboard" className="font-semibold text-violet-700 hover:underline">
           Back to dashboard
         </Link>

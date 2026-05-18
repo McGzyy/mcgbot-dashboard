@@ -28,6 +28,7 @@ type AffiliateRow = {
   commissionRateBps: number;
   totpEnabled: boolean;
   affiliateSlug: string | null;
+  slugChangePending: string | null;
   createdAt: string;
   application?: AffiliateApplication;
 };
@@ -165,6 +166,31 @@ export function AffiliateAdminConsole() {
   useEffect(() => {
     setReviewNotesDraft(selected?.application?.adminReviewNotes ?? "");
   }, [selected?.id, selected?.application?.adminReviewNotes]);
+
+  async function slugAction(affiliateId: string, action: "approve" | "reject") {
+    setBusy(`slug:${affiliateId}`);
+    setErr(null);
+    setNote(null);
+    try {
+      const res = await fetch("/api/affiliate/admin/slug-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ affiliateId, action }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || !j.success) {
+        setErr(typeof j.error === "string" ? j.error : "Slug action failed.");
+        return;
+      }
+      setNote(action === "approve" ? "Slug change approved." : "Slug request rejected.");
+      await load();
+    } catch {
+      setErr("Slug action failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function saveReviewNotes(id: string) {
     setBusy(`notes:${id}`);
@@ -377,6 +403,32 @@ export function AffiliateAdminConsole() {
           ) : (
             <p className="mt-1 text-xs text-zinc-500">No application fields (manual account).</p>
           )}
+          {selected.slugChangePending ? (
+            <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2.5 text-sm">
+              <p className="font-semibold text-violet-950">Pending slug change</p>
+              <p className="mt-1 font-mono text-xs">
+                {selected.affiliateSlug ?? "—"} → {selected.slugChangePending}
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void slugAction(selected.id, "approve")}
+                  className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-900"
+                >
+                  Approve slug
+                </button>
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void slugAction(selected.id, "reject")}
+                  className="rounded border border-red-300 bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-900"
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ) : null}
           {selected.application ? (
             <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
               <div>

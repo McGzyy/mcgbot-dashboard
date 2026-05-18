@@ -12,6 +12,8 @@ type NavItem = { href: string; label: string; description: string };
 const NAV: NavItem[] = [
   { href: "/affiliate/admin", label: "Overview", description: "Health & shortcuts" },
   { href: "/affiliate/admin/partners", label: "Partners", description: "Approve, suspend, create" },
+  { href: "/affiliate/admin/payouts", label: "Payouts", description: "Withdrawal requests" },
+  { href: "/affiliate/admin/slug-requests", label: "Slug requests", description: "Vanity link changes" },
   { href: "/affiliate/admin/commissions", label: "Commissions", description: "Ledger & voids" },
   { href: "/affiliate/admin/milestones", label: "Milestones", description: "Approve 25 & 50 bonuses" },
 ];
