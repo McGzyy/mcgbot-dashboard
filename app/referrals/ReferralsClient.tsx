@@ -21,7 +21,10 @@ type TopCoin = {
 };
 
 type ReferralPerformance = {
+  userId: string;
   username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
   calls: number;
   avgX: number;
   bestX: number;
@@ -91,7 +94,7 @@ export function ReferralsClient() {
 
   const { data: session, status } = useSession();
   const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [performance] = useState<ReferralPerformance[]>([]);
+  const [performance, setPerformance] = useState<ReferralPerformance[]>([]);
   const [copied, setCopied] = useState(false);
   const [referralVanitySlug, setReferralVanitySlug] = useState<string | null>(null);
   const [slugLoaded, setSlugLoaded] = useState(false);
@@ -151,6 +154,7 @@ export function ReferralsClient() {
       setReferrals([]);
       setRefStats(null);
       setRewardSummary(null);
+      setPerformance([]);
       setReferralsLoaded(status !== "loading");
       setReferralsError(null);
       return;
@@ -167,6 +171,7 @@ export function ReferralsClient() {
           setReferrals([]);
           setRefStats(null);
           setRewardSummary(null);
+          setPerformance([]);
           setReferralsError(typeof j.error === "string" ? j.error : "Could not load referrals.");
           return;
         }
@@ -209,11 +214,38 @@ export function ReferralsClient() {
         } else {
           setRewardSummary(null);
         }
+
+        const perfRaw = Array.isArray(j.performance) ? (j.performance as Record<string, unknown>[]) : [];
+        setPerformance(
+          perfRaw
+            .map((p) => {
+              const userId = typeof p.userId === "string" ? p.userId : "";
+              const displayName =
+                typeof p.displayName === "string" && p.displayName.trim() ? p.displayName.trim() : null;
+              const username =
+                typeof p.username === "string" && p.username.trim()
+                  ? p.username.trim()
+                  : displayName ?? userId;
+              return {
+                userId,
+                username,
+                displayName,
+                avatarUrl:
+                  typeof p.avatarUrl === "string" && p.avatarUrl.trim() ? p.avatarUrl.trim() : null,
+                calls: Number(p.calls) || 0,
+                avgX: Number(p.avgX) || 0,
+                bestX: Number(p.bestX) || 0,
+                active: p.active === true,
+              };
+            })
+            .filter((p) => p.userId)
+        );
       } catch {
         if (!cancelled) {
           setReferrals([]);
           setRefStats(null);
           setRewardSummary(null);
+          setPerformance([]);
           setReferralsError("Could not load referrals.");
         }
       } finally {
@@ -246,6 +278,10 @@ export function ReferralsClient() {
   }, [idUrl]);
 
   const hasReferrals = referrals.length > 0;
+  const performanceWithCalls = useMemo(
+    () => performance.filter((p) => p.calls > 0),
+    [performance]
+  );
   const nowMs = Date.now();
 
   const heroBlurb =
@@ -522,20 +558,38 @@ export function ReferralsClient() {
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100">Referral performance</h2>
             <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Avg / best</span>
           </div>
-          {performance.length > 0 ? (
+          {performanceWithCalls.length > 0 ? (
             <ul className="space-y-2">
-              {performance.map((p, i) => (
+              {performanceWithCalls.map((p, i) => (
                 <li
-                  key={`${p.username}-${i}`}
+                  key={`${p.userId}-${i}`}
                   className="rounded-lg border border-zinc-800/70 bg-zinc-950/35 px-3 py-3 transition hover:border-zinc-700/90 hover:bg-zinc-900/40"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-700/80 bg-zinc-900 text-[11px] font-bold text-zinc-300">
-                        {initialsFromHandle(p.username)}
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-700/80 bg-zinc-900 text-[11px] font-bold text-zinc-300">
+                        {p.avatarUrl ? (
+                          <img
+                            src={p.avatarUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          initialsFromHandle(p.displayName ?? p.username)
+                        )}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-zinc-100">{p.username}</p>
+                        {p.userId ? (
+                          <Link
+                            href={`/user/${encodeURIComponent(p.userId)}`}
+                            className="truncate text-sm font-medium text-zinc-100 hover:text-emerald-200 hover:underline"
+                          >
+                            {p.displayName ?? p.username}
+                          </Link>
+                        ) : (
+                          <p className="truncate text-sm font-medium text-zinc-100">{p.username}</p>
+                        )}
                         <p className="text-xs text-zinc-500">{p.calls} calls</p>
                       </div>
                     </div>
@@ -632,7 +686,7 @@ export function ReferralsClient() {
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
               You earn <span className="font-medium text-zinc-300">10%</span> of each referred member’s qualifying
               payment (USD) as account credit, up to <span className="font-medium text-zinc-300">six list-price months</span>{" "}
-              per person in their first 24 months paid. Credit becomes spendable after a short refund window; apply it on{" "}
+              per person in their first 24 months paid. Credit becomes spendable after a short refund window; Stripe refunds void pending or claw back settled credit. Apply balance on{" "}
               <Link href="/membership" className="text-violet-300 underline">Membership</Link> toward any selected billing period.
             </p>
           </div>

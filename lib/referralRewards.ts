@@ -489,3 +489,81 @@ export async function getReferralRewardSummaryForOwner(ownerDiscordId: string): 
     pendingCreditCents,
   };
 }
+
+/**
+ * Void referral ledger rows tied to a Stripe invoice (refund / dispute).
+ * Claws back granted credit from owner balance when applicable.
+ */
+export async function voidReferralRewardsForStripeInvoice(
+  stripeInvoiceId: string
+): Promise<{ voided: number; clawedBackCents: number }> {
+  const inv = stripeInvoiceId.trim();
+  if (!inv.startsWith("in_")) return { voided: 0, clawedBackCents: 0 };
+
+  const db = getSupabaseAdmin();
+  if (!db) return { voided: 0, clawedBackCents: 0 };
+
+  const { data: rows, error } = await db
+    .from("referral_rewards")
+    .select("id, owner_discord_id, status, credit_cents")
+    .eq("stripe_invoice_id", inv)
+    .in("status", ["pending", "granted"]);
+  if (error || !Array.isArray(rows) || rows.length === 0) {
+    if (error) console.error("[referralRewards] void select", error);
+    return { voided: 0, clawedBackCents: 0 };
+  }
+
+  let voided = 0;
+  let clawedBackCents = 0;
+
+  for (const r of rows as {
+    id?: string;
+    owner_discord_id?: string;
+    status?: string;
+    credit_cents?: unknown;
+  }[]) {
+    const id = typeof r.id === "string" ? r.id : "";
+    const owner = typeof r.owner_discord_id === "string" ? r.owner_discord_id.trim() : "";
+    const st = typeof r.status === "string" ? r.status.trim() : "";
+    const cents = Math.floor(Number(r.credit_cents));
+    if (!id || !owner) continue;
+
+    const { data: upd, error: upErr } = await db
+      .from("referral_rewards")
+      .update({ status: "voided" })
+      .eq("id", id)
+      .in("status", ["pending", "granted"])
+      .select("id");
+    if (upErr || !Array.isArray(upd) || upd.length === 0) continue;
+
+    voided += 1;
+
+    if (st === "granted" && Number.isFinite(cents) && cents > 0) {
+      const { data: bal } = await db
+        .from("referral_credit_balances")
+        .select("balance_cents")
+        .eq("discord_id", owner)
+        .maybeSingle();
+      const prev =
+        bal && typeof bal === "object"
+          ? Math.floor(Number((bal as { balance_cents?: unknown }).balance_cents))
+          : 0;
+      const next = Math.max(0, (Number.isFinite(prev) ? prev : 0) - cents);
+      const { error: balErr } = await db.from("referral_credit_balances").upsert(
+        {
+          discord_id: owner,
+          balance_cents: next,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "discord_id" }
+      );
+      if (!balErr) {
+        clawedBackCents += cents;
+      } else {
+        console.error("[referralRewards] void clawback balance", balErr);
+      }
+    }
+  }
+
+  return { voided, clawedBackCents };
+}

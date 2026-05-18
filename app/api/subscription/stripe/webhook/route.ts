@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { applyPaidStripeCheckoutSession } from "@/lib/subscription/stripeApplySession";
 import { getStripe } from "@/lib/subscription/stripeServer";
 import { tryInsertStripeSubscriptionRenewalMembershipEvent } from "@/lib/subscription/stripeMembershipRenewal";
+import { voidReferralRewardsForStripeInvoice } from "@/lib/referralRewards";
 import { processStripeInvoicePaidForReferrals } from "@/lib/subscription/stripeReferralInvoice";
 import {
   syncDiscordSubscriptionFromStripeId,
@@ -61,6 +62,27 @@ export async function POST(request: Request) {
         } catch (e) {
           console.error("[stripe webhook] invoice.paid referral accrual", e);
         }
+      }
+    }
+  }
+
+  if (event.type === "charge.refunded") {
+    const charge = event.data.object as Stripe.Charge;
+    const invRef = (charge as Stripe.Charge & { invoice?: string | null }).invoice;
+    const invoiceId = typeof invRef === "string" ? invRef.trim() : "";
+    if (invoiceId) {
+      try {
+        const result = await voidReferralRewardsForStripeInvoice(invoiceId);
+        if (result.voided > 0) {
+          console.info(
+            "[stripe webhook] charge.refunded referral void",
+            invoiceId,
+            result.voided,
+            result.clawedBackCents
+          );
+        }
+      } catch (e) {
+        console.error("[stripe webhook] charge.refunded referral void", e);
       }
     }
   }
