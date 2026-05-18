@@ -1501,11 +1501,11 @@ function TrendingPanel() {
       data-tutorial="dashboard.trending"
       className="min-w-0 max-w-full"
     >
-      <div className="mt-3 max-w-full overflow-x-auto overscroll-x-contain">
+      <div className="mt-3 max-w-full min-w-0 overflow-x-clip">
         <div className={`min-w-0 ${terminalSurface.dashboardListWell}`}>
         <DashboardRefreshBar active={trendingLoading && rows.length > 0} />
-        <div className="px-2 pb-2 text-[10px] uppercase tracking-wider text-zinc-600 sm:text-[11px]">
-          <div className="grid min-w-[16rem] grid-cols-[minmax(0,1fr)_minmax(0,4.25rem)_minmax(0,4.25rem)] items-center gap-1.5 sm:min-w-0 sm:grid-cols-[minmax(0,1.2fr)_auto_auto] sm:gap-3">
+        <div className="hidden px-2 pb-2 text-[10px] uppercase tracking-wider text-zinc-600 lg:block sm:text-[11px]">
+          <div className="grid grid-cols-[minmax(0,1.2fr)_auto_auto] items-center gap-3">
             <span>Token</span>
             <span className="text-right">MC / Chg</span>
             <span className="text-right">Liq / Vol</span>
@@ -1556,9 +1556,9 @@ function TrendingPanel() {
                         )
                       }
                       title={`${displayName} — open on Dexscreener`}
-                      className={terminalPage.denseInsetRowButton}
+                      className={`${terminalPage.denseInsetRowButton} flex-col items-stretch gap-2 lg:flex-row lg:items-center`}
                     >
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 w-full flex-1">
                         <div className="flex items-center gap-2">
                           {row.imageUrl ? (
                             <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md border border-zinc-800/70 bg-zinc-950">
@@ -1592,31 +1592,39 @@ function TrendingPanel() {
                         </div>
                       </div>
 
-                      <div className="shrink-0 text-right">
-                        <div className="text-sm font-semibold tabular-nums text-zinc-100">
-                          {row.marketCapUsd > 0
-                            ? formatCompactUsd(row.marketCapUsd)
-                            : "—"}
+                      <div className="grid w-full grid-cols-2 gap-2 border-t border-zinc-800/50 pt-2 lg:contents lg:border-0 lg:pt-0">
+                        <div className="min-w-0 lg:shrink-0 lg:text-right">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-600 lg:hidden">
+                            MC / Chg
+                          </p>
+                          <div className="text-sm font-semibold tabular-nums text-zinc-100">
+                            {row.marketCapUsd > 0
+                              ? formatCompactUsd(row.marketCapUsd)
+                              : "—"}
+                          </div>
+                          <div
+                            className={`mt-0.5 text-xs font-semibold tabular-nums ${
+                              positive ? "text-[#39FF14]/95" : "text-red-400"
+                            }`}
+                          >
+                            {positive ? "▲" : "▼"} {Math.abs(row.changePct).toFixed(1)}%
+                          </div>
                         </div>
-                        <div
-                          className={`mt-0.5 text-xs font-semibold tabular-nums ${
-                            positive ? "text-[#39FF14]/95" : "text-red-400"
-                          }`}
-                        >
-                          {positive ? "▲" : "▼"} {Math.abs(row.changePct).toFixed(1)}%
+
+                        <div className="min-w-0 lg:shrink-0 lg:text-right">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-600 lg:hidden">
+                            Liq / Vol
+                          </p>
+                          <div className="text-xs font-semibold tabular-nums text-zinc-200">
+                            {formatCompactUsd(row.liquidityUsd)}
+                          </div>
+                          <div className="mt-0.5 text-[11px] tabular-nums text-zinc-500">
+                            Vol {formatCompactUsd(row.volumeUsd)}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="shrink-0 text-right">
-                        <div className="text-xs font-semibold tabular-nums text-zinc-200">
-                          {formatCompactUsd(row.liquidityUsd)}
-                        </div>
-                        <div className="mt-0.5 text-[11px] tabular-nums text-zinc-500">
-                          Vol {formatCompactUsd(row.volumeUsd)}
-                        </div>
-                      </div>
-
-                      <span className="ml-1 hidden text-xs text-zinc-500 group-hover:inline">
+                      <span className="hidden text-xs text-zinc-500 group-hover:inline lg:ml-1 lg:inline">
                         ↗
                       </span>
                     </button>

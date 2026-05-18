@@ -23,7 +23,7 @@ export function MembershipTestToolsFloat({
 
   return (
     <div
-      className="pointer-events-auto fixed right-3 top-[4.75rem] z-[35] w-[min(15.5rem,calc(100vw-1.5rem))] rounded-2xl border border-amber-500/35 bg-zinc-950/95 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.65)] backdrop-blur-md sm:right-5 sm:top-20"
+      className="pointer-events-auto fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-3 right-3 z-[35] mx-auto max-w-sm rounded-2xl border border-amber-500/35 bg-zinc-950/95 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.65)] backdrop-blur-md sm:bottom-auto sm:left-auto sm:right-5 sm:top-20 sm:w-[min(15.5rem,calc(100vw-2.5rem))]"
       role="complementary"
       aria-label="Test checkout tools"
     >

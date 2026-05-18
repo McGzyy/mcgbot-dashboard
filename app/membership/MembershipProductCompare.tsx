@@ -123,7 +123,7 @@ export function MembershipProductCompare({
         <p className="text-xs text-zinc-600 sm:pb-1">Then pick monthly or annual below</p>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TierCard
           tier="basic"
           selected={productLine === "basic"}

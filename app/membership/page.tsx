@@ -12,6 +12,7 @@ import { MembershipAccessPanel } from "@/app/membership/MembershipAccessPanel";
 import { MembershipBillingSection, type MembershipPlan } from "@/app/membership/MembershipBillingSection";
 import { MembershipProductCompare } from "@/app/membership/MembershipProductCompare";
 import { markMembershipWelcome } from "@/lib/membershipActivation";
+import { MembershipFlowSteps } from "@/app/membership/MembershipFlowSteps";
 import { MembershipTestToolsFloat } from "@/app/membership/MembershipTestToolsFloat";
 type Plan = MembershipPlan;
 
@@ -147,7 +148,7 @@ export default function MembershipPage() {
         }
       } catch {
         if (!cancelled) {
-          setCheckoutError("Could not verify payment. It may still process ? refresh in a moment.");
+          setCheckoutError("Could not verify payment. It may still process — refresh in a moment.");
         }
       }
       try {
@@ -466,7 +467,7 @@ export default function MembershipPage() {
       }
 
       if (json.activated === true && json.via === "voucher") {
-        setPollNote("Access granted. Refreshing your session?");
+        setPollNote("Access granted. Refreshing your session…");
         await update({ refreshAccess: true });
         return;
       }
@@ -586,7 +587,7 @@ export default function MembershipPage() {
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[color:var(--mcg-page)] px-6 text-sm text-zinc-400">
-        Loading?
+        Loading…
       </div>
     );
   }
@@ -725,7 +726,7 @@ export default function MembershipPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+      <main className="mx-auto flex min-w-0 max-w-4xl flex-col gap-8 overflow-x-clip px-4 py-8 pb-28 sm:px-6 sm:py-10 sm:pb-10">
         <div className="mx-auto w-full max-w-3xl text-center">
           <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-zinc-600">
             McGBot Terminal
@@ -756,16 +757,16 @@ export default function MembershipPage() {
               <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" aria-hidden />
               Server:{" "}
               {!isLoggedIn
-                ? "?"
+                ? "—"
                 : guildGateLoading
-                  ? "Checking?"
+                  ? "Checking…"
                   : guildGateReady && !guildGate.guildMembershipKnown
                     ? "Could not verify"
                     : guildGateReady && guildGate.inGuild
                       ? "Member"
                       : guildGateReady
                         ? "Not joined"
-                        : "?"}
+                        : "—"}
             </span>
             <span
               className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium ${
@@ -787,9 +788,11 @@ export default function MembershipPage() {
           </div>
         </div>
 
+        <MembershipFlowSteps />
+
         {anonPreview ? (
           <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[#5865F2]/45 bg-[linear-gradient(135deg,rgba(88,101,242,0.18),rgba(24,24,27,0.85))] p-5 shadow-[0_20px_60px_rgba(88,101,242,0.12)] sm:p-6">
-            <p className="text-sm font-semibold text-zinc-50">You&apos;re viewing plans ? checkout is locked</p>
+            <p className="text-sm font-semibold text-zinc-50">You&apos;re viewing plans — checkout is locked</p>
             <p className="mt-2 text-sm leading-relaxed text-zinc-300">
               Tiers below are a preview only (greyed out). To purchase you must{" "}
               <span className="font-medium text-zinc-100">sign in with Discord</span> and{" "}
@@ -882,7 +885,7 @@ export default function MembershipPage() {
               {guildGateReady && guildGate.verificationReason === "unverified_role"
                 ? "Complete human verification in Discord first (you should not keep the Unverified role)."
                 : guildGateReady && guildGate.verificationReason === "unpaid_role"
-                  ? "You are verified but do not have an active membership yet. Subscribe below ? we will assign Trencher (Basic) or Pro after payment."
+                  ? "You are verified but do not have an active membership yet. Subscribe below — we will assign Trencher (Basic) or Pro after payment."
                   : guildGateReady && guildGate.verificationReason === "missing_required_role"
                     ? "You need the Trencher or Pro member role in Discord. If you already paid, retry the check or ping support."
                     : "The server couldn&apos;t confirm your member roles yet."}{" "}
@@ -929,7 +932,7 @@ export default function MembershipPage() {
           <div className="mx-auto w-full max-w-3xl rounded-2xl border border-sky-500/25 bg-sky-500/10 px-5 py-4 text-sm text-sky-100/90">
             <p className="font-semibold text-sky-50">Upgrade to Pro</p>
             <p className="mt-1 text-sky-100/80">
-              Your Basic membership stays active. Choose a Pro billing period below ? checkout extends your access
+              Your Basic membership stays active. Choose a Pro billing period below — checkout extends your access
               and unlocks Pro features after payment.
             </p>
           </div>
