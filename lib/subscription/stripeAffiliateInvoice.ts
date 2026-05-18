@@ -61,6 +61,7 @@ export async function processStripeInvoicePaidForAffiliates(opts: {
     referredDiscordId: discordId,
     stripeInvoiceId: inv.id,
     amountPaidCents: amountPaid,
+    planId,
   });
   if (!result.ok) {
     console.warn("[stripe affiliate] accrual failed", result.error, inv.id);

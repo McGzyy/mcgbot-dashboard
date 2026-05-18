@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAffiliateById } from "@/lib/affiliate/affiliateDb";
+import { getAffiliateMilestoneProgress } from "@/lib/affiliate/affiliateMilestones";
 import { affiliateTrackingUrl } from "@/lib/affiliate/affiliateTrackingLink";
 import { requireAffiliateSession } from "@/lib/affiliate/requireAffiliateSession";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -22,22 +23,27 @@ export async function GET() {
     approvedCents: 0,
     paidCents: 0,
     rowCount: 0,
+    revshareCents: 0,
+    bonusCents: 0,
   };
 
   if (db) {
     const { data, error } = await db
       .from("affiliate_commissions")
-      .select("commission_cents, status")
+      .select("commission_cents, status, kind")
       .eq("affiliate_id", auth.session.affiliateId);
     if (!error && Array.isArray(data)) {
-      for (const r of data as { commission_cents?: unknown; status?: string }[]) {
+      for (const r of data as { commission_cents?: unknown; status?: string; kind?: string }[]) {
         const c = Math.floor(Number(r.commission_cents)) || 0;
         if (c <= 0) continue;
         commissionSummary.rowCount += 1;
         const st = typeof r.status === "string" ? r.status : "";
+        const kind = typeof r.kind === "string" ? r.kind : "revshare";
         if (st === "pending") commissionSummary.pendingCents += c;
         else if (st === "approved") commissionSummary.approvedCents += c;
         else if (st === "paid") commissionSummary.paidCents += c;
+        if (kind === "revshare") commissionSummary.revshareCents += c;
+        else commissionSummary.bonusCents += c;
       }
     }
   }
@@ -47,10 +53,51 @@ export async function GET() {
       ? affiliateTrackingUrl(account.affiliateSlug)
       : null;
 
+  const milestones = await getAffiliateMilestoneProgress(auth.session.affiliateId);
+
+  let referralCount = 0;
+  if (db) {
+    const { count } = await db
+      .from("affiliate_attributions")
+      .select("*", { count: "exact", head: true })
+      .eq("affiliate_id", auth.session.affiliateId);
+    referralCount = count ?? 0;
+  }
+
   return NextResponse.json({
     success: true,
     account,
     commissionSummary,
     trackingLink,
+    milestones,
+    referralCount,
+    program: {
+      revShareSchedule: [
+        { paymentIndex: 1, ratePercent: 15 },
+        { paymentIndex: 2, ratePercent: 25 },
+        { paymentIndex: "3-12", ratePercent: 15 },
+      ],
+      annualSignupBonus: { basicCents: 500, proCents: 1000 },
+      milestoneTiers: [
+        {
+          tier: 10,
+          bonusCents: 6000,
+          autoApprove: true,
+          rule: "First payment + 7 days, still subscribed",
+        },
+        {
+          tier: 25,
+          bonusCents: 15000,
+          autoApprove: false,
+          rule: "Second payment cleared, still subscribed",
+        },
+        {
+          tier: 50,
+          bonusCents: 30000,
+          autoApprove: false,
+          rule: "Second payment cleared, still subscribed",
+        },
+      ],
+    },
   });
 }

@@ -13,6 +13,7 @@ const NAV: NavItem[] = [
   { href: "/affiliate/admin", label: "Overview", description: "Health & shortcuts" },
   { href: "/affiliate/admin/partners", label: "Partners", description: "Approve, suspend, create" },
   { href: "/affiliate/admin/commissions", label: "Commissions", description: "Ledger & voids" },
+  { href: "/affiliate/admin/milestones", label: "Milestones", description: "Approve 25 & 50 bonuses" },
 ];
 
 function navClass(active: boolean) {
