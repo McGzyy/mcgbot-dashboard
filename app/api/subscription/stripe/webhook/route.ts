@@ -4,7 +4,9 @@ import Stripe from "stripe";
 import { applyPaidStripeCheckoutSession } from "@/lib/subscription/stripeApplySession";
 import { getStripe } from "@/lib/subscription/stripeServer";
 import { tryInsertStripeSubscriptionRenewalMembershipEvent } from "@/lib/subscription/stripeMembershipRenewal";
+import { voidAffiliateCommissionsForStripeInvoice } from "@/lib/affiliate/affiliateCommissions";
 import { voidReferralRewardsForStripeInvoice } from "@/lib/referralRewards";
+import { processStripeInvoicePaidForAffiliates } from "@/lib/subscription/stripeAffiliateInvoice";
 import { processStripeInvoicePaidForReferrals } from "@/lib/subscription/stripeReferralInvoice";
 import {
   syncDiscordSubscriptionFromStripeId,
@@ -83,6 +85,14 @@ export async function POST(request: Request) {
         }
       } catch (e) {
         console.error("[stripe webhook] charge.refunded referral void", e);
+      }
+      try {
+        const affVoid = await voidAffiliateCommissionsForStripeInvoice(invoiceId);
+        if (affVoid.voided > 0) {
+          console.info("[stripe webhook] charge.refunded affiliate void", invoiceId, affVoid.voided);
+        }
+      } catch (e) {
+        console.error("[stripe webhook] charge.refunded affiliate void", e);
       }
     }
   }

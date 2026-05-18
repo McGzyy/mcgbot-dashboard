@@ -9,7 +9,9 @@ type DashboardPayload = {
     displayName: string | null;
     status: string;
     commissionRateBps: number;
+    affiliateSlug: string | null;
   };
+  trackingLink: string | null;
   commissionSummary: {
     pendingCents: number;
     approvedCents: number;
@@ -40,12 +42,17 @@ export default function AffiliateDashboardPage() {
         error?: string;
         account?: DashboardPayload["account"];
         commissionSummary?: DashboardPayload["commissionSummary"];
+        trackingLink?: string | null;
       };
       if (!res.ok || !j.success || !j.account || !j.commissionSummary) {
         setErr(typeof j.error === "string" ? j.error : "Could not load dashboard.");
         return;
       }
-      setData({ account: j.account, commissionSummary: j.commissionSummary });
+      setData({
+        account: j.account,
+        commissionSummary: j.commissionSummary,
+        trackingLink: typeof j.trackingLink === "string" ? j.trackingLink : null,
+      });
     } catch {
       setErr("Network error.");
     }
@@ -87,6 +94,16 @@ export default function AffiliateDashboardPage() {
 
       {err ? <p className="text-sm text-red-300">{err}</p> : null}
 
+      {data?.trackingLink ? (
+        <div className="rounded-lg border border-violet-500/25 bg-violet-950/20 px-4 py-3">
+          <p className="text-[10px] uppercase tracking-wider text-violet-200/80">Your tracking link</p>
+          <p className="mt-2 break-all font-mono text-sm text-zinc-100">{data.trackingLink}</p>
+          <p className="mt-2 text-xs text-zinc-500">
+            Share this link. Clicks are attributed for 30 days; commissions accrue on paid subscriptions.
+          </p>
+        </div>
+      ) : null}
+
       {data ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
@@ -119,7 +136,7 @@ export default function AffiliateDashboardPage() {
       )}
 
       <p className="text-xs text-zinc-600">
-        Payout requests and referral link tracking for affiliates will ship in the next milestone.
+        Payout requests will ship in a later milestone. Commissions stay pending until approved by ops.
       </p>
     </div>
   );

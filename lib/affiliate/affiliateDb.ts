@@ -7,6 +7,7 @@ import {
 } from "@/lib/affiliate/affiliatePassword";
 import type { AffiliateAccountStatus, AffiliateSessionClaims } from "@/lib/affiliate/affiliateSession";
 import { encodeAffiliateSession } from "@/lib/affiliate/affiliateSession";
+import { ensureUniqueAffiliateSlug, normalizeAffiliateSlug, slugBaseFromEmail } from "@/lib/affiliate/affiliateSlug";
 
 export type AffiliateAccountRow = {
   id: string;
@@ -15,6 +16,7 @@ export type AffiliateAccountRow = {
   status: AffiliateAccountStatus;
   commissionRateBps: number;
   totpEnabled: boolean;
+  affiliateSlug: string | null;
   createdAt: string;
 };
 
@@ -34,9 +36,16 @@ function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
     status,
     commissionRateBps: Math.floor(Number(data.commission_rate_bps)) || 0,
     totpEnabled: data.totp_enabled === true,
+    affiliateSlug:
+      typeof data.affiliate_slug === "string" && data.affiliate_slug.trim()
+        ? data.affiliate_slug.trim().toLowerCase()
+        : null,
     createdAt: typeof data.created_at === "string" ? data.created_at : "",
   };
 }
+
+const ACCOUNT_SELECT =
+  "id, email, display_name, status, commission_rate_bps, totp_enabled, affiliate_slug, created_at";
 
 export async function getAffiliateByEmail(email: string): Promise<(AffiliateAccountRow & { passwordHash: string }) | null> {
   const db = getSupabaseAdmin();
@@ -44,9 +53,7 @@ export async function getAffiliateByEmail(email: string): Promise<(AffiliateAcco
   const normalized = normalizeAffiliateEmail(email);
   const { data, error } = await db
     .from("affiliate_accounts")
-    .select(
-      "id, email, display_name, status, commission_rate_bps, totp_enabled, password_hash, created_at"
-    )
+    .select(`${ACCOUNT_SELECT}, password_hash`)
     .eq("email", normalized)
     .maybeSingle();
   if (error || !data || typeof data !== "object") return null;
@@ -64,11 +71,33 @@ export async function getAffiliateById(id: string): Promise<AffiliateAccountRow 
   if (!db) return null;
   const { data, error } = await db
     .from("affiliate_accounts")
-    .select("id, email, display_name, status, commission_rate_bps, totp_enabled, created_at")
+    .select(ACCOUNT_SELECT)
     .eq("id", id.trim())
     .maybeSingle();
   if (error || !data || typeof data !== "object") return null;
-  return mapRow(data as Record<string, unknown>);
+  const row = mapRow(data as Record<string, unknown>);
+  if (!row) return null;
+  if (row.affiliateSlug) return row;
+  return ensureAffiliateSlugOnAccount(row);
+}
+
+/** Assign vanity slug when missing (legacy rows before tracking migration). */
+export async function ensureAffiliateSlugOnAccount(
+  account: AffiliateAccountRow
+): Promise<AffiliateAccountRow> {
+  if (account.affiliateSlug) return account;
+  const db = getSupabaseAdmin();
+  if (!db) return account;
+  const slug = await ensureUniqueAffiliateSlug(slugBaseFromEmail(account.email));
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({ affiliate_slug: slug, updated_at: new Date().toISOString() })
+    .eq("id", account.id);
+  if (error) {
+    console.error("[affiliateDb] ensure slug", error);
+    return account;
+  }
+  return { ...account, affiliateSlug: slug };
 }
 
 export async function listAffiliateAccounts(limit = 100): Promise<AffiliateAccountRow[]> {
@@ -76,7 +105,7 @@ export async function listAffiliateAccounts(limit = 100): Promise<AffiliateAccou
   if (!db) return [];
   const { data, error } = await db
     .from("affiliate_accounts")
-    .select("id, email, display_name, status, commission_rate_bps, totp_enabled, created_at")
+    .select(ACCOUNT_SELECT)
     .order("created_at", { ascending: false })
     .limit(Math.min(200, Math.max(1, limit)));
   if (error || !Array.isArray(data)) return [];
@@ -108,6 +137,8 @@ export async function createAffiliateAccount(input: {
     Math.max(0, Math.floor(Number(input.commissionRateBps) || 1000))
   );
 
+  const affiliateSlug = await ensureUniqueAffiliateSlug(slugBaseFromEmail(email));
+
   const { data, error } = await db
     .from("affiliate_accounts")
     .insert({
@@ -116,8 +147,9 @@ export async function createAffiliateAccount(input: {
       display_name: input.displayName?.trim() || null,
       status,
       commission_rate_bps: commissionRateBps,
+      affiliate_slug: affiliateSlug,
     })
-    .select("id, email, display_name, status, commission_rate_bps, totp_enabled, created_at")
+    .select(ACCOUNT_SELECT)
     .single();
 
   if (error) {
@@ -197,6 +229,28 @@ export async function registerAffiliateApplication(input: {
     return { ok: false, error: "Session signing is not configured." };
   }
   return { ok: true, account: created.account, sessionToken };
+}
+
+export async function getAffiliateBySlug(slug: string): Promise<AffiliateAccountRow | null> {
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const s = normalizeAffiliateSlug(slug);
+  const { data, error } = await db
+    .from("affiliate_accounts")
+    .select(ACCOUNT_SELECT)
+    .eq("affiliate_slug", s)
+    .maybeSingle();
+  if (error || !data || typeof data !== "object") return null;
+  const row = mapRow(data as Record<string, unknown>);
+  if (!row || row.status === "suspended") return null;
+  return row;
+}
+
+/** Re-issue session cookie from database (e.g. after admin approval). */
+export async function refreshAffiliateSessionToken(affiliateId: string): Promise<string | null> {
+  const account = await getAffiliateById(affiliateId);
+  if (!account) return null;
+  return buildAffiliateSessionForAccount(account);
 }
 
 export async function updateAffiliateAccountStatus(

@@ -9,7 +9,9 @@ import { getPlanById, getPlanBySlug, getSubscriptionStripeCustomerId } from "@/l
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveHelpTierAsync } from "@/lib/helpRole";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
+import { applyAffiliateAttributionFromCookies } from "@/lib/affiliate/affiliateAttributionFromCookies";
 import { applyReferralAttributionFromCookies } from "@/lib/referralAttributionFromCookies";
+import { readAffiliateStripeMetadataFromCookies } from "@/lib/subscription/stripeAffiliateInvoice";
 import { readReferrerStripeMetadataFromCookies } from "@/lib/subscription/stripeReferralInvoice";
 
 export const runtime = "nodejs";
@@ -182,9 +184,16 @@ export async function POST(request: Request) {
     } catch (e) {
       console.warn("[create-checkout-session] referral attribution", e);
     }
+    try {
+      await applyAffiliateAttributionFromCookies(discordId, jar, "web_cookie_checkout");
+    } catch (e) {
+      console.warn("[create-checkout-session] affiliate attribution", e);
+    }
     const refMetaRaw = readReferrerStripeMetadataFromCookies(jar);
     const refMeta =
       refMetaRaw && refMetaRaw.referrer_discord_id.trim() !== discordId.trim() ? refMetaRaw : null;
+    const affMetaRaw = readAffiliateStripeMetadataFromCookies(jar);
+    const affMeta = affMetaRaw ?? null;
 
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -198,6 +207,7 @@ export async function POST(request: Request) {
         plan_slug: plan.slug,
         ...(testCheckout ? { stripe_test_checkout: "1" } : {}),
         ...(refMeta ?? {}),
+        ...(affMeta ?? {}),
       },
       subscription_data: {
         metadata: {
@@ -206,6 +216,7 @@ export async function POST(request: Request) {
           plan_slug: plan.slug,
           ...(testCheckout ? { stripe_test_checkout: "1" } : {}),
           ...(refMeta ?? {}),
+          ...(affMeta ?? {}),
         },
       },
       success_url: successUrl,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAffiliateById } from "@/lib/affiliate/affiliateDb";
+import { affiliateTrackingUrl } from "@/lib/affiliate/affiliateTrackingLink";
 import { requireAffiliateSession } from "@/lib/affiliate/requireAffiliateSession";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -41,9 +42,15 @@ export async function GET() {
     }
   }
 
+  const trackingLink =
+    account.status === "active" && account.affiliateSlug
+      ? affiliateTrackingUrl(account.affiliateSlug)
+      : null;
+
   return NextResponse.json({
     success: true,
     account,
     commissionSummary,
+    trackingLink,
   });
 }

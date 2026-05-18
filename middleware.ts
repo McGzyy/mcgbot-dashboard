@@ -34,6 +34,7 @@ function isPublicForAnonymous(pathname: string): boolean {
   if (pathname.startsWith("/subscribe")) return true;
   if (pathname.startsWith("/membership")) return true;
   if (pathname.startsWith("/ref")) return true;
+  if (pathname.startsWith("/affiliate/r/")) return true;
   if (isPublicProfilePage(pathname)) return true;
   return false;
 }
@@ -93,6 +94,10 @@ async function affiliatePartnerMiddleware(req: NextRequest): Promise<NextRespons
   const pathname = req.nextUrl.pathname;
   if (!isAffiliatePartnerPath(pathname)) return null;
 
+  if (pathname.startsWith("/affiliate/r/")) {
+    return NextResponse.next();
+  }
+
   if (isAffiliatePublicPath(pathname, req.method)) {
     return NextResponse.next();
   }
@@ -124,7 +129,8 @@ async function affiliatePartnerMiddleware(req: NextRequest): Promise<NextRespons
     pathname === "/api/affiliate/totp/enroll-finish" ||
     pathname === "/api/affiliate/totp/status" ||
     pathname === "/api/affiliate/auth/logout" ||
-    pathname === "/api/affiliate/auth/session";
+    pathname === "/api/affiliate/auth/session" ||
+    pathname === "/api/affiliate/auth/refresh-session";
   const onTotpVerify =
     pathname === "/affiliate/auth/totp" || pathname === "/api/affiliate/totp/verify-session";
   const needsActivePartner =
@@ -198,6 +204,7 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (pathname.startsWith("/join/verify")) return true;
   if (pathname === "/api/public/site-flags" && method === "GET") return true;
   if (pathname.startsWith("/ref")) return true;
+  if (pathname.startsWith("/affiliate/r/")) return true;
   if (pathname === "/api/copy-trade/bot-7d" && method === "GET") return true;
   if (pathname === "/api/subscription/plans" && method === "GET") return true;
   if (pathname === "/api/subscription/stripe/webhook" && method === "POST") return true;

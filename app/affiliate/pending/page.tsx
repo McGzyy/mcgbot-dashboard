@@ -21,7 +21,13 @@ export default function AffiliatePendingPage() {
       const st = typeof j.account?.status === "string" ? j.account.status : "";
       setStatus(st);
       if (st === "active") {
-        router.replace("/affiliate/dashboard");
+        const refresh = await fetch("/api/affiliate/auth/refresh-session", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+        if (refresh.ok) {
+          router.replace("/affiliate/dashboard");
+        }
       }
     } catch {
       /* ignore */

@@ -15,6 +15,7 @@ import {
   hasPendingSolInvoiceForDiscord,
 } from "@/lib/subscription/subscriptionDb";
 import { fetchSolUsdPrice, usdToLamportsCeil } from "@/lib/subscription/solUsdQuote";
+import { applyAffiliateAttributionFromCookies } from "@/lib/affiliate/affiliateAttributionFromCookies";
 import { applyReferralAttributionFromCookies } from "@/lib/referralAttributionFromCookies";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -192,8 +193,9 @@ export async function POST(request: Request) {
   try {
     const jar = await cookies();
     await applyReferralAttributionFromCookies(discordId, jar, "web_cookie_sol_checkout");
+    await applyAffiliateAttributionFromCookies(discordId, jar, "web_cookie_sol_checkout");
   } catch (e) {
-    console.warn("[sol/start] referral attribution", e);
+    console.warn("[sol/start] attribution", e);
   }
 
   const invoiceId = await createInvoiceRow({

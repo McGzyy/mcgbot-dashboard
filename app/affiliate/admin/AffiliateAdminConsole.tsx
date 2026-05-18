@@ -10,6 +10,7 @@ type AffiliateRow = {
   status: string;
   commissionRateBps: number;
   totpEnabled: boolean;
+  affiliateSlug: string | null;
   createdAt: string;
 };
 
@@ -208,19 +209,20 @@ export function AffiliateAdminConsole() {
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">2FA</th>
                 <th className="px-3 py-2">Rate</th>
+                <th className="px-3 py-2">Link</th>
                 <th className="px-3 py-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-zinc-500">
+                  <td colSpan={6} className="px-3 py-6 text-center text-zinc-500">
                     Loading…
                   </td>
                 </tr>
               ) : accounts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-zinc-500">
+                  <td colSpan={6} className="px-3 py-6 text-center text-zinc-500">
                     No affiliate accounts yet.
                   </td>
                 </tr>
@@ -234,6 +236,9 @@ export function AffiliateAdminConsole() {
                     <td className="px-3 py-2 capitalize">{a.status}</td>
                     <td className="px-3 py-2">{a.totpEnabled ? "Enabled" : "Required"}</td>
                     <td className="px-3 py-2 tabular-nums">{(a.commissionRateBps / 100).toFixed(2)}%</td>
+                    <td className="px-3 py-2 font-mono text-[10px] text-zinc-500">
+                      {a.status === "active" && a.affiliateSlug ? `/affiliate/r/${a.affiliateSlug}` : "—"}
+                    </td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex flex-wrap justify-end gap-1">
                         {a.status === "pending" ? (
