@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { AFFILIATE_PORTAL_BUILD_ID } from "@/lib/affiliate/affiliatePortalBuild";
 
 /**
  * Partner-facing affiliate portal — light theme, separate from the McGBot member terminal.
@@ -40,7 +41,10 @@ export default function AffiliatePartnerShellLayout({ children }: { children: Re
       </header>
       <main className="flex-1">{children}</main>
       <footer className="mt-auto border-t border-zinc-200/80 bg-white/70 py-5 text-center text-[11px] leading-relaxed text-zinc-500">
-        This portal is not the McGBot member dashboard. Partner sign-in and payouts use this site only.
+        <p>This portal is not the McGBot member dashboard. Partner sign-in and payouts use this site only.</p>
+        <p className="mt-1 font-mono text-[10px] text-zinc-400" title="Deploy verification">
+          build {AFFILIATE_PORTAL_BUILD_ID}
+        </p>
       </footer>
     </div>
   );

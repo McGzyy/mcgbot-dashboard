@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { AFFILIATE_PORTAL_BUILD_ID } from "@/lib/affiliate/affiliatePortalBuild";
 
 type NavItem = { href: string; label: string; description: string };
 
@@ -126,6 +127,9 @@ export function AffiliateAdminShell({ children }: { children: ReactNode }) {
             </span>
           </div>
           {children}
+          <p className="mt-8 text-center font-mono text-[10px] text-zinc-400" title="Deploy verification">
+            ops build {AFFILIATE_PORTAL_BUILD_ID}
+          </p>
         </div>
       </div>
     </div>
