@@ -6,6 +6,7 @@ import { upsertAffiliateAttribution } from "@/lib/affiliate/affiliateAttribution
 import { recordAffiliateCommissionFromStripeInvoice } from "@/lib/affiliate/affiliateCommissions";
 import { isValidDiscordSnowflake } from "@/lib/subscription/exemptAllowlistDb";
 import { getPlanDurationDays, getPlanIdByStripeSubscriptionId } from "@/lib/subscription/subscriptionDb";
+import { resolveStripeInvoiceProceedsCents } from "@/lib/subscription/stripeInvoiceProceeds";
 
 /**
  * After a paid Stripe subscription invoice: apply last-click affiliate attribution (if fresh) and accrue commission.
@@ -24,8 +25,8 @@ export async function processStripeInvoicePaidForAffiliates(opts: {
         : "";
   if (!subId) return;
 
-  const amountPaid = typeof inv.amount_paid === "number" ? inv.amount_paid : 0;
-  if (!Number.isFinite(amountPaid) || amountPaid <= 0) return;
+  const proceeds = await resolveStripeInvoiceProceedsCents(opts.stripe, inv);
+  if (!proceeds || proceeds.netCents <= 0) return;
 
   let sub: Stripe.Subscription;
   try {
@@ -60,11 +61,15 @@ export async function processStripeInvoicePaidForAffiliates(opts: {
   const result = await recordAffiliateCommissionFromStripeInvoice({
     referredDiscordId: discordId,
     stripeInvoiceId: inv.id,
-    amountPaidCents: amountPaid,
+    amountPaidCents: proceeds.grossCents,
+    commissionBasisCents: proceeds.netCents,
+    stripeFeeCents: proceeds.stripeFeeCents,
     planId,
   });
   if (!result.ok) {
     console.warn("[stripe affiliate] accrual failed", result.error, inv.id);
+  } else if (proceeds.feeSource === "estimate") {
+    console.info("[stripe affiliate] used estimated Stripe fee", inv.id, proceeds.stripeFeeCents);
   }
 }
 

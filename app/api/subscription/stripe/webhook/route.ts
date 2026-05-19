@@ -64,6 +64,11 @@ export async function POST(request: Request) {
         } catch (e) {
           console.error("[stripe webhook] invoice.paid referral accrual", e);
         }
+        try {
+          await processStripeInvoicePaidForAffiliates({ stripe, invoice });
+        } catch (e) {
+          console.error("[stripe webhook] invoice.paid affiliate accrual", e);
+        }
       }
     }
   }

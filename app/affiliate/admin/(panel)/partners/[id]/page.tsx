@@ -250,7 +250,8 @@ export default function AffiliateAdminPartnerProfilePage() {
               </button>
             </div>
             <p className="mt-1 text-[11px] text-zinc-500">
-              Default on approve is {AFFILIATE_DEFAULT_COMMISSION_RATE_BPS} ({AFFILIATE_DEFAULT_COMMISSION_RATE_BPS / 100}%).
+              Default on approve is {AFFILIATE_DEFAULT_COMMISSION_RATE_BPS} ({AFFILIATE_DEFAULT_COMMISSION_RATE_BPS / 100}% base).
+              Recurring payouts follow loyalty unlocks (15% → 20% → 25%) per referral payment index.
             </p>
           </label>
           <label className="block lg:col-span-1">

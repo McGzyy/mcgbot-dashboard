@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ensureAffiliateReferralCode, getAffiliateById } from "@/lib/affiliate/affiliateDb";
 import { getAffiliateMilestoneProgress } from "@/lib/affiliate/affiliateMilestones";
 import { affiliateShortReferralUrl } from "@/lib/affiliate/affiliateTrackingLink";
+import { affiliateRevShareScheduleForProgram } from "@/lib/affiliate/affiliateCommissionSchedule";
 import { requireAffiliateSession } from "@/lib/affiliate/requireAffiliateSession";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -73,17 +74,7 @@ export async function GET() {
     milestones,
     referralCount,
     program: {
-      revShareSchedule: {
-        monthly: [
-          { payments: "1-12", ratePercent: 20 },
-          { payments: "13-36", ratePercent: 10 },
-        ],
-        annual: [
-          { payments: "1", ratePercent: 20 },
-          { payments: "2-3", ratePercent: 10 },
-        ],
-        holdDays: { monthly: 30, annual: 90 },
-      },
+      revShareSchedule: affiliateRevShareScheduleForProgram(),
       annualSignupBonus: { basicCents: 500, proCents: 1000 },
       milestoneTiers: [
         {

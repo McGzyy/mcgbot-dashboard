@@ -41,9 +41,8 @@ export default function AffiliateMarketingHomePage() {
             Earn when your audience subscribes to McGBot Terminal
           </h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-violet-100 sm:text-lg">
-            Promote the member trading dashboard with your link. Earn 20% on qualifying subscription payments (10% tail),
-            plus
-            milestone and annual signup bonuses. Separate portal — not Discord member login.
+            Promote the member trading dashboard with your link. Earn 15% to start, up to 25% as referrals stay subscribed,
+            plus milestone and annual signup bonuses. Separate portal — not Discord member login.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link

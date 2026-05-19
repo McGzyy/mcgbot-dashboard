@@ -12,6 +12,8 @@ async function insertCommissionRow(input: {
   affiliateId: string;
   referredUserId: string | null;
   paymentAmountCents: number | null;
+  commissionBasisCents?: number | null;
+  stripeFeeCents?: number | null;
   commissionCents: number;
   commissionRateBps: number | null;
   paymentIndex: number | null;
@@ -31,6 +33,8 @@ async function insertCommissionRow(input: {
     affiliate_id: input.affiliateId,
     referred_user_id: input.referredUserId,
     payment_amount_cents: input.paymentAmountCents,
+    commission_basis_cents: input.commissionBasisCents ?? null,
+    stripe_fee_cents: input.stripeFeeCents ?? null,
     commission_cents: input.commissionCents,
     commission_rate_bps: input.commissionRateBps,
     payment_index: input.paymentIndex,
@@ -56,7 +60,11 @@ async function insertCommissionRow(input: {
 export async function recordAffiliateCommissionFromPaidPayment(input: {
   referredUserId: string;
   idempotencyKey: string;
+  /** Gross member payment (invoice total). */
   paymentAmountCents: number;
+  /** Rev-share basis; defaults to paymentAmountCents when omitted. */
+  commissionBasisCents?: number;
+  stripeFeeCents?: number | null;
   source: string;
   stripeInvoiceId?: string | null;
   planId?: string | null;
@@ -64,9 +72,17 @@ export async function recordAffiliateCommissionFromPaidPayment(input: {
   const referred = input.referredUserId.trim();
   const idempotencyKey = input.idempotencyKey.trim();
   const amountPaidCents = Math.floor(input.paymentAmountCents);
+  const commissionBasisCents = Math.floor(
+    input.commissionBasisCents != null ? input.commissionBasisCents : amountPaidCents
+  );
+  const stripeFeeCents =
+    input.stripeFeeCents == null ? null : Math.max(0, Math.floor(input.stripeFeeCents));
   if (!referred || !idempotencyKey) return { ok: false, error: "missing_input" };
   if (!Number.isFinite(amountPaidCents) || amountPaidCents <= 0) {
     return { ok: false, error: "invalid_amount" };
+  }
+  if (!Number.isFinite(commissionBasisCents) || commissionBasisCents <= 0) {
+    return { ok: false, error: "invalid_basis" };
   }
 
   const ledger = await incrementReferralPaymentCount({
@@ -92,11 +108,13 @@ export async function recordAffiliateCommissionFromPaidPayment(input: {
   let anyRecorded = false;
 
   if (rateBps != null) {
-    const commissionCents = Math.floor((amountPaidCents * rateBps) / 10_000);
+    const commissionCents = Math.floor((commissionBasisCents * rateBps) / 10_000);
     const rev = await insertCommissionRow({
       affiliateId,
       referredUserId: referred,
       paymentAmountCents: amountPaidCents,
+      commissionBasisCents,
+      stripeFeeCents,
       commissionCents,
       commissionRateBps: rateBps,
       paymentIndex,
@@ -144,6 +162,8 @@ export async function recordAffiliateCommissionFromStripeInvoice(input: {
   referredDiscordId: string;
   stripeInvoiceId: string;
   amountPaidCents: number;
+  commissionBasisCents: number;
+  stripeFeeCents?: number | null;
   planId?: string | null;
 }): Promise<{ ok: true; recorded: boolean } | { ok: false; error: string }> {
   const inv = input.stripeInvoiceId.trim();
@@ -152,6 +172,8 @@ export async function recordAffiliateCommissionFromStripeInvoice(input: {
     referredUserId: input.referredDiscordId,
     idempotencyKey: `stripe_invoice:${inv}`,
     paymentAmountCents: Math.floor(input.amountPaidCents),
+    commissionBasisCents: Math.floor(input.commissionBasisCents),
+    stripeFeeCents: input.stripeFeeCents,
     source: "stripe_invoice_paid",
     stripeInvoiceId: inv,
     planId: input.planId,
@@ -212,6 +234,8 @@ export type AffiliateCommissionPartnerRow = {
   id: string;
   commissionCents: number;
   paymentAmountCents: number | null;
+  commissionBasisCents: number | null;
+  stripeFeeCents: number | null;
   paymentIndex: number | null;
   kind: string;
   status: string;
@@ -253,7 +277,7 @@ export async function listAffiliateCommissionsForPartner(
   let query = db
     .from("affiliate_commissions")
     .select(
-      "id, payment_amount_cents, commission_cents, payment_index, kind, status, billing_interval, eligible_at, created_at"
+      "id, payment_amount_cents, commission_basis_cents, stripe_fee_cents, commission_cents, payment_index, kind, status, billing_interval, eligible_at, created_at"
     )
     .eq("affiliate_id", affiliateId.trim())
     .order("created_at", { ascending: false })
@@ -282,6 +306,12 @@ export async function listAffiliateCommissionsForPartner(
       commissionCents: Math.floor(Number(raw.commission_cents)) || 0,
       paymentAmountCents:
         raw.payment_amount_cents == null ? null : Math.floor(Number(raw.payment_amount_cents)),
+      commissionBasisCents:
+        raw.commission_basis_cents == null
+          ? null
+          : Math.floor(Number(raw.commission_basis_cents)),
+      stripeFeeCents:
+        raw.stripe_fee_cents == null ? null : Math.floor(Number(raw.stripe_fee_cents)),
       paymentIndex,
       kind,
       status: typeof raw.status === "string" ? raw.status : "",

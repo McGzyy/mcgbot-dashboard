@@ -283,7 +283,7 @@ export function AffiliateAdminConsole() {
       <div>
         <h2 className="text-lg font-semibold text-zinc-900">Affiliates</h2>
         <p className="mt-1 text-sm text-zinc-600">
-          Approve self-serve applications, suspend accounts, set commission basis points (2000 = 20%), and copy
+          Approve self-serve applications, suspend accounts, set account bps label (1500 = 15% base tier), and copy
           tracking paths for active affiliates.
         </p>
       </div>
@@ -330,7 +330,7 @@ export function AffiliateAdminConsole() {
             <option value="suspended">Suspended</option>
           </select>
           <input
-            placeholder="Commission bps (2000 = 20%)"
+            placeholder="Account bps (1500 = 15% base; ledger uses loyalty tiers)"
             value={commissionRateBps}
             onChange={(e) => setCommissionRateBps(e.target.value)}
             className="h-9 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-violet-400 sm:col-span-2"
