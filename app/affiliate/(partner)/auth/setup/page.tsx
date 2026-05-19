@@ -101,13 +101,27 @@ export default function AffiliateTotpSetupPage() {
 
       {secret ? (
         <div className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Manual key</p>
-          <p className="mt-1 break-all font-mono text-sm text-violet-800">{secret}</p>
-          {otpauthUrl ? (
-            <p className="mt-3 text-xs text-zinc-600">
-              Add this URL in your authenticator app if it supports otpauth links.
-            </p>
-          ) : null}
+          <p className="text-sm text-zinc-600">
+            Scan the QR code in Google Authenticator, Authy, or similar — or enter the manual key below.
+          </p>
+          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+            {otpauthUrl ? (
+              <div className="shrink-0 rounded-lg border border-zinc-200 bg-white p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=168x168&data=${encodeURIComponent(otpauthUrl)}`}
+                  width={168}
+                  height={168}
+                  alt="Authenticator QR code"
+                  className="h-[168px] w-[168px]"
+                />
+              </div>
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Manual key</p>
+              <p className="mt-1 break-all font-mono text-sm text-violet-800">{secret}</p>
+            </div>
+          </div>
         </div>
       ) : null}
 
