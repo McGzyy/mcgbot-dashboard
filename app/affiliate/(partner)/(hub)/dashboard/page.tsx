@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { AffiliateLoyaltyScheduleCallout } from "@/app/affiliate/(partner)/_components/AffiliateLoyaltyScheduleCallout";
 import { AffiliatePerformanceOverview } from "@/app/affiliate/(partner)/_components/AffiliatePerformanceOverview";
 
 type MilestoneProgress = {
@@ -94,6 +95,8 @@ export default function AffiliateDashboardPage() {
       </div>
 
       {err ? <p className="text-sm text-red-700">{err}</p> : null}
+
+      <AffiliateLoyaltyScheduleCallout />
 
       <AffiliatePerformanceOverview trackingLink={trackingLink} />
 

@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { ensureAffiliateReferralCode, getAffiliateById } from "@/lib/affiliate/affiliateDb";
 import { getAffiliateMilestoneProgress } from "@/lib/affiliate/affiliateMilestones";
 import { affiliateShortReferralUrl } from "@/lib/affiliate/affiliateTrackingLink";
-import { affiliateRevShareScheduleForProgram } from "@/lib/affiliate/affiliateCommissionSchedule";
+import {
+  affiliateMilestoneTiersForProgram,
+  affiliateRevShareScheduleForProgram,
+} from "@/lib/affiliate/affiliateCommissionSchedule";
 import { requireAffiliateSession } from "@/lib/affiliate/requireAffiliateSession";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -76,26 +79,7 @@ export async function GET() {
     program: {
       revShareSchedule: affiliateRevShareScheduleForProgram(),
       annualSignupBonus: { basicCents: 500, proCents: 1000 },
-      milestoneTiers: [
-        {
-          tier: 10,
-          bonusCents: 6000,
-          autoApprove: true,
-          rule: "First payment + 7 days, still subscribed",
-        },
-        {
-          tier: 25,
-          bonusCents: 15000,
-          autoApprove: false,
-          rule: "Second payment cleared, still subscribed",
-        },
-        {
-          tier: 50,
-          bonusCents: 30000,
-          autoApprove: false,
-          rule: "Second payment cleared, still subscribed",
-        },
-      ],
+      milestoneTiers: affiliateMilestoneTiersForProgram(),
     },
   });
 }

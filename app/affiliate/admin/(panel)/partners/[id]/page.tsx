@@ -224,7 +224,7 @@ export default function AffiliateAdminPartnerProfilePage() {
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <label className="block">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-              Commission rate (bps)
+              Account label (bps, legacy)
             </span>
             <div className="mt-1 flex gap-2">
               <input

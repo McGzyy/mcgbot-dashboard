@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AffiliateCommissionLedger } from "@/app/affiliate/(partner)/_components/AffiliateCommissionLedger";
+import { AffiliateLoyaltyScheduleCallout } from "@/app/affiliate/(partner)/_components/AffiliateLoyaltyScheduleCallout";
 import { AFFILIATE_EARNINGS_SUMMARY } from "@/lib/affiliate/affiliateEarningsCopy";
 
 type CommissionSummary = {
@@ -128,14 +129,17 @@ export default function AffiliateEarningsPage() {
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Earnings</p>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Commission ledger</h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-          <span className="font-medium text-zinc-800">Recurring commissions</span> are % of each member&apos;s subscription
-          payments. <span className="font-medium text-zinc-800">Extra bonuses</span> are milestone and annual-plan
-          payouts — listed separately below. {AFFILIATE_EARNINGS_SUMMARY.timingNote}
+          <span className="font-medium text-zinc-800">Recurring commissions</span> use the loyalty schedule below (
+          {AFFILIATE_EARNINGS_SUMMARY.recurring}) {AFFILIATE_EARNINGS_SUMMARY.stripeFees}{" "}
+          <span className="font-medium text-zinc-800">Extra bonuses</span> are milestone and annual-plan payouts — listed
+          separately. {AFFILIATE_EARNINGS_SUMMARY.timingNote}
         </p>
         <Link href="/affiliate/resources#how-you-earn" className="mt-2 inline-block text-xs font-semibold text-violet-700 hover:underline">
           How earnings work →
         </Link>
       </div>
+
+      <AffiliateLoyaltyScheduleCallout />
 
       {err ? <p className="text-sm text-red-700">{err}</p> : null}
 

@@ -55,6 +55,12 @@ export function commissionRateBpsForReferralPayment(input: {
       : AFFILIATE_MONTHLY_MAX_COMMISSION_PAYMENTS;
   if (n > maxPayments) return null;
 
+  if (input.billingInterval === "annual") {
+    if (n === 1) return AFFILIATE_REVSHARE_BASE_BPS;
+    if (n === 2) return AFFILIATE_REVSHARE_MID_BPS;
+    return AFFILIATE_REVSHARE_LOYAL_BPS;
+  }
+
   if (n >= AFFILIATE_REVSHARE_UNLOCK_LOYAL_AT_PAYMENT) return AFFILIATE_REVSHARE_LOYAL_BPS;
   if (n >= AFFILIATE_REVSHARE_UNLOCK_MID_AT_PAYMENT) return AFFILIATE_REVSHARE_MID_BPS;
   return AFFILIATE_REVSHARE_BASE_BPS;
@@ -96,14 +102,27 @@ export const MILESTONE_TIERS = [10, 25, 50] as const;
 export type MilestoneTier = (typeof MILESTONE_TIERS)[number];
 
 export function milestoneBonusCents(tier: MilestoneTier): number {
-  if (tier === 10) return 6000;
-  if (tier === 25) return 15000;
-  return 30000;
+  if (tier === 10) return 5000;
+  if (tier === 25) return 12500;
+  return 25000;
 }
 
 /** Tier 1: 1st payment + 7 days + still subscribed. Tiers 25/50: 2nd payment + subscribed. */
 export function milestoneTierRequiresSecondPayment(tier: MilestoneTier): boolean {
   return tier === 25 || tier === 50;
+}
+
+/** Partner dashboard / API — milestone ladder (amounts from {@link milestoneBonusCents}). */
+export function affiliateMilestoneTiersForProgram() {
+  return MILESTONE_TIERS.map((tier) => ({
+    tier,
+    bonusCents: milestoneBonusCents(tier),
+    autoApprove: tier === 10,
+    rule:
+      tier === 10
+        ? "First payment + 7 days, still subscribed"
+        : "Second payment cleared, still subscribed",
+  }));
 }
 
 /** Partner dashboard / API program payload. */

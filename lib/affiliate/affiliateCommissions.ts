@@ -2,6 +2,7 @@ import {
   annualSignupBonusCents,
   commissionEligibleAt,
   commissionRateBpsForReferralPayment,
+  revshareRatePercentLabel,
 } from "@/lib/affiliate/affiliateCommissionSchedule";
 import { evaluateAffiliateMilestones } from "@/lib/affiliate/affiliateMilestones";
 import { getAffiliateById } from "@/lib/affiliate/affiliateDb";
@@ -249,20 +250,28 @@ export function affiliateCommissionPartnerDescription(input: {
   kind: string;
   paymentIndex: number | null;
   billingInterval: "monthly" | "annual" | null;
+  commissionRateBps?: number | null;
 }): string {
   const kind = input.kind;
   if (kind === "milestone") return "Milestone bonus";
   if (kind === "annual_signup_bonus") return "Annual plan signup bonus";
   if (kind === "revshare") {
     const n = input.paymentIndex;
+    const rateLabel =
+      input.commissionRateBps != null && input.commissionRateBps > 0
+        ? revshareRatePercentLabel(input.commissionRateBps)
+        : null;
     const interval =
       input.billingInterval === "annual"
         ? "annual"
         : input.billingInterval === "monthly"
           ? "monthly"
           : "subscription";
-    if (n != null && n >= 1) return `Recurring · ${interval} payment #${n}`;
-    return "Recurring commission";
+    if (n != null && n >= 1) {
+      const base = `Recurring · ${interval} payment #${n}`;
+      return rateLabel ? `${base} · ${rateLabel}` : base;
+    }
+    return rateLabel ? `Recurring commission · ${rateLabel}` : "Recurring commission";
   }
   return kind.replace(/_/g, " ");
 }
@@ -277,7 +286,7 @@ export async function listAffiliateCommissionsForPartner(
   let query = db
     .from("affiliate_commissions")
     .select(
-      "id, payment_amount_cents, commission_basis_cents, stripe_fee_cents, commission_cents, payment_index, kind, status, billing_interval, eligible_at, created_at"
+      "id, payment_amount_cents, commission_basis_cents, stripe_fee_cents, commission_cents, commission_rate_bps, payment_index, kind, status, billing_interval, eligible_at, created_at"
     )
     .eq("affiliate_id", affiliateId.trim())
     .order("created_at", { ascending: false })
@@ -301,6 +310,8 @@ export async function listAffiliateCommissionsForPartner(
       billingRaw === "monthly" || billingRaw === "annual" ? billingRaw : null;
     const paymentIndex =
       raw.payment_index == null ? null : Math.floor(Number(raw.payment_index));
+    const commissionRateBps =
+      raw.commission_rate_bps == null ? null : Math.floor(Number(raw.commission_rate_bps));
     rows.push({
       id,
       commissionCents: Math.floor(Number(raw.commission_cents)) || 0,
@@ -318,7 +329,12 @@ export async function listAffiliateCommissionsForPartner(
       billingInterval,
       eligibleAt: typeof raw.eligible_at === "string" ? raw.eligible_at : null,
       createdAt: typeof raw.created_at === "string" ? raw.created_at : "",
-      description: affiliateCommissionPartnerDescription({ kind, paymentIndex, billingInterval }),
+      description: affiliateCommissionPartnerDescription({
+        kind,
+        paymentIndex,
+        billingInterval,
+        commissionRateBps,
+      }),
     });
   }
   return rows;
