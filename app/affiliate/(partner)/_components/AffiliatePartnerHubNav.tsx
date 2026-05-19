@@ -17,7 +17,7 @@ export function AffiliatePartnerHubNav() {
 
   return (
     <nav
-      className="flex flex-wrap gap-1 border-b border-zinc-200/90 bg-white/80 px-4 py-2 sm:px-6"
+      className="sticky top-0 z-30 flex flex-wrap gap-1 border-b border-zinc-200/90 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur sm:px-6"
       aria-label="Affiliate hub"
     >
       {links.map((link) => {

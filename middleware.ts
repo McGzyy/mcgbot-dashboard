@@ -85,10 +85,15 @@ function isAffiliatePartnerHubPath(pathname: string): boolean {
     pathname === "/affiliate/earnings" ||
     pathname === "/affiliate/resources" ||
     pathname === "/affiliate/settings" ||
+    pathname === "/affiliate/tickets" ||
     pathname === "/api/affiliate/dashboard" ||
+    pathname === "/api/affiliate/analytics" ||
     pathname === "/api/affiliate/campaigns" ||
+    pathname === "/api/affiliate/commissions" ||
+    pathname === "/api/affiliate/commissions/export" ||
     pathname.startsWith("/api/affiliate/settings") ||
-    pathname.startsWith("/api/affiliate/payouts")
+    pathname.startsWith("/api/affiliate/payouts") ||
+    pathname.startsWith("/api/affiliate/support-tickets")
   );
 }
 

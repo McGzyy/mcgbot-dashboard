@@ -76,6 +76,12 @@ export function AffiliateCommissionLedger() {
             {AFFILIATE_EARNINGS_SUMMARY.hold} {AFFILIATE_EARNINGS_SUMMARY.stripeFees}
           </p>
         </div>
+        <a
+          href={`/api/affiliate/commissions/export?status=${filter === "all" ? "all" : filter}`}
+          className="shrink-0 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
+        >
+          Export CSV
+        </a>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-1.5">

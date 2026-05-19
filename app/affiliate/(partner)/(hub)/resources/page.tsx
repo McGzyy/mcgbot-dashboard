@@ -11,7 +11,7 @@ const RULES = [
 
 export default function AffiliateResourcesPage() {
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:py-10">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Resources</p>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Brand & playbook</h1>

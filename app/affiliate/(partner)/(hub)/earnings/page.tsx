@@ -123,7 +123,7 @@ export default function AffiliateEarningsPage() {
   }, [load]);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:py-10">
+    <div className="space-y-6">
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Earnings</p>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Commission ledger</h1>
