@@ -85,7 +85,7 @@ export async function createAffiliateCampaign(input: {
     .select("*", { count: "exact", head: true })
     .eq("affiliate_id", affiliateId);
   if ((count ?? 0) >= 30) {
-    return { ok: false, error: "Maximum 30 campaigns per partner." };
+    return { ok: false, error: "Maximum 30 campaigns per affiliate." };
   }
 
   const { data, error } = await db

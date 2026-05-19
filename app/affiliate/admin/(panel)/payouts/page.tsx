@@ -76,7 +76,7 @@ export default function AffiliateAdminPayoutsPage() {
       <div>
         <h2 className="text-lg font-semibold text-zinc-900">Payout requests</h2>
         <p className="mt-1 text-sm text-zinc-600">
-          Review partner withdrawal requests against approved commission balance.
+          Review affiliate withdrawal requests against approved commission balance.
         </p>
       </div>
 
@@ -93,7 +93,7 @@ export default function AffiliateAdminPayoutsPage() {
           <table className="w-full min-w-[720px] text-left text-xs">
             <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
               <tr>
-                <th className="px-3 py-2">Partner</th>
+                <th className="px-3 py-2">Affiliate</th>
                 <th className="px-3 py-2">Amount</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">Note</th>

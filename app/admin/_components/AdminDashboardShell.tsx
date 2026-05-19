@@ -80,7 +80,7 @@ const NAV_GROUPS: NavGroup[] = [
       },
       {
         href: "/admin/affiliates",
-        label: "Affiliate partners",
+        label: "Affiliate program",
         description: "Hub → separate ops panel",
         icon: (a) => (
           <svg className={`h-4 w-4 ${a ? adminChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>

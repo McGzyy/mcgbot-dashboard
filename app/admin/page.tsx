@@ -74,7 +74,7 @@ export default function AdminOverviewPage() {
         />
         <OverviewCard
           href="/admin/affiliates"
-          title="Affiliate partners"
+          title="Affiliate program"
           subtitle="Hub in the terminal admin, then open the separate light ops panel (Discord sign-in again)."
           hint="Admin · Supabase"
         />

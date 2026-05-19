@@ -43,7 +43,7 @@ export default async function AffiliateAdminOverviewPage() {
       <div className="rounded-2xl border border-zinc-200/90 bg-gradient-to-b from-white to-zinc-50/90 p-5 shadow-sm sm:p-6">
         <h2 className="text-sm font-semibold text-zinc-900">Pulse</h2>
         <p className="mt-1 text-xs text-zinc-600">
-          High-level counts for affiliate operations. Use Partners for approvals, suspensions, and manual accounts.
+          High-level counts for affiliate operations. Use Affiliates for approvals, suspensions, and manual accounts.
         </p>
         {stats ? (
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -52,7 +52,7 @@ export default async function AffiliateAdminOverviewPage() {
               value={String(stats.pendingApplications)}
               tone={stats.pendingApplications > 0 ? "warn" : "neutral"}
             />
-            <MetricCard label="Active partners" value={String(stats.activePartners)} tone="ok" />
+            <MetricCard label="Active affiliates" value={String(stats.activePartners)} tone="ok" />
             <MetricCard label="Suspended" value={String(stats.suspendedPartners)} />
             <MetricCard
               label="Pending commission (ledger)"

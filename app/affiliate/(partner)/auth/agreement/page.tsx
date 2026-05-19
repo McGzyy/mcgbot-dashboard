@@ -17,7 +17,7 @@ export default function AffiliateAgreementPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!accepted) {
-      setErr("Check the box to accept the partner agreement.");
+      setErr("Check the box to accept the affiliate agreement.");
       return;
     }
     setErr(null);
@@ -46,11 +46,11 @@ export default function AffiliateAgreementPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-10 sm:py-14">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Partner agreement</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Affiliate agreement</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">{PARTNER_AGREEMENT_TITLE}</h1>
         <p className="mt-2 text-sm text-zinc-600">
           Your account was approved. Review and accept the current agreement ({CURRENT_PARTNER_AGREEMENT_VERSION}) to
-          unlock the partner dashboard.
+          unlock the affiliate dashboard.
         </p>
       </div>
 
@@ -72,7 +72,7 @@ export default function AffiliateAgreementPage() {
             className="mt-1 h-4 w-4 rounded border-zinc-300 text-violet-600 focus:ring-violet-500"
           />
           <span className="text-sm text-zinc-700">
-            I have read and agree to the McGBot Partner Agreement ({CURRENT_PARTNER_AGREEMENT_VERSION}). I understand
+            I have read and agree to the {PARTNER_AGREEMENT_TITLE} ({CURRENT_PARTNER_AGREEMENT_VERSION}). I understand
             commissions and bonuses follow the published schedule and that McGBot may suspend my account for policy
             violations.
           </span>

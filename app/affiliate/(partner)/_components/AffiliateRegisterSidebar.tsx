@@ -7,7 +7,7 @@ export function AffiliateRegisterSidebar() {
   return (
     <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
       <div className="rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50 to-white p-5 shadow-sm">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-800/90">McGBot partner program</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-800/90">McGBot affiliate program</p>
         <p className="mt-2 text-sm leading-relaxed text-zinc-700">
           Earn recurring commission when your audience subscribes to McGBot Terminal. This portal is separate from the
           member Discord dashboard.

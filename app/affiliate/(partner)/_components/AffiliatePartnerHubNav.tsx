@@ -17,7 +17,7 @@ export function AffiliatePartnerHubNav() {
   return (
     <nav
       className="flex flex-wrap gap-1 border-b border-zinc-200/90 bg-white/80 px-4 py-2 sm:px-6"
-      aria-label="Partner hub"
+      aria-label="Affiliate hub"
     >
       {links.map((link) => {
         const active = pathname === link.href || pathname.startsWith(`${link.href}/`);

@@ -29,7 +29,7 @@ export default async function AffiliateReferralLandingPage({ params, searchParam
     return (
       <div className="mx-auto flex max-w-lg flex-1 flex-col justify-center px-4 py-16 text-center">
         <h1 className="text-xl font-semibold text-zinc-900">Link unavailable</h1>
-        <p className="mt-2 text-sm text-zinc-600">This partner link is invalid or no longer active.</p>
+        <p className="mt-2 text-sm text-zinc-600">This affiliate link is invalid or no longer active.</p>
         <Link href="/" className="mt-6 text-sm font-semibold text-violet-700 hover:underline">
           Go to McGBot
         </Link>
@@ -48,7 +48,7 @@ export default async function AffiliateReferralLandingPage({ params, searchParam
       ) : null}
       <p className="mt-4 text-sm leading-relaxed text-zinc-600">
         McGBot is a Discord-based crypto scanner and trading terminal. Continue to our Discord server to join, verify,
-        and subscribe. Your visit is attributed to this partner link.
+        and subscribe. Your visit is attributed to this affiliate link.
       </p>
       <ul className="mt-6 space-y-2 text-sm text-zinc-700">
         <li className="flex gap-2">

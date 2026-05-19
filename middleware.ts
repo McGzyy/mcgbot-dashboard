@@ -224,7 +224,7 @@ async function affiliatePartnerMiddleware(req: NextRequest): Promise<NextRespons
     !onAgreement
   ) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Partner agreement required" }, { status: 403 });
+      return NextResponse.json({ error: "Affiliate agreement required" }, { status: 403 });
     }
     const url = req.nextUrl.clone();
     url.pathname = "/affiliate/auth/agreement";

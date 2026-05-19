@@ -190,7 +190,7 @@ export default function AffiliateSettingsPage() {
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Settings</p>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Account</h1>
-        <p className="mt-2 text-sm text-zinc-600">Profile and security for your partner login (separate from Discord).</p>
+        <p className="mt-2 text-sm text-zinc-600">Profile and security for your affiliate login (separate from Discord).</p>
       </div>
 
       {err ? <p className="text-sm text-red-700">{err}</p> : null}
@@ -212,7 +212,7 @@ export default function AffiliateSettingsPage() {
             </div>
           ) : null}
           <div className="flex justify-between gap-4 border-t border-zinc-100 pt-3">
-            <dt className="text-zinc-500">Partner agreement</dt>
+            <dt className="text-zinc-500">Affiliate agreement</dt>
             <dd className="text-right text-xs text-zinc-700">{CURRENT_PARTNER_AGREEMENT_VERSION} (signed)</dd>
           </div>
           <div className="flex justify-between gap-4">

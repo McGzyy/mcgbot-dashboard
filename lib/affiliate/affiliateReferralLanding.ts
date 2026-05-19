@@ -38,7 +38,7 @@ export async function resolveAffiliateLanding(input: {
   return {
     affiliateId: account.id,
     affiliateSlug: account.affiliateSlug ?? affiliateSlug,
-    displayLabel: account.displayName ?? "McGBot partner",
+    displayLabel: account.displayName ?? "McGBot affiliate",
     campaign,
   };
 }

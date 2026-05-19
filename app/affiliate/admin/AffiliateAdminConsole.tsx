@@ -220,10 +220,10 @@ export function AffiliateAdminConsole() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-zinc-900">Partners</h2>
+        <h2 className="text-lg font-semibold text-zinc-900">Affiliates</h2>
         <p className="mt-1 text-sm text-zinc-600">
           Approve self-serve applications, suspend accounts, set commission basis points (1000 = 10%), and copy
-          tracking paths for active partners.
+          tracking paths for active affiliates.
         </p>
       </div>
 

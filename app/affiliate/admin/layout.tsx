@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   title: "Affiliate ops",
-  description: "McGBot affiliate partner operations (Discord admin only).",
+  description: "McGBot affiliate operations (Discord admin only).",
   robots: { index: false, follow: false },
 };
 

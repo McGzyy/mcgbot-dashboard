@@ -67,7 +67,7 @@ export default function AffiliateAdminSlugRequestsPage() {
       <div>
         <h2 className="text-lg font-semibold text-zinc-900">Slug change requests</h2>
         <p className="mt-1 text-sm text-zinc-600">
-          Partners may request a new vanity slug once per 90 days. Old slugs keep working as aliases after approval.
+          Affiliates may request a new vanity slug once per 90 days. Old slugs keep working as aliases after approval.
         </p>
       </div>
 

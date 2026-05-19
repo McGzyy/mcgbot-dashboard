@@ -94,7 +94,7 @@ export default function AffiliateAdminCommissionsPage() {
             <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="px-3 py-2">Created</th>
-                <th className="px-3 py-2">Partner</th>
+                <th className="px-3 py-2">Affiliate</th>
                 <th className="px-3 py-2">Referee</th>
                 <th className="px-3 py-2">Payment</th>
                 <th className="px-3 py-2">Commission</th>

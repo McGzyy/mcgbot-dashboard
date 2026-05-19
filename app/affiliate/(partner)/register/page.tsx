@@ -140,8 +140,8 @@ export default function AffiliateRegisterPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
       <div className="mb-8 max-w-2xl">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Partner application</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">Apply to partner with McGBot</h1>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Affiliate application</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">Apply to become a McGBot affiliate</h1>
         <p className="mt-3 text-sm leading-relaxed text-zinc-600 sm:text-base">
           About 5 minutes. We review every application manually — clear answers help us decide faster.
         </p>
@@ -163,7 +163,7 @@ export default function AffiliateRegisterPage() {
         {step === 1 ? (
           <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-zinc-900">Partner portal sign-in</h2>
+              <h2 className="text-lg font-semibold text-zinc-900">Affiliate portal sign-in</h2>
               <p className={hintClass}>Not your Discord login — this email is only for the affiliate portal.</p>
             </div>
             <label className="block">
@@ -218,7 +218,7 @@ export default function AffiliateRegisterPage() {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 className={inputClass}
-                placeholder="Shown in your partner dashboard"
+                placeholder="Shown in your affiliate dashboard"
                 maxLength={80}
               />
             </label>
@@ -417,7 +417,7 @@ export default function AffiliateRegisterPage() {
       </form>
 
       <p className="mt-6 text-center text-sm text-zinc-600">
-        Already a partner?{" "}
+        Already an affiliate?{" "}
         <Link href="/affiliate/login" className="font-semibold text-violet-700 underline-offset-2 hover:underline">
           Sign in
         </Link>

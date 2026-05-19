@@ -11,7 +11,7 @@ type NavItem = { href: string; label: string; description: string };
 
 const NAV: NavItem[] = [
   { href: "/affiliate/admin", label: "Overview", description: "Health & shortcuts" },
-  { href: "/affiliate/admin/partners", label: "Partners", description: "Approve, suspend, create" },
+  { href: "/affiliate/admin/partners", label: "Affiliates", description: "Approve, suspend, create" },
   { href: "/affiliate/admin/payouts", label: "Payouts", description: "Withdrawal requests" },
   { href: "/affiliate/admin/slug-requests", label: "Slug requests", description: "Vanity link changes" },
   { href: "/affiliate/admin/commissions", label: "Commissions", description: "Ledger & voids" },
@@ -49,10 +49,10 @@ export function AffiliateAdminShell({ children }: { children: ReactNode }) {
       <header className="relative border-b border-zinc-200/90 pb-8">
         <AffiliatePortalLogo href="/affiliate/admin" subtitle="Ops console" className="mb-4" />
         <h1 className="mt-2 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-600 bg-clip-text text-3xl font-bold tracking-tight text-transparent">
-          Partner control plane
+          Affiliate control plane
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600">
-          Separate from the McGBot terminal: approve partner applications, set commission rates, and inspect cash
+          Separate from the McGBot terminal: approve affiliate applications, set commission rates, and inspect cash
           commissions. Members never see this surface.
         </p>
       </header>
@@ -72,7 +72,7 @@ export function AffiliateAdminShell({ children }: { children: ReactNode }) {
                 <input
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Partners, commissions…"
+                  placeholder="Affiliates, commissions…"
                   className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-xs font-medium text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-violet-400"
                 />
               </label>

@@ -1,7 +1,7 @@
-/** Marketing / UX copy for the partner application flow. */
+/** Marketing / UX copy for the affiliate application flow. */
 
 export const AFFILIATE_APPLY_STEPS = [
-  { id: 1, title: "Account", description: "Email & password for the partner portal" },
+  { id: 1, title: "Account", description: "Email & password for the affiliate portal" },
   { id: 2, title: "Your reach", description: "Who you are and how you promote" },
   { id: 3, title: "Review", description: "Confirm and submit" },
 ] as const;
@@ -9,7 +9,7 @@ export const AFFILIATE_APPLY_STEPS = [
 export const AFFILIATE_AFTER_APPLY_STEPS = [
   "Set up mandatory authenticator 2FA",
   "Our team reviews your application",
-  "When approved, sign the partner agreement",
+  "When approved, sign the affiliate agreement",
   "Access your dashboard, tracking link, and campaigns",
 ] as const;
 

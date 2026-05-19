@@ -15,7 +15,7 @@ export default function AffiliateResourcesPage() {
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Resources</p>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Brand & playbook</h1>
         <p className="mt-2 text-sm text-zinc-600">
-          Approved assets and promotion rules for McGBot partners. Create tracked sub-links under Campaigns.
+          Approved assets and promotion rules for McGBot affiliates. Create tracked sub-links under Campaigns.
         </p>
       </div>
 

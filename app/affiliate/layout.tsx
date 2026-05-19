@@ -4,10 +4,10 @@ import type { ReactNode } from "react";
 export const metadata: Metadata = {
   applicationName: "McGBot Affiliate",
   title: {
-    default: "Partner program",
+    default: "Affiliate program",
     template: "%s · McGBot Affiliate",
   },
-  description: "McGBot affiliate partner portal — separate from the member terminal.",
+  description: "McGBot affiliate portal — separate from the member terminal.",
   robots: { index: false, follow: false },
 };
 

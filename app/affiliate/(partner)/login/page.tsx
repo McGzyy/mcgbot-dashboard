@@ -60,9 +60,9 @@ export default function AffiliateLoginPage() {
     <div className="mx-auto max-w-lg space-y-6 px-4 py-10 sm:py-14">
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Affiliate program</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">Partner sign in</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">Affiliate sign in</h1>
         <p className="mt-2 text-sm text-zinc-600">
-          Separate from the member McGBot dashboard. Use your partner email and password; authenticator 2FA is
+          Separate from the member McGBot dashboard. Use your affiliate email and password; authenticator 2FA is
           required after sign-in.
         </p>
       </div>
@@ -101,7 +101,7 @@ export default function AffiliateLoginPage() {
       </form>
 
       <p className="text-center text-xs text-zinc-600">
-        New partner?{" "}
+        New affiliate?{" "}
         <Link href="/affiliate/register" className="font-semibold text-violet-700 underline-offset-2 hover:underline">
           Apply for access
         </Link>

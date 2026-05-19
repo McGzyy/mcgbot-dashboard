@@ -97,9 +97,9 @@ export default function AffiliateDashboardPage() {
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:py-10">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Partner dashboard</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Affiliate dashboard</p>
           <h1 className="mt-1 text-2xl font-semibold text-zinc-900">
-            {data?.account.displayName ?? data?.account.email ?? "Partner"}
+            {data?.account.displayName ?? data?.account.email ?? "Affiliate"}
           </h1>
           <p className="mt-1 text-sm text-zinc-600">{data?.account.email}</p>
         </div>
