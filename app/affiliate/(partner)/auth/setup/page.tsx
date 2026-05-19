@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { AffiliateRecoveryCodesExplanation } from "@/app/affiliate/_components/AffiliateRecoveryCodesExplanation";
 
 export default function AffiliateTotpSetupPage() {
   const router = useRouter();
@@ -82,21 +83,11 @@ export default function AffiliateTotpSetupPage() {
 
   if (recoveryCodes && recoveryCodes.length > 0) {
     return (
-      <div className="mx-auto max-w-lg space-y-4 px-4 py-10 sm:py-14">
-        <h1 className="text-xl font-semibold text-zinc-900">Save your recovery codes</h1>
-        <p className="text-sm text-zinc-600">Store these once — they will not be shown again.</p>
-        <ul className="grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 bg-white p-4 font-mono text-xs text-zinc-800 shadow-sm">
-          {recoveryCodes.map((c) => (
-            <li key={c}>{c}</li>
-          ))}
-        </ul>
-        <button
-          type="button"
-          onClick={() => void continueAfterEnrollment()}
-          className="h-10 w-full rounded-lg bg-emerald-600 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
-        >
-          Continue
-        </button>
+      <div className="mx-auto max-w-lg px-4 py-10 sm:py-14">
+        <AffiliateRecoveryCodesExplanation
+          codes={recoveryCodes}
+          onContinue={() => void continueAfterEnrollment()}
+        />
       </div>
     );
   }

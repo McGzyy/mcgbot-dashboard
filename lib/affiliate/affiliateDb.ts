@@ -13,7 +13,9 @@ import {
 } from "@/lib/affiliate/partnerAgreement";
 import type { AffiliateApplicationInput } from "@/lib/affiliate/validateAffiliateApplication";
 import { AFFILIATE_DEFAULT_COMMISSION_RATE_BPS } from "@/lib/affiliate/affiliateCommissionSchedule";
+import { affiliateDenialReapplyState } from "@/lib/affiliate/affiliateDenialReapply";
 import {
+  queueAffiliateApplicationResubmitOpsEmail,
   queueAffiliateApplicationStatusEmail,
   queueAffiliateNewApplicationOpsEmail,
 } from "@/lib/affiliate/affiliateNotifications";
@@ -44,6 +46,8 @@ export type AffiliateApplicationRow = {
   submittedAt: string | null;
   adminReviewNotes: string | null;
   denialReason: string | null;
+  denialReapplyAllowed: boolean;
+  reapplyAfter: string | null;
   contactEmail: string | null;
   contactDiscord: string | null;
   contactX: string | null;
@@ -164,6 +168,9 @@ function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
         typeof data.application_denial_reason === "string"
           ? data.application_denial_reason.trim()
           : null,
+      denialReapplyAllowed: data.application_denial_reapply_allowed === true,
+      reapplyAfter:
+        typeof data.application_reapply_after === "string" ? data.application_reapply_after : null,
       contactEmail:
         typeof data.application_contact_email === "string"
           ? data.application_contact_email.trim().toLowerCase()
@@ -188,7 +195,8 @@ const ACCOUNT_SELECT = `id, email, display_name, status, commission_rate_bps, to
   application_legal_name, application_company_name, application_country, application_primary_channel,
   application_audience_size, application_promo_methods, application_social_links, application_website_url,
   application_notes, application_submitted_at, admin_review_notes,
-  application_denial_reason, application_contact_email, application_contact_discord,
+  application_denial_reason, application_denial_reapply_allowed, application_reapply_after,
+  application_contact_email, application_contact_discord,
   application_contact_x, application_contact_other`;
 
 export async function getAffiliateByEmail(email: string): Promise<(AffiliateAccountRow & { passwordHash: string }) | null> {
@@ -423,11 +431,32 @@ export async function updateAffiliateApplicationDenialReason(
   return !error;
 }
 
+export async function updateAffiliateApplicationDenialPolicy(
+  affiliateId: string,
+  input: { reapplyAllowed: boolean; reapplyAfter: string | null }
+): Promise<boolean> {
+  const id = affiliateId.trim();
+  if (!id) return false;
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({
+      application_denial_reapply_allowed: input.reapplyAllowed,
+      application_reapply_after: input.reapplyAfter,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  return !error;
+}
+
 export async function updateAffiliateApplicationReview(
   affiliateId: string,
   input: {
     status: AffiliateAccountStatus;
     denialReason?: string | null;
+    denialReapplyAllowed?: boolean;
+    reapplyAfter?: string | null;
   }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const id = affiliateId.trim();
@@ -442,7 +471,16 @@ export async function updateAffiliateApplicationReview(
     if (!statusOk) return { ok: false, error: "Could not update status." };
     const reasonOk = await updateAffiliateApplicationDenialReason(id, reason);
     if (!reasonOk) return { ok: false, error: "Could not save denial reason." };
-    queueAffiliateApplicationStatusEmail(id, "denied", reason);
+    const reapplyAllowed = input.denialReapplyAllowed === true;
+    const policyOk = await updateAffiliateApplicationDenialPolicy(id, {
+      reapplyAllowed,
+      reapplyAfter: reapplyAllowed ? input.reapplyAfter ?? null : null,
+    });
+    if (!policyOk) return { ok: false, error: "Could not save re-apply policy." };
+    queueAffiliateApplicationStatusEmail(id, "denied", reason, {
+      reapplyAllowed,
+      reapplyAfter: reapplyAllowed ? input.reapplyAfter ?? null : null,
+    });
     return { ok: true };
   }
 
@@ -450,6 +488,7 @@ export async function updateAffiliateApplicationReview(
   if (!statusOk) return { ok: false, error: "Could not update status." };
   if (input.status === "active" || input.status === "pending" || input.status === "needs_contact") {
     await updateAffiliateApplicationDenialReason(id, null);
+    await updateAffiliateApplicationDenialPolicy(id, { reapplyAllowed: false, reapplyAfter: null });
   }
   if (
     input.status === "active" ||
@@ -503,6 +542,53 @@ export async function registerAffiliateApplication(input: {
   }
   queueAffiliateNewApplicationOpsEmail(created.account.id);
   return { ok: true, account: created.account, sessionToken };
+}
+
+/** Denied applicant resubmits when ops allowed re-application. */
+export async function resubmitAffiliateApplication(
+  affiliateId: string,
+  application: AffiliateApplicationInput
+): Promise<{ ok: true; account: AffiliateAccountRow } | { ok: false; error: string }> {
+  const account = await getAffiliateById(affiliateId);
+  if (!account) return { ok: false, error: "Account not found." };
+  if (account.status !== "denied") {
+    return { ok: false, error: "Only denied applications can be resubmitted." };
+  }
+  const reapply = affiliateDenialReapplyState(account);
+  if (!reapply.canReapplyNow) {
+    return {
+      ok: false,
+      error: reapply.blockedMessage ?? "You cannot resubmit at this time.",
+    };
+  }
+
+  const db = getSupabaseAdmin();
+  if (!db) return { ok: false, error: "Database not configured." };
+
+  const submittedAt = new Date().toISOString();
+  const { data, error } = await db
+    .from("affiliate_accounts")
+    .update({
+      status: "pending",
+      ...applicationInsertPayload(application, submittedAt),
+      application_denial_reason: null,
+      application_denial_reapply_allowed: false,
+      application_reapply_after: null,
+      updated_at: submittedAt,
+    })
+    .eq("id", affiliateId.trim())
+    .select(ACCOUNT_SELECT)
+    .single();
+
+  if (error) {
+    console.error("[affiliateDb] resubmit application", error);
+    return { ok: false, error: "Could not resubmit application." };
+  }
+  const updated = mapRow(data as Record<string, unknown>);
+  if (!updated) return { ok: false, error: "Could not read updated account." };
+
+  queueAffiliateApplicationResubmitOpsEmail(updated.id);
+  return { ok: true, account: updated };
 }
 
 async function isSlugTakenGlobally(slug: string, exceptAffiliateId?: string): Promise<boolean> {

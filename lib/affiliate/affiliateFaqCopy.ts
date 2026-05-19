@@ -71,7 +71,7 @@ export const AFFILIATE_FAQ_SECTIONS: AffiliateFaqSection[] = [
         id: "rejected",
         question: "Can I reapply if denied?",
         answer:
-          "If your application is not approved, you may contact us through the support form with context. We generally do not guarantee reconsideration.",
+          "It depends on our review decision. Some denials are final; others allow you to sign in and submit an updated application after a waiting period. Check your application status page after signing in.",
       },
     ],
   },

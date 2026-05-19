@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AffiliateRecoveryCodesExplanation } from "@/app/affiliate/_components/AffiliateRecoveryCodesExplanation";
 import Link from "next/link";
 import { CURRENT_PARTNER_AGREEMENT_VERSION } from "@/lib/affiliate/partnerAgreement";
 import {
@@ -401,13 +402,7 @@ export default function AffiliateSettingsPage() {
           <span className={labelClass}>Authenticator code</span>
           <input value={recoveryTotp} onChange={(e) => setRecoveryTotp(e.target.value)} className={inputClass} inputMode="numeric" />
         </label>
-        {newCodes ? (
-          <ul className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs text-zinc-800">
-            {newCodes.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ul>
-        ) : null}
+        {newCodes ? <AffiliateRecoveryCodesExplanation codes={newCodes} compact /> : null}
         <button type="submit" disabled={busy !== null} className="h-9 rounded-lg border border-zinc-300 bg-white px-4 text-xs font-semibold text-zinc-800 disabled:opacity-45">
           {busy === "recovery" ? "Working…" : "Regenerate codes"}
         </button>

@@ -48,6 +48,16 @@ export async function PATCH(
       ? body.denialReason
       : null
     : undefined;
+  const hasDenialReapplyAllowed =
+    body !== null && Object.prototype.hasOwnProperty.call(body, "denialReapplyAllowed");
+  const denialReapplyAllowed = hasDenialReapplyAllowed ? body?.denialReapplyAllowed === true : undefined;
+  const hasReapplyAfter = body !== null && Object.prototype.hasOwnProperty.call(body, "reapplyAfter");
+  const reapplyAfter =
+    hasReapplyAfter && typeof body?.reapplyAfter === "string"
+      ? body.reapplyAfter
+      : hasReapplyAfter
+        ? null
+        : undefined;
 
   if (!status && !hasBps && !hasReviewNotes) {
     return Response.json(
@@ -64,6 +74,8 @@ export async function PATCH(
     const review = await updateAffiliateApplicationReview(id, {
       status,
       denialReason: status === "denied" ? denialReason : null,
+      denialReapplyAllowed: status === "denied" ? denialReapplyAllowed : undefined,
+      reapplyAfter: status === "denied" ? reapplyAfter : undefined,
     });
     if (!review.ok) {
       return Response.json({ success: false, error: review.error }, { status: 400 });

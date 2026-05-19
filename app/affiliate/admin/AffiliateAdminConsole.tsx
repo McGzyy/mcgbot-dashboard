@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AffiliateApplicationContactModal } from "@/app/affiliate/admin/_components/AffiliateApplicationContactModal";
-import { AffiliateApplicationDenyModal } from "@/app/affiliate/admin/_components/AffiliateApplicationDenyModal";
+import {
+  AffiliateApplicationDenyModal,
+  type DenyApplicationConfirm,
+} from "@/app/affiliate/admin/_components/AffiliateApplicationDenyModal";
+import { reapplyAfterFromDenyPolicy } from "@/lib/affiliate/affiliateDenialReapply";
 import { AffiliateApplicationDetails } from "@/app/affiliate/admin/_components/AffiliateApplicationDetails";
 import { AffiliatePartnerSummarySection } from "@/app/affiliate/admin/_components/AffiliatePartnerSummarySection";
 import { AFFILIATE_STATUS_LABELS } from "@/lib/affiliate/affiliateApplicationStatus";
@@ -159,10 +163,19 @@ export function AffiliateAdminConsole() {
     await patchAccount(id, { status: next }, `Status updated to ${AFFILIATE_STATUS_LABELS[next]}.`);
   }
 
-  async function denyApplication(id: string, reason: string) {
+  async function denyApplication(id: string, input: DenyApplicationConfirm) {
+    const policy = reapplyAfterFromDenyPolicy({
+      policy: input.reapplyPolicy,
+      customDate: input.customReapplyDate,
+    });
     const ok = await patchAccount(
       id,
-      { status: "denied", denialReason: reason },
+      {
+        status: "denied",
+        denialReason: input.reason,
+        denialReapplyAllowed: policy.reapplyAllowed,
+        reapplyAfter: policy.reapplyAfter,
+      },
       "Application denied."
     );
     if (ok) setDenyTarget(null);
@@ -472,8 +485,8 @@ export function AffiliateAdminConsole() {
         email={denyTarget?.email ?? ""}
         busy={busy !== null}
         onClose={() => setDenyTarget(null)}
-        onConfirm={(reason) => {
-          if (denyTarget) void denyApplication(denyTarget.id, reason);
+        onConfirm={(input) => {
+          if (denyTarget) void denyApplication(denyTarget.id, input);
         }}
       />
       <AffiliateApplicationContactModal

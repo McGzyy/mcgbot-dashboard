@@ -91,7 +91,8 @@ async function sendToOps(input: {
 export function queueAffiliateApplicationStatusEmail(
   affiliateId: string,
   status: AffiliateAccountStatus,
-  denialReason?: string | null
+  denialReason?: string | null,
+  denialReapply?: { reapplyAllowed: boolean; reapplyAfter: string | null }
 ): void {
   void (async () => {
     if (status === "active") {
@@ -110,14 +111,35 @@ export function queueAffiliateApplicationStatusEmail(
     if (status === "denied") {
       const login = affiliatePortalPath("/affiliate/application");
       const reason = denialReason?.trim();
+      let reapplyHtml = "";
+      let reapplyText = "";
+      if (denialReapply?.reapplyAllowed) {
+        const after = denialReapply.reapplyAfter ? Date.parse(denialReapply.reapplyAfter) : NaN;
+        if (Number.isFinite(after) && after > Date.now()) {
+          const when = new Date(after).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          });
+          reapplyHtml = `<p>You may submit an updated application after <strong>${escapeHtml(when)}</strong>. Sign in to your application page when eligible.</p>`;
+          reapplyText = `\n\nYou may resubmit after ${when}.`;
+        } else {
+          const reapply = affiliatePortalPath("/affiliate/application/reapply");
+          reapplyHtml = `<p>You may submit an updated application. Sign in and use <a href="${reapply}">Resubmit application</a> when ready.</p>`;
+          reapplyText = `\n\nYou may resubmit: ${reapply}`;
+        }
+      } else {
+        reapplyHtml =
+          "<p>This decision is final for your account email — you cannot submit another application.</p>";
+        reapplyText = "\n\nThis decision is final for your account.";
+      }
       await sendToPartner({
         affiliateId,
         subject: "Update on your McGBot affiliate application",
         html: `<p>Your affiliate application was not approved at this time.</p>
 ${reason ? `<p><strong>Note from our team:</strong></p><p>${escapeHtml(reason)}</p>` : ""}
-<p>You can view your application status here:</p>
-<p><a href="${login}">${login}</a></p>`,
-        text: `Your affiliate application was not approved.${reason ? `\n\nNote: ${reason}` : ""}\n\nStatus: ${login}`,
+${reapplyHtml}
+<p><a href="${login}">View application status</a></p>`,
+        text: `Your affiliate application was not approved.${reason ? `\n\nNote: ${reason}` : ""}${reapplyText}\n\nStatus: ${login}`,
       });
       return;
     }
@@ -134,6 +156,21 @@ ${reason ? `<p><strong>Note from our team:</strong></p><p>${escapeHtml(reason)}<
       });
     }
   })().catch((e) => console.error("[affiliateNotifications] application status", e));
+}
+
+export function queueAffiliateApplicationResubmitOpsEmail(affiliateId: string): void {
+  void (async () => {
+    const account = await getAffiliateById(affiliateId);
+    if (!account) return;
+    const review = affiliatePortalPath("/affiliate/admin/partners");
+    const name = account.application.legalName || account.displayName || account.email;
+    await sendToOps({
+      subject: `Affiliate application resubmitted — ${name}`,
+      html: `<p><strong>${escapeHtml(name)}</strong> (${escapeHtml(account.email)}) resubmitted their affiliate application.</p>
+<p><a href="${review}">Review in ops console</a></p>`,
+      text: `Application resubmitted by ${name} (${account.email}).\n\nReview: ${review}`,
+    });
+  })().catch((e) => console.error("[affiliateNotifications] application resubmit ops", e));
 }
 
 export function queueAffiliateNewApplicationOpsEmail(affiliateId: string): void {

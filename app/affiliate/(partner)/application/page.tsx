@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -12,6 +13,9 @@ type ApplicationSummary = {
   legalName: string | null;
   submittedAt: string | null;
   denialReason: string | null;
+  canReapplyNow?: boolean;
+  reapplyBlockedMessage?: string | null;
+  denialReapplyAllowed?: boolean;
 };
 
 function formatSubmittedAt(iso: string | null): string | null {
@@ -165,6 +169,33 @@ export default function AffiliateApplicationStatusPage() {
           <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-800">
             {application.denialReason}
           </p>
+        </div>
+      ) : null}
+
+      {gateStatus === "denied" ? (
+        <div className="rounded-2xl border border-zinc-200/90 bg-white p-4 text-sm shadow-sm">
+          {application?.canReapplyNow ? (
+            <>
+              <p className="font-semibold text-zinc-900">You may submit an updated application</p>
+              <p className="mt-2 leading-relaxed text-zinc-600">
+                Our team invited you to re-apply. Update your promotion details and submit again for review.
+              </p>
+              <Link
+                href="/affiliate/application/reapply"
+                className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-violet-600 px-4 text-xs font-semibold text-white hover:bg-violet-700"
+              >
+                Resubmit application
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold text-zinc-900">Re-application</p>
+              <p className="mt-2 leading-relaxed text-zinc-600">
+                {application?.reapplyBlockedMessage ??
+                  "You cannot submit another application with this email at this time."}
+              </p>
+            </>
+          )}
         </div>
       ) : null}
 
