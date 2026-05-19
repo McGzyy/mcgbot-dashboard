@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { buildAffiliateSessionForAccount, getAffiliateById } from "@/lib/affiliate/affiliateDb";
+import {
+  affiliateSessionClaimsFromAccount,
+  getAffiliateById,
+} from "@/lib/affiliate/affiliateDb";
+import { affiliatePostAuthPath } from "@/lib/affiliate/affiliatePostAuthPath";
 import { verifyAffiliateTotpOrRecovery } from "@/lib/affiliate/affiliateTotp";
 import {
   assertAffiliateTotpVerifyAllowed,
@@ -7,7 +11,7 @@ import {
   recordAffiliateTotpVerifyFailure,
 } from "@/lib/affiliate/affiliateTotpThrottle";
 import { requireAffiliateSession } from "@/lib/affiliate/requireAffiliateSession";
-import { applyAffiliateSessionCookie } from "@/lib/affiliate/affiliateSession";
+import { applyAffiliateSessionCookie, encodeAffiliateSession } from "@/lib/affiliate/affiliateSession";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,12 +50,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Account not found." }, { status: 404 });
   }
 
-  const sessionToken = await buildAffiliateSessionForAccount(account);
+  const claims = affiliateSessionClaimsFromAccount(account);
+  const sessionToken = await encodeAffiliateSession(claims);
   if (!sessionToken) {
     return NextResponse.json({ success: false, error: "Could not refresh session." }, { status: 500 });
   }
 
-  const res = NextResponse.json({ success: true });
+  const res = NextResponse.json({
+    success: true,
+    redirectTo: affiliatePostAuthPath(claims),
+  });
   applyAffiliateSessionCookie(res, sessionToken);
   return res;
 }

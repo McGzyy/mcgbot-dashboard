@@ -32,6 +32,11 @@ export type AffiliateApplicationRow = {
   notes: string | null;
   submittedAt: string | null;
   adminReviewNotes: string | null;
+  denialReason: string | null;
+  contactEmail: string | null;
+  contactDiscord: string | null;
+  contactX: string | null;
+  contactOther: string | null;
 };
 
 export type AffiliateAccountRow = {
@@ -63,7 +68,15 @@ function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
   const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
   if (!id || !email) return null;
   const status = data.status;
-  if (status !== "pending" && status !== "active" && status !== "suspended") return null;
+  if (
+    status !== "pending" &&
+    status !== "needs_contact" &&
+    status !== "denied" &&
+    status !== "active" &&
+    status !== "suspended"
+  ) {
+    return null;
+  }
   return {
     id,
     email,
@@ -121,6 +134,24 @@ function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
         typeof data.application_submitted_at === "string" ? data.application_submitted_at : null,
       adminReviewNotes:
         typeof data.admin_review_notes === "string" ? data.admin_review_notes.trim() : null,
+      denialReason:
+        typeof data.application_denial_reason === "string"
+          ? data.application_denial_reason.trim()
+          : null,
+      contactEmail:
+        typeof data.application_contact_email === "string"
+          ? data.application_contact_email.trim().toLowerCase()
+          : null,
+      contactDiscord:
+        typeof data.application_contact_discord === "string"
+          ? data.application_contact_discord.trim()
+          : null,
+      contactX:
+        typeof data.application_contact_x === "string" ? data.application_contact_x.trim() : null,
+      contactOther:
+        typeof data.application_contact_other === "string"
+          ? data.application_contact_other.trim()
+          : null,
     },
   };
 }
@@ -129,7 +160,9 @@ const ACCOUNT_SELECT = `id, email, display_name, status, commission_rate_bps, to
   agreement_version, agreement_signed_at, slug_changed_at, slug_change_pending,
   application_legal_name, application_company_name, application_country, application_primary_channel,
   application_audience_size, application_promo_methods, application_social_links, application_website_url,
-  application_notes, application_submitted_at, admin_review_notes`;
+  application_notes, application_submitted_at, admin_review_notes,
+  application_denial_reason, application_contact_email, application_contact_discord,
+  application_contact_x, application_contact_other`;
 
 export async function getAffiliateByEmail(email: string): Promise<(AffiliateAccountRow & { passwordHash: string }) | null> {
   const db = getSupabaseAdmin();
@@ -209,6 +242,10 @@ function applicationInsertPayload(app: AffiliateApplicationInput, submittedAt: s
     application_social_links: app.socialLinks,
     application_website_url: app.websiteUrl,
     application_notes: app.notes,
+    application_contact_email: app.contactEmail,
+    application_contact_discord: app.contactDiscord,
+    application_contact_x: app.contactX,
+    application_contact_other: app.contactOther,
     application_draft_terms_accepted_at: submittedAt,
     application_submitted_at: submittedAt,
   };
@@ -284,14 +321,9 @@ export async function authenticateAffiliate(
     return { ok: false, error: "Invalid email or password.", status: 401 };
   }
 
-  const claims: AffiliateSessionClaims = {
-    affiliateId: row.id,
-    email: row.email,
-    status: row.status,
-    needsTotpEnrollment: !row.totpEnabled,
+  const claims = affiliateSessionClaimsFromAccount(row, {
     pendingTotpVerification: row.totpEnabled,
-    needsAgreement: accountNeedsAgreement(row),
-  };
+  });
 
   const sessionToken = await encodeAffiliateSession(claims);
   if (!sessionToken) {
@@ -302,17 +334,26 @@ export async function authenticateAffiliate(
   return { ok: true, sessionToken, account };
 }
 
-export async function buildAffiliateSessionForAccount(
-  account: AffiliateAccountRow
-): Promise<string | null> {
-  return encodeAffiliateSession({
+/** Build session JWT claims from a database row. */
+export function affiliateSessionClaimsFromAccount(
+  account: AffiliateAccountRow,
+  options?: { pendingTotpVerification?: boolean }
+): AffiliateSessionClaims {
+  return {
     affiliateId: account.id,
     email: account.email,
     status: account.status,
     needsTotpEnrollment: !account.totpEnabled,
-    pendingTotpVerification: account.totpEnabled,
+    pendingTotpVerification: options?.pendingTotpVerification ?? false,
     needsAgreement: accountNeedsAgreement(account),
-  });
+  };
+}
+
+/** Fully verified session (post–2FA verify, enrollment finish, or status refresh). */
+export async function buildAffiliateSessionForAccount(
+  account: AffiliateAccountRow
+): Promise<string | null> {
+  return encodeAffiliateSession(affiliateSessionClaimsFromAccount(account));
 }
 
 export async function signPartnerAgreement(affiliateId: string): Promise<boolean> {
@@ -335,6 +376,54 @@ export async function signPartnerAgreement(affiliateId: string): Promise<boolean
     return false;
   }
   return true;
+}
+
+export async function updateAffiliateApplicationDenialReason(
+  affiliateId: string,
+  denialReason: string | null
+): Promise<boolean> {
+  const id = affiliateId.trim();
+  if (!id) return false;
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({
+      application_denial_reason: denialReason?.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  return !error;
+}
+
+export async function updateAffiliateApplicationReview(
+  affiliateId: string,
+  input: {
+    status: AffiliateAccountStatus;
+    denialReason?: string | null;
+  }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const id = affiliateId.trim();
+  if (!id) return { ok: false, error: "Invalid account." };
+
+  if (input.status === "denied") {
+    const reason = input.denialReason?.trim() ?? "";
+    if (reason.length < 4) {
+      return { ok: false, error: "Denial reason must be at least 4 characters." };
+    }
+    const statusOk = await updateAffiliateAccountStatus(id, "denied");
+    if (!statusOk) return { ok: false, error: "Could not update status." };
+    const reasonOk = await updateAffiliateApplicationDenialReason(id, reason);
+    if (!reasonOk) return { ok: false, error: "Could not save denial reason." };
+    return { ok: true };
+  }
+
+  const statusOk = await updateAffiliateAccountStatus(id, input.status);
+  if (!statusOk) return { ok: false, error: "Could not update status." };
+  if (input.status === "active" || input.status === "pending" || input.status === "needs_contact") {
+    await updateAffiliateApplicationDenialReason(id, null);
+  }
+  return { ok: true };
 }
 
 export async function updateAffiliateAdminReviewNotes(
@@ -598,13 +687,22 @@ export async function updateAffiliateAccountStatus(
 ): Promise<boolean> {
   const id = affiliateId.trim();
   if (!id) return false;
-  if (status !== "pending" && status !== "active" && status !== "suspended") return false;
+  if (
+    status !== "pending" &&
+    status !== "needs_contact" &&
+    status !== "denied" &&
+    status !== "active" &&
+    status !== "suspended"
+  ) {
+    return false;
+  }
   const db = getSupabaseAdmin();
   if (!db) return false;
-  const { error } = await db
-    .from("affiliate_accounts")
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq("id", id);
+  const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+  if (status === "active") {
+    patch.application_denial_reason = null;
+  }
+  const { error } = await db.from("affiliate_accounts").update(patch).eq("id", id);
   if (error) {
     console.error("[affiliateDb] update status", error);
     return false;

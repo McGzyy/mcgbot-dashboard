@@ -218,12 +218,17 @@ async function affiliatePartnerMiddleware(req: NextRequest): Promise<NextRespons
     return NextResponse.redirect(url);
   }
 
-  if (session.status === "pending" && needsActivePartner) {
+  if (
+    (session.status === "pending" ||
+      session.status === "denied" ||
+      session.status === "needs_contact") &&
+    needsActivePartner
+  ) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Account pending approval" }, { status: 403 });
     }
     const url = req.nextUrl.clone();
-    url.pathname = "/affiliate/pending";
+    url.pathname = "/affiliate/application";
     return NextResponse.redirect(url);
   }
 
@@ -269,15 +274,29 @@ async function affiliatePartnerMiddleware(req: NextRequest): Promise<NextRespons
     return NextResponse.redirect(url);
   }
 
-  if (session.status === "active" && pathname === "/affiliate/pending") {
+  if (
+    session.status === "active" &&
+    (pathname === "/affiliate/pending" || pathname === "/affiliate/application")
+  ) {
     const url = req.nextUrl.clone();
     url.pathname = "/affiliate/dashboard";
     return NextResponse.redirect(url);
   }
 
-  if (session.status === "pending" && pathname === "/affiliate/dashboard") {
+  if (pathname === "/affiliate/pending") {
     const url = req.nextUrl.clone();
-    url.pathname = "/affiliate/pending";
+    url.pathname = "/affiliate/application";
+    return NextResponse.redirect(url);
+  }
+
+  if (
+    (session.status === "pending" ||
+      session.status === "denied" ||
+      session.status === "needs_contact") &&
+    (pathname === "/affiliate/dashboard" || pathname.startsWith("/affiliate/dashboard/"))
+  ) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/affiliate/application";
     return NextResponse.redirect(url);
   }
 

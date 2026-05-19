@@ -52,6 +52,12 @@ export default async function AffiliateAdminOverviewPage() {
               value={String(stats.pendingApplications)}
               tone={stats.pendingApplications > 0 ? "warn" : "neutral"}
             />
+            <MetricCard
+              label="Awaiting outreach"
+              value={String(stats.needsContactApplications)}
+              tone={stats.needsContactApplications > 0 ? "warn" : "neutral"}
+              hint="Contact requested before approve/deny"
+            />
             <MetricCard label="Active affiliates" value={String(stats.activePartners)} tone="ok" />
             <MetricCard
               label="Open contact messages"

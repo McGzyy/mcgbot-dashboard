@@ -4,7 +4,12 @@ import type { NextRequest, NextResponse } from "next/server";
 
 export const AFFILIATE_SESSION_COOKIE = "mcgbot.affiliate.session";
 
-export type AffiliateAccountStatus = "pending" | "active" | "suspended";
+export type AffiliateAccountStatus =
+  | "pending"
+  | "needs_contact"
+  | "denied"
+  | "active"
+  | "suspended";
 
 export type AffiliateSessionClaims = {
   affiliateId: string;
@@ -57,7 +62,15 @@ export async function decodeAffiliateSessionToken(
   const email = typeof decoded.email === "string" ? decoded.email.trim().toLowerCase() : "";
   const status = decoded.status;
   if (!affiliateId || !email) return null;
-  if (status !== "pending" && status !== "active" && status !== "suspended") return null;
+  if (
+    status !== "pending" &&
+    status !== "needs_contact" &&
+    status !== "denied" &&
+    status !== "active" &&
+    status !== "suspended"
+  ) {
+    return null;
+  }
   return {
     affiliateId,
     email,

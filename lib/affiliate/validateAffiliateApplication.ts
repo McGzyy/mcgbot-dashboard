@@ -8,6 +8,10 @@ export type AffiliateApplicationInput = {
   socialLinks: string;
   websiteUrl?: string | null;
   notes?: string | null;
+  contactEmail?: string | null;
+  contactDiscord?: string | null;
+  contactX?: string | null;
+  contactOther?: string | null;
   acceptedDraftTerms: boolean;
 };
 
@@ -35,6 +39,10 @@ export function validateAffiliateApplication(
   const socialLinks = typeof raw.socialLinks === "string" ? raw.socialLinks.trim() : "";
   const websiteUrl = typeof raw.websiteUrl === "string" ? raw.websiteUrl.trim() : "";
   const notes = typeof raw.notes === "string" ? raw.notes.trim() : "";
+  const contactEmail = typeof raw.contactEmail === "string" ? raw.contactEmail.trim() : "";
+  const contactDiscord = typeof raw.contactDiscord === "string" ? raw.contactDiscord.trim() : "";
+  const contactX = typeof raw.contactX === "string" ? raw.contactX.trim() : "";
+  const contactOther = typeof raw.contactOther === "string" ? raw.contactOther.trim() : "";
   const acceptedDraftTerms = raw.acceptedDraftTerms === true;
 
   if (legalName.length < 2 || legalName.length > 120) {
@@ -61,6 +69,19 @@ export function validateAffiliateApplication(
   if (!acceptedDraftTerms) {
     return { ok: false, error: "You must accept the application terms to apply." };
   }
+  if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+    return { ok: false, error: "Enter a valid contact email or leave it blank." };
+  }
+  const contactMethods = [contactDiscord, contactX, contactOther].filter(Boolean).length;
+  if (contactMethods < 1) {
+    return {
+      ok: false,
+      error: "Add at least one direct contact method (Discord, X, or other) so we can reach you.",
+    };
+  }
+  if (contactDiscord.length > 200 || contactX.length > 200 || contactOther.length > 300) {
+    return { ok: false, error: "A contact field is too long." };
+  }
 
   return {
     ok: true,
@@ -74,6 +95,10 @@ export function validateAffiliateApplication(
       socialLinks,
       websiteUrl: websiteUrl || null,
       notes: notes || null,
+      contactEmail: contactEmail || null,
+      contactDiscord: contactDiscord || null,
+      contactX: contactX || null,
+      contactOther: contactOther || null,
       acceptedDraftTerms,
     },
   };

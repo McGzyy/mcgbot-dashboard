@@ -9,8 +9,13 @@ export default function AffiliateTotpSetupPage() {
   const [otpauthUrl, setOtpauthUrl] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+  const [postEnrollPath, setPostEnrollPath] = useState("/affiliate/application");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  function continueAfterEnrollment() {
+    router.replace(postEnrollPath);
+  }
 
   const start = useCallback(async () => {
     setErr(null);
@@ -57,11 +62,15 @@ export default function AffiliateTotpSetupPage() {
       const j = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         recoveryCodes?: string[];
+        redirectTo?: string;
         error?: string;
       };
       if (!res.ok || !j.success) {
         setErr(typeof j.error === "string" ? j.error : "Could not enable 2FA.");
         return;
+      }
+      if (typeof j.redirectTo === "string" && j.redirectTo.startsWith("/affiliate")) {
+        setPostEnrollPath(j.redirectTo);
       }
       setRecoveryCodes(Array.isArray(j.recoveryCodes) ? j.recoveryCodes : []);
     } catch {
@@ -83,10 +92,10 @@ export default function AffiliateTotpSetupPage() {
         </ul>
         <button
           type="button"
-          onClick={() => router.replace("/affiliate/dashboard")}
+          onClick={() => void continueAfterEnrollment()}
           className="h-10 w-full rounded-lg bg-emerald-600 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
         >
-          Continue to dashboard
+          Continue
         </button>
       </div>
     );

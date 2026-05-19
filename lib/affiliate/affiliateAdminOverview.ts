@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export type AffiliateAdminOverviewStats = {
   pendingApplications: number;
+  needsContactApplications: number;
   activePartners: number;
   suspendedPartners: number;
   openContactInquiries: number;
@@ -21,11 +22,13 @@ export async function getAffiliateAdminOverviewStats(): Promise<AffiliateAdminOv
   if (accErr || !Array.isArray(accounts)) return null;
 
   let pendingApplications = 0;
+  let needsContactApplications = 0;
   let activePartners = 0;
   let suspendedPartners = 0;
   for (const r of accounts as { status?: string }[]) {
     const s = typeof r.status === "string" ? r.status : "";
     if (s === "pending") pendingApplications += 1;
+    else if (s === "needs_contact") needsContactApplications += 1;
     else if (s === "active") activePartners += 1;
     else if (s === "suspended") suspendedPartners += 1;
   }
@@ -58,6 +61,7 @@ export async function getAffiliateAdminOverviewStats(): Promise<AffiliateAdminOv
 
   return {
     pendingApplications,
+    needsContactApplications,
     activePartners,
     suspendedPartners,
     openContactInquiries,

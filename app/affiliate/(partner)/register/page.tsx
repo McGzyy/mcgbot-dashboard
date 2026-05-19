@@ -44,6 +44,10 @@ export default function AffiliateRegisterPage() {
   const [socialLinks, setSocialLinks] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [notes, setNotes] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactDiscord, setContactDiscord] = useState("");
+  const [contactX, setContactX] = useState("");
+  const [contactOther, setContactOther] = useState("");
   const [acceptedDraftTerms, setAcceptedDraftTerms] = useState(false);
 
   const pwStrength = useMemo(() => passwordStrengthHint(password), [password]);
@@ -64,6 +68,13 @@ export default function AffiliateRegisterPage() {
     if (!audienceSize) return "Select your audience size.";
     if (promoLen < 20) return "Describe your promotion plan (at least 20 characters).";
     if (socialLen < 4) return "Add at least one link we can verify.";
+    const contactCount = [contactDiscord.trim(), contactX.trim(), contactOther.trim()].filter(Boolean).length;
+    if (contactCount < 1) {
+      return "Add at least one direct contact method (Discord, X, or other).";
+    }
+    if (contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())) {
+      return "Enter a valid contact email or leave it blank.";
+    }
     return null;
   }
 
@@ -121,6 +132,10 @@ export default function AffiliateRegisterPage() {
           socialLinks: socialLinks.trim(),
           websiteUrl: websiteUrl.trim() || null,
           notes: notes.trim() || null,
+          contactEmail: contactEmail.trim() || null,
+          contactDiscord: contactDiscord.trim() || null,
+          contactX: contactX.trim() || null,
+          contactOther: contactOther.trim() || null,
           acceptedDraftTerms: true,
         }),
       });
@@ -323,6 +338,53 @@ export default function AffiliateRegisterPage() {
                 placeholder="https://"
               />
             </label>
+            <div className="rounded-xl border border-violet-200/80 bg-violet-50/50 p-4">
+              <p className="text-xs font-semibold text-zinc-900">How we can reach you</p>
+              <p className={hintClass}>
+                Add at least one of Discord, X, or other. We use your login email too — add a separate contact email if
+                you prefer.
+              </p>
+              <div className="mt-3 space-y-3">
+                <label className="block">
+                  <span className={labelClass}>Contact email (optional)</span>
+                  <input
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    className={inputClass}
+                    placeholder={email.trim() || "you@example.com"}
+                    autoComplete="email"
+                  />
+                </label>
+                <label className="block">
+                  <span className={labelClass}>Discord</span>
+                  <input
+                    value={contactDiscord}
+                    onChange={(e) => setContactDiscord(e.target.value)}
+                    className={inputClass}
+                    placeholder="@handle or discord.gg/invite"
+                  />
+                </label>
+                <label className="block">
+                  <span className={labelClass}>X (Twitter)</span>
+                  <input
+                    value={contactX}
+                    onChange={(e) => setContactX(e.target.value)}
+                    className={inputClass}
+                    placeholder="@handle or profile URL"
+                  />
+                </label>
+                <label className="block">
+                  <span className={labelClass}>Other (optional)</span>
+                  <input
+                    value={contactOther}
+                    onChange={(e) => setContactOther(e.target.value)}
+                    className={inputClass}
+                    placeholder="Telegram, phone, etc."
+                  />
+                </label>
+              </div>
+            </div>
             <label className="block">
               <span className={labelClass}>Anything else for reviewers (optional)</span>
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={textareaClass} />

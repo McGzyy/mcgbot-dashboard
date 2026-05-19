@@ -17,7 +17,21 @@ export async function GET() {
 
   return NextResponse.json({
     success: true,
-    account,
+    account: {
+      id: account.id,
+      email: account.email,
+      displayName: account.displayName,
+      status: account.status,
+      application: {
+        legalName: account.application.legalName,
+        submittedAt: account.application.submittedAt,
+        denialReason: account.application.denialReason,
+        contactEmail: account.application.contactEmail,
+        contactDiscord: account.application.contactDiscord,
+        contactX: account.application.contactX,
+        contactOther: account.application.contactOther,
+      },
+    },
     needsTotpEnrollment: auth.session.needsTotpEnrollment,
     pendingTotpVerification: auth.session.pendingTotpVerification,
     fullyVerified: affiliateSessionFullyVerified(auth.session),

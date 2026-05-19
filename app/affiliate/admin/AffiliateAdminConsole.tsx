@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AffiliateApplicationContactModal } from "@/app/affiliate/admin/_components/AffiliateApplicationContactModal";
+import { AffiliateApplicationDenyModal } from "@/app/affiliate/admin/_components/AffiliateApplicationDenyModal";
+import { AFFILIATE_STATUS_LABELS } from "@/lib/affiliate/affiliateApplicationStatus";
+import type { AffiliateAccountStatus } from "@/lib/affiliate/affiliateSession";
 import {
   AFFILIATE_AUDIENCE_LABELS,
   AFFILIATE_PRIMARY_CHANNEL_LABELS,
@@ -18,6 +22,11 @@ type AffiliateApplication = {
   notes: string | null;
   submittedAt: string | null;
   adminReviewNotes: string | null;
+  denialReason: string | null;
+  contactEmail: string | null;
+  contactDiscord: string | null;
+  contactX: string | null;
+  contactOther: string | null;
 };
 
 type AffiliateRow = {
@@ -41,6 +50,8 @@ export function AffiliateAdminConsole() {
   const [busy, setBusy] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reviewNotesDraft, setReviewNotesDraft] = useState("");
+  const [denyTarget, setDenyTarget] = useState<AffiliateRow | null>(null);
+  const [contactTarget, setContactTarget] = useState<AffiliateRow | null>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -110,7 +121,11 @@ export function AffiliateAdminConsole() {
     }
   }
 
-  async function setAccountStatus(id: string, next: "pending" | "active" | "suspended") {
+  async function patchAccount(
+    id: string,
+    body: Record<string, unknown>,
+    successMessage: string
+  ): Promise<boolean> {
     setBusy(id);
     setErr(null);
     setNote(null);
@@ -119,20 +134,40 @@ export function AffiliateAdminConsole() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ status: next }),
+        body: JSON.stringify(body),
       });
       const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
       if (!res.ok || !j.success) {
         setErr(typeof j.error === "string" ? j.error : "Update failed.");
-        return;
+        return false;
       }
-      setNote(`Status updated to ${next}.`);
+      setNote(successMessage);
       await load();
+      return true;
     } catch {
       setErr("Update failed.");
+      return false;
     } finally {
       setBusy(null);
     }
+  }
+
+  async function setAccountStatus(id: string, next: AffiliateAccountStatus) {
+    await patchAccount(id, { status: next }, `Status updated to ${AFFILIATE_STATUS_LABELS[next]}.`);
+  }
+
+  async function denyApplication(id: string, reason: string) {
+    const ok = await patchAccount(
+      id,
+      { status: "denied", denialReason: reason },
+      "Application denied."
+    );
+    if (ok) setDenyTarget(null);
+  }
+
+  async function markNeedsContact(row: AffiliateRow) {
+    const ok = await patchAccount(row.id, { status: "needs_contact" }, "Marked contact requested.");
+    if (ok) setContactTarget(row);
   }
 
   async function saveCommissionRate(id: string, bps: number) {
@@ -160,7 +195,13 @@ export function AffiliateAdminConsole() {
     }
   }
 
-  const pendingCount = accounts.filter((a) => a.status === "pending").length;
+  const pendingCount = accounts.filter(
+    (a) => a.status === "pending" || a.status === "needs_contact"
+  ).length;
+
+  function isReviewableStatus(status: string): boolean {
+    return status === "pending" || status === "needs_contact" || status === "denied";
+  }
   const selected = accounts.find((a) => a.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -330,7 +371,9 @@ export function AffiliateAdminConsole() {
                         <span className="block text-[10px] text-zinc-400">{a.application.legalName}</span>
                       ) : null}
                     </td>
-                    <td className="px-3 py-2 capitalize text-zinc-700">{a.status}</td>
+                    <td className="px-3 py-2 text-zinc-700">
+                      {AFFILIATE_STATUS_LABELS[a.status as AffiliateAccountStatus] ?? a.status}
+                    </td>
                     <td className="px-3 py-2 text-zinc-600">{a.totpEnabled ? "Enabled" : "Required"}</td>
                     <td className="px-3 py-2">
                       <input
@@ -355,15 +398,33 @@ export function AffiliateAdminConsole() {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-wrap justify-end gap-1">
-                        {a.status === "pending" ? (
-                          <button
-                            type="button"
-                            disabled={busy !== null}
-                            onClick={() => void setAccountStatus(a.id, "active")}
-                            className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-900 disabled:opacity-45"
-                          >
-                            Approve
-                          </button>
+                        {isReviewableStatus(a.status) ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={busy !== null}
+                              onClick={() => void setAccountStatus(a.id, "active")}
+                              className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-900 disabled:opacity-45"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy !== null}
+                              onClick={() => setDenyTarget(a)}
+                              className="rounded border border-red-300 bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-900 disabled:opacity-45"
+                            >
+                              Deny
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy !== null}
+                              onClick={() => void markNeedsContact(a)}
+                              className="rounded border border-violet-300 bg-violet-50 px-2 py-1 text-[10px] font-semibold text-violet-900 disabled:opacity-45"
+                            >
+                              Contact
+                            </button>
+                          </>
                         ) : null}
                         {a.status === "active" ? (
                           <button
@@ -394,6 +455,27 @@ export function AffiliateAdminConsole() {
           </table>
         </div>
       </section>
+
+      <AffiliateApplicationDenyModal
+        open={denyTarget !== null}
+        email={denyTarget?.email ?? ""}
+        busy={busy !== null}
+        onClose={() => setDenyTarget(null)}
+        onConfirm={(reason) => {
+          if (denyTarget) void denyApplication(denyTarget.id, reason);
+        }}
+      />
+      <AffiliateApplicationContactModal
+        open={contactTarget !== null}
+        email={contactTarget?.email ?? ""}
+        application={{
+          contactEmail: contactTarget?.application?.contactEmail ?? null,
+          contactDiscord: contactTarget?.application?.contactDiscord ?? null,
+          contactX: contactTarget?.application?.contactX ?? null,
+          contactOther: contactTarget?.application?.contactOther ?? null,
+        }}
+        onClose={() => setContactTarget(null)}
+      />
 
       {selected ? (
         <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:p-5">
@@ -481,7 +563,69 @@ export function AffiliateAdminConsole() {
                   <dd className="mt-1 whitespace-pre-wrap text-zinc-800">{selected.application.notes}</dd>
                 </div>
               ) : null}
+              <div className="sm:col-span-2">
+                <dt className="text-zinc-500">Contact methods</dt>
+                <dd className="mt-1 space-y-1 text-zinc-800">
+                  <p>
+                    <span className="text-zinc-500">Login email:</span> {selected.email}
+                  </p>
+                  {selected.application.contactEmail ? (
+                    <p>
+                      <span className="text-zinc-500">Contact email:</span> {selected.application.contactEmail}
+                    </p>
+                  ) : null}
+                  {selected.application.contactDiscord ? (
+                    <p>
+                      <span className="text-zinc-500">Discord:</span> {selected.application.contactDiscord}
+                    </p>
+                  ) : null}
+                  {selected.application.contactX ? (
+                    <p>
+                      <span className="text-zinc-500">X:</span> {selected.application.contactX}
+                    </p>
+                  ) : null}
+                  {selected.application.contactOther ? (
+                    <p>
+                      <span className="text-zinc-500">Other:</span> {selected.application.contactOther}
+                    </p>
+                  ) : null}
+                </dd>
+              </div>
+              {selected.application.denialReason ? (
+                <div className="sm:col-span-2">
+                  <dt className="text-zinc-500">Denial reason (shown to applicant)</dt>
+                  <dd className="mt-1 whitespace-pre-wrap text-red-900">{selected.application.denialReason}</dd>
+                </div>
+              ) : null}
             </dl>
+          ) : null}
+          {isReviewableStatus(selected.status) ? (
+            <div className="mt-4 flex flex-wrap gap-2 border-t border-zinc-200 pt-4">
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void setAccountStatus(selected.id, "active")}
+                className="rounded-lg border border-emerald-300 bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-45"
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => setDenyTarget(selected)}
+                className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-semibold text-red-900 hover:bg-red-100 disabled:opacity-45"
+              >
+                Deny…
+              </button>
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void markNeedsContact(selected)}
+                className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-900 hover:bg-violet-100 disabled:opacity-45"
+              >
+                Contact…
+              </button>
+            </div>
           ) : null}
           <label className="mt-4 block">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Ops review notes</span>

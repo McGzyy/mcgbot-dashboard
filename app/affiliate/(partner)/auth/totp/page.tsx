@@ -20,12 +20,20 @@ export default function AffiliateTotpVerifyPage() {
         credentials: "same-origin",
         body: JSON.stringify({ code: code.trim() }),
       });
-      const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        redirectTo?: string;
+      };
       if (!res.ok || !j.success) {
         setErr(typeof j.error === "string" ? j.error : "Verification failed.");
         return;
       }
-      router.replace("/affiliate/dashboard");
+      const next =
+        typeof j.redirectTo === "string" && j.redirectTo.startsWith("/affiliate")
+          ? j.redirectTo
+          : "/affiliate/application";
+      router.replace(next);
     } catch {
       setErr("Network error.");
     } finally {

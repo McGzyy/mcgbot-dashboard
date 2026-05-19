@@ -1,3 +1,7 @@
+import {
+  AFFILIATE_APPLICATION_STATUS_PATH,
+  isAffiliateApplicationGateStatus,
+} from "@/lib/affiliate/affiliateApplicationStatus";
 import type { AffiliateSessionClaims } from "@/lib/affiliate/affiliateSession";
 import { affiliateSessionFullyVerified } from "@/lib/affiliate/affiliateSession";
 
@@ -6,7 +10,7 @@ export function affiliatePostAuthPath(session: AffiliateSessionClaims): string {
   if (session.needsTotpEnrollment) return "/affiliate/auth/setup";
   if (session.pendingTotpVerification) return "/affiliate/auth/totp";
   if (!affiliateSessionFullyVerified(session)) return "/affiliate/auth/totp";
-  if (session.status === "pending") return "/affiliate/pending";
+  if (isAffiliateApplicationGateStatus(session.status)) return AFFILIATE_APPLICATION_STATUS_PATH;
   if (session.needsAgreement) return "/affiliate/auth/agreement";
   return "/affiliate/dashboard";
 }

@@ -1,13 +1,26 @@
 import { requireAffiliateOpsAdmin } from "@/lib/affiliate/requireAffiliateOpsAccess";
 import {
   updateAffiliateAccountCommissionRateBps,
-  updateAffiliateAccountStatus,
+  updateAffiliateApplicationReview,
   updateAffiliateAdminReviewNotes,
 } from "@/lib/affiliate/affiliateDb";
 import type { AffiliateAccountStatus } from "@/lib/affiliate/affiliateSession";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function parseStatus(raw: string): AffiliateAccountStatus | null {
+  if (
+    raw === "pending" ||
+    raw === "needs_contact" ||
+    raw === "denied" ||
+    raw === "active" ||
+    raw === "suspended"
+  ) {
+    return raw;
+  }
+  return null;
+}
 
 export async function PATCH(
   request: Request,
@@ -19,8 +32,7 @@ export async function PATCH(
   const { id } = await ctx.params;
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const statusRaw = typeof body?.status === "string" ? body.status.trim() : "";
-  const status: AffiliateAccountStatus | null =
-    statusRaw === "pending" || statusRaw === "active" || statusRaw === "suspended" ? statusRaw : null;
+  const status = statusRaw ? parseStatus(statusRaw) : null;
 
   const hasBps = body?.commissionRateBps !== undefined && body?.commissionRateBps !== null;
   const bps = hasBps ? Math.floor(Number(body?.commissionRateBps)) : NaN;
@@ -28,6 +40,12 @@ export async function PATCH(
   const adminReviewNotes = hasReviewNotes
     ? typeof body?.adminReviewNotes === "string"
       ? body.adminReviewNotes
+      : null
+    : undefined;
+  const hasDenialReason = body !== null && Object.prototype.hasOwnProperty.call(body, "denialReason");
+  const denialReason = hasDenialReason
+    ? typeof body?.denialReason === "string"
+      ? body.denialReason
       : null
     : undefined;
 
@@ -43,9 +61,12 @@ export async function PATCH(
   }
 
   if (status) {
-    const ok = await updateAffiliateAccountStatus(id, status);
-    if (!ok) {
-      return Response.json({ success: false, error: "Status update failed" }, { status: 500 });
+    const review = await updateAffiliateApplicationReview(id, {
+      status,
+      denialReason: status === "denied" ? denialReason : null,
+    });
+    if (!review.ok) {
+      return Response.json({ success: false, error: review.error }, { status: 400 });
     }
   }
 
@@ -68,5 +89,6 @@ export async function PATCH(
     status: status ?? undefined,
     commissionRateBps: hasBps ? bps : undefined,
     adminReviewNotes: hasReviewNotes ? adminReviewNotes : undefined,
+    denialReason: status === "denied" ? denialReason : undefined,
   });
 }

@@ -44,8 +44,12 @@ export default function AffiliateLoginPage() {
         router.replace("/affiliate/auth/totp");
         return;
       }
-      if (j.account?.status === "pending") {
-        router.replace("/affiliate/pending");
+      if (
+        j.account?.status === "pending" ||
+        j.account?.status === "denied" ||
+        j.account?.status === "needs_contact"
+      ) {
+        router.replace("/affiliate/application");
         return;
       }
       router.replace("/affiliate/dashboard");
