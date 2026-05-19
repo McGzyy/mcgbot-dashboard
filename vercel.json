@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/affiliate-milestones",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/affiliate-commission-approve",
+      "schedule": "15 * * * *"
     }
   ]
 }

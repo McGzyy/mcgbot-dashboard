@@ -53,6 +53,12 @@ export default async function AffiliateAdminOverviewPage() {
               tone={stats.pendingApplications > 0 ? "warn" : "neutral"}
             />
             <MetricCard label="Active affiliates" value={String(stats.activePartners)} tone="ok" />
+            <MetricCard
+              label="Open contact messages"
+              value={String(stats.openContactInquiries)}
+              tone={stats.openContactInquiries > 0 ? "warn" : "neutral"}
+              hint="Public /affiliate/support form"
+            />
             <MetricCard label="Suspended" value={String(stats.suspendedPartners)} />
             <MetricCard
               label="Pending commission (ledger)"

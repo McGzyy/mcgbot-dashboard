@@ -1,6 +1,7 @@
 import {
   annualSignupBonusCents,
-  commissionRateBpsForPaymentIndex,
+  commissionEligibleAt,
+  commissionRateBpsForReferralPayment,
 } from "@/lib/affiliate/affiliateCommissionSchedule";
 import { evaluateAffiliateMilestones } from "@/lib/affiliate/affiliateMilestones";
 import { getAffiliateById } from "@/lib/affiliate/affiliateDb";
@@ -18,6 +19,8 @@ async function insertCommissionRow(input: {
   source: string;
   stripeInvoiceId?: string | null;
   idempotencyKey: string;
+  billingInterval: "monthly" | "annual";
+  eligibleAt: string;
 }): Promise<{ ok: true; recorded: boolean } | { ok: false; error: string }> {
   if (input.commissionCents <= 0) return { ok: true, recorded: false };
 
@@ -36,6 +39,8 @@ async function insertCommissionRow(input: {
     source: input.source,
     stripe_invoice_id: input.stripeInvoiceId?.trim() || null,
     idempotency_key: input.idempotencyKey,
+    billing_interval: input.billingInterval,
+    eligible_at: input.eligibleAt,
     updated_at: new Date().toISOString(),
   });
 
@@ -80,7 +85,10 @@ export async function recordAffiliateCommissionFromPaidPayment(input: {
   if (!account || account.status !== "active") return { ok: true, recorded: false };
 
   const paymentIndex = ledger.paymentIndex;
-  const rateBps = commissionRateBpsForPaymentIndex(paymentIndex);
+  const billingInterval = ledger.billingInterval;
+  const paidAt = new Date();
+  const eligibleAt = commissionEligibleAt(paidAt, billingInterval);
+  const rateBps = commissionRateBpsForReferralPayment({ paymentIndex, billingInterval });
   let anyRecorded = false;
 
   if (rateBps != null) {
@@ -96,6 +104,8 @@ export async function recordAffiliateCommissionFromPaidPayment(input: {
       source: input.source,
       stripeInvoiceId: input.stripeInvoiceId,
       idempotencyKey,
+      billingInterval,
+      eligibleAt,
     });
     if (!rev.ok) return rev;
     if (rev.recorded) anyRecorded = true;
@@ -114,6 +124,8 @@ export async function recordAffiliateCommissionFromPaidPayment(input: {
       source: "annual_signup_bonus",
       stripeInvoiceId: input.stripeInvoiceId,
       idempotencyKey: `${idempotencyKey}:annual_bonus`,
+      billingInterval: "annual",
+      eligibleAt: commissionEligibleAt(paidAt, "annual"),
     });
     if (!bonusRes.ok) return bonusRes;
     if (bonusRes.recorded) anyRecorded = true;

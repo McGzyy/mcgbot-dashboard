@@ -1,9 +1,11 @@
+import { countOpenPublicContactInquiries } from "@/lib/affiliate/affiliatePublicContactAdmin";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export type AffiliateAdminOverviewStats = {
   pendingApplications: number;
   activePartners: number;
   suspendedPartners: number;
+  openContactInquiries: number;
   commissionsPendingCents: number;
   commissionsLast30dCents: number;
   attributionRows: number;
@@ -52,10 +54,13 @@ export async function getAffiliateAdminOverviewStats(): Promise<AffiliateAdminOv
     .select("*", { count: "exact", head: true });
   if (!attrErr && typeof attrCount === "number") attributionRows = attrCount;
 
+  const openContactInquiries = await countOpenPublicContactInquiries();
+
   return {
     pendingApplications,
     activePartners,
     suspendedPartners,
+    openContactInquiries,
     commissionsPendingCents,
     commissionsLast30dCents,
     attributionRows,

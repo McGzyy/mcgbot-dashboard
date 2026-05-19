@@ -1,12 +1,12 @@
 /** Bump when affiliate agreement text changes — active affiliates must re-sign. */
-export const CURRENT_PARTNER_AGREEMENT_VERSION = "2026-05-18-v1";
+export const CURRENT_PARTNER_AGREEMENT_VERSION = "2026-05-18-v2";
 
 export const PARTNER_AGREEMENT_TITLE = "McGBot Affiliate Agreement";
 
 export const PARTNER_AGREEMENT_SECTIONS: { heading: string; body: string }[] = [
   {
     heading: "Program overview",
-    body: "You promote McGBot Terminal subscriptions using your assigned tracking link. You earn recurring commission on each referred member’s subscription payments (15% on their 1st payment, 25% on their 2nd, 15% on their 3rd–12th), plus separate milestone and annual-plan bonuses described in your affiliate resources. You are an independent contractor, not an employee of McGBot.",
+    body: "You promote McGBot Terminal subscriptions using your assigned tracking link. You earn recurring commission on qualifying subscription payments per the published schedule (20% on primary payments, 10% on tail payments — monthly and annual tracks differ), plus separate milestone and first-annual signup bonuses ($5 Basic / $10 Pro) described in your affiliate resources. Commissions may remain pending during a hold period (~30 days monthly, ~90 days annual) before approval. You are an independent contractor, not an employee of McGBot.",
   },
   {
     heading: "Promotion standards",

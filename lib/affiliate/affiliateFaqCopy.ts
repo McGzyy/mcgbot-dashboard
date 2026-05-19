@@ -42,7 +42,7 @@ export const AFFILIATE_FAQ_SECTIONS: AffiliateFaqSection[] = [
         id: "payment-timeline",
         question: "What does “1st payment, 2nd payment” mean?",
         answer:
-          "Each referred member has their own timeline. You earn a percentage of their subscription payments #1 through #12 — not calendar months on your schedule. Their 2nd payment pays 25% (the highest rate); other payments in the window pay 15%.",
+          "Each referred member has their own timeline — not calendar months on your schedule. Monthly subscribers: 20% on payments 1–12, then 10% on payments 13–36. Annual subscribers: 20% on their first annual payment, 10% on their 2nd and 3rd annual renewals. See the program page for full tables and the first-annual signup bonus.",
       },
       {
         id: "milestones",
@@ -83,6 +83,12 @@ export const AFFILIATE_FAQ_SECTIONS: AffiliateFaqSection[] = [
         question: "How do tracking links work?",
         answer:
           "After approval you receive a main tracking link and can create campaign sub-links in your dashboard. Clicks are attributed for a limited window before signup; use the link we provide for accurate tracking.",
+      },
+      {
+        id: "hold",
+        question: "Why are some commissions still pending?",
+        answer:
+          "Rev-share and annual signup bonuses stay pending for about 30 days (monthly subscribers) or 90 days (annual) after the member pays. They auto-approve if the member is still subscribed when the hold ends. Refunds void pending or approved commissions tied to that invoice.",
       },
       {
         id: "payouts",

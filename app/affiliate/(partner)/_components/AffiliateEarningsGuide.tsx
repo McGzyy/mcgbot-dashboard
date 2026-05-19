@@ -7,6 +7,38 @@ import {
 
 type Variant = "compact" | "full";
 
+function RateTable({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: readonly { payment: string; rate: string }[];
+}) {
+  return (
+    <div className="mt-3">
+      <p className="text-xs font-semibold text-zinc-800">{title}</p>
+      <div className="mt-2 overflow-hidden rounded-xl border border-zinc-200">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-zinc-50 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            <tr>
+              <th className="px-3 py-2">Their payment</th>
+              <th className="px-3 py-2 text-right">You earn</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {rows.map((row) => (
+              <tr key={row.payment}>
+                <td className="px-3 py-2.5 text-zinc-700">{row.payment}</td>
+                <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-zinc-900">{row.rate}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function AffiliateEarningsGuide({ variant = "full" }: { variant?: Variant }) {
   if (variant === "compact") {
     return (
@@ -25,6 +57,10 @@ export function AffiliateEarningsGuide({ variant = "full" }: { variant?: Variant
             <span className="font-semibold text-zinc-900">Annual plans — </span>
             {AFFILIATE_EARNINGS_SUMMARY.annual}
           </li>
+          <li>
+            <span className="font-semibold text-zinc-900">Hold — </span>
+            {AFFILIATE_EARNINGS_SUMMARY.hold}
+          </li>
         </ul>
         <p className="text-[11px] leading-relaxed text-zinc-500">{AFFILIATE_EARNINGS_SUMMARY.timingNote}</p>
       </div>
@@ -36,25 +72,10 @@ export function AffiliateEarningsGuide({ variant = "full" }: { variant?: Variant
       <section>
         <h3 className="text-sm font-semibold text-zinc-900">{AFFILIATE_RECURRING_COMMISSION_COPY.title}</h3>
         <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">{AFFILIATE_RECURRING_COMMISSION_COPY.lead}</p>
-        <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-zinc-50 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-              <tr>
-                <th className="px-3 py-2">Their payment</th>
-                <th className="px-3 py-2 text-right">You earn</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {AFFILIATE_RECURRING_COMMISSION_COPY.rows.map((row) => (
-                <tr key={row.payment}>
-                  <td className="px-3 py-2.5 text-zinc-700">{row.payment}</td>
-                  <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-zinc-900">{row.rate}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <RateTable title="Monthly subscriber track" rows={AFFILIATE_RECURRING_COMMISSION_COPY.monthlyRows} />
+        <RateTable title="Annual subscriber track" rows={AFFILIATE_RECURRING_COMMISSION_COPY.annualRows} />
         <p className="mt-2 text-xs leading-relaxed text-zinc-500">{AFFILIATE_RECURRING_COMMISSION_COPY.billingNote}</p>
+        <p className="mt-2 text-xs leading-relaxed text-zinc-500">{AFFILIATE_RECURRING_COMMISSION_COPY.holdNote}</p>
         <p className="mt-2 text-xs leading-relaxed text-zinc-500">{AFFILIATE_EARNINGS_SUMMARY.timingNote}</p>
       </section>
 

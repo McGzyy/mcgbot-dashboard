@@ -72,11 +72,17 @@ export async function GET() {
     milestones,
     referralCount,
     program: {
-      revShareSchedule: [
-        { paymentIndex: 1, ratePercent: 15 },
-        { paymentIndex: 2, ratePercent: 25 },
-        { paymentIndex: "3-12", ratePercent: 15 },
-      ],
+      revShareSchedule: {
+        monthly: [
+          { payments: "1-12", ratePercent: 20 },
+          { payments: "13-36", ratePercent: 10 },
+        ],
+        annual: [
+          { payments: "1", ratePercent: 20 },
+          { payments: "2-3", ratePercent: 10 },
+        ],
+        holdDays: { monthly: 30, annual: 90 },
+      },
       annualSignupBonus: { basicCents: 500, proCents: 1000 },
       milestoneTiers: [
         {
