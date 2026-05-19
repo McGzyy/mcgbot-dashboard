@@ -37,6 +37,7 @@ type AffiliateRow = {
   commissionRateBps: number;
   totpEnabled: boolean;
   affiliateSlug: string | null;
+  referralCode?: string | null;
   slugChangePending: string | null;
   createdAt: string;
   application?: AffiliateApplication;
@@ -399,7 +400,11 @@ export function AffiliateAdminConsole() {
                     </td>
                     <td className="max-w-[9rem] px-3 py-2 font-mono text-[10px] text-zinc-500">
                       <span className="block truncate">
-                        {a.status === "active" && a.affiliateSlug ? `/affiliate/r/${a.affiliateSlug}` : "—"}
+                        {a.status === "active" && a.referralCode
+                          ? `/r/${a.referralCode}`
+                          : a.affiliateSlug
+                            ? `/affiliate/r/${a.affiliateSlug}`
+                            : "—"}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>

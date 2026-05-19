@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getAffiliateById } from "@/lib/affiliate/affiliateDb";
+import { ensureAffiliateReferralCode, getAffiliateById } from "@/lib/affiliate/affiliateDb";
 import { getAffiliateMilestoneProgress } from "@/lib/affiliate/affiliateMilestones";
-import { affiliateTrackingUrl } from "@/lib/affiliate/affiliateTrackingLink";
+import { affiliateShortReferralUrl } from "@/lib/affiliate/affiliateTrackingLink";
 import { requireAffiliateSession } from "@/lib/affiliate/requireAffiliateSession";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -48,10 +48,11 @@ export async function GET() {
     }
   }
 
-  const trackingLink =
-    account.status === "active" && account.affiliateSlug
-      ? affiliateTrackingUrl(account.affiliateSlug)
+  const referralCode =
+    account.status === "active"
+      ? account.referralCode ?? (await ensureAffiliateReferralCode(account.id))
       : null;
+  const trackingLink = referralCode ? affiliateShortReferralUrl(referralCode) : null;
 
   const milestones = await getAffiliateMilestoneProgress(auth.session.affiliateId);
 

@@ -23,6 +23,7 @@ import {
   validateAffiliatePayoutDestination,
   type AffiliatePayoutMethod,
 } from "@/lib/affiliate/affiliatePayoutMethod";
+import { generateUniqueReferralCode, normalizeReferralCode } from "@/lib/affiliate/affiliateReferralCode";
 import {
   ensureUniqueAffiliateSlug,
   isValidAffiliateSlug,
@@ -65,6 +66,7 @@ export type AffiliateAccountRow = {
   payoutMethod: AffiliatePayoutMethod | null;
   payoutDestination: string | null;
   payoutMethodUpdatedAt: string | null;
+  referralCode: string | null;
   application: AffiliateApplicationRow;
 };
 
@@ -121,6 +123,10 @@ function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
         : null,
     payoutMethodUpdatedAt:
       typeof data.payout_method_updated_at === "string" ? data.payout_method_updated_at : null,
+    referralCode:
+      typeof data.referral_code === "string" && data.referral_code.trim()
+        ? normalizeReferralCode(data.referral_code)
+        : null,
     application: {
       legalName:
         typeof data.application_legal_name === "string" ? data.application_legal_name.trim() : null,
@@ -178,7 +184,7 @@ function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
 
 const ACCOUNT_SELECT = `id, email, display_name, status, commission_rate_bps, totp_enabled, affiliate_slug, created_at,
   agreement_version, agreement_signed_at, slug_changed_at, slug_change_pending,
-  payout_method, payout_destination, payout_method_updated_at,
+  payout_method, payout_destination, payout_method_updated_at, referral_code,
   application_legal_name, application_company_name, application_country, application_primary_channel,
   application_audience_size, application_promo_methods, application_social_links, application_website_url,
   application_notes, application_submitted_at, admin_review_notes,
@@ -532,6 +538,44 @@ async function isSlugTakenGlobally(slug: string, exceptAffiliateId?: string): Pr
   return false;
 }
 
+export async function ensureAffiliateReferralCode(affiliateId: string): Promise<string | null> {
+  const account = await getAffiliateById(affiliateId);
+  if (!account || account.status !== "active") return null;
+  if (account.referralCode) return account.referralCode;
+
+  const code = await generateUniqueReferralCode();
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({
+      referral_code: code,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", affiliateId.trim());
+  if (error) {
+    console.error("[affiliateDb] ensureAffiliateReferralCode", error);
+    return null;
+  }
+  return code;
+}
+
+export async function getAffiliateByReferralCode(code: string): Promise<AffiliateAccountRow | null> {
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const c = normalizeReferralCode(code);
+  if (!c) return null;
+  const { data, error } = await db
+    .from("affiliate_accounts")
+    .select(ACCOUNT_SELECT)
+    .eq("referral_code", c)
+    .maybeSingle();
+  if (error || !data || typeof data !== "object") return null;
+  const row = mapRow(data as Record<string, unknown>);
+  if (!row || row.status === "suspended") return null;
+  return row;
+}
+
 export async function getAffiliateBySlug(slug: string): Promise<AffiliateAccountRow | null> {
   const db = getSupabaseAdmin();
   if (!db) return null;
@@ -764,6 +808,9 @@ export async function updateAffiliateAccountStatus(
   if (error) {
     console.error("[affiliateDb] update status", error);
     return false;
+  }
+  if (status === "active") {
+    void ensureAffiliateReferralCode(id);
   }
   return true;
 }

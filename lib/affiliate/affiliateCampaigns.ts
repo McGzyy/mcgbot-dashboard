@@ -1,3 +1,4 @@
+import { generateUniqueReferralCode, normalizeReferralCode } from "@/lib/affiliate/affiliateReferralCode";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { isValidAffiliateSlug, normalizeAffiliateSlug } from "@/lib/affiliate/affiliateSlug";
 
@@ -6,6 +7,7 @@ export type AffiliateCampaignRow = {
   affiliateId: string;
   slug: string;
   name: string;
+  linkCode: string | null;
   createdAt: string;
 };
 
@@ -24,6 +26,10 @@ function mapCampaignRow(data: Record<string, unknown>): AffiliateCampaignRow | n
     affiliateId,
     slug,
     name,
+    linkCode:
+      typeof data.link_code === "string" && data.link_code.trim()
+        ? normalizeReferralCode(data.link_code)
+        : null,
     createdAt: typeof data.created_at === "string" ? data.created_at : "",
   };
 }
@@ -33,7 +39,7 @@ export async function listAffiliateCampaigns(affiliateId: string): Promise<Affil
   if (!db) return [];
   const { data, error } = await db
     .from("affiliate_campaigns")
-    .select("id, affiliate_id, slug, name, created_at")
+    .select("id, affiliate_id, slug, name, link_code, created_at")
     .eq("affiliate_id", affiliateId.trim())
     .order("created_at", { ascending: false })
     .limit(50);
@@ -41,6 +47,47 @@ export async function listAffiliateCampaigns(affiliateId: string): Promise<Affil
   return data
     .map((r) => mapCampaignRow(r as Record<string, unknown>))
     .filter((r): r is AffiliateCampaignRow => Boolean(r));
+}
+
+export async function getAffiliateCampaignByLinkCode(
+  linkCode: string
+): Promise<AffiliateCampaignRow | null> {
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const code = normalizeReferralCode(linkCode);
+  if (!code) return null;
+  const { data, error } = await db
+    .from("affiliate_campaigns")
+    .select("id, affiliate_id, slug, name, link_code, created_at")
+    .eq("link_code", code)
+    .maybeSingle();
+  if (error || !data || typeof data !== "object") return null;
+  return mapCampaignRow(data as Record<string, unknown>);
+}
+
+export async function ensureAffiliateCampaignLinkCode(campaignId: string): Promise<string | null> {
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const { data, error } = await db
+    .from("affiliate_campaigns")
+    .select("id, affiliate_id, slug, name, link_code, created_at")
+    .eq("id", campaignId.trim())
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = mapCampaignRow(data as Record<string, unknown>);
+  if (!row) return null;
+  if (row.linkCode) return row.linkCode;
+
+  const linkCode = await generateUniqueReferralCode();
+  const { error: upErr } = await db
+    .from("affiliate_campaigns")
+    .update({ link_code: linkCode })
+    .eq("id", row.id);
+  if (upErr) {
+    console.error("[affiliateCampaigns] ensureAffiliateCampaignLinkCode", upErr);
+    return null;
+  }
+  return linkCode;
 }
 
 export async function getAffiliateCampaignBySlug(
@@ -53,7 +100,7 @@ export async function getAffiliateCampaignBySlug(
   if (!slug) return null;
   const { data, error } = await db
     .from("affiliate_campaigns")
-    .select("id, affiliate_id, slug, name, created_at")
+    .select("id, affiliate_id, slug, name, link_code, created_at")
     .eq("affiliate_id", affiliateId.trim())
     .eq("slug", slug)
     .maybeSingle();
@@ -88,10 +135,12 @@ export async function createAffiliateCampaign(input: {
     return { ok: false, error: "Maximum 30 campaigns per affiliate." };
   }
 
+  const linkCode = await generateUniqueReferralCode();
+
   const { data, error } = await db
     .from("affiliate_campaigns")
-    .insert({ affiliate_id: affiliateId, slug, name })
-    .select("id, affiliate_id, slug, name, created_at")
+    .insert({ affiliate_id: affiliateId, slug, name, link_code: linkCode })
+    .select("id, affiliate_id, slug, name, link_code, created_at")
     .single();
 
   if (error) {

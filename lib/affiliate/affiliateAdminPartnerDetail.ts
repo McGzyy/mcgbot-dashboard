@@ -1,5 +1,4 @@
-import type { AffiliateAccountRow } from "@/lib/affiliate/affiliateDb";
-import { getAffiliateById } from "@/lib/affiliate/affiliateDb";
+import { ensureAffiliateReferralCode, getAffiliateById, type AffiliateAccountRow } from "@/lib/affiliate/affiliateDb";
 import { listAffiliateCommissionsForAffiliate } from "@/lib/affiliate/affiliateCommissions";
 import {
   getAffiliateMilestoneProgress,
@@ -10,7 +9,7 @@ import {
   listAffiliatePayoutRequests,
   type AffiliatePayoutRequestRow,
 } from "@/lib/affiliate/affiliatePayouts";
-import { affiliateTrackingUrl } from "@/lib/affiliate/affiliateTrackingLink";
+import { affiliateShortReferralUrl } from "@/lib/affiliate/affiliateTrackingLink";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export type AffiliateCommissionSummary = {
@@ -114,10 +113,11 @@ export async function getAffiliateAdminPartnerDetail(
     getAttributionStats(account.id),
   ]);
 
-  const trackingLink =
-    account.status === "active" && account.affiliateSlug
-      ? affiliateTrackingUrl(account.affiliateSlug)
+  const referralCode =
+    account.status === "active"
+      ? account.referralCode ?? (await ensureAffiliateReferralCode(account.id))
       : null;
+  const trackingLink = referralCode ? affiliateShortReferralUrl(referralCode) : null;
 
   return {
     account,

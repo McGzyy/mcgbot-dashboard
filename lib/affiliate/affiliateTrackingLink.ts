@@ -1,4 +1,4 @@
-import { normalizeAffiliateSlug } from "@/lib/affiliate/affiliateSlug";
+import { normalizeReferralCode } from "@/lib/affiliate/affiliateReferralCode";
 
 export function affiliateSiteBaseUrl(): string {
   const base =
@@ -8,10 +8,21 @@ export function affiliateSiteBaseUrl(): string {
   return base.replace(/\/$/, "");
 }
 
+/** Short public link: mcgbot.xyz/r/H3K8Z */
+export function affiliateShortReferralUrl(referralCode: string): string {
+  const code = normalizeReferralCode(referralCode);
+  return `${affiliateSiteBaseUrl()}/r/${encodeURIComponent(code)}`;
+}
+
+export function affiliateShortCampaignUrl(linkCode: string): string {
+  const code = normalizeReferralCode(linkCode);
+  return `${affiliateSiteBaseUrl()}/r/${encodeURIComponent(code)}`;
+}
+
+/** @deprecated Legacy vanity path — prefer affiliateShortReferralUrl when referral_code exists. */
 export function affiliateTrackingUrl(slug: string, campaignSlug?: string | null): string {
-  const s = normalizeAffiliateSlug(slug);
-  const base = `${affiliateSiteBaseUrl()}/affiliate/r/${encodeURIComponent(s)}`;
-  const c = campaignSlug ? normalizeAffiliateSlug(campaignSlug) : "";
+  const base = `${affiliateSiteBaseUrl()}/affiliate/r/${encodeURIComponent(slug.trim().toLowerCase())}`;
+  const c = campaignSlug?.trim().toLowerCase() ?? "";
   if (!c) return base;
   return `${base}?${new URLSearchParams({ c }).toString()}`;
 }

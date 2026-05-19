@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import {
   createAffiliateCampaign,
+  ensureAffiliateCampaignLinkCode,
   listAffiliateCampaignsWithStats,
 } from "@/lib/affiliate/affiliateCampaigns";
 import { countAffiliateLinkClicks } from "@/lib/affiliate/affiliateLinkClicks";
-import { affiliateTrackingUrl } from "@/lib/affiliate/affiliateTrackingLink";
-import { getAffiliateById } from "@/lib/affiliate/affiliateDb";
+import {
+  affiliateShortCampaignUrl,
+  affiliateShortReferralUrl,
+} from "@/lib/affiliate/affiliateTrackingLink";
+import { ensureAffiliateReferralCode, getAffiliateById } from "@/lib/affiliate/affiliateDb";
 import { requireAffiliateSession } from "@/lib/affiliate/requireAffiliateSession";
 
 export const runtime = "nodejs";
@@ -16,9 +20,14 @@ export async function GET() {
   if (!auth.ok) return auth.response;
 
   const account = await getAffiliateById(auth.session.affiliateId);
-  const partnerSlug = account?.affiliateSlug;
-  if (!account || !partnerSlug) {
+  if (!account) {
     return NextResponse.json({ success: false, error: "Account not found." }, { status: 404 });
+  }
+
+  const referralCode =
+    account.referralCode ?? (await ensureAffiliateReferralCode(auth.session.affiliateId));
+  if (!referralCode) {
+    return NextResponse.json({ success: false, error: "Could not load referral link." }, { status: 500 });
   }
 
   const campaigns = await listAffiliateCampaignsWithStats(auth.session.affiliateId);
@@ -26,14 +35,22 @@ export async function GET() {
     campaignId: null,
   });
 
+  const campaignsWithUrls = await Promise.all(
+    campaigns.map(async (c) => {
+      const linkCode = c.linkCode ?? (await ensureAffiliateCampaignLinkCode(c.id));
+      return {
+        ...c,
+        trackingUrl: linkCode ? affiliateShortCampaignUrl(linkCode) : null,
+      };
+    })
+  );
+
   return NextResponse.json({
     success: true,
-    defaultLink: affiliateTrackingUrl(partnerSlug),
+    defaultLink: affiliateShortReferralUrl(referralCode),
+    referralCode,
     defaultClickCount,
-    campaigns: campaigns.map((c) => ({
-      ...c,
-      trackingUrl: affiliateTrackingUrl(partnerSlug, c.slug),
-    })),
+    campaigns: campaignsWithUrls,
   });
 }
 
@@ -54,11 +71,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: created.error }, { status: 400 });
   }
 
-  const account = await getAffiliateById(auth.session.affiliateId);
-  const partnerSlug = account?.affiliateSlug;
-  const trackingUrl = partnerSlug
-    ? affiliateTrackingUrl(partnerSlug, created.campaign.slug)
-    : null;
+  const linkCode = created.campaign.linkCode;
+  const trackingUrl = linkCode ? affiliateShortCampaignUrl(linkCode) : null;
 
   return NextResponse.json({
     success: true,

@@ -36,6 +36,7 @@ function isPublicForAnonymous(pathname: string): boolean {
   if (pathname.startsWith("/subscribe")) return true;
   if (pathname.startsWith("/membership")) return true;
   if (pathname.startsWith("/ref")) return true;
+  if (pathname.startsWith("/r/")) return true;
   if (pathname.startsWith("/affiliate/r/")) return true;
   if (isAffiliatePortalPath(pathname)) return true;
   if (isPublicProfilePage(pathname)) return true;
@@ -314,6 +315,8 @@ function isMaintenanceExempt(pathname: string, method: string): boolean {
   if (pathname.startsWith("/join/verify")) return true;
   if (pathname === "/api/public/site-flags" && method === "GET") return true;
   if (pathname.startsWith("/ref")) return true;
+  if (pathname.startsWith("/r/")) return true;
+  if (pathname.startsWith("/r/")) return true;
   if (pathname.startsWith("/affiliate/r/")) return true;
   if (pathname.startsWith("/affiliate/admin/enter")) return true;
   if (pathname.startsWith("/affiliate/admin/denied")) return true;
