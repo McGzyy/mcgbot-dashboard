@@ -208,6 +208,92 @@ export type AffiliateCommissionAdminRow = {
   createdAt: string;
 };
 
+export type AffiliateCommissionPartnerRow = {
+  id: string;
+  commissionCents: number;
+  paymentAmountCents: number | null;
+  paymentIndex: number | null;
+  kind: string;
+  status: string;
+  billingInterval: "monthly" | "annual" | null;
+  eligibleAt: string | null;
+  createdAt: string;
+  description: string;
+};
+
+export function affiliateCommissionPartnerDescription(input: {
+  kind: string;
+  paymentIndex: number | null;
+  billingInterval: "monthly" | "annual" | null;
+}): string {
+  const kind = input.kind;
+  if (kind === "milestone") return "Milestone bonus";
+  if (kind === "annual_signup_bonus") return "Annual plan signup bonus";
+  if (kind === "revshare") {
+    const n = input.paymentIndex;
+    const interval =
+      input.billingInterval === "annual"
+        ? "annual"
+        : input.billingInterval === "monthly"
+          ? "monthly"
+          : "subscription";
+    if (n != null && n >= 1) return `Recurring · ${interval} payment #${n}`;
+    return "Recurring commission";
+  }
+  return kind.replace(/_/g, " ");
+}
+
+export async function listAffiliateCommissionsForPartner(
+  affiliateId: string,
+  options?: { limit?: number; status?: string | null }
+): Promise<AffiliateCommissionPartnerRow[]> {
+  const db = getSupabaseAdmin();
+  if (!db) return [];
+  const lim = Math.min(200, Math.max(1, options?.limit ?? 100));
+  let query = db
+    .from("affiliate_commissions")
+    .select(
+      "id, payment_amount_cents, commission_cents, payment_index, kind, status, billing_interval, eligible_at, created_at"
+    )
+    .eq("affiliate_id", affiliateId.trim())
+    .order("created_at", { ascending: false })
+    .limit(lim);
+  const statusFilter = options?.status?.trim();
+  if (statusFilter && statusFilter !== "all") {
+    query = query.eq("status", statusFilter);
+  }
+  const { data, error } = await query;
+  if (error || !Array.isArray(data)) {
+    if (error) console.error("[affiliateCommissions] list for partner", error);
+    return [];
+  }
+  const rows: AffiliateCommissionPartnerRow[] = [];
+  for (const raw of data as Record<string, unknown>[]) {
+    const id = typeof raw.id === "string" ? raw.id : "";
+    if (!id) continue;
+    const kind = typeof raw.kind === "string" ? raw.kind : "revshare";
+    const billingRaw = typeof raw.billing_interval === "string" ? raw.billing_interval : null;
+    const billingInterval =
+      billingRaw === "monthly" || billingRaw === "annual" ? billingRaw : null;
+    const paymentIndex =
+      raw.payment_index == null ? null : Math.floor(Number(raw.payment_index));
+    rows.push({
+      id,
+      commissionCents: Math.floor(Number(raw.commission_cents)) || 0,
+      paymentAmountCents:
+        raw.payment_amount_cents == null ? null : Math.floor(Number(raw.payment_amount_cents)),
+      paymentIndex,
+      kind,
+      status: typeof raw.status === "string" ? raw.status : "",
+      billingInterval,
+      eligibleAt: typeof raw.eligible_at === "string" ? raw.eligible_at : null,
+      createdAt: typeof raw.created_at === "string" ? raw.created_at : "",
+      description: affiliateCommissionPartnerDescription({ kind, paymentIndex, billingInterval }),
+    });
+  }
+  return rows;
+}
+
 export async function listAffiliateCommissionsForAffiliate(
   affiliateId: string,
   limit = 50

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { AffiliateCommissionLedger } from "@/app/affiliate/(partner)/_components/AffiliateCommissionLedger";
 import { AFFILIATE_EARNINGS_SUMMARY } from "@/lib/affiliate/affiliateEarningsCopy";
 
 type CommissionSummary = {
@@ -119,7 +120,7 @@ export default function AffiliateEarningsPage() {
   }, [load]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:py-10">
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:py-10">
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Earnings</p>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Commission ledger</h1>
@@ -163,6 +164,8 @@ export default function AffiliateEarningsPage() {
       ) : (
         <p className="text-sm text-zinc-500">Loading…</p>
       )}
+
+      <AffiliateCommissionLedger />
 
       {balance ? (
         <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm space-y-3">
