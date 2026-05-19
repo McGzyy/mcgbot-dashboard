@@ -42,6 +42,16 @@ export function revshareRatePercentLabel(bps: number): string {
   return Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1)}%`;
 }
 
+/** Short label for admin tables and partner profile summaries. */
+export function affiliateCommissionProgramShortLabel(): string {
+  return `${revshareRatePercentLabel(AFFILIATE_REVSHARE_BASE_BPS)} → ${revshareRatePercentLabel(AFFILIATE_REVSHARE_MID_BPS)} → ${revshareRatePercentLabel(AFFILIATE_REVSHARE_LOYAL_BPS)} loyalty`;
+}
+
+/** Explains that per-referral payment index drives rates (account bps is legacy metadata only). */
+export function affiliateCommissionProgramAdminHint(): string {
+  return `Standard program: ${revshareRatePercentLabel(AFFILIATE_REVSHARE_BASE_BPS)} base, ${revshareRatePercentLabel(AFFILIATE_REVSHARE_MID_BPS)} from referred member payment ${AFFILIATE_REVSHARE_UNLOCK_MID_AT_PAYMENT}, ${revshareRatePercentLabel(AFFILIATE_REVSHARE_LOYAL_BPS)} from payment ${AFFILIATE_REVSHARE_UNLOCK_LOYAL_AT_PAYMENT}. Ledger accrual ignores the account bps field.`;
+}
+
 export function commissionRateBpsForReferralPayment(input: {
   paymentIndex: number;
   billingInterval: "monthly" | "annual";
@@ -149,6 +159,6 @@ export function affiliateRevShareScheduleForProgram() {
       { payments: "3", ratePercent: loyal },
     ],
     holdDays: { ...AFFILIATE_COMMISSION_HOLD_DAYS },
-    revShareOnNetAfterStripeFees: true,
+    accrualBasis: "net" as const,
   };
 }

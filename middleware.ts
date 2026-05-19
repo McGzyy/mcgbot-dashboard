@@ -13,6 +13,7 @@ import {
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
 import { isPublicProfileApi, isPublicProfilePage } from "@/lib/publicProfileRoutes";
 import { isAffiliatePortalPath } from "@/lib/affiliate/affiliatePortalPaths";
+import { affiliateDedicatedPortalHostname } from "@/lib/affiliate/affiliatePortalUrl";
 import { affiliatePostAuthPath } from "@/lib/affiliate/affiliatePostAuthPath";
 import {
   affiliateSessionFullyVerified,
@@ -442,19 +443,9 @@ async function hasDashboardAccessResolved(
   }
 }
 
-function affiliateDedicatedPortalHost(): string | null {
-  const raw = process.env.NEXT_PUBLIC_AFFILIATE_PORTAL_URL?.trim();
-  if (!raw) return null;
-  try {
-    return new URL(raw).hostname;
-  } catch {
-    return null;
-  }
-}
-
 /** When the request hits the dedicated affiliate host, only serve the partner/ops portal. */
 function affiliateDedicatedHostMiddleware(req: NextRequest): NextResponse | null {
-  const portalHost = affiliateDedicatedPortalHost();
+  const portalHost = affiliateDedicatedPortalHostname();
   if (!portalHost || req.nextUrl.hostname !== portalHost) return null;
 
   const pathname = req.nextUrl.pathname;
@@ -474,8 +465,10 @@ function affiliateDedicatedHostMiddleware(req: NextRequest): NextResponse | null
 
 /** Optional: send /affiliate/* on the main site to the dedicated portal origin. */
 function redirectAffiliateToDedicatedPortal(req: NextRequest): NextResponse | null {
+  const portalHost = affiliateDedicatedPortalHostname();
+  if (!portalHost || !isAffiliatePortalPath(req.nextUrl.pathname)) return null;
   const raw = process.env.NEXT_PUBLIC_AFFILIATE_PORTAL_URL?.trim();
-  if (!raw || !isAffiliatePortalPath(req.nextUrl.pathname)) return null;
+  if (!raw) return null;
   let portal: URL;
   try {
     portal = new URL(raw);

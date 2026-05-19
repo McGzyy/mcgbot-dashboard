@@ -8,6 +8,7 @@ const links = [
   { href: "/affiliate/campaigns", label: "Campaigns" },
   { href: "/affiliate/earnings", label: "Earnings" },
   { href: "/affiliate/resources", label: "Resources" },
+  { href: "/affiliate/faq", label: "FAQ" },
   { href: "/affiliate/tickets", label: "Support" },
   { href: "/affiliate/settings", label: "Settings" },
 ] as const;

@@ -11,7 +11,7 @@ import { reapplyAfterFromDenyPolicy } from "@/lib/affiliate/affiliateDenialReapp
 import { AffiliateApplicationDetails } from "@/app/affiliate/admin/_components/AffiliateApplicationDetails";
 import { AffiliatePartnerSummarySection } from "@/app/affiliate/admin/_components/AffiliatePartnerSummarySection";
 import { AFFILIATE_STATUS_LABELS } from "@/lib/affiliate/affiliateApplicationStatus";
-import { AFFILIATE_DEFAULT_COMMISSION_RATE_BPS } from "@/lib/affiliate/affiliateCommissionSchedule";
+import { affiliateCommissionProgramShortLabel } from "@/lib/affiliate/affiliateCommissionSchedule";
 import type { AffiliateAccountStatus } from "@/lib/affiliate/affiliateSession";
 
 type AffiliateApplication = {
@@ -62,9 +62,6 @@ export function AffiliateAdminConsole() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [status, setStatus] = useState<"pending" | "active" | "suspended">("pending");
-  const [commissionRateBps, setCommissionRateBps] = useState(
-    String(AFFILIATE_DEFAULT_COMMISSION_RATE_BPS)
-  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -108,7 +105,6 @@ export function AffiliateAdminConsole() {
           password,
           displayName: displayName.trim() || null,
           status,
-          commissionRateBps: Number(commissionRateBps),
         }),
       });
       const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
@@ -186,31 +182,6 @@ export function AffiliateAdminConsole() {
     if (ok) setContactTarget(row);
   }
 
-  async function saveCommissionRate(id: string, bps: number) {
-    setBusy(`bps:${id}`);
-    setErr(null);
-    setNote(null);
-    try {
-      const res = await fetch(`/api/affiliate/admin/accounts/${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ commissionRateBps: bps }),
-      });
-      const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
-      if (!res.ok || !j.success) {
-        setErr(typeof j.error === "string" ? j.error : "Rate update failed.");
-        return;
-      }
-      setNote("Commission rate saved.");
-      await load();
-    } catch {
-      setErr("Rate update failed.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
   const pendingCount = accounts.filter(
     (a) => a.status === "pending" || a.status === "needs_contact"
   ).length;
@@ -283,8 +254,8 @@ export function AffiliateAdminConsole() {
       <div>
         <h2 className="text-lg font-semibold text-zinc-900">Affiliates</h2>
         <p className="mt-1 text-sm text-zinc-600">
-          Approve self-serve applications, suspend accounts, set account bps label (1500 = 15% base tier), and copy
-          tracking paths for active affiliates.
+          Approve self-serve applications, suspend accounts, and copy tracking paths for active affiliates. All partners
+          use the standard {affiliateCommissionProgramShortLabel()} program.
         </p>
       </div>
 
@@ -329,12 +300,6 @@ export function AffiliateAdminConsole() {
             <option value="active">Active</option>
             <option value="suspended">Suspended</option>
           </select>
-          <input
-            placeholder="Account bps (1500 = 15% base; ledger uses loyalty tiers)"
-            value={commissionRateBps}
-            onChange={(e) => setCommissionRateBps(e.target.value)}
-            className="h-9 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-violet-400 sm:col-span-2"
-          />
           <button
             type="submit"
             disabled={busy !== null}
@@ -359,7 +324,7 @@ export function AffiliateAdminConsole() {
                 <th className="px-3 py-2">Email</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">2FA</th>
-                <th className="px-3 py-2">Rate (bps)</th>
+                <th className="px-3 py-2">Program</th>
                 <th className="px-3 py-2">Link</th>
                 <th className="px-3 py-2 text-right">Actions</th>
               </tr>
@@ -395,21 +360,8 @@ export function AffiliateAdminConsole() {
                       {AFFILIATE_STATUS_LABELS[a.status as AffiliateAccountStatus] ?? a.status}
                     </td>
                     <td className="px-3 py-2 text-zinc-600">{a.totpEnabled ? "Enabled" : "Required"}</td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min={0}
-                        max={10000}
-                        key={`${a.id}-${a.commissionRateBps}`}
-                        defaultValue={a.commissionRateBps}
-                        disabled={busy !== null}
-                        className="w-24 rounded border border-zinc-200 bg-white px-2 py-1 font-mono text-xs text-zinc-900"
-                        onBlur={(e) => {
-                          const n = Math.floor(Number(e.target.value));
-                          if (!Number.isFinite(n) || n < 0 || n > 10000 || n === a.commissionRateBps) return;
-                          void saveCommissionRate(a.id, n);
-                        }}
-                      />
+                    <td className="px-3 py-2 text-[10px] font-medium text-zinc-600">
+                      {affiliateCommissionProgramShortLabel()}
                     </td>
                     <td className="max-w-[9rem] px-3 py-2 font-mono text-[10px] text-zinc-500">
                       <span className="block truncate">

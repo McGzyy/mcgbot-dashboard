@@ -1,4 +1,5 @@
 import type { AffiliateAdminPartnerDetail } from "@/lib/affiliate/affiliateAdminPartnerDetail";
+import { affiliateCommissionProgramShortLabel } from "@/lib/affiliate/affiliateCommissionSchedule";
 import { fmtAffiliateUsd } from "@/lib/affiliate/affiliateFormatUsd";
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
@@ -22,7 +23,7 @@ export function AffiliatePartnerStatsGrid({ detail }: { detail: AffiliateAdminPa
       <StatCard label="Paid out" value={fmtAffiliateUsd(c.paidCents)} />
       <StatCard label="Available to withdraw" value={fmtAffiliateUsd(p.availableCents)} />
       <StatCard label="Commission rows" value={String(c.rowCount)} hint={`Rev ${fmtAffiliateUsd(c.revshareCents)} · bonus ${fmtAffiliateUsd(c.bonusCents)}`} />
-      <StatCard label="Rate (bps)" value={String(detail.account.commissionRateBps)} hint={`${(detail.account.commissionRateBps / 100).toFixed(1)}%`} />
+      <StatCard label="Commission program" value={affiliateCommissionProgramShortLabel()} hint="Per-referral loyalty unlocks" />
     </div>
   );
 }

@@ -11,7 +11,10 @@ import { AFFILIATE_STATUS_LABELS } from "@/lib/affiliate/affiliateApplicationSta
 import type { AffiliateAdminPartnerDetail } from "@/lib/affiliate/affiliateAdminPartnerDetail";
 import { fmtAffiliateUsd } from "@/lib/affiliate/affiliateFormatUsd";
 import type { AffiliateAccountStatus } from "@/lib/affiliate/affiliateSession";
-import { AFFILIATE_DEFAULT_COMMISSION_RATE_BPS } from "@/lib/affiliate/affiliateCommissionSchedule";
+import {
+  affiliateCommissionProgramAdminHint,
+  affiliateCommissionProgramShortLabel,
+} from "@/lib/affiliate/affiliateCommissionSchedule";
 import { formatAffiliatePayoutMethodSummary } from "@/lib/affiliate/affiliatePayoutMethod";
 
 function milestoneStatusLabel(status: string | null): string {
@@ -33,7 +36,6 @@ export default function AffiliateAdminPartnerProfilePage() {
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [reviewNotesDraft, setReviewNotesDraft] = useState("");
-  const [commissionBpsDraft, setCommissionBpsDraft] = useState("");
 
   const load = useCallback(async () => {
     if (!affiliateId) return;
@@ -55,7 +57,6 @@ export default function AffiliateAdminPartnerProfilePage() {
       }
       setDetail(j.detail);
       setReviewNotesDraft(j.detail.account.application.adminReviewNotes ?? "");
-      setCommissionBpsDraft(String(j.detail.account.commissionRateBps));
     } catch {
       setErr("Could not load affiliate.");
     } finally {
@@ -222,38 +223,15 @@ export default function AffiliateAdminPartnerProfilePage() {
           ) : null}
         </p>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <label className="block">
+          <div className="block">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               Commission program
             </span>
-            <div className="mt-1 flex gap-2">
-              <input
-                type="number"
-                min={0}
-                max={10000}
-                value={commissionBpsDraft}
-                onChange={(e) => setCommissionBpsDraft(e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-200 bg-white px-3 font-mono text-sm text-zinc-900 outline-none focus:border-violet-400"
-              />
-              <button
-                type="button"
-                disabled={busy !== null}
-                onClick={() =>
-                  void patch(
-                    { commissionRateBps: Math.floor(Number(commissionBpsDraft)) },
-                    "Commission rate saved."
-                  )
-                }
-                className="shrink-0 rounded-lg border border-violet-300 bg-violet-600 px-3 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-45"
-              >
-                Save
-              </button>
-            </div>
-            <p className="mt-1 text-[11px] text-zinc-500">
-              Default on approve is {AFFILIATE_DEFAULT_COMMISSION_RATE_BPS} ({AFFILIATE_DEFAULT_COMMISSION_RATE_BPS / 100}% base).
-              Recurring payouts follow loyalty unlocks (15% → 20% → 25%) per referral payment index.
+            <p className="mt-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-semibold text-zinc-900">
+              {affiliateCommissionProgramShortLabel()}
             </p>
-          </label>
+            <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">{affiliateCommissionProgramAdminHint()}</p>
+          </div>
           <label className="block lg:col-span-1">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               Internal review notes
