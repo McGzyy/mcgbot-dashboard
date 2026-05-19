@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { AffiliateEarningsGuide } from "@/app/affiliate/(partner)/_components/AffiliateEarningsGuide";
 
 const RULES = [
   "Disclose affiliate relationship where required by law or platform policy.",
@@ -18,6 +19,14 @@ export default function AffiliateResourcesPage() {
           Approved assets and promotion rules for McGBot affiliates. Create tracked sub-links under Campaigns.
         </p>
       </div>
+
+      <section id="how-you-earn" className="scroll-mt-8 rounded-2xl border border-violet-200/80 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-zinc-900">How you earn</h2>
+        <p className="mt-1 text-xs text-zinc-600">Commission schedule — recurring %, milestones, and annual signup bonuses.</p>
+        <div className="mt-4">
+          <AffiliateEarningsGuide variant="full" />
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-zinc-900">Logo</h2>
@@ -41,14 +50,6 @@ export default function AffiliateResourcesPage() {
             <li key={rule}>{rule}</li>
           ))}
         </ul>
-      </section>
-
-      <section className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-zinc-900">Rev share reminder</h2>
-        <p className="mt-2 text-sm text-zinc-600">
-          Month 1: 15% · Month 2: 25% · Months 3–12: 15% each (per referred member). Annual plans pay once per year at
-          that year&apos;s index, with a one-time signup bonus on the first annual invoice ($5 Basic / $10 Pro).
-        </p>
       </section>
 
       <p className="text-xs text-zinc-500">

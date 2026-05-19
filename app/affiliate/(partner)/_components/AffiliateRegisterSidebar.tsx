@@ -1,7 +1,5 @@
-import {
-  AFFILIATE_AFTER_APPLY_STEPS,
-  AFFILIATE_PROGRAM_HIGHLIGHTS,
-} from "@/lib/affiliate/affiliateRegisterCopy";
+import { AffiliateEarningsGuide } from "@/app/affiliate/(partner)/_components/AffiliateEarningsGuide";
+import { AFFILIATE_AFTER_APPLY_STEPS } from "@/lib/affiliate/affiliateRegisterCopy";
 
 export function AffiliateRegisterSidebar() {
   return (
@@ -9,17 +7,10 @@ export function AffiliateRegisterSidebar() {
       <div className="rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50 to-white p-5 shadow-sm">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-800/90">McGBot affiliate program</p>
         <p className="mt-2 text-sm leading-relaxed text-zinc-700">
-          Earn recurring commission when your audience subscribes to McGBot Terminal. This portal is separate from the
-          member Discord dashboard.
+          Earn when your audience subscribes to McGBot Terminal through your tracking link. This portal is separate from
+          the member Discord dashboard.
         </p>
-        <ul className="mt-4 space-y-2">
-          {AFFILIATE_PROGRAM_HIGHLIGHTS.map((h) => (
-            <li key={h.label} className="flex justify-between gap-2 text-xs">
-              <span className="text-zinc-500">{h.label}</span>
-              <span className="font-semibold text-zinc-900">{h.value}</span>
-            </li>
-          ))}
-        </ul>
+        <AffiliateEarningsGuide variant="compact" />
       </div>
       <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm">
         <p className="text-xs font-semibold text-zinc-900">After you submit</p>

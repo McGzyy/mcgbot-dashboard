@@ -13,12 +13,6 @@ export const AFFILIATE_AFTER_APPLY_STEPS = [
   "Access your dashboard, tracking link, and campaigns",
 ] as const;
 
-export const AFFILIATE_PROGRAM_HIGHLIGHTS = [
-  { label: "Rev share", value: "15% → 25% → 15% (mo. 1–12)" },
-  { label: "Milestone bonuses", value: "Up to $300 + auto tiers" },
-  { label: "Tracking", value: "Landing page + campaign links" },
-] as const;
-
 export const AFFILIATE_APPLY_COUNTRIES = [
   "United States",
   "Canada",

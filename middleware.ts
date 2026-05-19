@@ -59,11 +59,21 @@ function isAffiliatePartnerPath(pathname: string): boolean {
   return pathname.startsWith("/affiliate") || pathname.startsWith("/api/affiliate");
 }
 
+function isAffiliateMarketingPublicPath(pathname: string): boolean {
+  return (
+    pathname === "/affiliate" ||
+    pathname === "/affiliate/faq" ||
+    pathname === "/affiliate/support"
+  );
+}
+
 function isAffiliatePublicPath(pathname: string, method: string): boolean {
+  if (isAffiliateMarketingPublicPath(pathname)) return true;
   if (pathname === "/affiliate/login") return true;
   if (pathname === "/affiliate/register") return true;
   if (pathname === "/api/affiliate/auth/login" && method === "POST") return true;
   if (pathname === "/api/affiliate/auth/register" && method === "POST") return true;
+  if (pathname === "/api/affiliate/public/contact" && method === "POST") return true;
   return false;
 }
 
@@ -160,7 +170,7 @@ async function affiliatePartnerMiddleware(req: NextRequest): Promise<NextRespons
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const url = req.nextUrl.clone();
-    url.pathname = "/affiliate/login";
+    url.pathname = "/affiliate";
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -240,7 +250,11 @@ async function affiliatePartnerMiddleware(req: NextRequest): Promise<NextRespons
     return NextResponse.redirect(url);
   }
 
-  if (pathname === "/affiliate/login" || pathname === "/affiliate/register") {
+  if (
+    pathname === "/affiliate" ||
+    pathname === "/affiliate/login" ||
+    pathname === "/affiliate/register"
+  ) {
     const url = req.nextUrl.clone();
     url.pathname = affiliatePostAuthPath(session);
     return NextResponse.redirect(url);
@@ -426,7 +440,7 @@ function affiliateDedicatedHostMiddleware(req: NextRequest): NextResponse | null
   }
 
   const url = req.nextUrl.clone();
-  url.pathname = "/affiliate/login";
+  url.pathname = "/affiliate";
   url.search = "";
   return NextResponse.redirect(url);
 }

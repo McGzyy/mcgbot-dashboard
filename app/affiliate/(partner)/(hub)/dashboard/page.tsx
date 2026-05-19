@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { AFFILIATE_EARNINGS_SUMMARY } from "@/lib/affiliate/affiliateEarningsCopy";
 
 type MilestoneProgress = {
   tier: number;
@@ -118,10 +120,13 @@ export default function AffiliateDashboardPage() {
         <div className="rounded-xl border border-violet-200 bg-violet-50/80 px-4 py-3 shadow-sm">
           <p className="text-[10px] uppercase tracking-wider text-violet-800/90">Your tracking link</p>
           <p className="mt-2 break-all font-mono text-sm text-zinc-900">{data.trackingLink}</p>
-          <p className="mt-2 text-xs text-zinc-600">
-            Rev share: 15% on month 1, 25% on month 2, 15% on months 3–12 (per referred member). Annual signups
-            include a one-time bonus ($5 Basic / $10 Pro).
-          </p>
+          <p className="mt-2 text-xs leading-relaxed text-zinc-600">{AFFILIATE_EARNINGS_SUMMARY.recurring}</p>
+          <Link
+            href="/affiliate/resources#how-you-earn"
+            className="mt-2 inline-block text-xs font-semibold text-violet-700 hover:underline"
+          >
+            Full earnings breakdown →
+          </Link>
         </div>
       ) : null}
 
@@ -139,7 +144,8 @@ export default function AffiliateDashboardPage() {
               </p>
             </div>
             <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-4 py-3 shadow-sm">
-              <p className="text-[10px] uppercase tracking-wider text-emerald-900/80">Bonuses (all)</p>
+              <p className="text-[10px] uppercase tracking-wider text-emerald-900/80">Extra bonuses</p>
+              <p className="text-[10px] text-emerald-900/70">Milestones & annual</p>
               <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">
                 {fmtUsd(data.commissionSummary.bonusCents)}
               </p>
@@ -147,17 +153,17 @@ export default function AffiliateDashboardPage() {
           </div>
 
           <div className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm">
-            <p className="text-sm font-semibold text-zinc-900">Milestone bonuses</p>
-            <p className="mt-1 text-xs text-zinc-600">
-              Tier 1 (10): first payment + 7 days, still subscribed. Tiers 25 & 50: second payment cleared, still
-              subscribed.
+            <p className="text-sm font-semibold text-zinc-900">Referral milestone bonuses</p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+              One-time cash at 10, 25, and 50 qualified actives — separate from % commissions on each member&apos;s
+              payments. Progress below counts members who meet the rules in Resources.
             </p>
             <ul className="mt-4 space-y-3">
               {data.milestones.map((m) => (
                 <li key={m.tier} className="rounded-lg border border-zinc-100 bg-zinc-50/80 px-3 py-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-zinc-900">
-                      {m.tier} actives · {fmtUsd(m.bonusCents)}
+                      {m.threshold} qualified actives · {fmtUsd(m.bonusCents)}
                     </span>
                     <span className="text-xs font-medium text-violet-800">{milestoneStatusLabel(m.grantStatus)}</span>
                   </div>
@@ -168,8 +174,8 @@ export default function AffiliateDashboardPage() {
                     />
                   </div>
                   <p className="mt-1 text-xs text-zinc-500">
-                    {m.activeCount} / {m.threshold} toward tier
-                    {m.requiresSecondPayment ? " (2nd payment required)" : " (7 days after 1st payment)"}
+                    {m.activeCount} / {m.threshold} qualified
+                    {m.requiresSecondPayment ? " · needs 2nd payment" : " · 7+ days after 1st payment"}
                   </p>
                 </li>
               ))}

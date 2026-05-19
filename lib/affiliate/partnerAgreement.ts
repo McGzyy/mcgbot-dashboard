@@ -6,7 +6,7 @@ export const PARTNER_AGREEMENT_TITLE = "McGBot Affiliate Agreement";
 export const PARTNER_AGREEMENT_SECTIONS: { heading: string; body: string }[] = [
   {
     heading: "Program overview",
-    body: "You promote McGBot Terminal subscriptions using your assigned tracking link. Commissions follow the published schedule (15% month 1, 25% month 2, 15% months 3–12 per referred member, plus milestone bonuses). You are an independent contractor, not an employee of McGBot.",
+    body: "You promote McGBot Terminal subscriptions using your assigned tracking link. You earn recurring commission on each referred member’s subscription payments (15% on their 1st payment, 25% on their 2nd, 15% on their 3rd–12th), plus separate milestone and annual-plan bonuses described in your affiliate resources. You are an independent contractor, not an employee of McGBot.",
   },
   {
     heading: "Promotion standards",

@@ -224,6 +224,20 @@ export default function AffiliateSettingsPage() {
         <p className="text-sm text-zinc-500">Loading…</p>
       )}
 
+      <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-semibold text-zinc-900">Support</h2>
+        <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+          In-dashboard support tickets (payouts, account issues) are coming soon. For now, use the public contact form only
+          for general program questions — it is not tied to your affiliate account.
+        </p>
+        <a
+          href="/affiliate/support"
+          className="mt-3 inline-block text-xs font-semibold text-violet-700 hover:underline"
+        >
+          Public contact form →
+        </a>
+      </section>
+
       <form onSubmit={saveDisplayName} className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm space-y-3">
         <h2 className="text-sm font-semibold text-zinc-900">Display name</h2>
         <label className="block">

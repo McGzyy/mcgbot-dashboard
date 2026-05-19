@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { AFFILIATE_EARNINGS_SUMMARY } from "@/lib/affiliate/affiliateEarningsCopy";
 
 type CommissionSummary = {
   pendingCents: number;
@@ -122,9 +123,14 @@ export default function AffiliateEarningsPage() {
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700/90">Earnings</p>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Commission ledger</h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          Rev share follows the payment-index schedule per referred member. Milestone and annual bonuses appear separately.
+        <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+          <span className="font-medium text-zinc-800">Recurring commissions</span> are % of each member&apos;s subscription
+          payments. <span className="font-medium text-zinc-800">Extra bonuses</span> are milestone and annual-plan
+          payouts — listed separately below. {AFFILIATE_EARNINGS_SUMMARY.timingNote}
         </p>
+        <Link href="/affiliate/resources#how-you-earn" className="mt-2 inline-block text-xs font-semibold text-violet-700 hover:underline">
+          How earnings work →
+        </Link>
       </div>
 
       {err ? <p className="text-sm text-red-700">{err}</p> : null}
@@ -144,11 +150,12 @@ export default function AffiliateEarningsPage() {
             <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">{fmtUsd(summary.paidCents)}</p>
           </div>
           <div className="rounded-xl border border-violet-200/90 bg-violet-50/80 px-4 py-3 shadow-sm">
-            <p className="text-[10px] uppercase tracking-wider text-violet-800/90">Rev share (all)</p>
+            <p className="text-[10px] uppercase tracking-wider text-violet-800/90">Recurring commissions</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">{fmtUsd(summary.revshareCents)}</p>
           </div>
           <div className="rounded-xl border border-zinc-200/90 bg-white px-4 py-3 shadow-sm sm:col-span-2">
-            <p className="text-[10px] uppercase tracking-wider text-zinc-500">Bonuses (milestones + annual)</p>
+            <p className="text-[10px] uppercase tracking-wider text-zinc-500">Extra bonuses</p>
+            <p className="text-[10px] text-zinc-400">Milestones & annual signups</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900">{fmtUsd(summary.bonusCents)}</p>
             <p className="mt-2 text-xs text-zinc-500">{summary.rowCount} ledger row(s) total</p>
           </div>
