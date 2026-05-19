@@ -225,6 +225,62 @@ ${adminNote ? `<p><strong>Note:</strong> ${escapeHtml(adminNote)}</p>` : ""}
   })().catch((e) => console.error("[affiliateNotifications] payout status", e));
 }
 
+export function queueAffiliateSupportTicketOpsEmail(input: {
+  ticketId: string;
+  affiliateId: string;
+  subject: string;
+  categoryLabel: string;
+}): void {
+  void (async () => {
+    const account = await getAffiliateById(input.affiliateId);
+    if (!account) return;
+    const inbox = affiliatePortalPath("/affiliate/admin/support-tickets");
+    const name = account.displayName || account.application.legalName || account.email;
+    await sendToOps({
+      subject: `Support ticket — ${input.subject}`,
+      html: `<p><strong>${escapeHtml(name)}</strong> (${escapeHtml(account.email)}) opened a support ticket.</p>
+<p><strong>Topic:</strong> ${escapeHtml(input.categoryLabel)}</p>
+<p><strong>Subject:</strong> ${escapeHtml(input.subject)}</p>
+<p><a href="${inbox}">View in ops console</a></p>`,
+      text: `Support ticket from ${name} (${account.email}).\nTopic: ${input.categoryLabel}\nSubject: ${input.subject}\n\n${inbox}`,
+    });
+  })().catch((e) => console.error("[affiliateNotifications] support ticket ops", e));
+}
+
+export function queueAffiliateSupportTicketPartnerReplyEmail(input: {
+  ticketId: string;
+  affiliateId: string;
+  subject: string;
+}): void {
+  void (async () => {
+    const account = await getAffiliateById(input.affiliateId);
+    if (!account) return;
+    const inbox = affiliatePortalPath("/affiliate/admin/support-tickets");
+    await sendToOps({
+      subject: `Ticket reply — ${input.subject}`,
+      html: `<p><strong>${escapeHtml(account.email)}</strong> replied on support ticket <strong>${escapeHtml(input.subject)}</strong>.</p>
+<p><a href="${inbox}">View in ops console</a></p>`,
+      text: `Reply on ticket "${input.subject}" from ${account.email}.\n\n${inbox}`,
+    });
+  })().catch((e) => console.error("[affiliateNotifications] support partner reply ops", e));
+}
+
+export function queueAffiliateSupportTicketOpsReplyEmail(input: {
+  affiliateId: string;
+  subject: string;
+}): void {
+  void (async () => {
+    const tickets = affiliatePortalPath("/affiliate/tickets");
+    await sendToPartner({
+      affiliateId: input.affiliateId,
+      subject: `Reply on your support ticket — ${input.subject}`,
+      html: `<p>Our team replied to your support ticket <strong>${escapeHtml(input.subject)}</strong>.</p>
+<p><a href="${tickets}">View ticket in your dashboard</a></p>`,
+      text: `We replied to your support ticket: ${input.subject}\n\n${tickets}`,
+    });
+  })().catch((e) => console.error("[affiliateNotifications] support ops reply partner", e));
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

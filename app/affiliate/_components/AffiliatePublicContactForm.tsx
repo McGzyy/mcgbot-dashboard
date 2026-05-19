@@ -76,8 +76,11 @@ export function AffiliatePublicContactForm({ defaultCategory = "program", showSi
     <form onSubmit={submit} className="space-y-4 rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm sm:p-6">
       {showSignedInNote ? (
         <p className="rounded-lg border border-violet-100 bg-violet-50/80 px-3 py-2.5 text-xs leading-relaxed text-violet-900">
-          <span className="font-semibold">Already an affiliate?</span> Sign in for your dashboard. Account-specific
-          support tickets will live there soon — this form is for visitors and pre-approval questions.
+          <span className="font-semibold">Already an affiliate?</span> Sign in and use{" "}
+          <a href="/affiliate/tickets" className="font-semibold underline">
+            Support
+          </a>{" "}
+          in your dashboard for account-linked tickets. This form is for visitors and pre-approval questions.
         </p>
       ) : null}
       <div className="hidden" aria-hidden>

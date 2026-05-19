@@ -353,14 +353,14 @@ export default function AffiliateSettingsPage() {
       <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-semibold text-zinc-900">Support</h2>
         <p className="mt-2 text-xs leading-relaxed text-zinc-600">
-          In-dashboard support tickets (payouts, account issues) are coming soon. For now, use the public contact form only
-          for general program questions — it is not tied to your affiliate account.
+          Open account-linked tickets for payouts, tracking, and commissions. Replies appear in your dashboard and by
+          email.
         </p>
         <a
-          href="/affiliate/support"
+          href="/affiliate/tickets"
           className="mt-3 inline-block text-xs font-semibold text-violet-700 hover:underline"
         >
-          Public contact form →
+          Support tickets →
         </a>
       </section>
 

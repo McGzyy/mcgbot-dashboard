@@ -1,4 +1,5 @@
 import { countOpenPublicContactInquiries } from "@/lib/affiliate/affiliatePublicContactAdmin";
+import { countOpenAffiliateSupportTickets } from "@/lib/affiliate/affiliateSupportTickets";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export type AffiliateAdminOverviewStats = {
@@ -7,6 +8,7 @@ export type AffiliateAdminOverviewStats = {
   activePartners: number;
   suspendedPartners: number;
   openContactInquiries: number;
+  openSupportTickets: number;
   commissionsPendingCents: number;
   commissionsLast30dCents: number;
   attributionRows: number;
@@ -58,6 +60,7 @@ export async function getAffiliateAdminOverviewStats(): Promise<AffiliateAdminOv
   if (!attrErr && typeof attrCount === "number") attributionRows = attrCount;
 
   const openContactInquiries = await countOpenPublicContactInquiries();
+  const openSupportTickets = await countOpenAffiliateSupportTickets();
 
   return {
     pendingApplications,
@@ -65,6 +68,7 @@ export async function getAffiliateAdminOverviewStats(): Promise<AffiliateAdminOv
     activePartners,
     suspendedPartners,
     openContactInquiries,
+    openSupportTickets,
     commissionsPendingCents,
     commissionsLast30dCents,
     attributionRows,

@@ -27,8 +27,8 @@ export default function AffiliateSupportPage() {
         <div className="rounded-xl border border-violet-200/80 bg-violet-50/80 p-4 shadow-sm">
           <p className="text-xs font-semibold text-violet-900">Approved affiliates</p>
           <p className="mt-1 text-xs leading-relaxed text-violet-900/90">
-            Sign in for your dashboard. In-app support tickets for payout and account issues are coming soon — this
-            public form is not linked to your affiliate account.
+            Sign in and open <strong>Support</strong> in your dashboard for account-linked tickets (payouts, tracking,
+            commissions). This public form is not tied to your affiliate account.
           </p>
           <Link href="/affiliate/login" className="mt-2 inline-block text-xs font-semibold text-violet-700 hover:underline">
             Affiliate sign in →

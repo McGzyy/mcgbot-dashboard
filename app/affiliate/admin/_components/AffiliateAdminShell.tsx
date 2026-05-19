@@ -13,6 +13,7 @@ const NAV: NavItem[] = [
   { href: "/affiliate/admin", label: "Overview", description: "Health & shortcuts" },
   { href: "/affiliate/admin/partners", label: "Affiliates", description: "Approve, suspend, create" },
   { href: "/affiliate/admin/contact-inquiries", label: "Contact inbox", description: "Public site messages" },
+  { href: "/affiliate/admin/support-tickets", label: "Support tickets", description: "Logged-in partner tickets" },
   { href: "/affiliate/admin/payouts", label: "Payouts", description: "Withdrawal requests" },
   { href: "/affiliate/admin/slug-requests", label: "Slug requests", description: "Vanity link changes" },
   { href: "/affiliate/admin/commissions", label: "Commissions", description: "Ledger & voids" },
