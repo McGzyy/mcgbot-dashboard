@@ -292,7 +292,7 @@ export function AffiliateAdminConsole() {
           <h3 className="text-sm font-semibold text-zinc-900">All accounts</h3>
         </div>
         <div className="max-h-[28rem] overflow-auto">
-          <table className="w-full min-w-[860px] text-left text-xs">
+          <table className="w-full text-left text-xs">
             <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="px-3 py-2">Email</th>
@@ -323,8 +323,8 @@ export function AffiliateAdminConsole() {
                     className={`cursor-pointer text-zinc-800 ${selectedId === a.id ? "bg-violet-50/80" : "hover:bg-zinc-50"}`}
                     onClick={() => setSelectedId(a.id)}
                   >
-                    <td className="px-3 py-2">
-                      <span className="block text-sm font-medium text-zinc-900">{a.email}</span>
+                    <td className="max-w-[12rem] px-3 py-2 sm:max-w-none">
+                      <span className="block truncate text-sm font-medium text-zinc-900">{a.email}</span>
                       {a.displayName ? <span className="text-zinc-500">{a.displayName}</span> : null}
                       {a.application?.legalName ? (
                         <span className="block text-[10px] text-zinc-400">{a.application.legalName}</span>
@@ -348,10 +348,12 @@ export function AffiliateAdminConsole() {
                         }}
                       />
                     </td>
-                    <td className="px-3 py-2 font-mono text-[10px] text-zinc-500">
-                      {a.status === "active" && a.affiliateSlug ? `/affiliate/r/${a.affiliateSlug}` : "—"}
+                    <td className="max-w-[9rem] px-3 py-2 font-mono text-[10px] text-zinc-500">
+                      <span className="block truncate">
+                        {a.status === "active" && a.affiliateSlug ? `/affiliate/r/${a.affiliateSlug}` : "—"}
+                      </span>
                     </td>
-                    <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td className="whitespace-nowrap px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-wrap justify-end gap-1">
                         {a.status === "pending" ? (
                           <button

@@ -90,7 +90,7 @@ export default function AffiliateAdminPayoutsPage() {
 
       <section className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-sm">
         <div className="max-h-[32rem] overflow-auto">
-          <table className="w-full min-w-[720px] text-left text-xs">
+          <table className="w-full text-left text-xs">
             <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="px-3 py-2">Affiliate</th>
@@ -117,7 +117,7 @@ export default function AffiliateAdminPayoutsPage() {
                     <td className="px-3 py-2 font-semibold tabular-nums text-zinc-900">{fmtUsd(r.amountCents)}</td>
                     <td className="px-3 py-2 capitalize text-zinc-700">{r.status}</td>
                     <td className="px-3 py-2 max-w-[12rem] truncate text-zinc-600">{r.partnerNote ?? "—"}</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="whitespace-nowrap px-3 py-2 text-right">
                       <div className="flex flex-wrap justify-end gap-1">
                         {r.status === "pending" ? (
                           <>
