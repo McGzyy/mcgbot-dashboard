@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { getAffiliateById } from "@/lib/affiliate/affiliateDb";
 import {
   createAffiliatePayoutRequest,
   getAffiliatePayoutBalance,
   listAffiliatePayoutRequests,
 } from "@/lib/affiliate/affiliatePayouts";
+import { affiliatePayoutMethodConfigured } from "@/lib/affiliate/affiliatePayoutMethod";
 import { verifyAffiliateTotpOrRecovery } from "@/lib/affiliate/affiliateTotp";
 import { requireAffiliateSession } from "@/lib/affiliate/requireAffiliateSession";
 
@@ -14,10 +16,21 @@ export async function GET() {
   const auth = await requireAffiliateSession({ requireVerified: true, requireActive: true });
   if (!auth.ok) return auth.response;
 
-  const balance = await getAffiliatePayoutBalance(auth.session.affiliateId);
-  const requests = await listAffiliatePayoutRequests(auth.session.affiliateId);
+  const [balance, requests, account] = await Promise.all([
+    getAffiliatePayoutBalance(auth.session.affiliateId),
+    listAffiliatePayoutRequests(auth.session.affiliateId),
+    getAffiliateById(auth.session.affiliateId),
+  ]);
 
-  return NextResponse.json({ success: true, balance, requests });
+  const payoutMethodConfigured = account
+    ? affiliatePayoutMethodConfigured({
+        payoutMethod: account.payoutMethod,
+        payoutDestination: account.payoutDestination,
+        payoutMethodUpdatedAt: account.payoutMethodUpdatedAt,
+      })
+    : false;
+
+  return NextResponse.json({ success: true, balance, requests, payoutMethodConfigured });
 }
 
 export async function POST(request: Request) {

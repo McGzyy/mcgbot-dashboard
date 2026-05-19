@@ -12,6 +12,7 @@ import type { AffiliateAdminPartnerDetail } from "@/lib/affiliate/affiliateAdmin
 import { fmtAffiliateUsd } from "@/lib/affiliate/affiliateFormatUsd";
 import type { AffiliateAccountStatus } from "@/lib/affiliate/affiliateSession";
 import { AFFILIATE_DEFAULT_COMMISSION_RATE_BPS } from "@/lib/affiliate/affiliateCommissionSchedule";
+import { formatAffiliatePayoutMethodSummary } from "@/lib/affiliate/affiliatePayoutMethod";
 
 function milestoneStatusLabel(status: string | null): string {
   if (!status) return "Not reached";
@@ -211,6 +212,15 @@ export default function AffiliateAdminPartnerProfilePage() {
 
       <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:p-5">
         <h3 className="text-sm font-semibold text-zinc-900">Admin controls</h3>
+        <p className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-800">
+          <span className="font-semibold text-zinc-600">Payout destination: </span>
+          {formatAffiliatePayoutMethodSummary(account)}
+          {account.payoutMethodUpdatedAt ? (
+            <span className="mt-1 block text-[10px] text-zinc-500">
+              Updated {new Date(account.payoutMethodUpdatedAt).toLocaleString()}
+            </span>
+          ) : null}
+        </p>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <label className="block">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">

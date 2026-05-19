@@ -2,6 +2,7 @@ import { sendResendEmail, formatResendFromAddress } from "@/lib/email/sendResend
 import { affiliatePortalPath } from "@/lib/affiliate/affiliatePortalUrl";
 import { getAffiliateById } from "@/lib/affiliate/affiliateDb";
 import { fmtAffiliateUsd } from "@/lib/affiliate/affiliateFormatUsd";
+import { formatAffiliatePayoutMethodSummary } from "@/lib/affiliate/affiliatePayoutMethod";
 import type { AffiliateAccountStatus } from "@/lib/affiliate/affiliateSession";
 import type { AffiliatePayoutStatus } from "@/lib/affiliate/affiliatePayouts";
 
@@ -161,13 +162,15 @@ export function queueAffiliatePayoutRequestOpsEmail(input: {
     if (!account) return;
     const payouts = affiliatePortalPath("/affiliate/admin/payouts");
     const note = input.partnerNote?.trim();
+    const payoutTo = formatAffiliatePayoutMethodSummary(account);
     await sendToOps({
       subject: `Payout request ${fmtAffiliateUsd(input.amountCents)} — ${account.email}`,
       html: `<p><strong>${escapeHtml(account.email)}</strong> requested a payout of <strong>${fmtAffiliateUsd(input.amountCents)}</strong>.</p>
+<p><strong>Send to:</strong> ${escapeHtml(payoutTo)}</p>
 ${note ? `<p>Partner note: ${escapeHtml(note)}</p>` : ""}
 <p>Request ID: <code>${escapeHtml(input.requestId)}</code></p>
 <p><a href="${payouts}">Review payouts</a></p>`,
-      text: `Payout request ${fmtAffiliateUsd(input.amountCents)} from ${account.email}.${note ? ` Note: ${note}` : ""}\n\n${payouts}`,
+      text: `Payout request ${fmtAffiliateUsd(input.amountCents)} from ${account.email}.\nSend to: ${payoutTo}.${note ? ` Note: ${note}` : ""}\n\n${payouts}`,
     });
   })().catch((e) => console.error("[affiliateNotifications] payout ops", e));
 }

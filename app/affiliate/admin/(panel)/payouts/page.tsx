@@ -1,6 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import {
+  AFFILIATE_PAYOUT_METHOD_LABELS,
+  type AffiliatePayoutMethod,
+} from "@/lib/affiliate/affiliatePayoutMethod";
 
 type PayoutRow = {
   id: string;
@@ -10,8 +15,17 @@ type PayoutRow = {
   status: string;
   partnerNote: string | null;
   adminNote: string | null;
+  payoutMethod: string | null;
+  payoutDestination: string | null;
   createdAt: string;
 };
+
+function payoutDestinationLabel(row: PayoutRow): string {
+  if (!row.payoutMethod || !row.payoutDestination) return "Not on file";
+  const label =
+    AFFILIATE_PAYOUT_METHOD_LABELS[row.payoutMethod as AffiliatePayoutMethod] ?? row.payoutMethod;
+  return `${label}: ${row.payoutDestination}`;
+}
 
 function fmtUsd(cents: number): string {
   return (Math.max(0, cents) / 100).toLocaleString(undefined, {
@@ -94,6 +108,7 @@ export default function AffiliateAdminPayoutsPage() {
             <thead className="sticky top-0 border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="px-3 py-2">Affiliate</th>
+                <th className="px-3 py-2">Send to</th>
                 <th className="px-3 py-2">Amount</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">Note</th>
@@ -103,7 +118,7 @@ export default function AffiliateAdminPayoutsPage() {
             <tbody className="divide-y divide-zinc-100">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-zinc-500">
+                  <td colSpan={6} className="px-3 py-8 text-center text-zinc-500">
                     No payout requests yet.
                   </td>
                 </tr>
@@ -113,6 +128,19 @@ export default function AffiliateAdminPayoutsPage() {
                     <td className="px-3 py-2">
                       <span className="block font-medium text-zinc-900">{r.affiliateEmail || r.affiliateId}</span>
                       <span className="text-zinc-500">{new Date(r.createdAt).toLocaleString()}</span>
+                      <Link
+                        href={`/affiliate/admin/partners/${encodeURIComponent(r.affiliateId)}`}
+                        className="mt-0.5 block text-[10px] font-semibold text-violet-700 hover:underline"
+                      >
+                        Profile
+                      </Link>
+                    </td>
+                    <td className="max-w-[14rem] px-3 py-2">
+                      <span
+                        className={`block text-[11px] leading-snug ${r.payoutDestination ? "font-mono text-zinc-800" : "text-amber-800"}`}
+                      >
+                        {payoutDestinationLabel(r)}
+                      </span>
                     </td>
                     <td className="px-3 py-2 font-semibold tabular-nums text-zinc-900">{fmtUsd(r.amountCents)}</td>
                     <td className="px-3 py-2 capitalize text-zinc-700">{r.status}</td>

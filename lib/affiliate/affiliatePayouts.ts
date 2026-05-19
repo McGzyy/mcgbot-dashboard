@@ -1,4 +1,6 @@
+import { getAffiliateById } from "@/lib/affiliate/affiliateDb";
 import { queueAffiliatePayoutRequestOpsEmail, queueAffiliatePayoutStatusEmail } from "@/lib/affiliate/affiliateNotifications";
+import { affiliatePayoutMethodConfigured } from "@/lib/affiliate/affiliatePayoutMethod";
 import { AFFILIATE_PAYOUT_MIN_CENTS } from "@/lib/affiliate/affiliateSlugPolicy";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -120,6 +122,23 @@ export async function createAffiliatePayoutRequest(input: {
     };
   }
 
+  const account = await getAffiliateById(affiliateId);
+  if (!account) {
+    return { ok: false, error: "Account not found." };
+  }
+  if (
+    !affiliatePayoutMethodConfigured({
+      payoutMethod: account.payoutMethod,
+      payoutDestination: account.payoutDestination,
+      payoutMethodUpdatedAt: account.payoutMethodUpdatedAt,
+    })
+  ) {
+    return {
+      ok: false,
+      error: "Add your payout method in Settings before requesting a withdrawal.",
+    };
+  }
+
   const balance = await getAffiliatePayoutBalance(affiliateId);
   if (amountCents > balance.availableCents) {
     return { ok: false, error: "Amount exceeds available approved balance." };
@@ -157,27 +176,45 @@ export async function createAffiliatePayoutRequest(input: {
   return { ok: true, request };
 }
 
-export async function listAllPayoutRequests(limit = 100): Promise<
-  (AffiliatePayoutRequestRow & { affiliateEmail: string })[]
-> {
+export type AffiliatePayoutRequestAdminRow = AffiliatePayoutRequestRow & {
+  affiliateEmail: string;
+  payoutMethod: string | null;
+  payoutDestination: string | null;
+};
+
+export async function listAllPayoutRequests(limit = 100): Promise<AffiliatePayoutRequestAdminRow[]> {
   const db = getSupabaseAdmin();
   if (!db) return [];
   const { data, error } = await db
     .from("affiliate_payout_requests")
     .select(
-      "id, affiliate_id, amount_cents, status, partner_note, admin_note, created_at, reviewed_at, paid_at, affiliate_accounts ( email )"
+      "id, affiliate_id, amount_cents, status, partner_note, admin_note, created_at, reviewed_at, paid_at, affiliate_accounts ( email, payout_method, payout_destination )"
     )
     .order("created_at", { ascending: false })
     .limit(Math.min(200, Math.max(1, limit)));
   if (error || !Array.isArray(data)) return [];
 
-  const out: (AffiliatePayoutRequestRow & { affiliateEmail: string })[] = [];
+  const out: AffiliatePayoutRequestAdminRow[] = [];
   for (const row of data) {
     const mapped = mapPayoutRow(row as Record<string, unknown>);
     if (!mapped) continue;
-    const acct = (row as { affiliate_accounts?: { email?: string } | null }).affiliate_accounts;
+    const acct = (
+      row as {
+        affiliate_accounts?: {
+          email?: string;
+          payout_method?: string;
+          payout_destination?: string;
+        } | null;
+      }
+    ).affiliate_accounts;
     const email = typeof acct?.email === "string" ? acct.email : "";
-    out.push({ ...mapped, affiliateEmail: email });
+    out.push({
+      ...mapped,
+      affiliateEmail: email,
+      payoutMethod: typeof acct?.payout_method === "string" ? acct.payout_method : null,
+      payoutDestination:
+        typeof acct?.payout_destination === "string" ? acct.payout_destination : null,
+    });
   }
   return out;
 }

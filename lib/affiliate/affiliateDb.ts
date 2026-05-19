@@ -19,6 +19,11 @@ import {
 } from "@/lib/affiliate/affiliateNotifications";
 import { AFFILIATE_SLUG_CHANGE_COOLDOWN_DAYS } from "@/lib/affiliate/affiliateSlugPolicy";
 import {
+  parseAffiliatePayoutMethod,
+  validateAffiliatePayoutDestination,
+  type AffiliatePayoutMethod,
+} from "@/lib/affiliate/affiliatePayoutMethod";
+import {
   ensureUniqueAffiliateSlug,
   isValidAffiliateSlug,
   normalizeAffiliateSlug,
@@ -57,6 +62,9 @@ export type AffiliateAccountRow = {
   agreementSignedAt: string | null;
   slugChangedAt: string | null;
   slugChangePending: string | null;
+  payoutMethod: AffiliatePayoutMethod | null;
+  payoutDestination: string | null;
+  payoutMethodUpdatedAt: string | null;
   application: AffiliateApplicationRow;
 };
 
@@ -106,6 +114,13 @@ function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
       typeof data.slug_change_pending === "string" && data.slug_change_pending.trim()
         ? data.slug_change_pending.trim().toLowerCase()
         : null,
+    payoutMethod: parseAffiliatePayoutMethod(data.payout_method),
+    payoutDestination:
+      typeof data.payout_destination === "string" && data.payout_destination.trim()
+        ? data.payout_destination.trim()
+        : null,
+    payoutMethodUpdatedAt:
+      typeof data.payout_method_updated_at === "string" ? data.payout_method_updated_at : null,
     application: {
       legalName:
         typeof data.application_legal_name === "string" ? data.application_legal_name.trim() : null,
@@ -163,6 +178,7 @@ function mapRow(data: Record<string, unknown>): AffiliateAccountRow | null {
 
 const ACCOUNT_SELECT = `id, email, display_name, status, commission_rate_bps, totp_enabled, affiliate_slug, created_at,
   agreement_version, agreement_signed_at, slug_changed_at, slug_change_pending,
+  payout_method, payout_destination, payout_method_updated_at,
   application_legal_name, application_company_name, application_country, application_primary_channel,
   application_audience_size, application_promo_methods, application_social_links, application_website_url,
   application_notes, application_submitted_at, admin_review_notes,
@@ -575,6 +591,34 @@ export async function updateAffiliateDisplayName(
     .update({ display_name: name, updated_at: new Date().toISOString() })
     .eq("id", affiliateId.trim());
   return !error;
+}
+
+export async function updateAffiliatePayoutMethod(
+  affiliateId: string,
+  input: { method: AffiliatePayoutMethod; destination: string }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const validated = validateAffiliatePayoutDestination(input.method, input.destination);
+  if (!validated.ok) return validated;
+
+  const db = getSupabaseAdmin();
+  if (!db) return { ok: false, error: "Database not configured." };
+
+  const now = new Date().toISOString();
+  const { error } = await db
+    .from("affiliate_accounts")
+    .update({
+      payout_method: input.method,
+      payout_destination: input.destination.trim(),
+      payout_method_updated_at: now,
+      updated_at: now,
+    })
+    .eq("id", affiliateId.trim());
+
+  if (error) {
+    console.error("[affiliateDb] updateAffiliatePayoutMethod", error);
+    return { ok: false, error: "Could not save payout method." };
+  }
+  return { ok: true };
 }
 
 function slugChangeCooldownEndsAt(account: Pick<AffiliateAccountRow, "slugChangedAt" | "createdAt">): Date {
