@@ -1,3 +1,4 @@
+import { queueAffiliatePayoutRequestOpsEmail, queueAffiliatePayoutStatusEmail } from "@/lib/affiliate/affiliateNotifications";
 import { AFFILIATE_PAYOUT_MIN_CENTS } from "@/lib/affiliate/affiliateSlugPolicy";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -147,6 +148,12 @@ export async function createAffiliatePayoutRequest(input: {
 
   const request = mapPayoutRow(data as Record<string, unknown>);
   if (!request) return { ok: false, error: "Could not read payout request." };
+  queueAffiliatePayoutRequestOpsEmail({
+    affiliateId: request.affiliateId,
+    amountCents: request.amountCents,
+    requestId: request.id,
+    partnerNote: request.partnerNote,
+  });
   return { ok: true, request };
 }
 
@@ -175,6 +182,22 @@ export async function listAllPayoutRequests(limit = 100): Promise<
   return out;
 }
 
+async function getAffiliatePayoutRequestById(
+  requestId: string
+): Promise<AffiliatePayoutRequestRow | null> {
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const { data, error } = await db
+    .from("affiliate_payout_requests")
+    .select(
+      "id, affiliate_id, amount_cents, status, partner_note, admin_note, created_at, reviewed_at, paid_at"
+    )
+    .eq("id", requestId.trim())
+    .maybeSingle();
+  if (error || !data) return null;
+  return mapPayoutRow(data as Record<string, unknown>);
+}
+
 export async function updateAffiliatePayoutRequestStatus(input: {
   requestId: string;
   status: AffiliatePayoutStatus;
@@ -183,6 +206,7 @@ export async function updateAffiliatePayoutRequestStatus(input: {
 }): Promise<boolean> {
   const db = getSupabaseAdmin();
   if (!db) return false;
+  const existing = await getAffiliatePayoutRequestById(input.requestId);
   const now = new Date().toISOString();
   const patch: Record<string, unknown> = {
     status: input.status,
@@ -200,5 +224,16 @@ export async function updateAffiliatePayoutRequestStatus(input: {
     .from("affiliate_payout_requests")
     .update(patch)
     .eq("id", input.requestId.trim());
-  return !error;
+  if (error) return false;
+  if (!existing) return false;
+
+  if (input.status !== existing.status) {
+    queueAffiliatePayoutStatusEmail({
+      affiliateId: existing.affiliateId,
+      amountCents: existing.amountCents,
+      status: input.status,
+      adminNote: input.adminNote,
+    });
+  }
+  return true;
 }

@@ -13,6 +13,10 @@ import {
 } from "@/lib/affiliate/partnerAgreement";
 import type { AffiliateApplicationInput } from "@/lib/affiliate/validateAffiliateApplication";
 import { AFFILIATE_DEFAULT_COMMISSION_RATE_BPS } from "@/lib/affiliate/affiliateCommissionSchedule";
+import {
+  queueAffiliateApplicationStatusEmail,
+  queueAffiliateNewApplicationOpsEmail,
+} from "@/lib/affiliate/affiliateNotifications";
 import { AFFILIATE_SLUG_CHANGE_COOLDOWN_DAYS } from "@/lib/affiliate/affiliateSlugPolicy";
 import {
   ensureUniqueAffiliateSlug,
@@ -416,6 +420,7 @@ export async function updateAffiliateApplicationReview(
     if (!statusOk) return { ok: false, error: "Could not update status." };
     const reasonOk = await updateAffiliateApplicationDenialReason(id, reason);
     if (!reasonOk) return { ok: false, error: "Could not save denial reason." };
+    queueAffiliateApplicationStatusEmail(id, "denied", reason);
     return { ok: true };
   }
 
@@ -423,6 +428,12 @@ export async function updateAffiliateApplicationReview(
   if (!statusOk) return { ok: false, error: "Could not update status." };
   if (input.status === "active" || input.status === "pending" || input.status === "needs_contact") {
     await updateAffiliateApplicationDenialReason(id, null);
+  }
+  if (
+    input.status === "active" ||
+    input.status === "needs_contact"
+  ) {
+    queueAffiliateApplicationStatusEmail(id, input.status);
   }
   return { ok: true };
 }
@@ -468,6 +479,7 @@ export async function registerAffiliateApplication(input: {
   if (!sessionToken) {
     return { ok: false, error: "Session signing is not configured." };
   }
+  queueAffiliateNewApplicationOpsEmail(created.account.id);
   return { ok: true, account: created.account, sessionToken };
 }
 
