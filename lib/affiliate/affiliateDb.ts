@@ -12,6 +12,7 @@ import {
   partnerHasSignedCurrentAgreement,
 } from "@/lib/affiliate/partnerAgreement";
 import type { AffiliateApplicationInput } from "@/lib/affiliate/validateAffiliateApplication";
+import { AFFILIATE_DEFAULT_COMMISSION_RATE_BPS } from "@/lib/affiliate/affiliateCommissionSchedule";
 import { AFFILIATE_SLUG_CHANGE_COOLDOWN_DAYS } from "@/lib/affiliate/affiliateSlugPolicy";
 import {
   ensureUniqueAffiliateSlug,
@@ -272,7 +273,7 @@ export async function createAffiliateAccount(input: {
   const status = input.status ?? "pending";
   const commissionRateBps = Math.min(
     10000,
-    Math.max(0, Math.floor(Number(input.commissionRateBps) || 1000))
+    Math.max(0, Math.floor(Number(input.commissionRateBps) || AFFILIATE_DEFAULT_COMMISSION_RATE_BPS))
   );
 
   const affiliateSlug = await ensureUniqueAffiliateSlug(slugBaseFromEmail(email));
@@ -701,6 +702,7 @@ export async function updateAffiliateAccountStatus(
   const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
   if (status === "active") {
     patch.application_denial_reason = null;
+    patch.commission_rate_bps = AFFILIATE_DEFAULT_COMMISSION_RATE_BPS;
   }
   const { error } = await db.from("affiliate_accounts").update(patch).eq("id", id);
   if (error) {

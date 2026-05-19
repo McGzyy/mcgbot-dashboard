@@ -1,14 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AffiliateApplicationContactModal } from "@/app/affiliate/admin/_components/AffiliateApplicationContactModal";
 import { AffiliateApplicationDenyModal } from "@/app/affiliate/admin/_components/AffiliateApplicationDenyModal";
+import { AffiliateApplicationDetails } from "@/app/affiliate/admin/_components/AffiliateApplicationDetails";
+import { AffiliatePartnerSummarySection } from "@/app/affiliate/admin/_components/AffiliatePartnerSummarySection";
 import { AFFILIATE_STATUS_LABELS } from "@/lib/affiliate/affiliateApplicationStatus";
+import { AFFILIATE_DEFAULT_COMMISSION_RATE_BPS } from "@/lib/affiliate/affiliateCommissionSchedule";
 import type { AffiliateAccountStatus } from "@/lib/affiliate/affiliateSession";
-import {
-  AFFILIATE_AUDIENCE_LABELS,
-  AFFILIATE_PRIMARY_CHANNEL_LABELS,
-} from "@/lib/affiliate/validateAffiliateApplication";
 
 type AffiliateApplication = {
   legalName: string | null;
@@ -57,7 +57,9 @@ export function AffiliateAdminConsole() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [status, setStatus] = useState<"pending" | "active" | "suspended">("pending");
-  const [commissionRateBps, setCommissionRateBps] = useState("1000");
+  const [commissionRateBps, setCommissionRateBps] = useState(
+    String(AFFILIATE_DEFAULT_COMMISSION_RATE_BPS)
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -202,6 +204,10 @@ export function AffiliateAdminConsole() {
   function isReviewableStatus(status: string): boolean {
     return status === "pending" || status === "needs_contact" || status === "denied";
   }
+
+  function isPartnerWithStats(status: string): boolean {
+    return status === "active" || status === "suspended";
+  }
   const selected = accounts.find((a) => a.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -263,7 +269,7 @@ export function AffiliateAdminConsole() {
       <div>
         <h2 className="text-lg font-semibold text-zinc-900">Affiliates</h2>
         <p className="mt-1 text-sm text-zinc-600">
-          Approve self-serve applications, suspend accounts, set commission basis points (1000 = 10%), and copy
+          Approve self-serve applications, suspend accounts, set commission basis points (2000 = 20%), and copy
           tracking paths for active affiliates.
         </p>
       </div>
@@ -310,7 +316,7 @@ export function AffiliateAdminConsole() {
             <option value="suspended">Suspended</option>
           </select>
           <input
-            placeholder="Commission bps (1000 = 10%)"
+            placeholder="Commission bps (2000 = 20%)"
             value={commissionRateBps}
             onChange={(e) => setCommissionRateBps(e.target.value)}
             className="h-9 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-violet-400 sm:col-span-2"
@@ -479,7 +485,24 @@ export function AffiliateAdminConsole() {
 
       {selected ? (
         <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:p-5">
-          <h3 className="text-sm font-semibold text-zinc-900">Application — {selected.email}</h3>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900">
+                {isPartnerWithStats(selected.status) ? "Partner" : "Application"} — {selected.email}
+              </h3>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                {AFFILIATE_STATUS_LABELS[selected.status as AffiliateAccountStatus] ?? selected.status}
+              </p>
+            </div>
+            {isPartnerWithStats(selected.status) ? (
+              <Link
+                href={`/affiliate/admin/partners/${encodeURIComponent(selected.id)}`}
+                className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-900 hover:bg-violet-100"
+              >
+                Open full profile
+              </Link>
+            ) : null}
+          </div>
           {selected.application?.submittedAt ? (
             <p className="mt-1 text-xs text-zinc-500">
               Submitted {new Date(selected.application.submittedAt).toLocaleString()}
@@ -513,91 +536,16 @@ export function AffiliateAdminConsole() {
               </div>
             </div>
           ) : null}
+          {isPartnerWithStats(selected.status) ? (
+            <AffiliatePartnerSummarySection affiliateId={selected.id} />
+          ) : null}
           {selected.application ? (
-            <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-zinc-500">Legal name</dt>
-                <dd className="font-medium text-zinc-900">{selected.application.legalName ?? "—"}</dd>
+            <div className={isPartnerWithStats(selected.status) ? "mt-6 border-t border-zinc-200 pt-4" : "mt-4"}>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Application</h4>
+              <div className="mt-3">
+                <AffiliateApplicationDetails email={selected.email} application={selected.application} />
               </div>
-              <div>
-                <dt className="text-zinc-500">Company</dt>
-                <dd className="font-medium text-zinc-900">{selected.application.companyName ?? "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">Country</dt>
-                <dd className="font-medium text-zinc-900">{selected.application.country ?? "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">Channel</dt>
-                <dd className="font-medium text-zinc-900">
-                  {selected.application.primaryChannel
-                    ? (AFFILIATE_PRIMARY_CHANNEL_LABELS[selected.application.primaryChannel] ??
-                      selected.application.primaryChannel)
-                    : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">Audience</dt>
-                <dd className="font-medium text-zinc-900">
-                  {selected.application.audienceSize
-                    ? (AFFILIATE_AUDIENCE_LABELS[selected.application.audienceSize] ??
-                      selected.application.audienceSize)
-                    : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">Website</dt>
-                <dd className="break-all font-medium text-zinc-900">{selected.application.websiteUrl ?? "—"}</dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-zinc-500">Promotion plan</dt>
-                <dd className="mt-1 whitespace-pre-wrap text-zinc-800">{selected.application.promoMethods ?? "—"}</dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-zinc-500">Social links</dt>
-                <dd className="mt-1 whitespace-pre-wrap text-zinc-800">{selected.application.socialLinks ?? "—"}</dd>
-              </div>
-              {selected.application.notes ? (
-                <div className="sm:col-span-2">
-                  <dt className="text-zinc-500">Applicant notes</dt>
-                  <dd className="mt-1 whitespace-pre-wrap text-zinc-800">{selected.application.notes}</dd>
-                </div>
-              ) : null}
-              <div className="sm:col-span-2">
-                <dt className="text-zinc-500">Contact methods</dt>
-                <dd className="mt-1 space-y-1 text-zinc-800">
-                  <p>
-                    <span className="text-zinc-500">Login email:</span> {selected.email}
-                  </p>
-                  {selected.application.contactEmail ? (
-                    <p>
-                      <span className="text-zinc-500">Contact email:</span> {selected.application.contactEmail}
-                    </p>
-                  ) : null}
-                  {selected.application.contactDiscord ? (
-                    <p>
-                      <span className="text-zinc-500">Discord:</span> {selected.application.contactDiscord}
-                    </p>
-                  ) : null}
-                  {selected.application.contactX ? (
-                    <p>
-                      <span className="text-zinc-500">X:</span> {selected.application.contactX}
-                    </p>
-                  ) : null}
-                  {selected.application.contactOther ? (
-                    <p>
-                      <span className="text-zinc-500">Other:</span> {selected.application.contactOther}
-                    </p>
-                  ) : null}
-                </dd>
-              </div>
-              {selected.application.denialReason ? (
-                <div className="sm:col-span-2">
-                  <dt className="text-zinc-500">Denial reason (shown to applicant)</dt>
-                  <dd className="mt-1 whitespace-pre-wrap text-red-900">{selected.application.denialReason}</dd>
-                </div>
-              ) : null}
-            </dl>
+            </div>
           ) : null}
           {isReviewableStatus(selected.status) ? (
             <div className="mt-4 flex flex-wrap gap-2 border-t border-zinc-200 pt-4">

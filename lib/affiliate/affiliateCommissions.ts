@@ -208,6 +208,49 @@ export type AffiliateCommissionAdminRow = {
   createdAt: string;
 };
 
+export async function listAffiliateCommissionsForAffiliate(
+  affiliateId: string,
+  limit = 50
+): Promise<Omit<AffiliateCommissionAdminRow, "affiliateEmail">[]> {
+  const db = getSupabaseAdmin();
+  if (!db) return [];
+  const lim = Math.min(200, Math.max(1, limit));
+  const { data, error } = await db
+    .from("affiliate_commissions")
+    .select(
+      "id, affiliate_id, referred_user_id, payment_amount_cents, commission_cents, payment_index, kind, status, source, stripe_invoice_id, created_at"
+    )
+    .eq("affiliate_id", affiliateId.trim())
+    .order("created_at", { ascending: false })
+    .limit(lim);
+  if (error || !Array.isArray(data)) {
+    if (error) console.error("[affiliateCommissions] list for affiliate", error);
+    return [];
+  }
+  const rows: Omit<AffiliateCommissionAdminRow, "affiliateEmail">[] = [];
+  for (const raw of data as Record<string, unknown>[]) {
+    const id = typeof raw.id === "string" ? raw.id : "";
+    const aid = typeof raw.affiliate_id === "string" ? raw.affiliate_id : "";
+    if (!id || !aid) continue;
+    rows.push({
+      id,
+      affiliateId: aid,
+      referredUserId: typeof raw.referred_user_id === "string" ? raw.referred_user_id : null,
+      paymentAmountCents:
+        raw.payment_amount_cents == null ? null : Math.floor(Number(raw.payment_amount_cents)),
+      commissionCents: Math.floor(Number(raw.commission_cents)) || 0,
+      paymentIndex:
+        raw.payment_index == null ? null : Math.floor(Number(raw.payment_index)),
+      kind: typeof raw.kind === "string" ? raw.kind : "revshare",
+      status: typeof raw.status === "string" ? raw.status : "",
+      source: typeof raw.source === "string" ? raw.source : null,
+      stripeInvoiceId: typeof raw.stripe_invoice_id === "string" ? raw.stripe_invoice_id : null,
+      createdAt: typeof raw.created_at === "string" ? raw.created_at : "",
+    });
+  }
+  return rows;
+}
+
 export async function listAffiliateCommissionsForAdmin(
   limit = 200
 ): Promise<AffiliateCommissionAdminRow[]> {

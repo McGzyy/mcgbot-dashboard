@@ -1,6 +1,9 @@
 import type { ProductTier } from "@/lib/subscription/planTiers";
 
 export const AFFILIATE_REVSHARE_PRIMARY_BPS = 2000;
+
+/** Default per-account commission rate (bps) for new affiliates and on approval. */
+export const AFFILIATE_DEFAULT_COMMISSION_RATE_BPS = AFFILIATE_REVSHARE_PRIMARY_BPS;
 export const AFFILIATE_REVSHARE_TAIL_BPS = 1000;
 
 /** Monthly: payments 1–12 at 20%, 13–36 at 10%, then none. */
