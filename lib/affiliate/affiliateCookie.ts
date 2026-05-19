@@ -1,4 +1,8 @@
-import { AFFILIATE_ATTRIBUTION_CLICK_DAYS, AFFILIATE_COOKIE_NAME } from "@/lib/affiliate/affiliatePolicy";
+import {
+  AFFILIATE_ATTRIBUTION_CLICK_DAYS,
+  AFFILIATE_CAMPAIGN_COOKIE_NAME,
+  AFFILIATE_COOKIE_NAME,
+} from "@/lib/affiliate/affiliatePolicy";
 
 export type ParsedAffiliateCookie = { affiliateId: string; clickMs: number };
 
@@ -23,6 +27,45 @@ export function parseAffiliateCookie(raw: string | undefined | null): ParsedAffi
 
 export function isAffiliateClickFresh(clickMs: number, nowMs: number = Date.now()): boolean {
   return nowMs - clickMs <= AFFILIATE_ATTRIBUTION_CLICK_DAYS * 86_400_000;
+}
+
+export function parseAffiliateCampaignId(raw: string | undefined | null): string | null {
+  if (!raw || typeof raw !== "string") return null;
+  const id = raw.trim();
+  return UUID_RE.test(id) ? id : null;
+}
+
+export function readAffiliateCampaignIdFromCookies(jar: {
+  get: (name: string) => { value: string } | undefined;
+}): string | null {
+  const c = jar.get(AFFILIATE_CAMPAIGN_COOKIE_NAME);
+  return parseAffiliateCampaignId(c?.value);
+}
+
+/** Set affiliate + optional campaign cookies on a redirect response. */
+export function applyAffiliateTrackingCookies(
+  res: { cookies: { set: (name: string, value: string, options: Record<string, unknown>) => void } },
+  input: { affiliateId: string; campaignId?: string | null; clickMs?: number }
+): void {
+  const opts = affiliateCookieOptions();
+  const clickMs = input.clickMs ?? Date.now();
+  res.cookies.set(opts.name, serializeAffiliateCookie(input.affiliateId.trim(), clickMs), {
+    httpOnly: opts.httpOnly,
+    sameSite: opts.sameSite,
+    secure: opts.secure,
+    path: opts.path,
+    maxAge: opts.maxAgeSec,
+  });
+  const campaignId = input.campaignId?.trim() || null;
+  if (campaignId && UUID_RE.test(campaignId)) {
+    res.cookies.set(AFFILIATE_CAMPAIGN_COOKIE_NAME, campaignId, {
+      httpOnly: true,
+      sameSite: opts.sameSite,
+      secure: opts.secure,
+      path: "/",
+      maxAge: opts.maxAgeSec,
+    });
+  }
 }
 
 export function affiliateCookieOptions(): {

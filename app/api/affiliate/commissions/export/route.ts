@@ -29,25 +29,13 @@ export async function GET(request: Request) {
     status: status === "all" ? null : status,
   });
 
-  const header = [
-    "date",
-    "description",
-    "status",
-    "member_paid_usd",
-    "commission_basis_usd",
-    "stripe_fee_usd",
-    "your_commission_usd",
-    "eligible_at",
-  ].join(",");
+  const header = ["date", "description", "status", "amount_usd", "eligible_at"].join(",");
 
   const lines = rows.map((r) =>
     [
       new Date(r.createdAt).toISOString(),
       r.description,
       r.status,
-      centsToUsd(r.paymentAmountCents),
-      centsToUsd(r.commissionBasisCents ?? r.paymentAmountCents),
-      centsToUsd(r.stripeFeeCents),
       centsToUsd(r.commissionCents),
       r.eligibleAt ?? "",
     ]

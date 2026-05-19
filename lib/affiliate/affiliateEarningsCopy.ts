@@ -31,19 +31,17 @@ const monthlyMax = AFFILIATE_MONTHLY_MAX_COMMISSION_PAYMENTS;
 
 /** One-line summaries for apply flow / compact UI. */
 export const AFFILIATE_EARNINGS_SUMMARY = {
-  recurring: `Earn ${baseLabel} on net after Stripe fees to start, ${midLabel} from their ${midAt}th payment, and ${loyalLabel} from their ${loyalAt}th (through payment ${monthlyMax} on monthly, or the ${AFFILIATE_ANNUAL_MAX_COMMISSION_PAYMENTS}rd annual renewal).`,
+  recurring: `Earn ${baseLabel} to start, ${midLabel} from their ${midAt}th payment, and ${loyalLabel} from their ${loyalAt}th (through payment ${monthlyMax} on monthly, or the ${AFFILIATE_ANNUAL_MAX_COMMISSION_PAYMENTS}rd annual renewal).`,
   milestones: `One-time bonuses at 10, 25, and 50 qualified actives (${MILESTONE_TIERS.map((t) => fmtUsd(milestoneBonusCents(t))).join(" · ")}).`,
   annual: `Extra ${fmtUsd(annualSignupBonusCents("basic"))} (Basic) or ${fmtUsd(annualSignupBonusCents("pro"))} (Pro) on a referred member’s first annual payment.`,
   hold: `Commissions stay pending for about ${AFFILIATE_COMMISSION_HOLD_DAYS.monthly} days (monthly subscribers) or ${AFFILIATE_COMMISSION_HOLD_DAYS.annual} days (annual) after each payment, then auto-approve if the member is still subscribed.`,
   timingNote:
     "Payment #1, #2, and so on follow each member’s own bills — not calendar months on your calendar.",
-  stripeFees:
-    "Recurring % is calculated on what McGBot receives after Stripe processing fees (not the member’s full invoice). Fixed bonuses are unchanged.",
 } as const;
 
 export const AFFILIATE_RECURRING_COMMISSION_COPY = {
   title: "Recurring commission (loyalty unlocks)",
-  lead: `Each person you refer is locked to monthly or annual track based on their first subscription payment. Recurring % applies to net proceeds after Stripe fees on each qualifying invoice. Everyone starts at ${baseLabel}; your rate on that referral increases when they reach their ${midAt}th and ${loyalAt}th payments.`,
+  lead: `Each person you refer is locked to monthly or annual track based on their first subscription payment. Recurring % applies to each qualifying invoice on that track. Everyone starts at ${baseLabel}; your rate on that referral increases when they reach their ${midAt}th and ${loyalAt}th payments.`,
   monthlyRows: [
     {
       payment: `Payments 1–${midAt - 1}`,
@@ -62,15 +60,15 @@ export const AFFILIATE_RECURRING_COMMISSION_COPY = {
   annualRows: [
     {
       payment: "1st annual payment",
-      rate: `${baseLabel} of net after Stripe fees + ${fmtUsd(annualSignupBonusCents("basic"))} (Basic) or ${fmtUsd(annualSignupBonusCents("pro"))} (Pro) signup bonus`,
+      rate: `${baseLabel} + ${fmtUsd(annualSignupBonusCents("basic"))} (Basic) or ${fmtUsd(annualSignupBonusCents("pro"))} (Pro) signup bonus`,
     },
     {
       payment: "2nd annual renewal",
-      rate: `${midLabel} of net after Stripe fees`,
+      rate: `${midLabel}`,
     },
     {
       payment: "3rd annual renewal",
-      rate: `${loyalLabel} of net after Stripe fees`,
+      rate: `${loyalLabel}`,
     },
     {
       payment: "4th annual renewal onward",
@@ -78,7 +76,7 @@ export const AFFILIATE_RECURRING_COMMISSION_COPY = {
     },
   ] as const,
   billingNote:
-    "The % applies to net after Stripe fees (we store the member’s gross payment and fee on each row). Payment numbers are per referred member, not months on your calendar.",
+    "Payment numbers are per referred member, not months on your calendar. Monthly and annual tracks use the same loyalty unlock rules (different payment spacing).",
   holdNote: AFFILIATE_EARNINGS_SUMMARY.hold,
 } as const;
 

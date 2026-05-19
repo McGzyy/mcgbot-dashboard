@@ -73,7 +73,7 @@ export function AffiliateCommissionLedger() {
         <div>
           <h2 className="text-sm font-semibold text-zinc-900">Transaction history</h2>
           <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-            {AFFILIATE_EARNINGS_SUMMARY.hold} {AFFILIATE_EARNINGS_SUMMARY.stripeFees}
+            {AFFILIATE_EARNINGS_SUMMARY.hold}
           </p>
         </div>
         <a
@@ -112,15 +112,13 @@ export function AffiliateCommissionLedger() {
         </p>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-200">
-          <table className="w-full min-w-[36rem] text-left text-xs">
+          <table className="w-full min-w-[28rem] text-left text-xs">
             <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="px-3 py-2">Date</th>
                 <th className="px-3 py-2">Description</th>
                 <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2 text-right">Member paid</th>
-                <th className="px-3 py-2 text-right">Your basis</th>
-                <th className="px-3 py-2 text-right">Your commission</th>
+                <th className="px-3 py-2 text-right">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -149,26 +147,6 @@ export function AffiliateCommissionLedger() {
                       >
                         {r.status || "—"}
                       </span>
-                    </td>
-                    <td className="px-3 py-2.5 align-top text-right tabular-nums text-zinc-600">
-                      {r.paymentAmountCents != null ? fmtAffiliateUsd(r.paymentAmountCents) : "—"}
-                    </td>
-                    <td className="px-3 py-2.5 align-top text-right tabular-nums text-zinc-700">
-                      {r.kind === "revshare" &&
-                      (r.commissionBasisCents != null || r.paymentAmountCents != null) ? (
-                        <>
-                          <span className="font-medium">
-                            {fmtAffiliateUsd(r.commissionBasisCents ?? r.paymentAmountCents ?? 0)}
-                          </span>
-                          {r.stripeFeeCents != null && r.stripeFeeCents > 0 ? (
-                            <span className="mt-0.5 block text-[10px] text-zinc-400">
-                              −{fmtAffiliateUsd(r.stripeFeeCents)} Stripe
-                            </span>
-                          ) : null}
-                        </>
-                      ) : (
-                        "—"
-                      )}
                     </td>
                     <td className="px-3 py-2.5 align-top text-right font-semibold tabular-nums text-zinc-900">
                       {fmtAffiliateUsd(r.commissionCents)}

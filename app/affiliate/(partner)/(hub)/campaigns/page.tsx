@@ -7,6 +7,8 @@ type CampaignRow = {
   slug: string;
   name: string;
   clickCount: number;
+  signupCount: number;
+  payingCount: number;
   trackingUrl: string | null;
 };
 
@@ -109,7 +111,8 @@ export default function AffiliateCampaignsPage() {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">Tracking links</h1>
         <p className="mt-2 max-w-2xl text-sm text-zinc-600">
           Your default link attributes all traffic. Create named campaigns for YouTube, Discord, or email — each gets
-          its own short <span className="font-mono text-zinc-800">/r/XXXXX</span> code and click stats.
+          its own short <span className="font-mono text-zinc-800">/r/XXXXX</span> code plus clicks, signups, and paying
+          conversions when members subscribe through that link.
         </p>
       </div>
 
@@ -182,12 +185,14 @@ export default function AffiliateCampaignsPage() {
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[40rem] text-left text-sm">
+                <table className="w-full min-w-[52rem] text-left text-sm">
                   <thead className="bg-zinc-50 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                     <tr>
                       <th className="px-4 py-2.5 sm:px-5">Name</th>
                       <th className="px-4 py-2.5">Slug</th>
                       <th className="px-4 py-2.5 text-right">Clicks</th>
+                      <th className="px-4 py-2.5 text-right">Signups</th>
+                      <th className="px-4 py-2.5 text-right">Paying</th>
                       <th className="px-4 py-2.5">Short link</th>
                       <th className="px-4 py-2.5 sm:px-5" />
                     </tr>
@@ -198,6 +203,8 @@ export default function AffiliateCampaignsPage() {
                         <td className="px-4 py-3 font-medium text-zinc-900 sm:px-5">{c.name}</td>
                         <td className="px-4 py-3 font-mono text-xs text-zinc-600">{c.slug}</td>
                         <td className="px-4 py-3 text-right tabular-nums">{c.clickCount.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{c.signupCount.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{c.payingCount.toLocaleString()}</td>
                         <td className="max-w-[12rem] truncate px-4 py-3 font-mono text-xs text-zinc-700">
                           {c.trackingUrl ?? "—"}
                         </td>

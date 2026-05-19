@@ -75,7 +75,6 @@ export function AffiliateEarningsGuide({ variant = "full" }: { variant?: Variant
         <RateTable title="Monthly subscriber track" rows={AFFILIATE_RECURRING_COMMISSION_COPY.monthlyRows} />
         <RateTable title="Annual subscriber track" rows={AFFILIATE_RECURRING_COMMISSION_COPY.annualRows} />
         <p className="mt-2 text-xs leading-relaxed text-zinc-500">{AFFILIATE_RECURRING_COMMISSION_COPY.billingNote}</p>
-        <p className="mt-2 text-xs leading-relaxed text-zinc-500">{AFFILIATE_EARNINGS_SUMMARY.stripeFees}</p>
         <p className="mt-2 text-xs leading-relaxed text-zinc-500">{AFFILIATE_RECURRING_COMMISSION_COPY.holdNote}</p>
         <p className="mt-2 text-xs leading-relaxed text-zinc-500">{AFFILIATE_EARNINGS_SUMMARY.timingNote}</p>
       </section>

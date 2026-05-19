@@ -36,7 +36,7 @@ When you share your tracking link, include clear affiliate disclosure where requ
 
 ## Commission schedule (loyalty rev-share)
 
-Recurring % is on **net after Stripe fees** (not the member’s gross invoice). Rates are **per referred member** by their payment number:
+Recurring % rates are **per referred member** by their payment number (monthly and annual tracks):
 
 **Monthly subscribers**
 

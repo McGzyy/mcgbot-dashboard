@@ -76,6 +76,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success: true,
-    campaign: { ...created.campaign, clickCount: 0, trackingUrl },
+    campaign: { ...created.campaign, clickCount: 0, signupCount: 0, payingCount: 0, trackingUrl },
   });
 }

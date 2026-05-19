@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { affiliateCookieOptions, serializeAffiliateCookie } from "@/lib/affiliate/affiliateCookie";
+import { applyAffiliateTrackingCookies } from "@/lib/affiliate/affiliateCookie";
 import {
   getAffiliateById,
   getAffiliateByReferralCode,
@@ -30,24 +30,10 @@ export async function GET(
   }
 
   if (account?.status === "active" && account.id) {
-    const opts = affiliateCookieOptions();
-    const clickMs = Date.now();
-    res.cookies.set(opts.name, serializeAffiliateCookie(account.id, clickMs), {
-      httpOnly: opts.httpOnly,
-      sameSite: opts.sameSite,
-      secure: opts.secure,
-      path: opts.path,
-      maxAge: opts.maxAgeSec,
+    applyAffiliateTrackingCookies(res, {
+      affiliateId: account.id,
+      campaignId,
     });
-    if (campaignId) {
-      res.cookies.set("mcgbot.affiliate.campaign", campaignId, {
-        httpOnly: true,
-        sameSite: opts.sameSite,
-        secure: opts.secure,
-        path: "/",
-        maxAge: opts.maxAgeSec,
-      });
-    }
   }
 
   return res;

@@ -15,9 +15,12 @@ export async function applyAffiliateAttributionFromCookies(
   const meta = readAffiliateStripeMetadataFromCookies(jar);
   if (!meta?.affiliate_id?.trim()) return false;
   const affiliateId = meta.affiliate_id.trim();
+  const campaignId =
+    typeof meta.affiliate_campaign_id === "string" ? meta.affiliate_campaign_id : null;
   return upsertAffiliateAttribution({
     referredUserId: referred,
     affiliateId,
+    campaignId,
     attributionSource,
   });
 }

@@ -111,7 +111,7 @@ export default function AffiliateMarketingHomePage() {
           <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">How you earn</h2>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">
             Three ways to get paid — loyalty rev-share (15% base, up to 25% as referrals stay subscribed), referral
-            milestones, and annual signup bonuses. Recurring % is on net after Stripe fees.
+            milestones, and annual signup bonuses.
           </p>
           <div className="mt-8">
             <AffiliateEarningsGuide variant="full" />

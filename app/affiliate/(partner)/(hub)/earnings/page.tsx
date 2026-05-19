@@ -130,7 +130,7 @@ export default function AffiliateEarningsPage() {
         <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Commission ledger</h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
           <span className="font-medium text-zinc-800">Recurring commissions</span> use the loyalty schedule below (
-          {AFFILIATE_EARNINGS_SUMMARY.recurring}) {AFFILIATE_EARNINGS_SUMMARY.stripeFees}{" "}
+          {AFFILIATE_EARNINGS_SUMMARY.recurring}).{" "}
           <span className="font-medium text-zinc-800">Extra bonuses</span> are milestone and annual-plan payouts — listed
           separately. {AFFILIATE_EARNINGS_SUMMARY.timingNote}
         </p>

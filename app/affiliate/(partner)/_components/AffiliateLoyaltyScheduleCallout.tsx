@@ -10,7 +10,6 @@ export function AffiliateLoyaltyScheduleCallout({ className = "" }: { className?
         Loyalty rev-share (current program)
       </p>
       <p className="mt-1.5 text-sm leading-relaxed text-zinc-700">{AFFILIATE_EARNINGS_SUMMARY.recurring}</p>
-      <p className="mt-1.5 text-xs leading-relaxed text-zinc-600">{AFFILIATE_EARNINGS_SUMMARY.stripeFees}</p>
       <Link
         href="/affiliate/resources#how-you-earn"
         className="mt-2 inline-block text-xs font-semibold text-violet-700 hover:underline"

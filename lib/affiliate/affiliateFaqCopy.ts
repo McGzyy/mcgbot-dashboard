@@ -42,13 +42,13 @@ export const AFFILIATE_FAQ_SECTIONS: AffiliateFaqSection[] = [
         id: "payment-timeline",
         question: "What does “1st payment, 2nd payment” mean?",
         answer:
-          "Each referred member has their own timeline — not calendar months on your schedule. You start at 15% on net proceeds (after Stripe fees), 20% from their 6th payment, and 25% from their 12th (through payment 36 on monthly). Annual: 15% / 20% / 25% on their 1st / 2nd / 3rd annual invoices, plus the first-annual signup bonus. See the program page for full tables.",
+          "Each referred member has their own timeline — not calendar months on your schedule. You start at 15%, 20% from their 6th payment, and 25% from their 12th (through payment 36 on monthly). Annual: 15% / 20% / 25% on their 1st / 2nd / 3rd annual invoices, plus the first-annual signup bonus. See the full schedule on the program page.",
       },
       {
         id: "milestones",
         question: "What are milestone bonuses?",
         answer:
-          "One-time cash bonuses when you reach qualified active referral counts (10, 25, and 50). These are separate from the recurring % on each member’s payments. See the earnings breakdown on the program page for qualification rules.",
+          "One-time cash bonuses when you reach qualified active referral counts (10, 25, and 50). These are separate from the recurring % on each member’s payments. See the program page for qualification rules.",
       },
       {
         id: "annual",

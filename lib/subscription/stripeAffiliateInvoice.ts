@@ -1,6 +1,11 @@
 import type Stripe from "stripe";
 
-import { isAffiliateClickFresh, parseAffiliateCookie } from "@/lib/affiliate/affiliateCookie";
+import {
+  isAffiliateClickFresh,
+  parseAffiliateCampaignId,
+  parseAffiliateCookie,
+  readAffiliateCampaignIdFromCookies,
+} from "@/lib/affiliate/affiliateCookie";
 import { AFFILIATE_COOKIE_NAME } from "@/lib/affiliate/affiliatePolicy";
 import { upsertAffiliateAttribution } from "@/lib/affiliate/affiliateAttribution";
 import { recordAffiliateCommissionFromStripeInvoice } from "@/lib/affiliate/affiliateCommissions";
@@ -41,10 +46,15 @@ export async function processStripeInvoicePaidForAffiliates(opts: {
 
   const affiliateIdRaw = typeof md.affiliate_id === "string" ? md.affiliate_id.trim() : "";
   const clickMs = Number(md.affiliate_click_ms);
+  const campaignIdRaw =
+    typeof md.affiliate_campaign_id === "string" ? md.affiliate_campaign_id.trim() : "";
+  const campaignId = campaignIdRaw ? parseAffiliateCampaignId(campaignIdRaw) : null;
+
   if (affiliateIdRaw && Number.isFinite(clickMs) && isAffiliateClickFresh(clickMs)) {
     await upsertAffiliateAttribution({
       referredUserId: discordId,
       affiliateId: affiliateIdRaw,
+      campaignId,
       attributionSource: "web_cookie_checkout",
     });
   }
@@ -73,10 +83,13 @@ export async function processStripeInvoicePaidForAffiliates(opts: {
   }
 }
 
-export function stripeAffiliateMetadataFromCookieValue(raw: string | undefined): {
+export type AffiliateStripeMetadata = {
   affiliate_id: string;
   affiliate_click_ms: string;
-} | null {
+  affiliate_campaign_id?: string;
+};
+
+export function stripeAffiliateMetadataFromCookieValue(raw: string | undefined): AffiliateStripeMetadata | null {
   if (!raw || typeof raw !== "string") return null;
   const parsed = parseAffiliateCookie(raw);
   if (!parsed || !isAffiliateClickFresh(parsed.clickMs)) return null;
@@ -88,7 +101,14 @@ export function stripeAffiliateMetadataFromCookieValue(raw: string | undefined):
 
 export function readAffiliateStripeMetadataFromCookies(jar: {
   get: (name: string) => { value: string } | undefined;
-}): { affiliate_id: string; affiliate_click_ms: string } | null {
+}): AffiliateStripeMetadata | null {
   const c = jar.get(AFFILIATE_COOKIE_NAME);
-  return stripeAffiliateMetadataFromCookieValue(c?.value);
+  const base = stripeAffiliateMetadataFromCookieValue(c?.value);
+  if (!base) return null;
+
+  const campaignId = readAffiliateCampaignIdFromCookies(jar);
+  if (campaignId) {
+    return { ...base, affiliate_campaign_id: campaignId };
+  }
+  return base;
 }
