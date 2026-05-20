@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AffiliateLoyaltyScheduleCallout } from "@/app/affiliate/(partner)/_components/AffiliateLoyaltyScheduleCallout";
 import { AffiliatePerformanceOverview } from "@/app/affiliate/(partner)/_components/AffiliatePerformanceOverview";
+import { AffiliateTopCampaigns } from "@/app/affiliate/(partner)/_components/AffiliateTopCampaigns";
 
 type MilestoneProgress = {
   tier: number;
@@ -99,6 +100,8 @@ export default function AffiliateDashboardPage() {
       <AffiliateLoyaltyScheduleCallout />
 
       <AffiliatePerformanceOverview trackingLink={trackingLink} />
+
+      <AffiliateTopCampaigns />
 
       {milestones.length > 0 ? (
         <section className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm">

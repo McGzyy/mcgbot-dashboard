@@ -2,13 +2,10 @@ import { fmtAffiliateUsd } from "@/lib/affiliate/affiliateFormatUsd";
 
 export type CommissionRow = {
   id: string;
-  referredUserId: string | null;
-  paymentAmountCents: number | null;
   commissionCents: number;
-  paymentIndex: number | null;
-  kind: string;
   status: string;
   createdAt: string;
+  description: string;
 };
 
 export function AffiliatePartnerCommissionsTable({
@@ -34,9 +31,8 @@ export function AffiliatePartnerCommissionsTable({
         <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
           <tr>
             <th className="px-3 py-2">Date</th>
-            <th className="px-3 py-2">Kind</th>
+            <th className="px-3 py-2">Description</th>
             <th className="px-3 py-2">Status</th>
-            <th className="px-3 py-2">Payment #</th>
             <th className="px-3 py-2 text-right">Amount</th>
             {onVoid ? <th className="px-3 py-2 text-right"> </th> : null}
           </tr>
@@ -47,9 +43,8 @@ export function AffiliatePartnerCommissionsTable({
               <td className="whitespace-nowrap px-3 py-2 text-zinc-600">
                 {new Date(r.createdAt).toLocaleDateString()}
               </td>
-              <td className="px-3 py-2 capitalize">{r.kind.replace(/_/g, " ")}</td>
+              <td className="px-3 py-2 font-medium text-zinc-900">{r.description}</td>
               <td className="px-3 py-2 capitalize">{r.status}</td>
-              <td className="px-3 py-2 tabular-nums">{r.paymentIndex ?? "—"}</td>
               <td className="px-3 py-2 text-right font-semibold tabular-nums">
                 {fmtAffiliateUsd(r.commissionCents)}
               </td>

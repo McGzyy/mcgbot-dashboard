@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { isAwaitingMembershipRole } from "@/lib/discordMembershipRoles";
 import { liveDashboardAccessForDiscordId } from "@/lib/dashboardGate";
+import { isDashboardAdminFromJwt } from "@/lib/adminGate";
 import { resolveHelpTier } from "@/lib/helpRole";
 import {
   discordIdFromTokenFields,
@@ -126,9 +127,7 @@ async function affiliateAdminMiddleware(req: NextRequest): Promise<NextResponse 
     ? ((await getToken({ req, secret })) as Record<string, unknown> | null)
     : null;
   const discordId = discordIdFromTokenFields(token);
-  const isAdmin =
-    token?.helpTier === "admin" ||
-    (discordId ? (await resolveHelpTier(discordId)) === "admin" : false);
+  const isAdmin = await isDashboardAdminFromJwt(token, discordId);
 
   if (!isAdmin) {
     if (pathname.startsWith("/api/")) {

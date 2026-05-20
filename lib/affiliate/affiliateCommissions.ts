@@ -229,6 +229,7 @@ export type AffiliateCommissionAdminRow = {
   source: string | null;
   stripeInvoiceId: string | null;
   createdAt: string;
+  description: string;
 };
 
 export type AffiliateCommissionPartnerRow = {
@@ -350,7 +351,7 @@ export async function listAffiliateCommissionsForAffiliate(
   const { data, error } = await db
     .from("affiliate_commissions")
     .select(
-      "id, affiliate_id, referred_user_id, payment_amount_cents, commission_cents, payment_index, kind, status, source, stripe_invoice_id, created_at"
+      "id, affiliate_id, referred_user_id, payment_amount_cents, commission_cents, commission_rate_bps, payment_index, kind, status, billing_interval, source, stripe_invoice_id, created_at"
     )
     .eq("affiliate_id", affiliateId.trim())
     .order("created_at", { ascending: false })
@@ -364,6 +365,14 @@ export async function listAffiliateCommissionsForAffiliate(
     const id = typeof raw.id === "string" ? raw.id : "";
     const aid = typeof raw.affiliate_id === "string" ? raw.affiliate_id : "";
     if (!id || !aid) continue;
+    const kind = typeof raw.kind === "string" ? raw.kind : "revshare";
+    const billingRaw = typeof raw.billing_interval === "string" ? raw.billing_interval : null;
+    const billingInterval =
+      billingRaw === "monthly" || billingRaw === "annual" ? billingRaw : null;
+    const paymentIndex =
+      raw.payment_index == null ? null : Math.floor(Number(raw.payment_index));
+    const commissionRateBps =
+      raw.commission_rate_bps == null ? null : Math.floor(Number(raw.commission_rate_bps));
     rows.push({
       id,
       affiliateId: aid,
@@ -371,13 +380,18 @@ export async function listAffiliateCommissionsForAffiliate(
       paymentAmountCents:
         raw.payment_amount_cents == null ? null : Math.floor(Number(raw.payment_amount_cents)),
       commissionCents: Math.floor(Number(raw.commission_cents)) || 0,
-      paymentIndex:
-        raw.payment_index == null ? null : Math.floor(Number(raw.payment_index)),
-      kind: typeof raw.kind === "string" ? raw.kind : "revshare",
+      paymentIndex,
+      kind,
       status: typeof raw.status === "string" ? raw.status : "",
       source: typeof raw.source === "string" ? raw.source : null,
       stripeInvoiceId: typeof raw.stripe_invoice_id === "string" ? raw.stripe_invoice_id : null,
       createdAt: typeof raw.created_at === "string" ? raw.created_at : "",
+      description: affiliateCommissionPartnerDescription({
+        kind,
+        paymentIndex,
+        billingInterval,
+        commissionRateBps,
+      }),
     });
   }
   return rows;
@@ -392,7 +406,7 @@ export async function listAffiliateCommissionsForAdmin(
   const { data, error } = await db
     .from("affiliate_commissions")
     .select(
-      "id, affiliate_id, referred_user_id, payment_amount_cents, commission_cents, payment_index, kind, status, source, stripe_invoice_id, created_at"
+      "id, affiliate_id, referred_user_id, payment_amount_cents, commission_cents, commission_rate_bps, payment_index, kind, status, billing_interval, source, stripe_invoice_id, created_at"
     )
     .order("created_at", { ascending: false })
     .limit(lim);
@@ -405,6 +419,14 @@ export async function listAffiliateCommissionsForAdmin(
     const id = typeof raw.id === "string" ? raw.id : "";
     const affiliateId = typeof raw.affiliate_id === "string" ? raw.affiliate_id : "";
     if (!id || !affiliateId) continue;
+    const kind = typeof raw.kind === "string" ? raw.kind : "revshare";
+    const billingRaw = typeof raw.billing_interval === "string" ? raw.billing_interval : null;
+    const billingInterval =
+      billingRaw === "monthly" || billingRaw === "annual" ? billingRaw : null;
+    const paymentIndex =
+      raw.payment_index == null ? null : Math.floor(Number(raw.payment_index));
+    const commissionRateBps =
+      raw.commission_rate_bps == null ? null : Math.floor(Number(raw.commission_rate_bps));
     base.push({
       id,
       affiliateId,
@@ -412,13 +434,18 @@ export async function listAffiliateCommissionsForAdmin(
       paymentAmountCents:
         raw.payment_amount_cents == null ? null : Math.floor(Number(raw.payment_amount_cents)),
       commissionCents: Math.floor(Number(raw.commission_cents)) || 0,
-      paymentIndex:
-        raw.payment_index == null ? null : Math.floor(Number(raw.payment_index)),
-      kind: typeof raw.kind === "string" ? raw.kind : "revshare",
+      paymentIndex,
+      kind,
       status: typeof raw.status === "string" ? raw.status : "",
       source: typeof raw.source === "string" ? raw.source : null,
       stripeInvoiceId: typeof raw.stripe_invoice_id === "string" ? raw.stripe_invoice_id : null,
       createdAt: typeof raw.created_at === "string" ? raw.created_at : "",
+      description: affiliateCommissionPartnerDescription({
+        kind,
+        paymentIndex,
+        billingInterval,
+        commissionRateBps,
+      }),
     });
   }
   const ids = [...new Set(base.map((r) => r.affiliateId))];

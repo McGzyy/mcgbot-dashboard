@@ -23,6 +23,18 @@ export async function isDashboardAdminUser(session: Session | null, discordId: s
   return live === "admin";
 }
 
+/** Middleware / edge: JWT claim first, then live Discord guild admin (same as {@link isDashboardAdminUser}). */
+export async function isDashboardAdminFromJwt(
+  token: Record<string, unknown> | null,
+  discordId: string
+): Promise<boolean> {
+  const tier = typeof token?.helpTier === "string" ? token.helpTier.trim().toLowerCase() : "";
+  if (tier === "admin") return true;
+  const id = discordId.trim();
+  if (!id) return false;
+  return (await resolveHelpTierAsync(id)) === "admin";
+}
+
 export async function requireDashboardAdmin(): Promise<Ok | Fail> {
   const session = await getServerSession(authOptions);
   const id = session?.user?.id?.trim();
