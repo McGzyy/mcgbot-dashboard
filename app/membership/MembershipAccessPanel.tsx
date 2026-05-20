@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useState } from "react";
 import { ProBadge } from "@/app/components/subscription/ProBadge";
 import {
   BASIC_DAILY_CALLS_LIMIT,
@@ -42,8 +45,23 @@ export function MembershipAccessPanel({
   discordInviteUrl,
   onDismissWelcome,
 }: MembershipAccessPanelProps) {
+  const router = useRouter();
+  const { update } = useSession();
+  const [dashboardNavBusy, setDashboardNavBusy] = useState(false);
   const tierMeta = TIER_MARKETING[userProductTier];
   const isWelcome = variant === "welcome";
+
+  async function goToDashboard(path = "/") {
+    if (dashboardNavBusy) return;
+    setDashboardNavBusy(true);
+    try {
+      await update({ refreshAccess: true });
+      router.push(path);
+      router.refresh();
+    } finally {
+      setDashboardNavBusy(false);
+    }
+  }
 
   const unlocked = MEMBERSHIP_TIER_FEATURES.filter((row) =>
     featureIncluded(row[userProductTier], userProductTier)
@@ -114,29 +132,39 @@ export function MembershipAccessPanel({
       <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {isWelcome ? (
           <>
-            <Link
-              href="/?submitCall=1"
-              onClick={onDismissWelcome}
-              className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_20px_60px_rgba(34,197,94,0.2)] transition hover:brightness-110 sm:min-w-[220px] sm:flex-none"
+            <button
+              type="button"
+              disabled={dashboardNavBusy}
+              onClick={() => {
+                onDismissWelcome?.();
+                void goToDashboard("/?submitCall=1");
+              }}
+              className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_20px_60px_rgba(34,197,94,0.2)] transition hover:brightness-110 disabled:opacity-60 sm:min-w-[220px] sm:flex-none"
             >
               Submit your first call
-            </Link>
-            <Link
-              href="/"
-              onClick={onDismissWelcome}
-              className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl border border-zinc-700/70 bg-zinc-900/50 px-6 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800/60 sm:min-w-[200px] sm:flex-none"
+            </button>
+            <button
+              type="button"
+              disabled={dashboardNavBusy}
+              onClick={() => {
+                onDismissWelcome?.();
+                void goToDashboard();
+              }}
+              className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl border border-zinc-700/70 bg-zinc-900/50 px-6 text-sm font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800/60 disabled:opacity-60 sm:min-w-[200px] sm:flex-none"
             >
               Explore dashboard
-            </Link>
+            </button>
           </>
         ) : (
           <>
-            <Link
-              href="/"
-              className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_20px_60px_rgba(34,197,94,0.2)] transition hover:brightness-110 sm:min-w-[200px] sm:flex-none"
+            <button
+              type="button"
+              disabled={dashboardNavBusy}
+              onClick={() => void goToDashboard("/")}
+              className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,rgba(34,197,94,1),rgba(22,163,74,1))] px-6 text-sm font-semibold text-black shadow-[0_20px_60px_rgba(34,197,94,0.2)] transition hover:brightness-110 disabled:opacity-60 sm:min-w-[200px] sm:flex-none"
             >
-              Go to dashboard
-            </Link>
+              {dashboardNavBusy ? "Opening…" : "Go to dashboard"}
+            </button>
             <a
               href={discordInviteUrl}
               target="_blank"

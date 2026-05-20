@@ -27,9 +27,19 @@ export function SessionGateRecovery() {
       hasActiveSubscription?: boolean;
     };
 
-    if (u.hasDashboardAccess === true) return;
-
     if (u.helpTier === "admin" || u.helpTier === "mod" || u.canModerate === true) return;
+
+    /** Session says unlocked but JWT may be stale — refresh so middleware on `/` sees updated claims. */
+    if (
+      u.hasDashboardAccess === true &&
+      typeof window !== "undefined" &&
+      window.location.pathname.startsWith("/membership")
+    ) {
+      bump(true);
+      return;
+    }
+
+    if (u.hasDashboardAccess === true) return;
 
     const onMembershipFunnel =
       u.discordInGuild === true &&

@@ -395,6 +395,8 @@ async function hasDashboardAccessResolved(
   token: Record<string, unknown> | null
 ): Promise<boolean> {
   if (!token) return false;
+  /** Trust JWT subscription/staff claims before live checks (session may be fresher than a stale deny cache). */
+  if (hasDashboardAccess(token)) return true;
   const id = discordIdFromTokenFields(token);
   const gate = discordGateStatus(token);
   if (gate === "needs_verification") {
@@ -413,10 +415,17 @@ async function hasDashboardAccessResolved(
       } catch (e) {
         console.warn("[middleware] live access check (not_in_guild):", e);
       }
+      if (hasDashboardAccess(token)) return true;
+      if (
+        subscriptionActiveFromToken(token) ||
+        isProtectedFromGuildFalsePositive(token, id) ||
+        isStaffFromToken(token, id)
+      ) {
+        return true;
+      }
       return false;
     }
   }
-  if (hasDashboardAccess(token)) return true;
   if (!id) return false;
   const envTier = resolveHelpTier(id);
   if (envTier === "admin" || envTier === "mod") return true;
