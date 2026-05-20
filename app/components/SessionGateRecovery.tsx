@@ -27,6 +27,13 @@ export function SessionGateRecovery() {
       hasActiveSubscription?: boolean;
     };
 
+    const bump = (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastAtRef.current < FOCUS_DEBOUNCE_MS) return;
+      lastAtRef.current = now;
+      void update({ refreshAccess: true });
+    };
+
     if (u.helpTier === "admin" || u.helpTier === "mod" || u.canModerate === true) return;
 
     /** Session says unlocked but JWT may be stale — refresh so middleware on `/` sees updated claims. */
@@ -56,13 +63,6 @@ export function SessionGateRecovery() {
       u.discordInGuild == null;
 
     if (!needsRecovery) return;
-
-    const bump = (force = false) => {
-      const now = Date.now();
-      if (!force && now - lastAtRef.current < FOCUS_DEBOUNCE_MS) return;
-      lastAtRef.current = now;
-      void update({ refreshAccess: true });
-    };
 
     if (!mountedRefreshRef.current) {
       mountedRefreshRef.current = true;
