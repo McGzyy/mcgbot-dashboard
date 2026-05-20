@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { isAwaitingMembershipRole } from "@/lib/discordMembershipRoles";
 import { liveDashboardAccessForDiscordId } from "@/lib/dashboardGate";
-import { isDashboardAdminFromJwt } from "@/lib/adminGate";
+import { isDashboardAdminFromJwt } from "@/lib/middlewareDashboardAdmin";
 import { resolveHelpTier } from "@/lib/helpRole";
 import {
   discordIdFromTokenFields,
