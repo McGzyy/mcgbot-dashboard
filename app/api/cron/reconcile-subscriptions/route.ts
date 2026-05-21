@@ -18,6 +18,8 @@ import { recordPendingReferralEventForPaidInvoice } from "@/lib/referralRewards"
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+/** Cap Fluid CPU if Solana RPC sweep runs long (pending invoices + many signatures). */
+export const maxDuration = 120;
 
 function authorizeCron(request: Request): boolean {
   const secret = (process.env.CRON_SECRET ?? "").trim();
@@ -28,7 +30,18 @@ function authorizeCron(request: Request): boolean {
   return bearer === secret || header === secret;
 }
 
+function reconcileCronEnabled(): boolean {
+  const raw = String(process.env.RECONCILE_SUBSCRIPTIONS_CRON_ENABLED ?? "1")
+    .trim()
+    .toLowerCase();
+  return raw !== "0" && raw !== "false" && raw !== "no";
+}
+
 async function runReconcile(): Promise<Response> {
+  if (!reconcileCronEnabled()) {
+    return Response.json({ success: true, skipped: true, reason: "RECONCILE_SUBSCRIPTIONS_CRON_ENABLED=0" });
+  }
+
   if (!getSupabaseAdmin()) {
     return Response.json({ success: false, error: "Database not configured" }, { status: 503 });
   }
@@ -41,7 +54,22 @@ async function runReconcile(): Promise<Response> {
   await expireStaleInvoices();
   const pending = await listPendingInvoices();
   if (pending.length === 0) {
-    return Response.json({ success: true, matched: 0, pending: 0 });
+    let premiumRolesSynced = 0;
+    try {
+      const expiredIds = await listDiscordIdsWithRecentlyEndedSubscriptions({ pastHours: 168 });
+      for (const discordId of expiredIds) {
+        await syncPremiumDiscordRoleAfterSubscriptionChange(discordId);
+        premiumRolesSynced += 1;
+      }
+    } catch (e) {
+      console.error("[reconcile-subscriptions] premium discord role sweep", e);
+    }
+    return Response.json({
+      success: true,
+      matched: 0,
+      pending: 0,
+      premium_roles_recent_window_synced: premiumRolesSynced,
+    });
   }
 
   const byTreasury = new Map<string, typeof pending>();

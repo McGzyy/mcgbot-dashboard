@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/reconcile-subscriptions",
-      "schedule": "*/10 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/affiliate-milestones",
