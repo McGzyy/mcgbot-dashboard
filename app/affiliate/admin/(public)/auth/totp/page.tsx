@@ -60,8 +60,14 @@ function AffiliateOpsTotpInner() {
       <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-violet-600/90">McGBot admin</p>
       <h1 className="mt-3 text-2xl font-bold tracking-tight text-zinc-900">Authenticator required</h1>
       <p className="mt-3 text-sm leading-relaxed text-zinc-600">
-        You are signed into the McGBot dashboard as an admin. Confirm with the same authenticator app you use for the
-        terminal — no separate affiliate password.
+        You are signed into the McGBot dashboard as an admin. Enter a code from the{" "}
+        <strong className="font-semibold text-zinc-800">McGBot Terminal</strong> entry in your authenticator app — the
+        same one you use when signing into the main terminal. Do not use <strong className="font-semibold">McGBot
+        Affiliates</strong> (partner portal) codes here.
+      </p>
+      <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+        If codes keep failing, check that your phone clock is automatic, try a fresh code, or use a Terminal recovery
+        code from when you enabled 2FA on the main dashboard.
       </p>
       <form onSubmit={submit} className="mt-8 space-y-4 rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm">
         <label className="block">

@@ -6,12 +6,12 @@ import {
   applyAffiliateOpsSessionCookie,
   encodeAffiliateOpsSession,
 } from "@/lib/affiliate/affiliateOpsSession";
+import { verifyDashboardUserTotpOrRecovery } from "@/lib/dashboardUserTotp";
 import {
-  assertDashboardTotpVerifyAllowed,
-  clearDashboardTotpVerifyThrottle,
-  recordDashboardTotpVerifyFailure,
-  verifyDashboardUserTotpOrRecovery,
-} from "@/lib/dashboardUserTotp";
+  assertTotpVerifyAllowed,
+  clearTotpVerifyThrottle,
+  recordTotpVerifyFailure,
+} from "@/lib/totpVerifyThrottle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
   }
 
-  const throttle = await assertDashboardTotpVerifyAllowed(discordId);
+  const throttle = await assertTotpVerifyAllowed(discordId);
   if (!throttle.ok) {
     return NextResponse.json(
       { success: false, error: `Too many attempts. Try again in ${throttle.retryAfterSec} seconds.` },
@@ -35,11 +35,11 @@ export async function POST(request: Request) {
   const code = typeof body?.code === "string" ? body.code : "";
   const v = await verifyDashboardUserTotpOrRecovery(discordId, code);
   if (!v.ok) {
-    await recordDashboardTotpVerifyFailure(discordId);
+    await recordTotpVerifyFailure(discordId);
     return NextResponse.json({ success: false, error: v.error }, { status: 400 });
   }
 
-  await clearDashboardTotpVerifyThrottle(discordId);
+  await clearTotpVerifyThrottle(discordId);
 
   const token = await encodeAffiliateOpsSession(discordId);
   if (!token) {
