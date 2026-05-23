@@ -15,6 +15,8 @@ export type DashboardAlertGeneral = {
   followed_callers: boolean;
   /** Restrict caller alerts to Trusted Pro callers only (pairs with followed_callers / future feed hooks). */
   trusted_only: boolean;
+  /** Pro: mirror fired alerts to Discord DMs (inbox always receives when rules match). */
+  discord_dm: boolean;
   /** Hot Right Now panel–style pulses (evaluation TBD). */
   hot_trending: boolean;
   /** Dashboard / inbox-style announcements already on the roadmap. */
@@ -56,6 +58,7 @@ export const DEFAULT_DASHBOARD_ALERT_PREFS: DashboardAlertPrefs = {
   general: {
     followed_callers: true,
     trusted_only: false,
+    discord_dm: true,
     hot_trending: false,
     announcements: true,
   },
@@ -74,6 +77,7 @@ export function clampAlertPrefsForProductTier(
   return {
     general: {
       ...prefs.general,
+      discord_dm: false,
       hot_trending: false,
     },
     rules: prefs.rules.slice(0, BASIC_ALERT_RULES_CAP),
@@ -96,6 +100,7 @@ function normalizeGeneral(raw: unknown): DashboardAlertGeneral {
     followed_callers:
       typeof o.followed_callers === "boolean" ? o.followed_callers : d.followed_callers,
     trusted_only: typeof o.trusted_only === "boolean" ? o.trusted_only : d.trusted_only,
+    discord_dm: typeof o.discord_dm === "boolean" ? o.discord_dm : d.discord_dm,
     hot_trending:
       typeof o.hot_trending === "boolean" ? o.hot_trending : d.hot_trending,
     announcements:

@@ -14,6 +14,8 @@ import {
 import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { fetchDexMetricsForMint } from "@/lib/hodl/dexTokenMetrics";
 import { fetchDexscreenerMintMeta } from "@/lib/dexscreenerMintMeta";
+import { deliverDashboardAlertDiscordDm } from "@/lib/dashboardAlertDmDelivery";
+import { tierIncludesProFeatures, type ProductTier } from "@/lib/subscription/planTiers";
 import { resolveUserProductTier } from "@/lib/subscription/productTierAccess";
 import { insertUserInboxNotification } from "@/lib/userInboxNotifications";
 import { userProfileHref } from "@/lib/userProfileHref";
@@ -283,6 +285,11 @@ function callMeta(call: CallRow): CallSnapshotMeta {
   };
 }
 
+type AlertDeliveryOpts = {
+  tier: ProductTier;
+  discordDm: boolean;
+};
+
 async function fireInboxAlert(
   db: SupabaseClient,
   input: {
@@ -291,7 +298,8 @@ async function fireInboxAlert(
     fireKey: string;
     title: string;
     body: string;
-  }
+  },
+  delivery?: AlertDeliveryOpts
 ): Promise<boolean> {
   const fire = await tryRecordAlertFire(db, {
     userId: input.userId,
@@ -307,14 +315,34 @@ async function fireInboxAlert(
     body: input.body,
     kind: "alert",
   });
-  return sent.ok;
+  if (!sent.ok) return false;
+
+  if (
+    delivery?.discordDm &&
+    tierIncludesProFeatures(delivery.tier) &&
+    process.env.DASHBOARD_ALERTS_DISCORD_DM_ENABLED !== "0"
+  ) {
+    void deliverDashboardAlertDiscordDm({
+      userId: input.userId,
+      title: input.title,
+      body: input.body,
+    }).catch((e) => {
+      console.warn(
+        "[dashboardAlerts] Discord DM delivery:",
+        e instanceof Error ? e.message : e
+      );
+    });
+  }
+
+  return true;
 }
 
 async function evaluateCallerAlertsForUser(
   db: SupabaseClient,
   discordId: string,
   prefs: DashboardAlertPrefs,
-  sinceIso: string
+  sinceIso: string,
+  delivery: AlertDeliveryOpts
 ): Promise<number> {
   let sent = 0;
   const callerPostRules = prefs.rules.filter((r) => r.kind === "caller_post");
@@ -388,7 +416,8 @@ function formatPct(n: number): string {
 async function evaluateTokenRulesForUser(
   db: SupabaseClient,
   discordId: string,
-  rules: DashboardAlertRule[]
+  rules: DashboardAlertRule[],
+  delivery: AlertDeliveryOpts
 ): Promise<number> {
   let sent = 0;
   const tokenRulesList = rules.filter((r) => r.kind === "pct_move" || r.kind === "mc_cross");
@@ -418,13 +447,17 @@ async function evaluateTokenRulesForUser(
           `Chart: ${chartUrl}`,
         ].join("\n");
 
-        const ok = await fireInboxAlert(db, {
-          userId: discordId,
-          ruleId: rule.id,
-          fireKey: `rule:${rule.id}:pct_move`,
-          title: "Price move alert",
-          body,
-        });
+        const ok = await fireInboxAlert(
+          db,
+          {
+            userId: discordId,
+            ruleId: rule.id,
+            fireKey: `rule:${rule.id}:pct_move`,
+            title: "Price move alert",
+            body,
+          },
+          delivery
+        );
         if (ok) sent += 1;
         continue;
       }
@@ -439,13 +472,17 @@ async function evaluateTokenRulesForUser(
           `Chart: ${chartUrl}`,
         ].join("\n");
 
-        const ok = await fireInboxAlert(db, {
-          userId: discordId,
-          ruleId: rule.id,
-          fireKey: `rule:${rule.id}:mc_cross`,
-          title: "Market cap alert",
-          body,
-        });
+        const ok = await fireInboxAlert(
+          db,
+          {
+            userId: discordId,
+            ruleId: rule.id,
+            fireKey: `rule:${rule.id}:mc_cross`,
+            title: "Market cap alert",
+            body,
+          },
+          delivery
+        );
         if (ok) sent += 1;
       }
     }
@@ -506,8 +543,12 @@ export async function runDashboardAlertsCron(
       deferredKindsLogged.add("hot_trending");
     }
 
-    inboxSent += await evaluateCallerAlertsForUser(db, row.discord_id, prefs, sinceIso);
-    inboxSent += await evaluateTokenRulesForUser(db, row.discord_id, tokenRules(prefs));
+    const delivery: AlertDeliveryOpts = {
+      tier,
+      discordDm: prefs.general.discord_dm,
+    };
+    inboxSent += await evaluateCallerAlertsForUser(db, row.discord_id, prefs, sinceIso, delivery);
+    inboxSent += await evaluateTokenRulesForUser(db, row.discord_id, tokenRules(prefs), delivery);
   }
 
   logDeferredKindsOnce(deferredKindsLogged);
@@ -528,19 +569,35 @@ export async function runDashboardAlertsCron(
 export async function fireTestDashboardInboxAlert(
   db: SupabaseClient,
   userId: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; discordDm?: { ok: boolean; error?: string; skipped?: string } }> {
   const id = userId.trim();
   if (!id) return { ok: false, error: "Missing userId" };
 
+  const tier = await resolveUserProductTier(id);
   const fireKey = `test:${Date.now()}`;
-  const ok = await fireInboxAlert(db, {
-    userId: id,
-    fireKey,
-    title: "Test dashboard alert",
-    body: "This is a test alert from the admin hook. Your inbox delivery is working.",
-  });
+  const title = "Test dashboard alert";
+  const body =
+    "This is a test alert from the admin hook. Your inbox delivery is working.";
+  const ok = await fireInboxAlert(
+    db,
+    {
+      userId: id,
+      fireKey,
+      title,
+      body,
+    },
+    { tier, discordDm: false }
+  );
   if (!ok) {
     return { ok: false, error: "Could not insert test alert (dedupe or DB error)" };
   }
-  return { ok: true };
+
+  let discordDm: { ok: boolean; error?: string; skipped?: string };
+  if (tierIncludesProFeatures(tier)) {
+    discordDm = await deliverDashboardAlertDiscordDm({ userId: id, title, body });
+  } else {
+    discordDm = { ok: false, skipped: "pro_tier_required" };
+  }
+
+  return { ok: true, discordDm };
 }

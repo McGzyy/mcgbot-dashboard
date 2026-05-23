@@ -82,11 +82,10 @@ export function MembershipIncludedToday() {
       </div>
 
       <div className="mt-5 rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-4 py-3 text-xs leading-relaxed text-emerald-100/90 sm:text-sm">
-        <p className="font-semibold text-emerald-50">Personal alerts — inbox live</p>
+        <p className="font-semibold text-emerald-50">Personal alerts — inbox + Pro DMs</p>
         <p className="mt-1 text-emerald-100/85">
-          Background checks for followed-caller posts, price moves, and thresholds now land in your
-          dashboard bell inbox. Configure rules in the terminal (Create Alert). Discord DM delivery
-          for Pro is planned next.
+          Background checks for followed-caller posts, price moves, and thresholds land in your bell
+          inbox. Pro members can also mirror alerts to Discord DMs (toggle in Create Alert).
         </p>
       </div>
     </section>

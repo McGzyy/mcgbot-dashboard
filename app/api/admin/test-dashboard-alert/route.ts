@@ -18,5 +18,9 @@ export async function POST() {
     return Response.json({ ok: false, error: result.error ?? "Failed" }, { status: 500 });
   }
 
-  return Response.json({ ok: true, userId: gate.discordId });
+  return Response.json({
+    ok: true,
+    userId: gate.discordId,
+    discordDm: result.discordDm ?? null,
+  });
 }

@@ -12,7 +12,9 @@ import {
   isLikelySolanaMint,
   normalizeAlertPrefs,
 } from "@/lib/dashboardAlertPrefs";
+import { tierIncludesProFeatures } from "@/lib/subscription/planTiers";
 import { terminalUi } from "@/lib/terminalDesignTokens";
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 
 type Props = {
@@ -22,6 +24,13 @@ type Props = {
 };
 
 export function DashboardAlertsModal({ open, onClose, addNotification }: Props) {
+  const { data: session } = useSession();
+  const productTier =
+    session?.user && "productTier" in session.user
+      ? (session.user as { productTier?: string }).productTier
+      : "basic";
+  const isPro = tierIncludesProFeatures(productTier === "pro" ? "pro" : "basic");
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [prefs, setPrefs] = useState<DashboardAlertPrefs>(() => ({
@@ -325,8 +334,8 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
           <div>
             <h3 className="text-sm font-semibold text-zinc-100">Dashboard alerts</h3>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              Saved to your account. Matching rules are evaluated every few minutes and delivered to
-              your bell inbox while you&apos;re away.
+              Saved to your account. Rules are evaluated every few minutes — inbox for everyone; Pro
+              can also mirror to Discord DMs.
             </p>
           </div>
           <button
@@ -360,6 +369,34 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
           </div>
         ) : (
           <div className="mt-5 space-y-6">
+            <section className="rounded-lg border border-zinc-800/80 bg-zinc-950/30 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                Delivery
+              </p>
+              <label className="mt-2 flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={prefs.general.discord_dm}
+                  disabled={!isPro || saving}
+                  onChange={(e) =>
+                    setPrefs((p) => ({
+                      ...p,
+                      general: { ...p.general, discord_dm: e.target.checked },
+                    }))
+                  }
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-[color:var(--accent)]"
+                />
+                <span className="text-xs leading-relaxed text-zinc-300">
+                  <span className="font-medium text-zinc-100">Discord DM</span>
+                  <span className="block text-zinc-500">
+                    {isPro
+                      ? "Send the same alert text to your Discord DMs when a rule fires (inbox always receives)."
+                      : "Pro only — upgrade to mirror alerts to Discord."}
+                  </span>
+                </span>
+              </label>
+            </section>
+
             <section>
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
@@ -370,8 +407,8 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
                 </p>
               </div>
               <p className="mt-1 text-xs text-zinc-500">
-                Token alerts and caller alerts. Same rules will power toasts here first; no Discord
-                DMs.
+                Token alerts and caller alerts. Fires go to your bell inbox; enable Discord DM above
+                for Pro.
               </p>
 
               <div className="mt-3 space-y-2 rounded-lg border border-zinc-800/80 bg-zinc-950/30 p-3">
