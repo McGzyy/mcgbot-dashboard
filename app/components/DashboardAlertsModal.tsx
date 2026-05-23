@@ -325,8 +325,8 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
           <div>
             <h3 className="text-sm font-semibold text-zinc-100">Dashboard alerts</h3>
             <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              Create dashboard-only alerts. These rules are saved with your account; live evaluation
-              will follow in a later update.
+              Saved to your account. Matching rules are evaluated every few minutes and delivered to
+              your bell inbox while you&apos;re away.
             </p>
           </div>
           <button

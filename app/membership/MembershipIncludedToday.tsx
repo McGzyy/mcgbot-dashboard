@@ -81,13 +81,12 @@ export function MembershipIncludedToday() {
         </table>
       </div>
 
-      <div className="mt-5 rounded-xl border border-amber-500/25 bg-amber-500/8 px-4 py-3 text-xs leading-relaxed text-amber-100/90 sm:text-sm">
-        <p className="font-semibold text-amber-50">Coming soon</p>
-        <p className="mt-1 text-amber-100/85">
-          <span className="font-medium text-amber-50">Personal alerts engine</span> — background
-          checks for watchlist moves, follow-caller posts, and thresholds, delivered to your dashboard
-          inbox and Discord DM (Pro). You can configure rules in the terminal today; push delivery is
-          the next release.
+      <div className="mt-5 rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-4 py-3 text-xs leading-relaxed text-emerald-100/90 sm:text-sm">
+        <p className="font-semibold text-emerald-50">Personal alerts — inbox live</p>
+        <p className="mt-1 text-emerald-100/85">
+          Background checks for followed-caller posts, price moves, and thresholds now land in your
+          dashboard bell inbox. Configure rules in the terminal (Create Alert). Discord DM delivery
+          for Pro is planned next.
         </p>
       </div>
     </section>
