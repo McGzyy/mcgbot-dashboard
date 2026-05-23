@@ -379,105 +379,105 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-3rem)] px-0 py-10">
+    <div className="relative w-full min-w-0 max-w-full overflow-x-hidden px-0 py-5 sm:py-8">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.12),transparent_55%),radial-gradient(circle_at_bottom,rgba(56,189,248,0.10),transparent_50%)]"
         aria-hidden
       />
-      <div className="relative mx-auto max-w-5xl">
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-          <section className="rounded-2xl border border-zinc-800/60 bg-zinc-950/50 p-6 shadow-2xl shadow-black/40 backdrop-blur sm:p-8">
-            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+      <div className="relative mx-auto w-full min-w-0 max-w-5xl">
+        <div className="grid w-full min-w-0 gap-4 max-sm:gap-4 lg:grid-cols-[1.1fr_0.9fr] lg:items-start lg:gap-6">
+          <section className="min-w-0 rounded-2xl border border-zinc-800/60 bg-zinc-950/50 p-4 shadow-2xl shadow-black/40 backdrop-blur sm:p-8">
+            <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500 sm:text-[10px] sm:tracking-[0.28em]">
               McGBot Terminal
             </p>
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-zinc-100 sm:text-4xl">
+            <h1 className="mt-2 text-[1.35rem] font-black leading-tight tracking-tight text-zinc-100 sm:mt-3 sm:text-3xl lg:text-4xl">
               Elite call tracking, performance, and community boards.
             </h1>
-            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+            <p className="mt-2.5 text-[13px] leading-snug text-zinc-400 sm:mt-4 sm:text-sm sm:leading-relaxed">
               Log in with Discord to unlock My Call Log, Performance Lab, Watchlist, and pro-grade leaderboards.
             </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-4 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:gap-3">
               <button
                 type="button"
                 onClick={onLogin}
-                className="inline-flex items-center justify-center rounded-lg bg-[#5865F2] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+                className="inline-flex items-center justify-center rounded-lg bg-[#5865F2] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50 sm:px-5 sm:py-3"
               >
                 Login with Discord
               </button>
               <Link
                 href="/membership"
-                className="inline-flex items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/40 px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-950/60"
+                className="inline-flex items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/40 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-950/60 sm:px-5 sm:py-3"
               >
                 Membership →
               </Link>
             </div>
 
-            <div className="mt-7 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-7 sm:grid-cols-3 sm:gap-3">
+              <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-3 py-2.5 sm:px-4 sm:py-3">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500 sm:text-[10px] sm:tracking-[0.2em]">
                   7d calls tracked
                 </p>
-                <p className="mt-1 text-2xl font-bold tabular-nums text-zinc-100">
+                <p className="mt-0.5 text-xl font-bold tabular-nums text-zinc-100 sm:mt-1 sm:text-2xl">
                   {loading ? "—" : weekCalls.toLocaleString("en-US")}
                 </p>
               </div>
-              <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+              <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-3 py-2.5 sm:px-4 sm:py-3">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500 sm:text-[10px] sm:tracking-[0.2em]">
                   7d avg multiple
                 </p>
                 {loading ? (
-                  <p className="mt-2 text-lg font-bold tabular-nums text-zinc-500">—</p>
+                  <p className="mt-1.5 text-base font-bold tabular-nums text-zinc-500 sm:mt-2 sm:text-lg">—</p>
                 ) : (
-                  <div className="mt-2 space-y-2">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-violet-300/90">
+                  <div className="mt-1.5 space-y-1 sm:mt-2 sm:space-y-2">
+                    <div className="flex items-baseline justify-between gap-1.5">
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-violet-300/90 sm:text-[10px]">
                         Bot
                       </span>
-                      <span className="text-lg font-bold tabular-nums text-violet-200">
+                      <span className="text-base font-bold tabular-nums text-violet-200 sm:text-lg">
                         {formatTeaserAvgX(weekAvgXBot)}
                       </span>
                     </div>
-                    <div className="flex items-baseline justify-between gap-2 border-t border-zinc-800/50 pt-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-300/90">
+                    <div className="flex items-baseline justify-between gap-1.5 border-t border-zinc-800/50 pt-1 sm:pt-2">
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-emerald-300/90 sm:text-[10px]">
                         User
                       </span>
-                      <span className="text-lg font-bold tabular-nums text-emerald-200">
+                      <span className="text-base font-bold tabular-nums text-emerald-200 sm:text-lg">
                         {formatTeaserAvgX(weekAvgXUser)}
                       </span>
                     </div>
                   </div>
                 )}
               </div>
-              <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+              <div className="col-span-2 rounded-xl border border-zinc-800/60 bg-black/30 px-3 py-2.5 sm:col-span-1 sm:px-4 sm:py-3">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500 sm:text-[10px] sm:tracking-[0.2em]">
                   Access
                 </p>
-                <p className="mt-1 text-sm font-semibold text-zinc-200">
+                <p className="mt-0.5 text-sm font-semibold text-zinc-200 sm:mt-1">
                   Premium dashboard
                 </p>
-                <p className="mt-1 text-xs text-zinc-500">Discord + subscription</p>
+                <p className="mt-0.5 text-[11px] text-zinc-500 sm:mt-1 sm:text-xs">Discord + subscription</p>
               </div>
             </div>
           </section>
 
-          <aside className="rounded-2xl border border-zinc-800/60 bg-zinc-950/35 p-6 shadow-xl shadow-black/30 backdrop-blur">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-zinc-100">Top calls (7d)</h2>
-              <span className="text-[11px] text-zinc-500">Teaser</span>
+          <aside className="min-w-0 rounded-2xl border border-zinc-800/60 bg-zinc-950/35 p-4 shadow-xl shadow-black/30 backdrop-blur sm:p-6">
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <h2 className="min-w-0 truncate text-sm font-semibold text-zinc-100">Top calls (7d)</h2>
+              <span className="shrink-0 text-[10px] text-zinc-500 sm:text-[11px]">Teaser</span>
             </div>
-            <div className="mt-3 rounded-xl border border-zinc-900 bg-black/30 p-2">
+            <div className="mt-2.5 rounded-xl border border-zinc-900 bg-black/30 p-1.5 sm:mt-3 sm:p-2">
               {loading ? (
-                <div className="space-y-2 p-1" aria-busy>
-                  <div className="h-10 animate-pulse rounded-lg bg-zinc-900/35" />
-                  <div className="h-10 animate-pulse rounded-lg bg-zinc-900/25" />
-                  <div className="h-10 animate-pulse rounded-lg bg-zinc-900/20" />
+                <div className="space-y-1.5 p-0.5 sm:space-y-2 sm:p-1" aria-busy>
+                  <div className="h-8 animate-pulse rounded-lg bg-zinc-900/35 sm:h-10" />
+                  <div className="h-8 animate-pulse rounded-lg bg-zinc-900/25 sm:h-10" />
+                  <div className="h-8 animate-pulse rounded-lg bg-zinc-900/20 sm:h-10" />
                 </div>
               ) : topCalls.length === 0 ? (
-                <div className="flex min-h-[120px] items-center justify-center px-3 py-10 text-center">
+                <div className="flex min-h-[88px] items-center justify-center px-3 py-6 text-center sm:min-h-[120px] sm:py-10">
                   <p className="text-sm text-zinc-500">No calls yet.</p>
                 </div>
               ) : (
-                <ul className="divide-y divide-zinc-800/40 text-sm">
+                <ul className="divide-y divide-zinc-800/40 text-xs sm:text-sm">
                   {topCalls.map((c, i) => {
                     const thumbSym =
                       c.tokenTicker?.trim().toUpperCase().slice(0, 14) ||
@@ -486,10 +486,10 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                     return (
                       <li
                         key={`${c.token}-${String(c.time)}-${i}`}
-                        className="flex items-center justify-between gap-3 py-2.5 first:pt-2 text-zinc-300"
+                        className="flex min-w-0 items-center justify-between gap-2 py-1.5 first:pt-1.5 text-zinc-300 sm:gap-3 sm:py-2.5 sm:first:pt-2"
                       >
-                        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                          <div className="shrink-0 scale-[0.85]">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="shrink-0 scale-[0.78] sm:scale-[0.85]">
                             <TokenCallThumb
                               symbol={thumbSym}
                               tokenImageUrl={c.tokenImageUrl ?? null}
@@ -497,7 +497,7 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                               tone="muted"
                             />
                           </div>
-                          <span className="min-w-0 truncate text-[13px] font-semibold text-zinc-100">
+                          <span className="min-w-0 truncate text-xs font-semibold text-zinc-100 sm:text-[13px]">
                             {formatNameAndTickerLine({
                               tokenName: c.tokenName,
                               tokenTicker: c.tokenTicker,
@@ -506,7 +506,7 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                             })}
                           </span>
                         </div>
-                        <span className="shrink-0 font-semibold tabular-nums text-emerald-300">
+                        <span className="shrink-0 text-xs font-semibold tabular-nums text-emerald-300 sm:text-sm">
                           {c.multiple.toFixed(1)}×
                         </span>
                       </li>
@@ -515,7 +515,7 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                 </ul>
               )}
             </div>
-            <p className="mt-4 text-xs leading-relaxed text-zinc-500">
+            <p className="mt-3 text-[11px] leading-snug text-zinc-500 sm:mt-4 sm:text-xs sm:leading-relaxed">
               Unlock full history, filtering, performance breakdowns, and leaderboards by logging in and subscribing.
             </p>
           </aside>
@@ -1143,9 +1143,26 @@ function notificationPriorityFromMultiple(
   return "low";
 }
 
+type ActivityFeedMode = "all" | "me" | "milestones" | "calls" | "following";
+
+const ACTIVITY_FEED_MODE_STORAGE_KEY = "mcg_activity_feed_mode";
+
+function parseStoredActivityFeedMode(raw: string | null): ActivityFeedMode | null {
+  if (
+    raw === "all" ||
+    raw === "me" ||
+    raw === "milestones" ||
+    raw === "calls" ||
+    raw === "following"
+  ) {
+    return raw;
+  }
+  return null;
+}
+
 function filterActivityForFeed(
   items: ActivityItem[],
-  feedMode: "all" | "me" | "milestones" | "calls" | "following",
+  feedMode: ActivityFeedMode,
   viewerId: string,
   followingIds: Set<string>
 ): ActivityItem[] {
@@ -2255,18 +2272,18 @@ function activityFeedEmptyCopy(
     case "following":
       return followingCount === 0
         ? {
-            badge: "Following",
-            title: "You're not following anyone",
+            badge: "My Desk",
+            title: "Your desk is empty",
             description:
-              "Follow members from the leaderboard or their profile to see their calls here.",
+              "Follow callers from the leaderboard or their profile to build your personal tape here.",
             actionLabel: "Browse leaderboard",
             actionHref: "/leaderboard?period=rolling24h",
           }
         : {
-            badge: "Following",
-            title: "Quiet from your follows",
+            badge: "My Desk",
+            title: "Quiet on your desk",
             description:
-              "When people you follow log calls or hit milestones, they show up here.",
+              "When people you follow log calls or hit milestones, they show up here first.",
           };
     case "milestones":
       return {
@@ -2433,7 +2450,7 @@ function ActivityFeedPanel({
             { id: "me" as const, label: "My Activity", short: "Mine" },
             { id: "milestones" as const, label: "Milestones", short: "Wins" },
             { id: "calls" as const, label: "Calls", short: "Calls" },
-            { id: "following" as const, label: "Following", short: "Follow" },
+            { id: "following" as const, label: "My Desk", short: "Desk" },
           ] as const
         ).map(({ id, label, short }) => {
           const active = feedMode === id;
@@ -3803,9 +3820,35 @@ export default function Home() {
     null
   );
   const { followingIds, setFollowing } = useFollowingIds();
-  const [feedMode, setFeedMode] = useState<
-    "all" | "me" | "milestones" | "calls" | "following"
-  >("all");
+  const [feedMode, setFeedMode] = useState<ActivityFeedMode>("all");
+
+  const setFeedModePersisted = useCallback((mode: ActivityFeedMode) => {
+    setFeedMode(mode);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem(ACTIVITY_FEED_MODE_STORAGE_KEY, mode);
+      } catch {
+        /* ignore quota / private mode */
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.user?.hasDashboardAccess) return;
+    if (typeof window === "undefined") return;
+    let stored: string | null = null;
+    try {
+      stored = sessionStorage.getItem(ACTIVITY_FEED_MODE_STORAGE_KEY);
+    } catch {
+      stored = null;
+    }
+    const parsed = parseStoredActivityFeedMode(stored);
+    if (parsed) {
+      setFeedMode(parsed);
+      return;
+    }
+    setFeedModePersisted("following");
+  }, [status, session?.user?.hasDashboardAccess, setFeedModePersisted]);
   const [topPerformersToday, setTopPerformersToday] = useState<
     TopPerformerTodayRow[]
   >([]);
@@ -4851,7 +4894,7 @@ export default function Home() {
             <div className="min-w-0 max-w-full overflow-x-clip">
               <ActivityFeedPanel
                 feedMode={feedMode}
-                setFeedMode={setFeedMode}
+                setFeedMode={setFeedModePersisted}
                 loadingActivity={loadingActivity}
                 activityRefreshing={activityRefreshing}
                 activity={activity}
