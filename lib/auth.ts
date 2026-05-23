@@ -21,6 +21,7 @@ import {
   syncMembershipDiscordRoles,
 } from "@/lib/discordMembershipRoles";
 import { invalidateLiveDashboardAccessCache } from "@/lib/dashboardGate";
+import { computeSessionHasDashboardAccess } from "@/lib/dashboardAccess";
 import { getSessionInvalidationEpochCached } from "@/lib/sessionInvalidationEpoch";
 import { syncGuildMembershipToUsers } from "@/lib/guildMembershipSync";
 import { consumeTotpSessionProof } from "@/lib/totpSessionProof";
@@ -484,9 +485,6 @@ export const authOptions: NextAuthOptions = {
       session.user.subscriptionExempt = exempt;
       session.user.hasActiveSubscription =
         end != null && end.length > 0 && new Date(end).getTime() > Date.now();
-      const tierEarly = token.helpTier;
-      const helpTierOk =
-        tierEarly === "admin" || tierEarly === "mod" || tierEarly === "user" ? tierEarly : "user";
       const discordIdForSession = (token.discord_id as string | undefined) ?? token.sub ?? "";
       const staffVerificationBypass = isStaffFromToken(
         token as Record<string, unknown>,
@@ -494,16 +492,6 @@ export const authOptions: NextAuthOptions = {
       );
       const rawNeedsVerification = (token as any).discordNeedsVerification === true;
       const effectiveNeedsVerification = rawNeedsVerification && !staffVerificationBypass;
-      const staffSubscriptionBypass = staffVerificationBypass;
-      const protectedMember = isProtectedFromGuildFalsePositive(
-        token as Record<string, unknown>,
-        typeof discordIdForSession === "string" ? discordIdForSession : ""
-      );
-      // Staff / subscribers: do not paywall on transient Discord "not in guild" API flakes.
-      const guildAllowsDashboard =
-        staffSubscriptionBypass ||
-        protectedMember ||
-        (token as any).discordInGuild !== false;
       const totpEnabled = (token as { totpEnabled?: boolean }).totpEnabled === true;
       const trustMs = (token as { totpTrustExpiresAt?: unknown }).totpTrustExpiresAt;
       const trustOk = typeof trustMs === "number" && Number.isFinite(trustMs) && trustMs > Date.now();
@@ -512,11 +500,14 @@ export const authOptions: NextAuthOptions = {
       const totpSatisfied = !totpEnabled || sessionTotpOk || trustOk;
       (session.user as { pendingTotpVerification?: boolean }).pendingTotpVerification =
         totpEnabled && !totpSatisfied;
-      session.user.hasDashboardAccess =
-        guildAllowsDashboard &&
-        !effectiveNeedsVerification &&
-        totpSatisfied &&
-        (staffSubscriptionBypass || exempt || session.user.hasActiveSubscription);
+      session.user.hasDashboardAccess = computeSessionHasDashboardAccess({
+        token: token as Record<string, unknown>,
+        discordId: typeof discordIdForSession === "string" ? discordIdForSession : "",
+        hasActiveSubscription: session.user.hasActiveSubscription === true,
+        exempt,
+        totpSatisfied,
+        effectiveNeedsVerification,
+      });
       const tier = token.helpTier;
       session.user.helpTier =
         tier === "admin" || tier === "mod" || tier === "user" ? tier : "user";

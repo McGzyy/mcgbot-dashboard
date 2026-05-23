@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { DISCORD_SERVER_INVITE_URL, resolveDiscordEntryUrl } from "@/lib/discordInvite";
+import { dashboardAccessStateFromSession } from "@/lib/dashboardAccess";
 import { membershipPaywallUserMessage } from "@/lib/membershipPaywallUserMessage";
 import { MembershipAccessPanel } from "@/app/membership/MembershipAccessPanel";
 import { MembershipBillingSection, type MembershipPlan } from "@/app/membership/MembershipBillingSection";
@@ -100,7 +101,8 @@ export default function MembershipPage() {
   const userProductTier =
     session?.user?.productTier === "pro" ? "pro" : ("basic" as const);
   const hasProFeatures = Boolean(session?.user?.hasProFeatures);
-  const hasAccess = Boolean(session?.user?.hasDashboardAccess);
+  const accessState = dashboardAccessStateFromSession(status, session?.user);
+  const hasAccess = accessState === "granted";
   const exempt = Boolean(session?.user?.subscriptionExempt);
   const periodEnd = session?.user?.subscriptionActiveUntil ?? null;
   const sessionUser = session?.user as { helpTier?: string } | undefined;
@@ -585,7 +587,7 @@ export default function MembershipPage() {
     }
   }, [hasAccess, showActivationWelcome, showUpgradeCheckout]);
 
-  if (status === "loading") {
+  if (status === "loading" || accessState === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[color:var(--mcg-page)] px-6 text-sm text-zinc-400">
         Loading…

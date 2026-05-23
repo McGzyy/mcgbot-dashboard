@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { isAwaitingMembershipRole } from "@/lib/discordMembershipRoles";
-import { liveDashboardAccessForDiscordId } from "@/lib/dashboardGate";
-import { isDashboardAdminFromJwt } from "@/lib/middlewareDashboardAdmin";
-import { resolveHelpTier } from "@/lib/helpRole";
 import {
-  discordIdFromTokenFields,
-  isProtectedFromGuildFalsePositive,
-  isStaffFromToken,
-  subscriptionActiveFromToken,
-} from "@/lib/tokenDashboardGate";
+  discordGateStatusFromToken,
+  resolveDashboardAccessForToken,
+} from "@/lib/dashboardAccess";
+import { isDashboardAdminFromJwt } from "@/lib/middlewareDashboardAdmin";
+import { discordIdFromTokenFields } from "@/lib/tokenDashboardGate";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
 import { isPublicProfileApi, isPublicProfilePage } from "@/lib/publicProfileRoutes";
 import { isAffiliatePortalPath } from "@/lib/affiliate/affiliatePortalPaths";
@@ -348,39 +344,6 @@ function isSubscriptionProtectedApi(pathname: string): boolean {
   );
 }
 
-function hasDashboardAccess(token: Record<string, unknown> | null): boolean {
-  if (!token) return false;
-  // Staff should never be paywalled by subscription checks.
-  if (token.helpTier === "admin" || token.helpTier === "mod") return true;
-  if (token.canModerate === true) return true;
-  if (token.subscriptionExempt === true) return true;
-  return subscriptionActiveFromToken(token);
-}
-
-function discordGateStatus(token: Record<string, unknown>): "ok" | "needs_verification" | "not_in_guild" {
-  const discordId = discordIdFromTokenFields(token);
-  const staffBypass = isStaffFromToken(token, discordId);
-  const inGuild = (token as Record<string, unknown> & { discordInGuild?: unknown }).discordInGuild;
-  if (
-    inGuild === false &&
-    !staffBypass &&
-    !isProtectedFromGuildFalsePositive(token, discordId)
-  ) {
-    return "not_in_guild";
-  }
-  const needsVerification = (token as Record<string, unknown> & { discordNeedsVerification?: unknown })
-    .discordNeedsVerification === true;
-  const blockedReason = (token as Record<string, unknown> & { discordBlockedReason?: unknown })
-    .discordBlockedReason;
-  if (needsVerification && !staffBypass) {
-    const reason = typeof blockedReason === "string" ? blockedReason : null;
-    if (isAwaitingMembershipRole(reason)) return "ok";
-    return "needs_verification";
-  }
-  return "ok";
-}
-
-/** Cookie claims first; if denied, re-check server (fixes stale JWT after env/code changes). */
 /** Session identity — must not require paid dashboard access (sidebar staff nav, etc.). */
 function isIdentityMeApi(pathname: string, method: string): boolean {
   if (method !== "GET" && method !== "POST") return false;
@@ -391,64 +354,11 @@ function isIdentityMeApi(pathname: string, method: string): boolean {
   );
 }
 
-async function hasDashboardAccessResolved(
-  token: Record<string, unknown> | null
-): Promise<boolean> {
-  if (!token) return false;
-  /** Trust JWT subscription/staff claims before live checks (session may be fresher than a stale deny cache). */
-  if (hasDashboardAccess(token)) return true;
-  const id = discordIdFromTokenFields(token);
-  const gate = discordGateStatus(token);
-  if (gate === "needs_verification") {
-    if (isStaffFromToken(token, id)) return true;
-    return false;
-  }
-  if (gate === "not_in_guild") {
-    if (isProtectedFromGuildFalsePositive(token, id) || isStaffFromToken(token, id)) {
-      // Fall through — protected members may keep discordInGuild=false in JWT during API flakes.
-    } else if (!id) {
-      return false;
-    } else {
-      // JWT `discordInGuild: false` is often stale while Supabase/Discord still grant access — verify live.
-      try {
-        if (await liveDashboardAccessForDiscordId(id)) return true;
-      } catch (e) {
-        console.warn("[middleware] live access check (not_in_guild):", e);
-      }
-      if (hasDashboardAccess(token)) return true;
-      if (
-        subscriptionActiveFromToken(token) ||
-        isProtectedFromGuildFalsePositive(token, id) ||
-        isStaffFromToken(token, id)
-      ) {
-        return true;
-      }
-      return false;
-    }
-  }
-  if (!id) return false;
-  const envTier = resolveHelpTier(id);
-  if (envTier === "admin" || envTier === "mod") return true;
-  const jwtGrace =
-    subscriptionActiveFromToken(token) ||
-    isProtectedFromGuildFalsePositive(token, id) ||
-    isStaffFromToken(token, id);
-  try {
-    const liveOk = await liveDashboardAccessForDiscordId(id);
-    if (liveOk) return true;
-    return jwtGrace;
-  } catch (e) {
-    console.warn("[middleware] liveDashboardAccessForDiscordId failed, retry once:", e);
-    try {
-      await new Promise((r) => setTimeout(r, 150));
-      const liveOk = await liveDashboardAccessForDiscordId(id);
-      if (liveOk) return true;
-      return jwtGrace || hasDashboardAccess(token);
-    } catch {
-      // Fail open when JWT / env already grants access (stale live check / Discord flake).
-      return jwtGrace || hasDashboardAccess(token);
-    }
-  }
+async function apiDiscordGateAllows(token: Record<string, unknown>): Promise<boolean> {
+  const gate = discordGateStatusFromToken(token);
+  if (gate === "ok") return true;
+  if (gate === "needs_verification") return false;
+  return resolveDashboardAccessForToken(token);
 }
 
 /** When the request hits the dedicated affiliate host, only serve the partner/ops portal. */
@@ -527,7 +437,8 @@ export async function middleware(req: NextRequest) {
     : null;
 
   const op = await getSiteOperationalState();
-  const isDashboardAdmin = token?.helpTier === "admin";
+  const discordIdForAdmin = discordIdFromTokenFields(token);
+  const isDashboardAdmin = await isDashboardAdminFromJwt(token, discordIdForAdmin);
   if (op.maintenance_enabled && !isDashboardAdmin) {
     if (!isMaintenanceExempt(pathname, req.method)) {
       if (pathname.startsWith("/api/")) {
@@ -592,10 +503,12 @@ export async function middleware(req: NextRequest) {
       if (pathname === "/api/subscription/guild-status") {
         return NextResponse.next();
       }
-      const gate = discordGateStatus(token);
-      if (gate === "not_in_guild") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      if (gate === "needs_verification") {
-        return NextResponse.json({ error: "Verification required" }, { status: 403 });
+      if (!(await apiDiscordGateAllows(token))) {
+        const gate = discordGateStatusFromToken(token);
+        if (gate === "needs_verification") {
+          return NextResponse.json({ error: "Verification required" }, { status: 403 });
+        }
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       return NextResponse.next();
     }
@@ -607,12 +520,12 @@ export async function middleware(req: NextRequest) {
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    {
-      const gate = discordGateStatus(token);
-      if (gate === "not_in_guild") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await apiDiscordGateAllows(token))) {
+      const gate = discordGateStatusFromToken(token);
       if (gate === "needs_verification") {
         return NextResponse.json({ error: "Verification required" }, { status: 403 });
       }
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     /** Admin APIs enforce `requireDashboardAdmin` in-route; do not block on subscription JWT (stale vs /admin layout). */
     if (pathname.startsWith("/api/admin/")) {
@@ -628,7 +541,7 @@ export async function middleware(req: NextRequest) {
     if (isIdentityMeApi(pathname, req.method)) {
       return NextResponse.next();
     }
-    if (!(await hasDashboardAccessResolved(token))) {
+    if (!(await resolveDashboardAccessForToken(token))) {
       return NextResponse.json({ error: "Subscription required" }, { status: 402 });
     }
     return NextResponse.next();
@@ -649,7 +562,7 @@ export async function middleware(req: NextRequest) {
   }
 
   {
-    const gate = discordGateStatus(token);
+    const gate = discordGateStatusFromToken(token);
     if (gate === "needs_verification") {
       if (!pathname.startsWith("/join/verify")) {
         const url = req.nextUrl.clone();
@@ -668,7 +581,7 @@ export async function middleware(req: NextRequest) {
         return NextResponse.next();
       }
       // Paying members often keep a stale `discordInGuild: false` in the JWT — check live before paywalling.
-      if (await hasDashboardAccessResolved(token)) {
+      if (await resolveDashboardAccessForToken(token)) {
         return NextResponse.next();
       }
       const url = req.nextUrl.clone();
@@ -691,7 +604,7 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname === "/") {
-    if (!(await hasDashboardAccessResolved(token))) {
+    if (!(await resolveDashboardAccessForToken(token))) {
       const url = req.nextUrl.clone();
       url.pathname = "/membership";
       url.search = "";
@@ -704,7 +617,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  if (!(await hasDashboardAccessResolved(token))) {
+  if (!(await resolveDashboardAccessForToken(token))) {
     const url = req.nextUrl.clone();
     url.pathname = "/membership";
     url.search = "";

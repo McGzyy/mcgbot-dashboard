@@ -21,10 +21,11 @@ export function SessionGateRecovery() {
       helpTier?: string;
       canModerate?: boolean;
       hasDashboardAccess?: boolean;
+      subscriptionExempt?: boolean;
+      hasActiveSubscription?: boolean;
       discordInGuild?: boolean | null;
       discordNeedsVerification?: boolean;
       discordBlockedReason?: string | null;
-      hasActiveSubscription?: boolean;
     };
 
     const bump = (force = false) => {
@@ -34,7 +35,11 @@ export function SessionGateRecovery() {
       void update({ refreshAccess: true });
     };
 
-    if (u.helpTier === "admin" || u.helpTier === "mod" || u.canModerate === true) return;
+    const staffLike =
+      u.helpTier === "admin" ||
+      u.helpTier === "mod" ||
+      u.canModerate === true ||
+      u.subscriptionExempt === true;
 
     /** Session says unlocked but JWT may be stale — refresh so middleware on `/` sees updated claims. */
     if (
@@ -45,6 +50,20 @@ export function SessionGateRecovery() {
       bump(true);
       return;
     }
+
+    /** Staff / exempt / subscribed on /membership while session flag is stale — refresh JWT before next navigation. */
+    if (
+      staffLike &&
+      (u.hasActiveSubscription === true || u.subscriptionExempt === true || u.helpTier === "admin" || u.helpTier === "mod") &&
+      typeof window !== "undefined" &&
+      window.location.pathname.startsWith("/membership") &&
+      u.hasDashboardAccess !== true
+    ) {
+      bump(true);
+      return;
+    }
+
+    if (u.helpTier === "admin" || u.helpTier === "mod" || u.canModerate === true) return;
 
     if (u.hasDashboardAccess === true) return;
 

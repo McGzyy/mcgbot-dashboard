@@ -127,7 +127,8 @@ export async function liveDashboardAccessForDiscordId(discordId: string): Promis
 
   const ok = subActive;
 
-  const uncertainDeny = !ok && (tierFailed || exemptFailed || subFailed);
+  /** Role fetch failed or upstream errored — do not cache a hard deny (caller applies JWT grace). */
+  const uncertainDeny = !ok && (tierFailed || exemptFailed || subFailed || roleOk === null);
   if (!uncertainDeny) {
     accessCache.set(id, { ok, exp: now + (ok ? CACHE_MS : DENY_CACHE_MS) });
   }
