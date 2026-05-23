@@ -24,6 +24,18 @@ type MembershipAccessPanelProps = {
   onDismissWelcome?: () => void;
 };
 
+const PRO_PERK_LINKS = [
+  { label: "Outside Calls tape", href: "/outside-calls", detail: "Off-desk X monitors in the live feed" },
+  { label: "Full alerts + Discord DMs", href: "/", detail: "Create Alert on home — toggle DM mirror on Pro" },
+  { label: "Unlimited desk submissions", href: "/?submitCall=1", detail: "No daily cap on logged calls" },
+] as const;
+
+const BASIC_UPGRADE_PERKS = [
+  "Outside Calls & off-desk X tape",
+  "Full personal alerts + Discord DM mirror",
+  `Unlimited desk calls (Basic caps at ${BASIC_DAILY_CALLS_LIMIT}/day)`,
+] as const;
+
 function featureIncluded(value: TierFeatureValue, tier: ProductTier): boolean {
   if (tier === "pro") return value !== false;
   return value === true || value === "limited" || value === "10_per_day";
@@ -127,6 +139,53 @@ export function MembershipAccessPanel({
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {active && !isWelcome && hasProFeatures ? (
+        <div className="mt-6 rounded-2xl border border-sky-500/25 bg-sky-500/8 p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-300/80">
+            Your Pro perks
+          </p>
+          <ul className="mt-3 space-y-2">
+            {PRO_PERK_LINKS.map((perk) => (
+              <li key={perk.href}>
+                <Link
+                  href={perk.href}
+                  className="group flex flex-col rounded-lg border border-transparent px-2 py-1.5 transition hover:border-sky-500/20 hover:bg-sky-500/10"
+                >
+                  <span className="text-sm font-medium text-sky-50 group-hover:text-white">
+                    {perk.label} →
+                  </span>
+                  <span className="text-xs text-sky-100/70">{perk.detail}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {active && !isWelcome && !hasProFeatures && userProductTier === "basic" ? (
+        <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/6 p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
+            Pro adds
+          </p>
+          <ul className="mt-3 space-y-1.5">
+            {BASIC_UPGRADE_PERKS.map((line) => (
+              <li key={line} className="flex items-start gap-2 text-sm text-zinc-300">
+                <span className="mt-0.5 text-sky-400" aria-hidden>
+                  +
+                </span>
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/membership?line=pro&upgrade=1"
+            className="mt-4 inline-flex h-10 items-center justify-center rounded-xl bg-sky-500/90 px-4 text-sm font-bold text-sky-950 transition hover:bg-sky-400"
+          >
+            Compare Pro plans
+          </Link>
+        </div>
       ) : null}
 
       <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">

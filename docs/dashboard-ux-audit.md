@@ -10,7 +10,7 @@ Cross-cutting UX review for the McGBot home dashboard and related surfaces.
 | **Motion - animate-pulse only on first load** | `app/page.tsx` (`SocialsFeedPanel`) | **done** | Poll refetch uses refresh bar + dim; skeleton + pulse only when `rows.length === 0` |
 | **Density - unified list row height/padding** | `lib/terminalListRow.ts`, `components/terminal/TerminalListRow.tsx`, `app/page.tsx` | **partial** | Trending + recent calls wired; social keeps card layout (taller) |
 | **Density - chips, borders, radii alignment** | `lib/terminalDesignTokens.ts`, `lib/terminalListRow.ts` | **partial** | Unified border `border-zinc-800/50 ring-1 ring-white/[0.03]` on list rows; chip pass deferred |
-| **Empty/error - headline + guidance + CTA** | `app/components/dashboard/DashboardWidgetEmpty.tsx`, `app/page.tsx` | **partial** | Recent calls + opportunities use widget empty; social/trending inline copy |
+| **Empty/error - headline + guidance + CTA** | `app/components/dashboard/DashboardWidgetEmpty.tsx`, `app/page.tsx` | **partial** | Recent calls + opportunities use widget empty; social/trending inline copy; recent calls copy sharpened |
 | **Focus/keyboard - chips, Full log, chart, docks** | `app/page.tsx`, layout shells | **deferred** | Trending rows are `<button>` (Enter works); focus-ring pass not done |
 | **Social - category/title truncation narrow** | `app/page.tsx` (`SocialFeedPostRow`) | **partial** | Category chip has `truncate` + max-width; title line pass deferred |
 | **Social - link preview hostname-only mobile** | `app/page.tsx` (`SocialFeedFirstLinkPreview`) | **deferred** | |
@@ -27,7 +27,7 @@ Cross-cutting UX review for the McGBot home dashboard and related surfaces.
 | **Elite - leading-snug dense lists** | `app/page.tsx`, glance cards | **deferred** | |
 | **Elite - tabular-nums on numerics** | Various panels | **partial** | Recent calls + trending already use tabular-nums in places |
 | **Elite - unified border language** | `lib/terminalListRow.ts` | **partial** | Applied to new list-row primitive |
-| **Elite - user-facing microcopy (no "terminal"/"verified rows")** | `app/page.tsx`, empty states | **deferred** | e.g. recent calls empty still says "Verified rows" |
+| **Elite - user-facing microcopy (no "terminal"/"verified rows")** | `app/page.tsx`, empty states | **partial** | Recent calls empty state updated; other "Verified" labels (X badge, activity copy) deferred |
 
 ## Shared primitives (this pass)
 

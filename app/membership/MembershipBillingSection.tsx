@@ -147,7 +147,11 @@ export function MembershipBillingSection({
                   {lineMeta.title}
                 </span>
                 {" · "}
-                Monthly or annual. Stripe promos apply at checkout.
+                {isPro
+                  ? "Unlocks Outside Calls, full alerts with Discord DMs, and unlimited desk submissions."
+                  : "Covers the daily desk loop — log calls, track multiples, and compete on the board."}
+                {" "}
+                Monthly or annual; Stripe promos apply at checkout.
               </p>
             </div>
             <a

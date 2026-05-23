@@ -21,6 +21,7 @@ import { TerminalPanelRefresh } from "@/components/terminal/TerminalPanelRefresh
 import { DashboardWidgetEmpty } from "@/app/components/dashboard/DashboardWidgetEmpty";
 import { DeskIntelColumn } from "@/app/components/dashboard/DeskIntelColumn";
 import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
+import { BasicProUpsellStrip } from "@/app/components/subscription/BasicProUpsellStrip";
 import { DeskCallQuotaChip } from "@/app/components/dashboard/DeskCallQuotaChip";
 import { SubmitDeskCallModal } from "@/app/components/dashboard/SubmitDeskCallModal";
 import { deskCallQuotaFromApi, type DeskCallQuotaUi } from "@/lib/deskCallQuotaDisplay";
@@ -3873,6 +3874,12 @@ export default function Home() {
     helpTier === "mod";
   const showSocialFeedPanel = socialFeedEnabled && hasProFeatures;
   const showSocialProUpsell = socialFeedEnabled && !hasProFeatures;
+  const showBasicProUpsell =
+    Boolean(session?.user?.hasActiveSubscription) &&
+    !hasProFeatures &&
+    helpTier !== "admin" &&
+    helpTier !== "mod" &&
+    !session?.user?.subscriptionExempt;
   const [referralVanityForHome, setReferralVanityForHome] = useState<string | null>(null);
 
   useEffect(() => {
@@ -4769,6 +4776,8 @@ export default function Home() {
         <PerformanceChart compact refreshNonce={homeDataRefreshNonce} />
       </div>
 
+      {showBasicProUpsell ? <BasicProUpsellStrip /> : null}
+
       {shortcutsBlock ? (
         <div className="mb-8 lg:hidden">{shortcutsBlock}</div>
       ) : null}
@@ -5055,7 +5064,7 @@ export default function Home() {
                   <DashboardWidgetEmpty
                     badge="Calls"
                     title="No calls yet"
-                    description="Verified rows show here after you log a call."
+                    description="Your logged calls show here with multiples and chart links."
                     actionLabel="Log call"
                     onAction={openSubmitCallModal}
                   />

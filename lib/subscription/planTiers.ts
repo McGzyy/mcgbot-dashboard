@@ -30,35 +30,35 @@ export const TIER_MARKETING: Record<
 > = {
   basic: {
     title: "Basic",
-    tagline: "Your daily desk — log calls, read the tape, and track performance.",
+    tagline: "Run the daily desk loop — log calls, read the tape, and track your edge.",
     accent: "emerald",
   },
   pro: {
     title: "Pro",
     tagline:
-      "Full desk stack — Outside Calls tape, inbox + Discord alert DMs, and unlimited daily submissions.",
+      "Everything in Basic, plus Outside Calls, full inbox alerts with Discord DMs, and unlimited submissions.",
     accent: "sky",
   },
 };
 
 /** One-line “what you do daily” — shown on membership, not a feature matrix. */
 export const TIER_DAILY_ROUTINE: Record<ProductTier, string> = {
-  basic: `Log up to ${BASIC_DAILY_CALLS_LIMIT} verified desk calls per day, follow live activity, and review your edge in Performance Lab.`,
-  pro: "Run unlimited desk calls, monitor outside sources, and use the live X social column when you need API-heavy workflows.",
+  basic: `Submit up to ${BASIC_DAILY_CALLS_LIMIT} desk calls per day, follow live activity, and review Performance Lab — enough for most daily traders.`,
+  pro: "No daily cap on desk calls, monitor off-desk X sources, and get full alerts mirrored to Discord when you step away.",
 };
 
 /** Short bullets on tier cards (3–4 each). Full matrix stays in docs/admin. */
 export const TIER_COMPARE_HIGHLIGHTS: Record<ProductTier, string[]> = {
   basic: [
-    "Submit desk calls from the terminal",
-    "Live activity, 24h leaderboard & desk intel",
+    "Log desk calls and track multiples",
+    "Live activity, leaderboard & desk intel",
     "Call log, Performance Lab & watchlist",
   ],
   pro: [
-    "Unlimited desk submissions per day",
-    "Outside Calls live tape + submit X monitors",
-    "Inbox alerts + optional Discord DM mirror",
-    "Home social feed when enabled",
+    "Unlimited desk submissions — no daily cap",
+    "Outside Calls tape + propose X monitors",
+    "Full alerts + optional Discord DM mirror",
+    "Home social feed when staff enable it",
   ],
 };
 
