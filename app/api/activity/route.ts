@@ -340,6 +340,84 @@ export async function GET(request: Request) {
     };
 
     type ActivityApiRow = (typeof events)[number] & { outside_call_id?: string };
+
+    function mintFromChartLink(link: string | null): string {
+      const raw = (link ?? "").trim();
+      if (!raw) return "";
+      const m = raw.match(/dexscreener\.com\/solana\/([^/?#]+)/i);
+      if (!m?.[1]) return "";
+      try {
+        return decodeURIComponent(m[1]).trim();
+      } catch {
+        return m[1].trim();
+      }
+    }
+
+    function callSourceRank(source: string): number {
+      const s = source.trim().toLowerCase();
+      if (s === "user") return 3;
+      if (s === "outside") return 2;
+      if (s === "bot") return 1;
+      return 0;
+    }
+
+    function pickPreferredCallRow(
+      a: ActivityApiRow,
+      b: ActivityApiRow
+    ): ActivityApiRow {
+      const ra = callSourceRank(a.callSource ?? "");
+      const rb = callSourceRank(b.callSource ?? "");
+      if (ra !== rb) return ra > rb ? a : b;
+      return Number(a.multiple) >= Number(b.multiple) ? a : b;
+    }
+
+    /** Collapse duplicate desk rows (same mint + minute) so the feed is one line per coin. */
+    function dedupeActivityPayload(rows: ActivityApiRow[]): ActivityApiRow[] {
+      const passthrough: ActivityApiRow[] = [];
+      const callByKey = new Map<string, ActivityApiRow>();
+      const winByKey = new Map<string, ActivityApiRow>();
+      const outsideSeen = new Set<string>();
+
+      for (const row of rows) {
+        const outsideId = row.outside_call_id?.trim();
+        if (outsideId) {
+          if (outsideSeen.has(outsideId)) continue;
+          outsideSeen.add(outsideId);
+          passthrough.push(row);
+          continue;
+        }
+
+        const mint = mintFromChartLink(row.link_chart);
+        const t = activityTimeMs(row.time);
+        const bucket = Number.isFinite(t) ? Math.floor(t / 60_000) : 0;
+
+        if (row.type === "win") {
+          const key = mint
+            ? `win::${mint}::${bucket}::${row.discordId.trim()}`
+            : `win::${row.discordId}::${t}`;
+          const prev = winByKey.get(key);
+          if (!prev || Number(row.multiple) > Number(prev.multiple)) {
+            winByKey.set(key, row);
+          }
+          continue;
+        }
+
+        if (row.type === "call") {
+          if (!mint) {
+            passthrough.push(row);
+            continue;
+          }
+          const key = `call::${mint}::${bucket}`;
+          const prev = callByKey.get(key);
+          if (!prev) callByKey.set(key, row);
+          else callByKey.set(key, pickPreferredCallRow(prev, row));
+        }
+      }
+
+      return [...passthrough, ...winByKey.values(), ...callByKey.values()].sort(
+        (a, b) => activityTimeMs(b.time) - activityTimeMs(a.time)
+      );
+    }
     let payload: ActivityApiRow[] = events;
 
     if (supabaseAdmin && mode !== "following") {
@@ -409,13 +487,15 @@ export async function GET(request: Request) {
           })
           .filter((x): x is NonNullable<typeof x> => x != null);
 
-        payload = [...events, ...outsideEvents]
-          .sort((a, b) => activityTimeMs(b.time) - activityTimeMs(a.time))
-          .slice(0, 40) as ActivityApiRow[];
+        payload = [...events, ...outsideEvents];
       } else if (ocErr) {
         console.error("[activity API] outside_calls:", ocErr);
       }
     }
+
+    payload = dedupeActivityPayload(payload)
+      .sort((a, b) => activityTimeMs(b.time) - activityTimeMs(a.time))
+      .slice(0, 40);
 
     return Response.json(payload);
   } catch (e) {
