@@ -703,37 +703,6 @@ function SocialFeedFirstLinkPreview({ url, compact }: { url: string; compact: bo
   );
 }
 
-function SocialFeedSkeletonRow({ compact }: { compact: boolean }) {
-  return (
-    <li className="rounded-xl border border-zinc-800/60 bg-zinc-950/50 p-2.5 sm:p-3">
-      <div className="flex animate-pulse gap-3">
-        <div className="h-11 w-11 shrink-0 rounded-full bg-zinc-800/90 ring-2 ring-black/20" />
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-              <div className="h-3.5 w-32 rounded-md bg-zinc-800/80" />
-              <div className="h-3 w-14 rounded-md bg-zinc-800/50" />
-            </div>
-            <div className="h-4 w-[4.5rem] shrink-0 rounded-md bg-zinc-800/45" />
-          </div>
-          <div className="space-y-2 pt-0.5">
-            <div className="h-3 w-full rounded bg-zinc-800/35" />
-            <div className="h-3 w-[92%] rounded bg-zinc-800/30" />
-            {!compact ? <div className="h-3 w-[70%] rounded bg-zinc-800/25" /> : null}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/40 pt-1.5">
-            <div className="flex flex-wrap gap-3">
-              <div className="h-3 w-10 rounded bg-zinc-800/40" />
-              <div className="h-3 w-10 rounded bg-zinc-800/35" />
-              <div className="h-3 w-10 rounded bg-zinc-800/30" />
-            </div>
-            <div className="h-6 w-[5.5rem] shrink-0 rounded-md bg-zinc-800/45" />
-          </div>
-        </div>
-      </div>
-    </li>
-  );
-}
 
 function optSocialNumber(v: unknown): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -1344,47 +1313,6 @@ function widgetEnabled(
   return Boolean(widgets[key]);
 }
 
-function TrendingSkeletonRows() {
-  return (
-    <ul className="space-y-1" aria-busy="true" aria-label="Loading trending tokens">
-      {Array.from({ length: 6 }, (_, i) => (
-        <li key={`trend-sk-${i}`}>
-          <div className="flex animate-pulse items-center gap-2 rounded-lg border border-zinc-800/90 bg-zinc-900/20 px-2 py-2 sm:gap-3 sm:px-3">
-            <div className="h-7 w-7 shrink-0 rounded-md bg-zinc-800/60" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-3.5 w-28 max-w-[60%] rounded bg-zinc-800/50" />
-              <div className="h-2.5 w-40 max-w-[85%] rounded bg-zinc-800/40" />
-            </div>
-            <div className="hidden h-8 w-14 shrink-0 rounded bg-zinc-800/40 sm:block" />
-            <div className="hidden h-8 w-14 shrink-0 rounded bg-zinc-800/35 sm:block" />
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function HomeRecentCallsSkeleton() {
-  return (
-    <ul className="divide-y divide-zinc-800/45" aria-busy="true" aria-label="Loading recent calls">
-      {Array.from({ length: 5 }, (_, i) => (
-        <li key={`call-sk-${i}`}>
-          <div className="flex animate-pulse items-center gap-2 py-2 pl-1 pr-1 sm:gap-2.5 sm:py-2 sm:pl-1.5 sm:pr-2">
-            <div className="h-8 w-8 shrink-0 rounded-lg bg-zinc-800/55 ring-1 ring-black/15" />
-            <div className="min-w-0 flex-1 space-y-2 pr-2">
-              <div className="h-3.5 max-w-[88%] rounded bg-zinc-800/45" />
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              <div className="h-5 w-9 rounded-md bg-zinc-800/40" />
-              <div className="h-6 w-11 rounded-md bg-zinc-800/40" />
-              <div className="h-6 w-9 rounded bg-zinc-800/35" />
-            </div>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 function ActivityFeedSkeleton() {
   return (
