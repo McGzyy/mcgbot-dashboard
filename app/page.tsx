@@ -12,6 +12,12 @@ import { DashboardAlertsModal } from "./components/DashboardAlertsModal";
 import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
 import { DashboardChatPanel } from "./components/DashboardChatPanel";
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import { TerminalListRow } from "@/components/terminal/TerminalListRow";
+import {
+  TerminalListSkeleton,
+  TerminalRecentCallsSkeleton,
+} from "@/components/terminal/TerminalListSkeleton";
+import { TerminalPanelRefresh } from "@/components/terminal/TerminalPanelRefresh";
 import { DashboardWidgetEmpty } from "@/app/components/dashboard/DashboardWidgetEmpty";
 import { DeskIntelColumn } from "@/app/components/dashboard/DeskIntelColumn";
 import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
@@ -53,6 +59,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { terminalChrome, terminalPage, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
+import { terminalListRefreshOpacity, terminalListRow } from "@/lib/terminalListRow";
 import {
   SOCIAL_FEED_CATEGORY_OPTIONS,
   formatSocialFeedCategoryLabel,
@@ -1546,7 +1553,7 @@ function TrendingPanel() {
     >
       <div className="mt-3 max-w-full min-w-0 overflow-x-clip">
         <div className={`min-w-0 ${terminalSurface.dashboardListWell}`}>
-        <DashboardRefreshBar active={trendingLoading && rows.length > 0} />
+        <TerminalPanelRefresh active={trendingLoading && rows.length > 0} />
         <div className="hidden px-2 pb-2 text-[10px] uppercase tracking-wider text-zinc-600 lg:block sm:text-[11px]">
           <div className="grid grid-cols-[minmax(0,1.2fr)_auto_auto] items-center gap-3">
             <span>Token</span>
@@ -1558,7 +1565,7 @@ function TrendingPanel() {
         <div className="h-[300px] overflow-y-auto pr-1 no-scrollbar">
           {trendingLoading && rows.length === 0 ? (
             <div className="px-1 pb-1 pt-0.5">
-              <TrendingSkeletonRows />
+              <TerminalListSkeleton rows={6} aria-label="Loading trending tokens" />
             </div>
           ) : rows.length === 0 ? (
             <div className="flex h-full items-center justify-center px-3 py-10">
@@ -1573,9 +1580,7 @@ function TrendingPanel() {
             </div>
           ) : (
             <ul
-              className={`space-y-1 transition-opacity duration-200 ${
-                trendingLoading ? "opacity-[0.86]" : "opacity-100"
-              }`}
+              className={`${terminalListRow.cardList} ${terminalListRefreshOpacity(trendingLoading)}`}
             >
               {rows.map((row, i) => {
                 const positive = row.changePct >= 0;
@@ -1587,8 +1592,7 @@ function TrendingPanel() {
                   row.name.trim().toLowerCase() !== row.symbol.trim().toLowerCase();
                 return (
                   <li key={`${row.symbol}-${row.mint}-${i}`}>
-                    <button
-                      type="button"
+                    <TerminalListRow
                       onClick={() =>
                         window.open(
                           `https://dexscreener.com/solana/${encodeURIComponent(
@@ -1599,7 +1603,7 @@ function TrendingPanel() {
                         )
                       }
                       title={`${displayName} — open on Dexscreener`}
-                      className={`${terminalPage.denseInsetRowButton} flex-col items-stretch gap-2 lg:flex-row lg:items-center`}
+                      className="flex-col items-stretch gap-2 lg:flex-row lg:items-center"
                     >
                       <div className="min-w-0 w-full flex-1">
                         <div className="flex items-center gap-2">
@@ -1663,7 +1667,7 @@ function TrendingPanel() {
                       <span className="hidden text-xs text-zinc-500 group-hover:inline lg:ml-1 lg:inline">
                         ↗
                       </span>
-                    </button>
+                    </TerminalListRow>
                   </li>
                 );
               })}
@@ -2946,7 +2950,10 @@ function SocialsFeedPanel() {
   const [tab, setTab] = useState<"all" | SocialFeedCategorySlug>("all");
   const [items, setItems] = useState<SocialFeedItem[]>([]);
   const [flashId, setFlashId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [feedInitialLoading, setFeedInitialLoading] = useState(true);
+  const [feedRefreshing, setFeedRefreshing] = useState(false);
+  const itemsRef = useRef<SocialFeedItem[]>([]);
+  itemsRef.current = items;
   const [expanded, setExpanded] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitPlatform, setSubmitPlatform] = useState<SocialPlatform>("x");
@@ -2986,7 +2993,8 @@ function SocialsFeedPanel() {
 
   useEffect(() => {
     if (!hasProFeatures) {
-      setLoading(false);
+      setFeedInitialLoading(false);
+      setFeedRefreshing(false);
       setItems([]);
       return;
     }
@@ -2995,7 +3003,9 @@ function SocialsFeedPanel() {
     prevFeedTopId.current = null;
 
     const load = () => {
-      setLoading(true);
+      const hasRows = itemsRef.current.length > 0;
+      if (hasRows) setFeedRefreshing(true);
+      else setFeedInitialLoading(true);
       fetch(`/api/social-feed?category=${encodeURIComponent(tab)}`, { credentials: "same-origin" })
         .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
         .then(({ ok, json }) => {
@@ -3060,7 +3070,10 @@ function SocialsFeedPanel() {
           if (!cancelled) setItems([]);
         })
         .finally(() => {
-          if (!cancelled) setLoading(false);
+          if (!cancelled) {
+          setFeedInitialLoading(false);
+          setFeedRefreshing(false);
+        }
         });
     };
 
@@ -3083,14 +3096,14 @@ function SocialsFeedPanel() {
   }, [items, tab]);
 
   const renderFeedList = (compact: boolean) => {
-    if (loading && rows.length === 0) {
-      const n = compact ? 5 : 6;
+    if (feedInitialLoading && rows.length === 0) {
       return (
-        <ul className={compact ? "space-y-2.5 pr-0.5" : "space-y-3"} aria-busy="true" aria-label="Loading feed">
-          {Array.from({ length: n }, (_, i) => (
-            <SocialFeedSkeletonRow key={`social-sk-${i}`} compact={compact} />
-          ))}
-        </ul>
+        <TerminalListSkeleton
+          variant="social"
+          rows={compact ? 5 : 6}
+          compact={compact}
+          aria-label="Loading feed"
+        />
       );
     }
 
@@ -3111,7 +3124,7 @@ function SocialsFeedPanel() {
     return (
       <ul
         className={`${compact ? "space-y-2.5 pr-0.5" : "space-y-3"} transition-opacity duration-200 ${
-          loading ? "opacity-[0.82]" : "opacity-100"
+          feedRefreshing ? "opacity-[0.86]" : "opacity-100"
         }`}
       >
         {rows.map((item) => (
@@ -3188,7 +3201,7 @@ function SocialsFeedPanel() {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-sky-500/25 via-[color:var(--accent)]/20 to-transparent" />
 
         <div className={`mt-3 ${terminalSurface.dashboardListWell}`}>
-          <DashboardRefreshBar active={loading && rows.length > 0} />
+          <TerminalPanelRefresh active={feedRefreshing && rows.length > 0} />
           <div className="min-h-[20rem] h-[min(34rem,calc(100dvh-12rem))] overflow-y-auto pr-1 no-scrollbar">
             {renderFeedList(true)}
           </div>
@@ -3298,7 +3311,7 @@ function SocialsFeedPanel() {
                     className={`min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 ${terminalChrome.scrollYHidden}`}
                   >
                     <div className={`${terminalSurface.dashboardListWell}`}>
-                      <DashboardRefreshBar active={loading && rows.length > 0} />
+                      <TerminalPanelRefresh active={feedRefreshing && rows.length > 0} />
                       {renderFeedList(false)}
                     </div>
                   </div>
@@ -5109,7 +5122,7 @@ export default function Home() {
             >
               {callsLoading && recentCalls.length === 0 ? (
                 <div className={`mt-3 ${terminalSurface.dashboardListWell}`}>
-                  <HomeRecentCallsSkeleton />
+                  <TerminalRecentCallsSkeleton />
                 </div>
               ) : recentCalls.length === 0 ? (
                 <div className="mt-3 rounded-xl border border-dashed border-zinc-800/60 bg-zinc-950/20">
@@ -5123,8 +5136,8 @@ export default function Home() {
                 </div>
               ) : (
                 <div className={`mt-3 ${terminalSurface.dashboardListWell}`}>
-                  <DashboardRefreshBar active={callsRefreshing && recentCalls.length > 0} />
-                  <ul className="divide-y divide-zinc-800/45">
+                  <TerminalPanelRefresh active={callsRefreshing && recentCalls.length > 0} />
+                  <ul className={`${terminalListRow.dividedList} ${terminalListRefreshOpacity(callsRefreshing && recentCalls.length > 0)}`}>
                     {recentCalls.slice(0, 6).map((call, i) => {
                       const tMs = callTimeMs(call.time);
                       const timeFull = formatJoinedAt(tMs, nowMs);
@@ -5132,7 +5145,7 @@ export default function Home() {
                       const summary = homeRecentCallSummary(call);
                       return (
                         <li key={`${call.token}-${String(call.time)}-${i}`}>
-                          <div className="flex items-center gap-2 py-2 pl-1 pr-1 sm:gap-2.5 sm:py-2 sm:pl-1.5 sm:pr-2">
+                          <TerminalListRow as="motionless">
                             <div className="shrink-0 scale-[0.88]">
                               <TokenCallThumb
                                 symbol={
@@ -5191,7 +5204,7 @@ export default function Home() {
                                 {timeShort}
                               </time>
                             </div>
-                          </div>
+                          </TerminalListRow>
                         </li>
                       );
                     })}
