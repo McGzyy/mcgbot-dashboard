@@ -1560,21 +1560,14 @@ function TrendingPanel() {
                     >
                       <div className="min-w-0 w-full flex-1">
                         <div className="flex items-center gap-2">
-                          {row.imageUrl ? (
-                            <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md border border-zinc-800/70 bg-zinc-950">
-                              <img
-                                src={row.imageUrl}
-                                alt={displayName}
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                                referrerPolicy="no-referrer"
-                              />
-                            </span>
-                          ) : (
-                            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-800/70 bg-zinc-950 text-xs font-semibold text-zinc-200">
-                              #{i + 1}
-                            </span>
-                          )}
+                          <div className="shrink-0 scale-[0.78]">
+                            <TokenCallThumb
+                              symbol={row.symbol}
+                              tokenImageUrl={row.imageUrl}
+                              mint={row.mint}
+                              tone="muted"
+                            />
+                          </div>
                           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-100">
                             {displayName}
                           </span>
@@ -2508,16 +2501,18 @@ function ActivityFeedPanel({
                       onFollowingChange={(next) => setFollowing(item.discordId, next)}
                       className="mt-0.5"
                     />
-                    {item.tokenImageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.tokenImageUrl}
-                        alt=""
-                        className="mt-0.5 h-8 w-8 shrink-0 rounded-md border border-zinc-700/60 object-cover"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
+                    <div className="mt-0.5 shrink-0 scale-[0.88]">
+                      <TokenCallThumb
+                        symbol={
+                          parseActivityChartTicker(item.text, item.type) ||
+                          activityLineLabel(item).slice(0, 8) ||
+                          "?"
+                        }
+                        tokenImageUrl={item.tokenImageUrl ?? null}
+                        mint={resolveActivityMint(item)}
+                        tone="muted"
                       />
-                    ) : null}
+                    </div>
                     <span
                       className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-base leading-none opacity-[0.88]"
                       aria-hidden
@@ -5069,23 +5064,18 @@ export default function Home() {
                       return (
                         <li key={`${call.token}-${String(call.time)}-${i}`}>
                           <div className="flex items-center gap-2 py-2 pl-1 pr-1 sm:gap-2.5 sm:py-2 sm:pl-1.5 sm:pr-2">
-                            {call.tokenImageUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={call.tokenImageUrl}
-                                alt=""
-                                className="h-8 w-8 shrink-0 rounded-lg border border-zinc-800/70 bg-zinc-950 object-cover ring-1 ring-black/20"
-                                loading="lazy"
-                                referrerPolicy="no-referrer"
+                            <div className="shrink-0 scale-[0.88]">
+                              <TokenCallThumb
+                                symbol={
+                                  call.tokenTicker?.trim().toUpperCase().slice(0, 14) ||
+                                  call.tokenName?.trim().slice(0, 14) ||
+                                  abbreviateCa(call.token, 4, 4)
+                                }
+                                tokenImageUrl={call.tokenImageUrl ?? null}
+                                mint={call.token}
+                                tone="muted"
                               />
-                            ) : (
-                              <span
-                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800/70 bg-zinc-900/80 text-[10px] font-bold text-zinc-500"
-                                aria-hidden
-                              >
-                                —
-                              </span>
-                            )}
+                            </div>
                             <p
                               className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-zinc-100"
                               title={summary}

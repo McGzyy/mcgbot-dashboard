@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { dexScreenerSolTokenPngUrl } from "@/lib/resolveTokenAvatarUrl";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { tokenImageUrlCandidates } from "@/lib/resolveTokenAvatarUrl";
 
 function symbolBadge(symbol: string) {
   const s = symbol.trim().toUpperCase();
@@ -20,19 +20,58 @@ export function TokenCallThumb({
   mint?: string | null;
   tone: "default" | "muted" | "bot";
 }) {
-  const primary = typeof tokenImageUrl === "string" && tokenImageUrl.trim() ? tokenImageUrl.trim() : null;
-  const dexFallback = dexScreenerSolTokenPngUrl(typeof mint === "string" ? mint : "");
+  const candidates = useMemo(
+    () => tokenImageUrlCandidates({ tokenImageUrl, mint }),
+    [tokenImageUrl, mint]
+  );
 
-  const [primaryFailed, setPrimaryFailed] = useState(false);
-  const [fallbackFailed, setFallbackFailed] = useState(false);
+  const [tryIndex, setTryIndex] = useState(0);
+  const [enrichedUrl, setEnrichedUrl] = useState<string | null>(null);
+  const [enrichDone, setEnrichDone] = useState(false);
 
   useEffect(() => {
-    setPrimaryFailed(false);
-    setFallbackFailed(false);
-  }, [primary, dexFallback, symbol]);
+    setTryIndex(0);
+    setEnrichedUrl(null);
+    setEnrichDone(false);
+  }, [candidates.join("|"), mint, symbol]);
 
-  const onPrimaryError = useCallback(() => setPrimaryFailed(true), []);
-  const onFallbackError = useCallback(() => setFallbackFailed(true), []);
+  const mintTrim = typeof mint === "string" ? mint.trim() : "";
+  const needsEnrich = tryIndex >= candidates.length && mintTrim.length > 0;
+
+  useEffect(() => {
+    if (!needsEnrich || enrichDone) return;
+    let cancelled = false;
+    void fetch(`/api/token-icon?mint=${encodeURIComponent(mintTrim)}`, {
+      credentials: "same-origin",
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: { url?: unknown } | null) => {
+        if (cancelled) return;
+        const url = typeof json?.url === "string" ? json.url.trim() : "";
+        if (url.startsWith("https://")) setEnrichedUrl(url);
+        setEnrichDone(true);
+      })
+      .catch(() => {
+        if (!cancelled) setEnrichDone(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsEnrich, enrichDone, mintTrim]);
+
+  const activeSrc =
+    tryIndex < candidates.length ? candidates[tryIndex] : enrichedUrl;
+
+  const onImgError = useCallback(() => {
+    if (tryIndex < candidates.length) {
+      setTryIndex((i) => i + 1);
+      return;
+    }
+    if (enrichedUrl) {
+      setEnrichedUrl(null);
+      setEnrichDone(true);
+    }
+  }, [tryIndex, candidates.length, enrichedUrl]);
 
   const imgBorder =
     tone === "bot"
@@ -57,30 +96,29 @@ export function TokenCallThumb({
     </div>
   );
 
-  if (primary && !primaryFailed) {
+  const showImg =
+    activeSrc &&
+    (tryIndex < candidates.length || (enrichDone && enrichedUrl != null));
+
+  if (showImg && activeSrc) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={primary}
+        src={activeSrc}
         alt=""
         className={`h-9 w-9 shrink-0 rounded-lg border object-cover ${imgBorder}`}
         loading="lazy"
         referrerPolicy="no-referrer"
-        onError={onPrimaryError}
+        onError={onImgError}
       />
     );
   }
 
-  if (dexFallback && !fallbackFailed) {
+  if (needsEnrich && !enrichDone) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={dexFallback}
-        alt=""
-        className={`h-9 w-9 shrink-0 rounded-lg border object-cover ${imgBorder}`}
-        loading="lazy"
-        referrerPolicy="no-referrer"
-        onError={onFallbackError}
+      <div
+        className={`h-9 w-9 shrink-0 animate-pulse rounded-lg border bg-zinc-900/80 ${imgBorder}`}
+        aria-hidden
       />
     );
   }

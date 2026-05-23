@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { dexScreenerSolTokenPngUrl } from "@/lib/resolveTokenAvatarUrl";
 
 export const runtime = "nodejs";
 
@@ -102,7 +103,7 @@ export async function GET(request: Request) {
       const imageUrl =
         typeof pair.info?.imageUrl === "string" && pair.info.imageUrl.startsWith("http")
           ? pair.info.imageUrl
-          : null;
+          : dexScreenerSolTokenPngUrl(mint);
 
       rows.push({
         symbol,

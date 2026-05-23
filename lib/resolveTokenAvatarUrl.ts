@@ -8,13 +8,49 @@ export function dexScreenerSolTokenPngUrl(mint: string): string | null {
 }
 
 /**
- * Prefer stored snapshot URL; when missing, use DexScreener CDN token art (same pattern as bot embeds).
+ * Discord / browser-safe https URL (ipfs:// and plain http often fail in <img>).
+ */
+export function normalizeTokenImageUrl(raw: string | null | undefined): string | null {
+  const u = typeof raw === "string" ? raw.trim() : "";
+  if (!u) return null;
+  if (/^ipfs:\/\//i.test(u)) {
+    const rest = u.slice(7).replace(/^ipfs\//i, "");
+    return `https://cloudflare-ipfs.com/ipfs/${rest}`;
+  }
+  if (u.startsWith("http://")) {
+    return `https://${u.slice("http://".length)}`;
+  }
+  if (!u.startsWith("https://")) return null;
+  return u;
+}
+
+/**
+ * Ordered candidates for <img> retry (deduped).
+ */
+export function tokenImageUrlCandidates(args: {
+  tokenImageUrl?: string | null;
+  mint?: string | null;
+}): string[] {
+  const out: string[] = [];
+  const push = (u: string | null | undefined) => {
+    const n = typeof u === "string" ? normalizeTokenImageUrl(u) : null;
+    if (n && !out.includes(n)) out.push(n);
+  };
+
+  push(args.tokenImageUrl);
+  const mint = typeof args.mint === "string" ? args.mint.trim() : "";
+  if (mint) push(dexScreenerSolTokenPngUrl(mint));
+
+  return out;
+}
+
+/**
+ * Prefer stored snapshot URL (normalized); when missing, use DexScreener CDN token art.
  */
 export function resolveTokenAvatarUrl(args: {
   tokenImageUrl?: string | null;
   mint?: string | null;
 }): string | null {
-  const u = typeof args.tokenImageUrl === "string" ? args.tokenImageUrl.trim() : "";
-  if (u) return u;
-  return dexScreenerSolTokenPngUrl(typeof args.mint === "string" ? args.mint : "");
+  const candidates = tokenImageUrlCandidates(args);
+  return candidates[0] ?? null;
 }
