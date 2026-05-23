@@ -13,6 +13,7 @@ import { MembershipAccessPanel } from "@/app/membership/MembershipAccessPanel";
 import { MembershipBillingSection, type MembershipPlan } from "@/app/membership/MembershipBillingSection";
 import { MembershipProductCompare } from "@/app/membership/MembershipProductCompare";
 import { markMembershipWelcome } from "@/lib/membershipActivation";
+import { planMonthlyEquivalent } from "@/lib/subscription/planDisplay";
 import { MembershipFlowSteps } from "@/app/membership/MembershipFlowSteps";
 import { MembershipIncludedToday } from "@/app/membership/MembershipIncludedToday";
 import { MembershipTestToolsFloat } from "@/app/membership/MembershipTestToolsFloat";
@@ -442,6 +443,26 @@ export default function MembershipPage() {
     return annual?.slug ?? plansForLine[plansForLine.length - 1]!.slug;
   }, [plansForLine]);
 
+  const monthlyFromUsd = useMemo(() => {
+    if (!plans?.length) return undefined;
+    const result: Partial<Record<"basic" | "pro", number>> = {};
+    for (const tier of ["basic", "pro"] as const) {
+      const monthly = plans.find(
+        (p) => (p.productTier ?? "basic") === tier && p.billingMonths === 1
+      );
+      if (monthly) {
+        result[tier] = monthly.priceUsd;
+        continue;
+      }
+      const annual = plans.find(
+        (p) => (p.productTier ?? "basic") === tier && p.billingMonths === 12
+      );
+      const eq = annual ? planMonthlyEquivalent(annual.priceUsd, annual.billingMonths) : null;
+      if (eq != null) result[tier] = eq;
+    }
+    return Object.keys(result).length > 0 ? result : undefined;
+  }, [plans]);
+
   const startCheckout = useCallback(async () => {
     setCheckoutError(null);
     setPollNote(null);
@@ -730,22 +751,22 @@ export default function MembershipPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex min-w-0 max-w-4xl flex-col gap-8 overflow-x-clip px-4 py-8 pb-28 sm:px-6 sm:py-10 sm:pb-10">
-        <div className="mx-auto w-full max-w-3xl text-center">
+      <main className="mx-auto flex min-w-0 max-w-4xl flex-col gap-5 overflow-x-clip px-4 py-5 pb-28 sm:gap-8 sm:px-6 sm:py-10 sm:pb-10">
+        <div className="order-1 mx-auto w-full max-w-3xl text-center">
           <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-zinc-600">
             McGBot Terminal
           </p>
-          <h1 className="mt-3 bg-gradient-to-b from-white to-zinc-400 bg-clip-text text-3xl font-semibold tracking-tight text-transparent sm:text-[2.35rem] sm:leading-tight">
+          <h1 className="mt-2 bg-gradient-to-b from-white to-zinc-400 bg-clip-text text-2xl font-semibold tracking-tight text-transparent sm:mt-3 sm:text-3xl sm:leading-tight md:text-[2.35rem]">
             {siteFlags?.paywall_title?.trim() || "Membership"}
           </h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-zinc-500">
+          <p className="mx-auto mt-2 max-w-lg text-xs leading-relaxed text-zinc-500 sm:mt-3 sm:text-sm">
             {siteFlags?.paywall_subtitle?.trim() ||
               "Start with Basic for the daily desk loop — log calls, track performance, compete on the board. Annual billing saves vs monthly."}
           </p>
 
-          <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-2">
+          <div className="-mx-1 mt-4 flex flex-nowrap items-center justify-start gap-1.5 overflow-x-auto px-1 pb-0.5 sm:mx-0 sm:mt-6 sm:flex-wrap sm:justify-center sm:gap-2 sm:overflow-visible sm:pb-0">
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium ${
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium sm:px-3 sm:py-1 sm:text-[11px] ${
                 isLoggedIn
                   ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
                   : "border-[#5865F2]/35 bg-[#5865F2]/10 text-[#c4c8ff]"
@@ -757,7 +778,7 @@ export default function MembershipPage() {
               />
               Discord {isLoggedIn ? "connected" : "required"}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-800/70 bg-zinc-950/50 px-3 py-1 text-[11px] font-medium text-zinc-400">
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-zinc-800/70 bg-zinc-950/50 px-2.5 py-0.5 text-[10px] font-medium text-zinc-400 sm:px-3 sm:py-1 sm:text-[11px]">
               <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" aria-hidden />
               Server:{" "}
               {!isLoggedIn
@@ -773,7 +794,7 @@ export default function MembershipPage() {
                         : "—"}
             </span>
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium ${
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium sm:px-3 sm:py-1 sm:text-[11px] ${
                 active || exempt
                   ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
                   : "border-amber-500/30 bg-amber-500/10 text-amber-100"
@@ -792,25 +813,29 @@ export default function MembershipPage() {
           </div>
         </div>
 
-        <MembershipFlowSteps />
+        <div className="order-2">
+          <MembershipFlowSteps />
+        </div>
 
-        <MembershipValueProps />
+        <div className="order-8 md:order-3">
+          <MembershipValueProps />
+        </div>
 
-        <MembershipIncludedToday />
+        <div className="order-9 md:order-4">
+          <MembershipIncludedToday />
+        </div>
 
         {anonPreview ? (
-          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[#5865F2]/45 bg-[linear-gradient(135deg,rgba(88,101,242,0.18),rgba(24,24,27,0.85))] p-5 shadow-[0_20px_60px_rgba(88,101,242,0.12)] sm:p-6">
-            <p className="text-sm font-semibold text-zinc-50">You&apos;re viewing plans — checkout is locked</p>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-              Tiers below are a preview only (greyed out). To purchase you must{" "}
-              <span className="font-medium text-zinc-100">sign in with Discord</span> and{" "}
-              <span className="font-medium text-zinc-100">join the McGBot server</span> before pay buttons unlock.
+          <div className="order-4 mx-auto w-full max-w-3xl rounded-xl border border-[#5865F2]/45 bg-[linear-gradient(135deg,rgba(88,101,242,0.18),rgba(24,24,27,0.85))] p-4 shadow-[0_20px_60px_rgba(88,101,242,0.12)] sm:rounded-2xl sm:p-6 md:order-5">
+            <p className="text-xs font-semibold text-zinc-50 sm:text-sm">Preview only — checkout locked</p>
+            <p className="mt-1.5 text-xs leading-relaxed text-zinc-300 sm:mt-2 sm:text-sm">
+              Sign in with Discord and join the McGBot server to unlock pay buttons.
             </p>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="mt-3 flex flex-col gap-2 sm:mt-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               <button
                 type="button"
                 onClick={() => void signIn("discord", { callbackUrl: membershipCallbackUrl })}
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-[#5865F2] px-5 text-sm font-bold text-white shadow-[0_0_28px_rgba(88,101,242,0.45)] transition hover:bg-[#4752c4]"
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-[#5865F2] px-4 text-sm font-bold text-white shadow-[0_0_28px_rgba(88,101,242,0.45)] transition hover:bg-[#4752c4] sm:h-11 sm:px-5"
               >
                 Continue with Discord
               </button>
@@ -818,16 +843,16 @@ export default function MembershipPage() {
                 href={resolveDiscordInviteUrl(siteFlags)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-center text-sm font-semibold text-[#b4b9ff] underline-offset-4 hover:underline sm:text-left"
+                className="text-center text-xs font-semibold text-[#b4b9ff] underline-offset-4 hover:underline sm:text-left sm:text-sm"
               >
-                Open server invite (optional preview)
+                Open server invite
               </a>
             </div>
           </div>
         ) : null}
 
         {isLoggedIn && guildGateReady && !guildGate.guildMembershipKnown ? (
-          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-zinc-600/50 bg-zinc-900/45 p-5 sm:p-6">
+          <div className="order-6 mx-auto w-full max-w-3xl rounded-xl border border-zinc-600/50 bg-zinc-900/45 p-4 sm:rounded-2xl sm:p-6 md:order-5">
             <p className="text-sm font-semibold text-zinc-50">We couldn&apos;t verify Discord server membership</p>
             <p className="mt-2 text-sm leading-relaxed text-zinc-300">
               Checkout stays disabled until we can confirm you&apos;re in the McGBot Discord server. Try joining below,
@@ -857,7 +882,7 @@ export default function MembershipPage() {
         ) : null}
 
         {isLoggedIn && guildGateReady && guildGate.guildMembershipKnown && guildGate.inGuild === false ? (
-          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 sm:p-6">
+          <div className="order-6 mx-auto w-full max-w-3xl rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 sm:rounded-2xl sm:p-6 md:order-5">
             <p className="text-sm font-semibold text-amber-50">Join the Discord server first</p>
             <p className="mt-2 text-sm leading-relaxed text-amber-100/85">
               Your Discord account is linked, but you are not in the server yet. After you join, use{" "}
@@ -887,7 +912,7 @@ export default function MembershipPage() {
         ) : null}
 
         {isLoggedIn && verificationBlocksCheckout ? (
-          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-violet-500/35 bg-violet-500/10 p-5 sm:p-6">
+          <div className="order-6 mx-auto w-full max-w-3xl rounded-xl border border-violet-500/35 bg-violet-500/10 p-4 sm:rounded-2xl sm:p-6 md:order-5">
             <p className="text-sm font-semibold text-violet-50">Finish Discord verification to unlock checkout</p>
             <p className="mt-2 text-sm leading-relaxed text-violet-100/85">
               {guildGateReady && guildGate.verificationReason === "unverified_role"
@@ -928,16 +953,19 @@ export default function MembershipPage() {
           </div>
         ) : null}
 
-        <MembershipProductCompare
-          productLine={productLine}
-          onProductLineChange={(line) => {
-            setProductLine(line);
-            setSelectedSlug((prev) => preferredSlugForLine(line, prev) || prev);
-          }}
-        />
+        <div className="order-3 md:order-7">
+          <MembershipProductCompare
+            productLine={productLine}
+            onProductLineChange={(line) => {
+              setProductLine(line);
+              setSelectedSlug((prev) => preferredSlugForLine(line, prev) || prev);
+            }}
+            monthlyFromUsd={monthlyFromUsd}
+          />
+        </div>
 
         {showUpgradeCheckout ? (
-          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-sky-500/25 bg-sky-500/10 px-5 py-4 text-sm text-sky-100/90">
+          <div className="order-4 mx-auto w-full max-w-3xl rounded-xl border border-sky-500/25 bg-sky-500/10 px-4 py-3 text-sm text-sky-100/90 sm:rounded-2xl sm:px-5 sm:py-4 md:order-8">
             <p className="font-semibold text-sky-50">Upgrade to Pro</p>
             <p className="mt-1 text-sky-100/80">
               Your Basic membership stays active. Choose a Pro billing period below — checkout extends your access
@@ -946,7 +974,8 @@ export default function MembershipPage() {
           </div>
         ) : null}
 
-        <MembershipBillingSection
+        <div className="order-5 md:order-9">
+          <MembershipBillingSection
           productLine={productLine}
           plansForLine={plansForLine}
           plansError={plansError}
@@ -1015,6 +1044,7 @@ export default function MembershipPage() {
             ) : null
           }
         />
+        </div>
       </main>
     </div>
   );

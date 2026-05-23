@@ -24,23 +24,10 @@ function cellIncluded(value: TierFeatureValue, tier: ProductTier): boolean {
   return value === true || value === "limited" || value === "10_per_day";
 }
 
-export function MembershipIncludedToday() {
+function FeatureMatrix() {
   return (
-    <section
-      className="mx-auto w-full max-w-3xl rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-5 ring-1 ring-white/[0.03] sm:p-6"
-      aria-labelledby="membership-included-heading"
-    >
-      <h2
-        id="membership-included-heading"
-        className="text-center text-sm font-semibold tracking-tight text-zinc-100 sm:text-base"
-      >
-        What&apos;s included today
-      </h2>
-      <p className="mx-auto mt-2 max-w-lg text-center text-xs leading-relaxed text-zinc-500 sm:text-sm">
-        Live on the terminal now. No mockups — this is the real feature matrix from checkout.
-      </p>
-
-      <div className="mt-5 overflow-x-auto">
+    <>
+      <div className="mt-4 overflow-x-auto sm:mt-5">
         <table className="w-full min-w-[280px] border-collapse text-left text-xs sm:text-sm">
           <thead>
             <tr className="border-b border-zinc-800/80 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
@@ -81,13 +68,68 @@ export function MembershipIncludedToday() {
         </table>
       </div>
 
-      <div className="mt-5 rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-4 py-3 text-xs leading-relaxed text-emerald-100/90 sm:text-sm">
-        <p className="font-semibold text-emerald-50">Personal alerts — inbox + Pro DMs</p>
+      <div className="mt-4 rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-3 py-2.5 text-xs leading-relaxed text-emerald-100/90 sm:mt-5 sm:px-4 sm:py-3 sm:text-sm">
+        <p className="font-semibold text-emerald-50">Personal alerts — inbox on Basic, DMs on Pro</p>
         <p className="mt-1 text-emerald-100/85">
-          Background checks for followed-caller posts, price moves, and thresholds land in your bell
-          inbox. Pro members can also mirror alerts to Discord DMs (toggle in Create Alert).
+          Rules for followed callers, price moves, and thresholds land in your bell inbox. Pro mirrors the
+          same hit to Discord DMs (toggle when you create an alert).
         </p>
       </div>
-    </section>
+    </>
+  );
+}
+
+export function MembershipIncludedToday() {
+  return (
+    <>
+      {/* Mobile: collapsed by default */}
+      <details className="group mx-auto w-full max-w-3xl rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3 ring-1 ring-white/[0.03] md:hidden">
+        <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p
+                id="membership-included-heading-mobile"
+                className="text-xs font-semibold tracking-tight text-zinc-100"
+              >
+                Compare all features
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                Full Basic vs Pro matrix — same as checkout.
+              </p>
+            </div>
+            <span
+              className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-zinc-500 group-open:hidden"
+              aria-hidden
+            >
+              Expand
+            </span>
+            <span
+              className="hidden shrink-0 text-[10px] font-medium uppercase tracking-wider text-zinc-500 group-open:inline"
+              aria-hidden
+            >
+              Collapse
+            </span>
+          </div>
+        </summary>
+        <FeatureMatrix />
+      </details>
+
+      {/* Desktop: always expanded */}
+      <section
+        className="mx-auto hidden w-full max-w-3xl rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-5 ring-1 ring-white/[0.03] sm:p-6 md:block"
+        aria-labelledby="membership-included-heading"
+      >
+        <h2
+          id="membership-included-heading"
+          className="text-center text-sm font-semibold tracking-tight text-zinc-100 sm:text-base"
+        >
+          What&apos;s included today
+        </h2>
+        <p className="mx-auto mt-2 max-w-lg text-center text-xs leading-relaxed text-zinc-500 sm:text-sm">
+          Live on the terminal now. No mockups — this is the real feature matrix from checkout.
+        </p>
+        <FeatureMatrix />
+      </section>
+    </>
   );
 }
