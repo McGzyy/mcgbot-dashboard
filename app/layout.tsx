@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { getServerSession } from "next-auth";
 import { AppChrome } from "./components/AppChrome";
@@ -67,6 +68,7 @@ export default async function RootLayout({
         <Providers session={session}>
           <AppChrome>{children}</AppChrome>
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
