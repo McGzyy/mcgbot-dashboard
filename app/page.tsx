@@ -335,6 +335,12 @@ type PublicTeasers = {
   };
 };
 
+const UNAUTHED_VALUE_PROPS = [
+  "Log calls with verified ATH multiples and a public profile",
+  "Leaderboards, desk tape, and trending — one terminal",
+  "Alerts when your rules hit (in-app; Pro mirrors to Discord)",
+] as const;
+
 function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
   const [loading, setLoading] = useState(true);
   const [teasers, setTeasers] = useState<PublicTeasers | null>(null);
@@ -378,107 +384,127 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
     return `${Number(v).toFixed(2)}×`;
   };
 
+  const showSocialProof = !loading && weekCalls > 0;
+
   return (
-    <div className="relative w-full min-w-0 max-w-full overflow-x-hidden px-0 py-5 sm:py-8">
+    <div className="relative w-full min-w-0 max-w-full overflow-x-hidden px-0 py-4 sm:py-7">
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.12),transparent_55%),radial-gradient(circle_at_bottom,rgba(56,189,248,0.10),transparent_50%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.10),transparent_52%),radial-gradient(circle_at_bottom,rgba(56,189,248,0.08),transparent_48%)]"
         aria-hidden
       />
       <div className="relative mx-auto w-full min-w-0 max-w-5xl">
-        <div className="grid w-full min-w-0 gap-4 max-sm:gap-4 lg:grid-cols-[1.1fr_0.9fr] lg:items-start lg:gap-6">
-          <section className="min-w-0 rounded-2xl border border-zinc-800/60 bg-zinc-950/50 p-4 shadow-2xl shadow-black/40 backdrop-blur sm:p-8">
+        <div className="grid w-full min-w-0 gap-3 sm:gap-4 lg:grid-cols-[1.08fr_0.92fr] lg:items-start lg:gap-6">
+          <section
+            className={`min-w-0 p-4 sm:p-6 lg:p-7 ${terminalSurface.routeHeroFrame} ${terminalSurface.insetEdge}`}
+          >
             <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500 sm:text-[10px] sm:tracking-[0.28em]">
               McGBot Terminal
             </p>
-            <h1 className="mt-2 text-[1.35rem] font-black leading-tight tracking-tight text-zinc-100 sm:mt-3 sm:text-3xl lg:text-4xl">
-              Elite call tracking, performance, and community boards.
+            <h1 className="mt-2 text-[1.4rem] font-black leading-[1.15] tracking-tight text-zinc-50 sm:mt-3 sm:text-3xl lg:text-[2.125rem]">
+              Track every desk call. Prove what hit.
             </h1>
-            <p className="mt-2.5 text-[13px] leading-snug text-zinc-400 sm:mt-4 sm:text-sm sm:leading-relaxed">
-              Log in with Discord to unlock My Call Log, Performance Lab, Watchlist, and pro-grade leaderboards.
+            <p className="mt-2 max-w-xl text-[13px] leading-snug text-zinc-400 sm:mt-3 sm:text-sm sm:leading-relaxed">
+              The Solana desk terminal for logged calls, leaderboards, and performance — sign in with Discord to
+              open your dashboard.
             </p>
-            <div className="mt-4 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:gap-3">
+
+            <ul className="mt-3 space-y-2 sm:mt-4" aria-label="What you get">
+              {UNAUTHED_VALUE_PROPS.map((line) => (
+                <li key={line} className="flex min-w-0 gap-2 text-[12px] leading-snug text-zinc-300 sm:text-sm sm:leading-relaxed">
+                  <span
+                    className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)]/15 text-[10px] font-bold text-[color:var(--accent)]"
+                    aria-hidden
+                  >
+                    ✓
+                  </span>
+                  <span className="min-w-0">{line}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-4 flex flex-col gap-2 sm:mt-5 sm:flex-row sm:flex-wrap sm:gap-3">
               <button
                 type="button"
                 onClick={onLogin}
-                className="inline-flex items-center justify-center rounded-lg bg-[#5865F2] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50 sm:px-5 sm:py-3"
+                className="inline-flex w-full items-center justify-center rounded-lg bg-[#5865F2] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5865F2]/20 transition hover:bg-[#4752c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 sm:w-auto sm:px-5 sm:py-3"
               >
-                Login with Discord
+                Continue with Discord
               </button>
               <Link
                 href="/membership"
-                className="inline-flex items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/40 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-950/60 sm:px-5 sm:py-3"
+                className="inline-flex w-full items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-950/50 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-900/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25 sm:w-auto sm:px-5 sm:py-3"
               >
-                Membership →
+                View membership
               </Link>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-7 sm:grid-cols-3 sm:gap-3">
-              <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-3 py-2.5 sm:px-4 sm:py-3">
+            {showSocialProof ? (
+              <p className="mt-3 text-[11px] text-zinc-500 sm:mt-4 sm:text-xs">
+                <span className="font-semibold tabular-nums text-zinc-400">
+                  {weekCalls.toLocaleString("en-US")}
+                </span>{" "}
+                desk calls tracked in the last 7 days — live from the terminal.
+              </p>
+            ) : null}
+
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3">
+              <div className={terminalPage.statTile}>
                 <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500 sm:text-[10px] sm:tracking-[0.2em]">
-                  7d calls tracked
+                  7d calls
                 </p>
-                <p className="mt-0.5 text-xl font-bold tabular-nums text-zinc-100 sm:mt-1 sm:text-2xl">
+                <p className="mt-0.5 text-lg font-bold tabular-nums text-zinc-100 sm:mt-1 sm:text-2xl">
                   {loading ? "—" : weekCalls.toLocaleString("en-US")}
                 </p>
               </div>
-              <div className="rounded-xl border border-zinc-800/60 bg-black/30 px-3 py-2.5 sm:px-4 sm:py-3">
+              <div className={`col-span-1 ${terminalPage.statTile}`}>
                 <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500 sm:text-[10px] sm:tracking-[0.2em]">
-                  7d avg multiple
+                  7d avg ATH×
                 </p>
                 {loading ? (
-                  <p className="mt-1.5 text-base font-bold tabular-nums text-zinc-500 sm:mt-2 sm:text-lg">—</p>
+                  <p className="mt-1 text-base font-bold tabular-nums text-zinc-500 sm:mt-1.5 sm:text-lg">—</p>
                 ) : (
-                  <div className="mt-1.5 space-y-1 sm:mt-2 sm:space-y-2">
-                    <div className="flex items-baseline justify-between gap-1.5">
-                      <span className="text-[9px] font-bold uppercase tracking-wide text-violet-300/90 sm:text-[10px]">
-                        Bot
-                      </span>
-                      <span className="text-base font-bold tabular-nums text-violet-200 sm:text-lg">
+                  <div className="mt-1 space-y-0.5 sm:mt-1.5 sm:space-y-1">
+                    <div className="flex items-baseline justify-between gap-1">
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-violet-300/90">Bot</span>
+                      <span className="text-sm font-bold tabular-nums text-violet-200 sm:text-base">
                         {formatTeaserAvgX(weekAvgXBot)}
                       </span>
                     </div>
-                    <div className="flex items-baseline justify-between gap-1.5 border-t border-zinc-800/50 pt-1 sm:pt-2">
-                      <span className="text-[9px] font-bold uppercase tracking-wide text-emerald-300/90 sm:text-[10px]">
-                        User
-                      </span>
-                      <span className="text-base font-bold tabular-nums text-emerald-200 sm:text-lg">
+                    <div className="flex items-baseline justify-between gap-1 border-t border-zinc-800/50 pt-0.5 sm:pt-1">
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-emerald-300/90">Desk</span>
+                      <span className="text-sm font-bold tabular-nums text-emerald-200 sm:text-base">
                         {formatTeaserAvgX(weekAvgXUser)}
                       </span>
                     </div>
                   </div>
                 )}
               </div>
-              <div className="col-span-2 rounded-xl border border-zinc-800/60 bg-black/30 px-3 py-2.5 sm:col-span-1 sm:px-4 sm:py-3">
-                <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500 sm:text-[10px] sm:tracking-[0.2em]">
-                  Access
-                </p>
-                <p className="mt-0.5 text-sm font-semibold text-zinc-200 sm:mt-1">
-                  Premium dashboard
-                </p>
-                <p className="mt-0.5 text-[11px] text-zinc-500 sm:mt-1 sm:text-xs">Discord + subscription</p>
-              </div>
             </div>
           </section>
 
-          <aside className="min-w-0 rounded-2xl border border-zinc-800/60 bg-zinc-950/35 p-4 shadow-xl shadow-black/30 backdrop-blur sm:p-6">
+          <aside
+            className={`min-w-0 p-3.5 sm:p-5 ${terminalSurface.routeSectionFrame} bg-zinc-950/60 ${terminalSurface.insetEdgeSoft}`}
+          >
             <div className="flex min-w-0 items-center justify-between gap-2">
-              <h2 className="min-w-0 truncate text-sm font-semibold text-zinc-100">Top calls (7d)</h2>
-              <span className="shrink-0 text-[10px] text-zinc-500 sm:text-[11px]">Teaser</span>
+              <h2 className="min-w-0 truncate text-sm font-semibold text-zinc-100">Top calls this week</h2>
+              <span className="shrink-0 rounded-md border border-zinc-800/80 bg-zinc-950/60 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
+                Preview
+              </span>
             </div>
-            <div className="mt-2.5 rounded-xl border border-zinc-900 bg-black/30 p-1.5 sm:mt-3 sm:p-2">
+            <div className={`mt-2 sm:mt-2.5 ${terminalSurface.dashboardListWell}`}>
               {loading ? (
-                <div className="space-y-1.5 p-0.5 sm:space-y-2 sm:p-1" aria-busy>
-                  <div className="h-8 animate-pulse rounded-lg bg-zinc-900/35 sm:h-10" />
-                  <div className="h-8 animate-pulse rounded-lg bg-zinc-900/25 sm:h-10" />
-                  <div className="h-8 animate-pulse rounded-lg bg-zinc-900/20 sm:h-10" />
+                <div className="space-y-1.5 p-0.5" aria-busy>
+                  <div className="h-7 animate-pulse rounded-lg bg-zinc-900/35 sm:h-9" />
+                  <div className="h-7 animate-pulse rounded-lg bg-zinc-900/25 sm:h-9" />
+                  <div className="h-7 animate-pulse rounded-lg bg-zinc-900/20 sm:h-9" />
                 </div>
               ) : topCalls.length === 0 ? (
-                <div className="flex min-h-[88px] items-center justify-center px-3 py-6 text-center sm:min-h-[120px] sm:py-10">
-                  <p className="text-sm text-zinc-500">No calls yet.</p>
+                <div className="flex min-h-[72px] items-center justify-center px-2 py-5 text-center sm:min-h-[100px] sm:py-8">
+                  <p className="text-xs text-zinc-500 sm:text-sm">No public calls yet this week.</p>
                 </div>
               ) : (
                 <ul className="divide-y divide-zinc-800/40 text-xs sm:text-sm">
-                  {topCalls.map((c, i) => {
+                  {topCalls.slice(0, 5).map((c, i) => {
                     const thumbSym =
                       c.tokenTicker?.trim().toUpperCase().slice(0, 14) ||
                       c.tokenName?.trim().slice(0, 14) ||
@@ -486,10 +512,10 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                     return (
                       <li
                         key={`${c.token}-${String(c.time)}-${i}`}
-                        className="flex min-w-0 items-center justify-between gap-2 py-1.5 first:pt-1.5 text-zinc-300 sm:gap-3 sm:py-2.5 sm:first:pt-2"
+                        className="flex min-w-0 items-center justify-between gap-1.5 py-1.5 text-zinc-300 first:pt-1 sm:gap-2 sm:py-2 sm:first:pt-1.5"
                       >
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                          <div className="shrink-0 scale-[0.78] sm:scale-[0.85]">
+                        <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
+                          <div className="shrink-0 scale-[0.72] sm:scale-[0.82]">
                             <TokenCallThumb
                               symbol={thumbSym}
                               tokenImageUrl={c.tokenImageUrl ?? null}
@@ -497,7 +523,7 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                               tone="muted"
                             />
                           </div>
-                          <span className="min-w-0 truncate text-xs font-semibold text-zinc-100 sm:text-[13px]">
+                          <span className="min-w-0 truncate text-[11px] font-semibold text-zinc-100 sm:text-[13px]">
                             {formatNameAndTickerLine({
                               tokenName: c.tokenName,
                               tokenTicker: c.tokenTicker,
@@ -506,7 +532,7 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                             })}
                           </span>
                         </div>
-                        <span className="shrink-0 text-xs font-semibold tabular-nums text-emerald-300 sm:text-sm">
+                        <span className="shrink-0 text-[11px] font-semibold tabular-nums text-emerald-300 sm:text-sm">
                           {c.multiple.toFixed(1)}×
                         </span>
                       </li>
@@ -515,8 +541,8 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                 </ul>
               )}
             </div>
-            <p className="mt-3 text-[11px] leading-snug text-zinc-500 sm:mt-4 sm:text-xs sm:leading-relaxed">
-              Unlock full history, filtering, performance breakdowns, and leaderboards by logging in and subscribing.
+            <p className="mt-2.5 text-[10px] leading-snug text-zinc-500 sm:mt-3 sm:text-xs sm:leading-relaxed">
+              Sign in for full history, filters, Performance Lab, and leaderboards.
             </p>
           </aside>
         </div>
