@@ -185,7 +185,7 @@ export function AnnouncementBar({
     "sticky top-0 z-40 shrink-0 border-b border-sky-500/25 bg-gradient-to-r from-sky-950/95 via-sky-900/40 to-zinc-950 px-4 py-2.5 text-center text-[13px] leading-snug text-sky-100/95 shadow-[inset_0_1px_0_0_rgba(56,189,248,0.12),0_8px_24px_-12px_rgba(0,0,0,0.45)] backdrop-blur-md";
 
   const insetInnerShell =
-    "relative z-[1] w-full min-w-0 overflow-hidden rounded-md border border-red-500/35 bg-gradient-to-r from-red-950/85 via-red-950/40 to-zinc-950/90 py-1.5 pl-2.5 pr-2 text-red-50/95 shadow-[inset_0_1px_0_0_rgba(248,113,113,0.2),0_0_28px_-8px_rgba(220,38,38,0.32),0_8px_22px_-12px_rgba(0,0,0,0.5)] backdrop-blur-md";
+    "relative z-[1] w-full min-w-0 max-w-full overflow-hidden rounded-md border border-red-500/35 bg-gradient-to-r from-red-950/85 via-red-950/40 to-zinc-950/90 py-1.5 pl-2 pr-2 text-red-50/95 shadow-[inset_0_1px_0_0_rgba(248,113,113,0.2),0_0_28px_-8px_rgba(220,38,38,0.32),0_8px_22px_-12px_rgba(0,0,0,0.5)] backdrop-blur-md sm:pl-2.5";
 
   const dotClass =
     variant === "bare"
@@ -228,7 +228,7 @@ export function AnnouncementBar({
       </span>
     ) : (
       <>
-        <div className="announcement-marquee min-w-0 flex-1 sm:hidden" aria-label={mobileMessage}>
+        <div className="announcement-marquee min-w-0 w-full flex-1 basis-0 sm:hidden" aria-label={mobileMessage}>
           <div className="announcement-marquee-track">
             <span className="announcement-marquee-gap shrink-0 whitespace-nowrap text-[14px] font-medium leading-none tracking-tight">
               {mobileMessage}
@@ -242,7 +242,7 @@ export function AnnouncementBar({
           </div>
         </div>
         <div
-          className="announcement-marquee hidden min-w-0 flex-1 sm:block"
+          className="announcement-marquee hidden min-w-0 w-full flex-1 basis-0 sm:block"
           title={payload.message}
           aria-label={payload.message}
         >
@@ -266,17 +266,19 @@ export function AnnouncementBar({
       className={
         variant === "bare"
           ? "inline-flex max-w-4xl items-start justify-center gap-3"
-          : "flex w-full min-w-0 items-center gap-2 sm:gap-2.5"
+          : "flex w-full min-w-0 max-w-full flex-wrap items-center gap-x-2 gap-y-1.5 sm:flex-nowrap sm:gap-2.5"
       }
     >
       <span className={dotClass} aria-hidden />
       {messageBlock}
-      {dismissControl}
-      {payload.ctaLabel && payload.ctaUrl ? (
-        <a href={payload.ctaUrl} target="_blank" rel="noopener noreferrer" className={ctaClass}>
-          {payload.ctaLabel}
-        </a>
-      ) : null}
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        {dismissControl}
+        {payload.ctaLabel && payload.ctaUrl ? (
+          <a href={payload.ctaUrl} target="_blank" rel="noopener noreferrer" className={ctaClass}>
+            {payload.ctaLabel}
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 

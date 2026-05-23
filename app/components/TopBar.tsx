@@ -539,6 +539,7 @@ export function TopBar() {
                 </button>
               ) : null}
               <LinkedWalletCluster />
+              {session ? (
               <div className="relative w-fit shrink-0" ref={notifRef} data-tutorial="nav.notifications">
                 <button
                   type="button"
@@ -635,6 +636,7 @@ export function TopBar() {
                   </div>
                 ) : null}
               </div>
+              ) : null}
 
               {session ? (
               <div className="relative w-fit shrink-0" ref={menuRef} data-tutorial="nav.userMenu">
@@ -785,9 +787,10 @@ export function TopBar() {
                 <button
                   type="button"
                   onClick={() => discordSignInSafe()}
-                  className="rounded-lg bg-[#5865F2] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+                  className="max-w-[min(100%,9.5rem)] shrink-0 rounded-lg bg-[#5865F2] px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50 sm:max-w-none sm:px-3 sm:text-sm"
                 >
-                  Login with Discord
+                  <span className="sm:hidden">Discord</span>
+                  <span className="hidden sm:inline">Login with Discord</span>
                 </button>
               )}
             </>
