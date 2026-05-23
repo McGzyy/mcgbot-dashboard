@@ -618,6 +618,10 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith("/api/admin/")) {
       return NextResponse.next();
     }
+    /** Mod APIs enforce staff tier in-route (`/api/mod/*`). */
+    if (pathname.startsWith("/api/mod/")) {
+      return NextResponse.next();
+    }
     if (referralApiNoPaywall) {
       return NextResponse.next();
     }
