@@ -13,6 +13,7 @@ import { MembershipBillingSection, type MembershipPlan } from "@/app/membership/
 import { MembershipProductCompare } from "@/app/membership/MembershipProductCompare";
 import { markMembershipWelcome } from "@/lib/membershipActivation";
 import { MembershipFlowSteps } from "@/app/membership/MembershipFlowSteps";
+import { MembershipIncludedToday } from "@/app/membership/MembershipIncludedToday";
 import { MembershipTestToolsFloat } from "@/app/membership/MembershipTestToolsFloat";
 type Plan = MembershipPlan;
 
@@ -789,6 +790,8 @@ export default function MembershipPage() {
         </div>
 
         <MembershipFlowSteps />
+
+        <MembershipIncludedToday />
 
         {anonPreview ? (
           <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[#5865F2]/45 bg-[linear-gradient(135deg,rgba(88,101,242,0.18),rgba(24,24,27,0.85))] p-5 shadow-[0_20px_60px_rgba(88,101,242,0.12)] sm:p-6">
