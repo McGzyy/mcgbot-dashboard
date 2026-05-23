@@ -344,7 +344,7 @@ type PublicTeasers = {
 };
 
 const UNAUTHED_VALUE_PROPS = [
-  "Log calls with verified ATH multiples and a public profile",
+  "Log calls with ATH multiples on your public profile",
   "Leaderboards, desk tape, and trending — one terminal",
   "Alerts when your rules hit (in-app; Pro mirrors to Discord)",
 ] as const;
@@ -1624,7 +1624,7 @@ function HeroCallVolumeElite({ stats }: { stats: MeStats | null }) {
           Call volume
         </span>
         <span className="rounded border border-zinc-700/80 bg-black/30 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
-          Verified
+          Logged
         </span>
       </div>
       <div className="mt-2 grid min-h-0 flex-1 grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -1861,7 +1861,7 @@ function RankPanel({
         ? "No rank in the last 7 days yet — rolling window matches the weekly leaderboard."
         : range === "M"
           ? "No rank in the last 30 days yet — sustained recent calls count here."
-          : "No all-time placement yet — verified calls across all time build your ladder spot.";
+          : "No all-time placement yet — logged calls across all time build your ladder spot.";
 
   const winRateLabel =
     stats === null || (stats.totalCalls ?? 0) <= 0
@@ -1985,7 +1985,7 @@ function RankPanel({
                     ? "—"
                     : range === "D"
                       ? `${stats.callsToday} call${stats.callsToday === 1 ? "" : "s"} today · ${boardLabel}`
-                      : `${stats.totalCalls} verified call${stats.totalCalls === 1 ? "" : "s"} all-time`}
+                      : `${stats.totalCalls} logged call${stats.totalCalls === 1 ? "" : "s"} all-time`}
                 </div>
               ) : null}
             </>
@@ -2224,7 +2224,7 @@ function activityFeedEmptyCopy(
         badge: "Activity",
         title: "No calls logged yet",
         description:
-          "Log a verified call — it appears here, on the tape, and in Performance Lab.",
+          "Log a call — it appears here, on the tape, and in Performance Lab.",
         actionLabel: "Submit call",
         onAction: onSubmitCall,
       };
@@ -2248,13 +2248,13 @@ function activityFeedEmptyCopy(
       return {
         badge: "Wins",
         title: "No wins on tape yet",
-        description: "2× and higher milestones from verified calls land here in real time.",
+        description: "2× and higher milestones from logged calls land here in real time.",
       };
     case "calls":
       return {
         badge: "Calls",
         title: "No calls yet",
-        description: "The live call stream fills as members submit verified entries.",
+        description: "The live call stream fills as members log calls.",
         actionLabel: "Submit call",
         onAction: onSubmitCall,
       };
@@ -2263,7 +2263,7 @@ function activityFeedEmptyCopy(
         badge: "Activity",
         title: "The room is warming up",
         description:
-          "Verified calls and milestones from the room stream here as members trade.",
+          "Calls and milestones from the room stream here as members trade.",
       };
   }
 }
@@ -5064,7 +5064,7 @@ export default function Home() {
                   <DashboardWidgetEmpty
                     badge="Calls"
                     title="No calls yet"
-                    description="Your logged calls show here with multiples and chart links."
+                    description="Log a call to see multiples, timestamps, and one-tap charts here."
                     actionLabel="Log call"
                     onAction={openSubmitCallModal}
                   />
@@ -5080,7 +5080,7 @@ export default function Home() {
                       const summary = homeRecentCallSummary(call);
                       return (
                         <li key={`${call.token}-${String(call.time)}-${i}`}>
-                          <TerminalListRow as="motionless">
+                          <TerminalListRow as="motionless" className="!flex-wrap !items-center gap-x-2 gap-y-1.5">
                             <div className="shrink-0 scale-[0.88]">
                               <TokenCallThumb
                                 symbol={
@@ -5099,7 +5099,7 @@ export default function Home() {
                             >
                               {summary}
                             </p>
-                            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                            <div className="flex basis-full items-center justify-end gap-1 pl-9 sm:basis-auto sm:pl-0 sm:gap-2">
                               {call.excludedFromStats ? (
                                 <span
                                   className="max-w-[2.75rem] truncate rounded border border-red-500/25 bg-red-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-200/90"

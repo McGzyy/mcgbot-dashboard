@@ -17,7 +17,7 @@ Cross-cutting UX review for the McGBot home dashboard and related surfaces.
 | **Social - hide zero metric columns** | `app/page.tsx` (`SocialFeedPostRow`) | **done** | Metrics render only when non-null |
 | **Trending - in-panel refetch loading** | `components/terminal/TerminalPanelRefresh.tsx`, `app/page.tsx` (`TrendingPanel`) | **done** | Thin top progress bar + dimmed list |
 | **Trending - row as button + keyboard Enter** | `components/terminal/TerminalListRow.tsx`, `app/page.tsx` | **done** | Native `<button>` row |
-| **Recent calls - mobile 320px cluster** | `app/page.tsx` (home recent calls block) | **deferred** | xs Chart stack optional |
+| **Recent calls - mobile 320px cluster** | `app/page.tsx` (home recent calls block) | **partial** | flex-wrap stacks actions under summary on narrow viewports |
 | **Recent calls - placeholder avatar vs "-"** | `components/TokenCallThumb.tsx` | **deferred** | |
 | **Recent calls - Full log ghost vs Chart primary** | `app/page.tsx` | **deferred** | |
 | **Shell - scroll padding under save bar** | `lib/dashboardStickyChrome.ts`, layout | **deferred** | |
@@ -27,7 +27,7 @@ Cross-cutting UX review for the McGBot home dashboard and related surfaces.
 | **Elite - leading-snug dense lists** | `app/page.tsx`, glance cards | **deferred** | |
 | **Elite - tabular-nums on numerics** | Various panels | **partial** | Recent calls + trending already use tabular-nums in places |
 | **Elite - unified border language** | `lib/terminalListRow.ts` | **partial** | Applied to new list-row primitive |
-| **Elite - user-facing microcopy (no "terminal"/"verified rows")** | `app/page.tsx`, empty states | **partial** | Recent calls empty state updated; other "Verified" labels (X badge, activity copy) deferred |
+| **Elite - user-facing microcopy (no "terminal"/"verified rows")** | `app/page.tsx`, empty states | **partial** | Home "logged" copy + activity empties; X verified badge unchanged |
 
 ## Shared primitives (this pass)
 
