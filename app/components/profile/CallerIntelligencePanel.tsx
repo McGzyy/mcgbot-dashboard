@@ -66,7 +66,10 @@ function WindowColumn({
 export function CallerIntelligencePanel({ intel }: { intel: CallerProfileIntel }) {
   const { windows, vsDesk, bestCall30d, activeDaysStreak } = intel;
   const hasAny =
-    windows.d7.calls > 0 || windows.d30.calls > 0 || windows.all.calls > 0;
+    windows.d7.calls > 0 ||
+    windows.d30.calls > 0 ||
+    windows.d90.calls > 0 ||
+    windows.all.calls > 0;
 
   if (!hasAny) {
     return (
@@ -78,13 +81,14 @@ export function CallerIntelligencePanel({ intel }: { intel: CallerProfileIntel }
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <WindowColumn label="7 days" w={windows.d7} />
         <WindowColumn label="30 days" w={windows.d30} />
+        <WindowColumn label="90 days" w={windows.d90} />
         <WindowColumn label="All time" w={windows.all} />
       </div>
 
-      {(vsDesk.d7 || vsDesk.d30) && (
+      {(vsDesk.d7 || vsDesk.d30 || vsDesk.d90) && (
         <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 px-3 py-2.5 sm:px-4">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
             vs desk avg
@@ -104,6 +108,14 @@ export function CallerIntelligencePanel({ intel }: { intel: CallerProfileIntel }
                 {vsDesk.d30.deltaPct >= 0 ? "+" : ""}
                 {vsDesk.d30.deltaPct.toFixed(0)}% ({formatX(vsDesk.d30.callerAvgX)} vs{" "}
                 {formatX(vsDesk.d30.deskAvgX)} desk)
+              </li>
+            ) : null}
+            {vsDesk.d90 ? (
+              <li>
+                <span className="font-semibold text-zinc-300">90d:</span>{" "}
+                {vsDesk.d90.deltaPct >= 0 ? "+" : ""}
+                {vsDesk.d90.deltaPct.toFixed(0)}% ({formatX(vsDesk.d90.callerAvgX)} vs{" "}
+                {formatX(vsDesk.d90.deskAvgX)} desk)
               </li>
             ) : null}
           </ul>

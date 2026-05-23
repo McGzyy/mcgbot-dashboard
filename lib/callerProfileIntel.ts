@@ -31,6 +31,7 @@ export type CallerProfileIntel = {
   windows: {
     d7: CallerIntelWindow;
     d30: CallerIntelWindow;
+    d90: CallerIntelWindow;
     all: CallerIntelWindow;
   };
   activeDaysStreak: number;
@@ -43,6 +44,7 @@ export type CallerProfileIntel = {
   vsDesk: {
     d7: { deskAvgX: number; callerAvgX: number; deltaPct: number } | null;
     d30: { deskAvgX: number; callerAvgX: number; deltaPct: number } | null;
+    d90: { deskAvgX: number; callerAvgX: number; deltaPct: number } | null;
   };
 };
 
@@ -199,17 +201,20 @@ export function buildCallerProfileIntel(
 
   const min7 = rollingSevenDaysStartUtcMs(nowMs);
   const min30 = nowMs - 30 * DAY_MS;
+  const min90 = nowMs - 90 * DAY_MS;
   const minAll = 0;
 
   const d7 = windowStatsForUser(userRows, discordId, min7, nowMs, deskRows);
   const d30 = windowStatsForUser(userRows, discordId, min30, nowMs, deskRows);
+  const d90 = windowStatsForUser(userRows, discordId, min90, nowMs, deskRows);
   const all = windowStatsForUser(userRows, discordId, minAll, nowMs, deskRows);
 
   const desk7 = deskRows.length > 0 ? deskAvgX(deskRows, min7, nowMs) : 0;
   const desk30 = deskRows.length > 0 ? deskAvgX(deskRows, min30, nowMs) : 0;
+  const desk90 = deskRows.length > 0 ? deskAvgX(deskRows, min90, nowMs) : 0;
 
   return {
-    windows: { d7, d30, all },
+    windows: { d7, d30, d90, all },
     activeDaysStreak: computeActiveDaysStreakUtc(userRows, nowMs),
     bestCall30d: bestCallInWindow(userRows, discordId, min30, nowMs),
     vsDesk: {
@@ -227,6 +232,14 @@ export function buildCallerProfileIntel(
               deskAvgX: desk30,
               callerAvgX: d30.avgX,
               deltaPct: vsDeskDelta(d30.avgX, desk30) ?? 0,
+            }
+          : null,
+      d90:
+        d90.calls > 0 && desk90 > 0
+          ? {
+              deskAvgX: desk90,
+              callerAvgX: d90.avgX,
+              deltaPct: vsDeskDelta(d90.avgX, desk90) ?? 0,
             }
           : null,
     },

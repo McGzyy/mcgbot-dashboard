@@ -250,9 +250,22 @@ export function OutsideCallsClient() {
     return (
       <div className="mx-auto max-w-3xl px-4 pb-20 pt-10 sm:px-6">
         <ProUpgradePrompt
-          title="Outside Calls is a Pro feature"
-          description="Track allow-listed X monitors and a live outside-call tape. Basic membership includes the full desk, profiles, and watchlist."
+          title="Outside Calls — Pro signal lane"
+          description="Catch off-desk X calls before they hit the main tape: live CA rows from approved monitors, trust scores, and a submission queue for new handles. Basic still includes the full desk, leaderboard, and limited inbox alerts."
+          ctaHref="/membership?line=pro"
+          ctaLabel="View Pro plans"
         />
+        <ul className="mx-auto mt-8 grid max-w-lg gap-3 text-left text-sm text-zinc-400">
+          <li className="rounded-xl border border-cyan-500/20 bg-cyan-950/15 px-4 py-3">
+            <span className="font-semibold text-cyan-100">Signal</span> — one row per outside CA, newest first
+          </li>
+          <li className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 px-4 py-3">
+            <span className="font-semibold text-zinc-200">Track</span> — live multiples and chart links per mint
+          </li>
+          <li className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 px-4 py-3">
+            <span className="font-semibold text-zinc-200">Proof</span> — submit monitors for staff review, then ingest runs automatically
+          </li>
+        </ul>
       </div>
     );
   }
@@ -262,12 +275,15 @@ export function OutsideCallsClient() {
       <div>
         <header className={`mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between ${terminalChrome.headerRule} pb-8`}>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-300/85">Markets</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-300/85">
+              Pro · Signal lane
+            </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Outside Calls</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
-              Live tape of <span className="text-zinc-300">individual CAs</span> detected from allow-listed X monitors
-              (one row per call). Echo rows show when a second source posts the same contract; only the primary row ties
-              into milestone-style tracking. Ingestion runs server-side once a monitor is approved.
+              Off-desk <span className="text-zinc-300">signal → track → proof</span>: a live tape of individual CAs from
+              allow-listed X monitors (one row per call). Echo rows mark when a second source posts the same contract;
+              only the primary row ties into milestone tracking. Submit a monitor below — staff approves, then ingestion
+              runs server-side.
               {isAdmin ? (
                 <>
                   {" "}
@@ -281,6 +297,17 @@ export function OutsideCallsClient() {
                 </>
               ) : null}
             </p>
+            <ul className="mt-4 flex flex-wrap gap-2 text-[11px] font-medium text-zinc-500">
+              <li className="rounded-full border border-zinc-800/80 bg-zinc-950/60 px-2.5 py-1">
+                Live tape
+              </li>
+              <li className="rounded-full border border-zinc-800/80 bg-zinc-950/60 px-2.5 py-1">
+                Trust scores
+              </li>
+              <li className="rounded-full border border-zinc-800/80 bg-zinc-950/60 px-2.5 py-1">
+                Submit monitors
+              </li>
+            </ul>
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <button

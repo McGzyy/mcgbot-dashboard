@@ -16,6 +16,7 @@ import { markMembershipWelcome } from "@/lib/membershipActivation";
 import { MembershipFlowSteps } from "@/app/membership/MembershipFlowSteps";
 import { MembershipIncludedToday } from "@/app/membership/MembershipIncludedToday";
 import { MembershipTestToolsFloat } from "@/app/membership/MembershipTestToolsFloat";
+import { MembershipValueProps } from "@/app/membership/MembershipValueProps";
 type Plan = MembershipPlan;
 
 type CheckoutVoucherOk = {
@@ -792,6 +793,8 @@ export default function MembershipPage() {
         </div>
 
         <MembershipFlowSteps />
+
+        <MembershipValueProps />
 
         <MembershipIncludedToday />
 

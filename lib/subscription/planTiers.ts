@@ -15,7 +15,7 @@ export const BASIC_DAILY_CALLS_LIMIT = 10;
 export const MEMBERSHIP_TIER_FEATURES: TierFeatureRow[] = [
   { label: "Full dashboard & verified call tape", basic: true, pro: true },
   { label: "Leaderboard, profiles & desk intel", basic: true, pro: true },
-  { label: "Caller intelligence on profiles", basic: true, pro: true },
+  { label: "Caller intelligence (7d / 30d / 90d)", basic: true, pro: true },
   { label: "Contract watchlist (save CAs)", basic: true, pro: true },
   { label: "Desk calls (submit from terminal)", basic: "10_per_day", pro: true },
   { label: "Outside Calls & X ingest", basic: false, pro: true },
@@ -35,7 +35,8 @@ export const TIER_MARKETING: Record<
   },
   pro: {
     title: "Pro",
-    tagline: "Everything in Basic, plus Outside Calls, social ingest, and unlimited submissions.",
+    tagline:
+      "Full desk stack — Outside Calls tape, inbox + Discord alert DMs, and unlimited daily submissions.",
     accent: "sky",
   },
 };
@@ -55,9 +56,9 @@ export const TIER_COMPARE_HIGHLIGHTS: Record<ProductTier, string[]> = {
   ],
   pro: [
     "Unlimited desk submissions per day",
-    "Outside Calls tape + monitor submissions",
+    "Outside Calls live tape + submit X monitors",
+    "Inbox alerts + optional Discord DM mirror",
     "Home social feed when enabled",
-    "Full personal alerts & rich X digests",
   ],
 };
 

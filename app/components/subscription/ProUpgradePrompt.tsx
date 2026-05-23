@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export function ProUpgradePrompt({
   title = "Pro membership required",
-  description = "Upgrade to Pro for unlimited Outside Calls, social feed ingest, and full personal alerts.",
+  description = "Upgrade to Pro for the Outside Calls tape, full inbox alerts with optional Discord DMs, and unlimited desk submissions.",
   className = "",
   ctaHref = "/membership?line=pro",
   ctaLabel = "View Pro plans",
