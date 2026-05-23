@@ -21,3 +21,7 @@ export function clearDashboardStickyBelowChrome(): void {
   if (typeof document === "undefined") return;
   document.documentElement.style.removeProperty("--dashboard-sticky-below-chrome");
 }
+
+/** Keeps focused content / section anchors clear of dock stack and mobile save panels. */
+export const dashboardScrollPaddingBottom =
+  "calc(6.5rem + var(--mcg-dock-stack, 0px) + env(safe-area-inset-bottom, 0px))";

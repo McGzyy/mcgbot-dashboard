@@ -5,8 +5,10 @@ import { tokenImageUrlCandidates } from "@/lib/resolveTokenAvatarUrl";
 
 function symbolBadge(symbol: string) {
   const s = symbol.trim().toUpperCase();
-  const letters = s.replace(/[^A-Z0-9]/g, "").slice(0, 2) || "—";
-  return letters.length >= 2 ? letters.slice(0, 2) : `${letters}•`.slice(0, 2);
+  const letters = s.replace(/[^A-Z0-9]/g, "").slice(0, 2);
+  if (letters.length >= 2) return letters.slice(0, 2);
+  if (letters.length === 1) return `${letters}•`.slice(0, 2);
+  return "◇";
 }
 
 export function TokenCallThumb({

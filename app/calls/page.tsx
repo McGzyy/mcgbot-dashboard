@@ -375,7 +375,7 @@ export default function CallTapePage() {
                       title={tapeWindow === "all" ? "No calls logged yet" : "No calls in this window"}
                       description={
                         tapeWindow === "all"
-                          ? "Log a verified call from the terminal — it lands here, on the live feed, and in Performance Lab."
+                          ? "Log a call from the dashboard — it lands here, on the live feed, and in Performance Lab."
                           : `Nothing credited to you in the last ${tapeWindow === "7d" ? "7 days" : "30 days"}. Try All time or log a new call.`
                       }
                       actionLabel="Submit call"

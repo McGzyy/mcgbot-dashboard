@@ -17,12 +17,12 @@ Cross-cutting UX review for the McGBot home dashboard and related surfaces.
 | **Social - hide zero metric columns** | `app/page.tsx` (`SocialFeedPostRow`) | **done** | Metrics render only when non-null |
 | **Trending - in-panel refetch loading** | `components/terminal/TerminalPanelRefresh.tsx`, `app/page.tsx` (`TrendingPanel`) | **done** | Thin top progress bar + dimmed list |
 | **Trending - row as button + keyboard Enter** | `components/terminal/TerminalListRow.tsx`, `app/page.tsx` | **done** | Native `<button>` row |
-| **Recent calls - mobile 320px cluster** | `app/page.tsx` (home recent calls block) | **partial** | flex-wrap stacks actions under summary on narrow viewports |
-| **Recent calls - placeholder avatar vs "-"** | `components/TokenCallThumb.tsx` | **deferred** | |
-| **Recent calls - Full log ghost vs Chart primary** | `app/page.tsx` | **deferred** | |
-| **Shell - scroll padding under save bar** | `lib/dashboardStickyChrome.ts`, layout | **deferred** | |
+| **Recent calls - mobile 320px cluster** | `app/page.tsx` (home recent calls block) | **done** | flex-wrap; Chart full-width under multiple on max-sm |
+| **Recent calls - placeholder avatar vs "-"** | `components/TokenCallThumb.tsx` | **done** | `◇` glyph when symbol has no letters |
+| **Recent calls - Full log ghost vs Chart primary** | `app/page.tsx` | **deferred** | Focus rings added; hierarchy swap deferred |
+| **Shell - scroll padding under save bar** | `lib/dashboardStickyChrome.ts`, `app/globals.css` | **done** | `scroll-padding-bottom` on `html` + exported token |
 | **Shell - z-index comment map** | `lib/terminalDesignTokens.ts` (`terminalUi`) | **partial** | Modal/backdrop tiers documented in tokens; full map deferred |
-| **TOTP - recovery code copy (10-char hex uppercase)** | TOTP settings routes/components | **deferred** | |
+| **TOTP - recovery code copy (10-char hex uppercase)** | `app/settings/page.tsx` | **partial** | Disable-2FA hint + placeholder; enroll flow unchanged |
 | **TOTP - admin reset confirm + Discord ID echo** | Admin TOTP reset UI | **deferred** | |
 | **Elite - leading-snug dense lists** | `app/page.tsx`, glance cards | **deferred** | |
 | **Elite - tabular-nums on numerics** | Various panels | **partial** | Recent calls + trending already use tabular-nums in places |

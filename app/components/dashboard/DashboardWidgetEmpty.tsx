@@ -27,9 +27,9 @@ export function DashboardWidgetEmpty({
   icon,
 }: DashboardWidgetEmptyProps) {
   const actionClass =
-    "inline-flex items-center justify-center rounded-lg border border-[color:var(--accent)]/40 bg-[color:var(--accent)]/10 px-3 py-1.5 text-xs font-semibold text-[color:var(--accent)] transition hover:bg-[color:var(--accent)]/20";
+    "inline-flex items-center justify-center rounded-lg border border-[color:var(--accent)]/40 bg-[color:var(--accent)]/10 px-3 py-1.5 text-xs font-semibold text-[color:var(--accent)] transition hover:bg-[color:var(--accent)]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/35";
   const secondaryClass =
-    "inline-flex items-center justify-center rounded-lg border border-zinc-700/70 bg-zinc-900/50 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800/60";
+    "inline-flex items-center justify-center rounded-lg border border-zinc-700/70 bg-zinc-900/50 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40";
 
   return (
     <div className="flex h-full min-h-[12rem] flex-col items-center justify-center px-4 py-10 text-center">

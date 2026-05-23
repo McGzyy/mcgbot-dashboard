@@ -1207,7 +1207,7 @@ export default function LeaderboardPage() {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60 opacity-60" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.65)]" />
                 </span>
-                Boards track verified calls
+                Boards track logged calls
               </span>
               <Link
                 href="/"
@@ -1471,7 +1471,7 @@ export default function LeaderboardPage() {
             <div className="flex flex-col gap-3 rounded-xl border border-emerald-500/15 bg-gradient-to-r from-emerald-950/35 via-emerald-950/10 to-transparent px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <p className="text-sm leading-snug text-zinc-300">
                 <span className="font-semibold text-zinc-50">Get your handle in lights.</span>{" "}
-                Ranks reward verified calls and clean risk — grind the terminal, then watch this row
+                Ranks reward logged calls and clean risk — post calls, then watch this row climb
                 flip to your name.
               </p>
               <Link

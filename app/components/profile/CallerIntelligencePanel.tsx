@@ -74,7 +74,7 @@ export function CallerIntelligencePanel({ intel }: { intel: CallerProfileIntel }
   if (!hasAny) {
     return (
       <p className="text-sm text-zinc-500">
-        No verified calls on record yet — stats appear after the first tracked call.
+        No logged calls on record yet — stats appear after the first tracked call.
       </p>
     );
   }

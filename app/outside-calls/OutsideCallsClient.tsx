@@ -357,7 +357,7 @@ export function OutsideCallsClient() {
               type="button"
               disabled={loading || refreshing}
               onClick={() => void loadFeed({ background: true })}
-              className="rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+              className="rounded-lg border border-zinc-800/50 bg-zinc-900/70 px-3 py-1.5 text-xs font-semibold text-zinc-200 ring-1 ring-white/[0.03] transition hover:border-zinc-600/80 hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 disabled:opacity-50"
             >
               {refreshing ? "Refreshing…" : loading ? "Loading…" : "Refresh"}
             </button>
@@ -371,10 +371,12 @@ export function OutsideCallsClient() {
               <div className="h-16 rounded-lg bg-zinc-800/30" />
             </div>
           ) : calls.length === 0 ? (
-            <p className="mt-6 text-sm text-zinc-500">
-              No outside calls in the feed yet. When the bot records a CA from an active monitor, rows show up here
-              automatically (newest first).
-            </p>
+            <div className="mt-6 rounded-xl border border-dashed border-zinc-800/60 bg-zinc-950/25 px-5 py-8 text-center ring-1 ring-white/[0.03]">
+              <p className="text-sm font-semibold text-zinc-200">No outside calls yet</p>
+              <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-500">
+                When the bot records a CA from an active monitor, rows appear here automatically — newest first.
+              </p>
+            </div>
           ) : (
             <ul className="mt-4 space-y-3">
               {calls.map((c) => {
@@ -389,7 +391,7 @@ export function OutsideCallsClient() {
                 return (
                   <li
                     key={c.id}
-                    className="rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-4 py-3 text-sm text-zinc-300"
+                    className="rounded-xl border border-zinc-800/50 bg-zinc-950/50 px-4 py-3 text-sm text-zinc-300 ring-1 ring-white/[0.03]"
                   >
                     <div className="flex gap-3">
                       {c.tokenImageUrl ? (

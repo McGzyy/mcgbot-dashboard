@@ -1361,7 +1361,7 @@ function SettingsPageInner() {
               <div className={`${SETTINGS_FIELD_PANEL} p-4 sm:p-5`}>
                 <p className="text-sm font-medium text-zinc-100">Disable 2FA</p>
                 <p className="mt-1 text-xs text-zinc-500">
-                  Enter a current 6-digit code from your app, or a one-time recovery code.
+                  Enter a current 6-digit code from your app, or a one-time 10-character recovery code (hex, uppercase).
                 </p>
                 <input
                   type="text"
@@ -1371,7 +1371,7 @@ function SettingsPageInner() {
                   value={totpDisableCode}
                   onChange={(e) => setTotpDisableCode(e.target.value)}
                   className={`${terminalUi.formInput} mt-3 w-full max-w-xs font-mono`}
-                  placeholder="000000 or recovery code"
+                  placeholder="000000 or A1B2C3D4E5"
                 />
                 <button
                   type="button"

@@ -2419,7 +2419,7 @@ function ActivityFeedPanel({
               type="button"
               onClick={() => setFeedMode(id)}
               title={label}
-              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm ${
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/35 sm:px-4 sm:py-2 sm:text-sm ${
                 active
                   ? "bg-zinc-700 text-zinc-50"
                   : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
@@ -5048,7 +5048,7 @@ export default function Home() {
               titleRight={
                 <Link
                   href="/calls"
-                  className="shrink-0 rounded-md border border-zinc-800/80 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-zinc-500 transition hover:border-zinc-600/80 hover:bg-zinc-900/25 hover:text-zinc-200"
+                  className="shrink-0 rounded-md border border-zinc-800/50 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-zinc-500 ring-1 ring-white/[0.03] transition hover:border-zinc-600/80 hover:bg-zinc-900/25 hover:text-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40"
                 >
                   Full log →
                 </Link>
@@ -5099,7 +5099,7 @@ export default function Home() {
                             >
                               {summary}
                             </p>
-                            <div className="flex basis-full items-center justify-end gap-1 pl-9 sm:basis-auto sm:pl-0 sm:gap-2">
+                            <div className="flex basis-full flex-wrap items-center justify-end gap-x-1 gap-y-1 pl-9 sm:basis-auto sm:flex-nowrap sm:pl-0 sm:gap-2">
                               {call.excludedFromStats ? (
                                 <span
                                   className="max-w-[2.75rem] truncate rounded border border-red-500/25 bg-red-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-200/90"
@@ -5109,7 +5109,7 @@ export default function Home() {
                                 </span>
                               ) : null}
                               <span
-                                className={`rounded-md border border-zinc-800/80 bg-black/30 px-2 py-0.5 text-xs font-bold tabular-nums shadow-inner shadow-black/20 ${multipleClass(
+                                className={`shrink-0 rounded-md border border-zinc-800/50 bg-black/30 px-2 py-0.5 text-xs font-bold tabular-nums shadow-inner shadow-black/20 ring-1 ring-white/[0.03] ${multipleClass(
                                   call.multiple
                                 )}`}
                               >
@@ -5126,13 +5126,13 @@ export default function Home() {
                                     tokenImageUrl: call.tokenImageUrl ?? null,
                                   })
                                 }
-                                className="rounded-md border border-emerald-500/25 bg-emerald-500/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-300/95 transition hover:border-emerald-400/45 hover:bg-emerald-500/15"
+                                className="inline-flex shrink-0 basis-full items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-300/95 ring-1 ring-emerald-500/10 transition hover:border-emerald-400/45 hover:bg-emerald-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 max-sm:w-full sm:basis-auto sm:w-auto"
                                 title="Live chart (TradingView)"
                               >
                                 Chart
                               </button>
                               <time
-                                className="w-9 shrink-0 text-right text-[10px] font-medium tabular-nums text-zinc-500 sm:w-11 sm:text-[11px]"
+                                className="w-9 shrink-0 text-right text-[10px] font-medium tabular-nums text-zinc-500 max-sm:ml-auto sm:w-11 sm:text-[11px]"
                                 dateTime={Number.isFinite(tMs) && tMs > 0 ? new Date(tMs).toISOString() : undefined}
                                 title={timeFull}
                               >
