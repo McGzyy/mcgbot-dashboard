@@ -2405,10 +2405,10 @@ function ActivityFeedPanel({
         {(
           [
             { id: "all" as const, label: "All", short: "All" },
+            { id: "following" as const, label: "My Desk", short: "Desk" },
             { id: "me" as const, label: "My Activity", short: "Mine" },
             { id: "milestones" as const, label: "Milestones", short: "Wins" },
             { id: "calls" as const, label: "Calls", short: "Calls" },
-            { id: "following" as const, label: "My Desk", short: "Desk" },
           ] as const
         ).map(({ id, label, short }) => {
           const active = feedMode === id;
@@ -3812,10 +3812,8 @@ export default function Home() {
     const parsed = parseStoredActivityFeedMode(stored);
     if (parsed) {
       setFeedMode(parsed);
-      return;
     }
-    setFeedModePersisted("following");
-  }, [status, session?.user?.hasDashboardAccess, setFeedModePersisted]);
+  }, [status, session?.user?.hasDashboardAccess]);
   const [topPerformersToday, setTopPerformersToday] = useState<
     TopPerformerTodayRow[]
   >([]);
