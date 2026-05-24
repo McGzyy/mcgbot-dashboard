@@ -40,7 +40,7 @@ export function outsideCallsFeatureDisabledResponse(): Response {
     {
       success: false,
       code: "feature_disabled",
-      error: "Outside Calls is not live yet. Check back soon.",
+        error: "Outside Calls is opening soon. Check back shortly.",
     },
     { status: 503 }
   );

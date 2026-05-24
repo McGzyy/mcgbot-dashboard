@@ -18,7 +18,7 @@ export const MEMBERSHIP_TIER_FEATURES: TierFeatureRow[] = [
   { label: "Caller intelligence (7d / 30d / 90d)", basic: true, pro: true },
   { label: "Contract watchlist (save CAs)", basic: true, pro: true },
   { label: "Desk calls (submit from terminal)", basic: "10_per_day", pro: true },
-  { label: "Outside Calls & X ingest", basic: false, pro: true },
+  { label: "Outside Calls (off-desk X lane)", basic: false, pro: true },
   { label: "Social feed on home (when enabled)", basic: false, pro: true },
   { label: "Personal alerts (watchlist / follows)", basic: "limited", pro: true },
   { label: "Rich X digests & heavy scans", basic: false, pro: true },
@@ -36,7 +36,7 @@ export const TIER_MARKETING: Record<
   pro: {
     title: "Pro",
     tagline:
-      "Everything in Basic, plus Outside Calls, full inbox alerts with Discord DMs, and unlimited submissions.",
+      "Everything in Basic, plus the off-desk Outside Calls lane, full inbox alerts with Discord DMs, and unlimited desk submissions.",
     accent: "sky",
   },
 };
@@ -44,7 +44,7 @@ export const TIER_MARKETING: Record<
 /** One-line “what you do daily” — shown on membership, not a feature matrix. */
 export const TIER_DAILY_ROUTINE: Record<ProductTier, string> = {
   basic: `Submit up to ${BASIC_DAILY_CALLS_LIMIT} desk calls per day, follow live activity, and review Performance Lab — enough for most daily traders.`,
-  pro: "No daily cap on desk calls, monitor off-desk X sources, and get full alerts mirrored to Discord when you step away.",
+  pro: "No daily cap on desk calls, the Outside Calls off-desk tape, and full alerts mirrored to Discord when you step away.",
 };
 
 /** Short bullets on tier cards (3–4 each). Full matrix stays in docs/admin. */
@@ -56,7 +56,7 @@ export const TIER_COMPARE_HIGHLIGHTS: Record<ProductTier, string[]> = {
   ],
   pro: [
     "Unlimited desk submissions — no daily cap",
-    "Outside Calls tape + propose X monitors",
+    "Off-desk Outside Calls tape + propose monitors",
     "Full alerts + optional Discord DM mirror",
     "Home social feed when staff enable it",
   ],

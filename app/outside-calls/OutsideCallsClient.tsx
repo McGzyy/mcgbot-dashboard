@@ -13,6 +13,14 @@ import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { abbreviateCa } from "@/lib/callDisplayFormat";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import { normalizeXHandle } from "@/lib/outsideXCalls/normalizeXHandle";
+import {
+  OUTSIDE_CALLS_EYEBROW,
+  OUTSIDE_CALLS_FEATURES,
+  OUTSIDE_CALLS_LIVE_HEADER,
+  OUTSIDE_CALLS_PRO_GATE_INLINE,
+  OUTSIDE_CALLS_PRO_UPGRADE,
+  OUTSIDE_CALLS_WORKFLOW,
+} from "@/lib/outsideCallsCopy";
 import { terminalListRefreshOpacity, terminalListRowBorder } from "@/lib/terminalListRow";
 import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
@@ -285,21 +293,23 @@ export function OutsideCallsClient() {
     return (
       <div className="mx-auto max-w-3xl px-4 pb-20 pt-10 sm:px-6">
         <ProUpgradePrompt
-          title="Outside Calls — Pro signal lane"
-          description="Catch off-desk X calls before they hit the main tape: live CA rows from approved monitors, trust scores, and a submission queue for new handles. Basic still includes the full desk, leaderboard, and limited inbox alerts."
-          ctaHref="/membership?line=pro"
-          ctaLabel="View Pro plans"
+          title={OUTSIDE_CALLS_PRO_UPGRADE.title}
+          description={OUTSIDE_CALLS_PRO_UPGRADE.description}
+          ctaHref={OUTSIDE_CALLS_PRO_UPGRADE.ctaHref}
+          ctaLabel={OUTSIDE_CALLS_PRO_UPGRADE.ctaLabel}
         />
-        <ul className="mx-auto mt-8 grid max-w-lg gap-3 text-left text-sm text-zinc-400">
-          <li className="rounded-xl border border-cyan-500/20 bg-cyan-950/15 px-4 py-3">
-            <span className="font-semibold text-cyan-100">Signal</span> — one row per outside CA, newest first
-          </li>
-          <li className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 px-4 py-3">
-            <span className="font-semibold text-zinc-200">Track</span> — live multiples and chart links per mint
-          </li>
-          <li className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 px-4 py-3">
-            <span className="font-semibold text-zinc-200">Proof</span> — submit monitors for staff review, then ingest runs automatically
-          </li>
+        <ul className="mx-auto mt-8 grid max-w-lg gap-3 text-left">
+          {OUTSIDE_CALLS_FEATURES.map((f) => (
+            <li key={f.step} className={`rounded-xl border p-4 ${f.accent}`}>
+              <p className="text-sm font-semibold text-zinc-100">
+                {f.title}
+                <span className="ml-2 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                  {f.subtitle}
+                </span>
+              </p>
+              <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{f.bullet}</p>
+            </li>
+          ))}
         </ul>
       </div>
     );
@@ -323,14 +333,13 @@ export function OutsideCallsClient() {
         <header className={`mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between ${terminalChrome.headerRule} pb-8`}>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-300/85">
-              Pro · Signal lane
+              {OUTSIDE_CALLS_EYEBROW}
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Outside Calls</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
-              Off-desk <span className="text-zinc-300">signal → track → proof</span>: a live tape of individual CAs from
-              allow-listed X monitors (one row per call). Echo rows mark when a second source posts the same contract;
-              only the primary row ties into milestone tracking. Submit a monitor below — staff approves, then ingestion
-              runs server-side.
+              {OUTSIDE_CALLS_LIVE_HEADER.lead} Follow{" "}
+              <span className="text-zinc-300">{OUTSIDE_CALLS_WORKFLOW}</span> on the tape —{" "}
+              {OUTSIDE_CALLS_LIVE_HEADER.body}
               {isAdmin ? (
                 <>
                   {" "}
@@ -416,10 +425,10 @@ export function OutsideCallsClient() {
           {feedProLocked ? (
             <div className="mt-4">
               <ProUpgradePrompt
-                title="Pro membership required"
-                description="Live outside-call tape, trust scores, and monitor submissions are part of Pro. Upgrade to unlock the full signal lane."
-                ctaHref="/membership?line=pro"
-                ctaLabel="View Pro plans"
+                title={OUTSIDE_CALLS_PRO_GATE_INLINE.title}
+                description={OUTSIDE_CALLS_PRO_GATE_INLINE.description}
+                ctaHref={OUTSIDE_CALLS_PRO_UPGRADE.ctaHref}
+                ctaLabel={OUTSIDE_CALLS_PRO_UPGRADE.ctaLabel}
               />
             </div>
           ) : null}
@@ -431,9 +440,9 @@ export function OutsideCallsClient() {
             ) : calls.length === 0 ? (
               <DashboardWidgetEmpty
                 badge="Signal"
-                title="No outside calls yet"
-                description="When the bot records a CA from an active monitor, rows appear here automatically — newest first."
-                actionLabel="Submit monitor"
+                title={OUTSIDE_CALLS_EMPTY_TAPE.title}
+                description={OUTSIDE_CALLS_EMPTY_TAPE.description}
+                actionLabel={OUTSIDE_CALLS_EMPTY_TAPE.actionLabel}
                 onAction={() => {
                   setSubmitErr(null);
                   setSubmitMsg(null);

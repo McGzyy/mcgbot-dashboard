@@ -292,7 +292,7 @@ function SidebarBody({
                     onClick={pick}
                     data-tutorial="sidebar.nav.outsideCalls"
                     className={getSubNavItemClass(false)}
-                    title="Upgrade to Pro for Outside Calls"
+                    title="Pro unlocks the off-desk Outside Calls lane"
                   >
                     <div className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded opacity-0" aria-hidden />
                     <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
