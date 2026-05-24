@@ -68,6 +68,16 @@ export const DEFAULT_DASHBOARD_ALERT_PREFS: DashboardAlertPrefs = {
 export const DASHBOARD_ALERT_RULES_CAP = 25;
 export const BASIC_ALERT_RULES_CAP = 5;
 
+/** Rule kinds shown in settings but not evaluated yet (v1.2). */
+export const COMING_SOON_DASHBOARD_ALERT_RULE_KINDS: readonly DashboardAlertRuleKind[] = [
+  "ath_since_added",
+  "reminder",
+] as const;
+
+export function isComingSoonAlertRuleKind(kind: DashboardAlertRuleKind): boolean {
+  return (COMING_SOON_DASHBOARD_ALERT_RULE_KINDS as readonly string[]).includes(kind);
+}
+
 /** Basic members: fewer rules, no hot/trending alert channel. */
 export function clampAlertPrefsForProductTier(
   prefs: DashboardAlertPrefs,

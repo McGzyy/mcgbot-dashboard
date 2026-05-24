@@ -9,6 +9,7 @@ import type {
 import {
   DASHBOARD_ALERT_RULES_CAP,
   DEFAULT_DASHBOARD_ALERT_PREFS,
+  isComingSoonAlertRuleKind,
   isLikelySolanaMint,
   normalizeAlertPrefs,
 } from "@/lib/dashboardAlertPrefs";
@@ -39,7 +40,7 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
   }));
 
   const [draftMint, setDraftMint] = useState("");
-  const [draftKind, setDraftKind] = useState<DashboardAlertRuleKind>("price_cross");
+  const [draftKind, setDraftKind] = useState<DashboardAlertRuleKind>("pct_move");
   const [draftThreshold, setDraftThreshold] = useState<string>("1");
   const [draftBands, setDraftBands] = useState<string>("1000000,5000000,10000000");
   const [draftCaller, setDraftCaller] = useState<string>("");
@@ -165,6 +166,17 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
   }, []);
 
   const addRule = useCallback(() => {
+    if (isComingSoonAlertRuleKind(draftKind)) {
+      addNotification({
+        id: crypto.randomUUID(),
+        text: "That alert type is coming soon — pick another rule kind.",
+        type: "call",
+        createdAt: Date.now(),
+        priority: "low",
+      });
+      return;
+    }
+
     setPrefs((prev) => {
       if (prev.rules.length >= DASHBOARD_ALERT_RULES_CAP) return prev;
 
@@ -371,6 +383,72 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
           <div className="mt-5 space-y-6">
             <section className="rounded-lg border border-zinc-800/80 bg-zinc-950/30 p-3">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                Caller alerts
+              </p>
+              <label className="mt-2 flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={prefs.general.followed_callers}
+                  disabled={saving}
+                  onChange={(e) =>
+                    setPrefs((p) => ({
+                      ...p,
+                      general: { ...p.general, followed_callers: e.target.checked },
+                    }))
+                  }
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-[color:var(--accent)]"
+                />
+                <span className="text-xs leading-relaxed text-zinc-300">
+                  <span className="font-medium text-zinc-100">Followed callers</span>
+                  <span className="block text-zinc-500">
+                    Inbox alert when someone you follow posts a call (checked every few minutes).
+                  </span>
+                </span>
+              </label>
+              <label
+                className={`mt-2 flex items-start gap-2.5 ${
+                  prefs.general.followed_callers ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={prefs.general.trusted_only}
+                  disabled={saving || !prefs.general.followed_callers}
+                  onChange={(e) =>
+                    setPrefs((p) => ({
+                      ...p,
+                      general: { ...p.general, trusted_only: e.target.checked },
+                    }))
+                  }
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-[color:var(--accent)]"
+                />
+                <span className="text-xs leading-relaxed text-zinc-300">
+                  <span className="font-medium text-zinc-100">Trusted Pro only</span>
+                  <span className="block text-zinc-500">
+                    Limit followed-caller alerts to Trusted Pro callers.
+                  </span>
+                </span>
+              </label>
+              <label className="mt-2 flex cursor-not-allowed items-start gap-2.5 opacity-50">
+                <input
+                  type="checkbox"
+                  checked={false}
+                  disabled
+                  readOnly
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-900"
+                />
+                <span className="text-xs leading-relaxed text-zinc-300">
+                  <span className="font-medium text-zinc-100">Hot / trending pulses</span>
+                  <span className="block text-zinc-500">
+                    Coming soon — Hot Right Now–style alerts.
+                    {!isPro ? " Pro feature when live." : ""}
+                  </span>
+                </span>
+              </label>
+            </section>
+
+            <section className="rounded-lg border border-zinc-800/80 bg-zinc-950/30 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                 Delivery
               </p>
               <label className="mt-2 flex cursor-pointer items-start gap-2.5">
@@ -427,13 +505,17 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
                     disabled={prefs.rules.length >= DASHBOARD_ALERT_RULES_CAP || saving}
                     className={`mt-1 ${terminalUi.formInput}`}
                   >
-                    <option value="price_cross">Token: price crosses $X</option>
-                    <option value="ath_since_added">Token: new ATH since I added</option>
-                    <option value="reminder">Token: reminder in 15/30/60 min</option>
-                    <option value="mc_bands">Token: MC crosses multiple bands</option>
-                    <option value="mc_cross">Token: MC crosses $X</option>
                     <option value="pct_move">Token: price moves ±%</option>
+                    <option value="mc_cross">Token: MC crosses $X</option>
+                    <option value="price_cross">Token: price crosses $X</option>
+                    <option value="mc_bands">Token: MC crosses multiple bands</option>
                     <option value="caller_post">Caller: posts a call</option>
+                    <option value="ath_since_added" disabled>
+                      Token: new ATH since I added (coming soon)
+                    </option>
+                    <option value="reminder" disabled>
+                      Token: reminder in 15/30/60 min (coming soon)
+                    </option>
                   </select>
                 </label>
 
@@ -601,7 +683,9 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
                                 : r.mint}
                           </span>
                           <span className="block text-[10px] text-zinc-500 sm:inline sm:before:content-['—_']">
-                            {r.kind === "price_cross"
+                            {isComingSoonAlertRuleKind(r.kind)
+                              ? " Coming soon — not evaluated yet"
+                              : r.kind === "price_cross"
                               ? ` Price ≥ $${Number(r.threshold ?? 0).toLocaleString("en-US")}`
                               : r.kind === "ath_since_added"
                                 ? " New ATH since added"

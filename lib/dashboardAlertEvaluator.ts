@@ -25,11 +25,9 @@ export const DASHBOARD_ALERTS_EVAL_OFFSET_KV_KEY = "dashboard_alerts_eval_user_o
 
 const USER_BATCH_SIZE = 40;
 const CALL_LOOKBACK_MS = 15 * 60 * 1000;
-const DEFERRED_RULE_KINDS = new Set([
-  "price_cross",
+const DEFERRED_RULE_KINDS = new Set<DashboardAlertRule["kind"]>([
   "ath_since_added",
   "reminder",
-  "mc_bands",
 ]);
 
 export type DashboardAlertsCronResult = {
@@ -69,7 +67,11 @@ function userHasEvaluableConfig(prefs: DashboardAlertPrefs, watchlist: string[])
 
 function tokenRules(prefs: DashboardAlertPrefs): DashboardAlertRule[] {
   return prefs.rules.filter(
-    (r) => r.kind === "pct_move" || r.kind === "mc_cross" || r.kind === "caller_post"
+    (r) =>
+      r.kind === "pct_move" ||
+      r.kind === "mc_cross" ||
+      r.kind === "price_cross" ||
+      r.kind === "mc_bands"
   );
 }
 
@@ -382,25 +384,33 @@ async function evaluateCallerAlertsForUser(
     const body = bodyParts.join("\n");
 
     if (prefs.general.followed_callers && followedIds.includes(call.discord_id)) {
-      const ok = await fireInboxAlert(db, {
-        userId: discordId,
-        fireKey: `followed:call:${call.id}`,
-        title: "Followed caller posted",
-        body,
-      });
+      const ok = await fireInboxAlert(
+        db,
+        {
+          userId: discordId,
+          fireKey: `followed:call:${call.id}`,
+          title: "Followed caller posted",
+          body,
+        },
+        delivery
+      );
       if (ok) sent += 1;
     }
 
     for (const rule of callerPostRules) {
       const targetId = rule.caller_discord_id?.trim() ?? "";
       if (!targetId || targetId !== call.discord_id) continue;
-      const ok = await fireInboxAlert(db, {
-        userId: discordId,
-        ruleId: rule.id,
-        fireKey: `rule:${rule.id}:call:${call.id}`,
-        title: "Caller alert",
-        body,
-      });
+      const ok = await fireInboxAlert(
+        db,
+        {
+          userId: discordId,
+          ruleId: rule.id,
+          fireKey: `rule:${rule.id}:call:${call.id}`,
+          title: "Caller alert",
+          body,
+        },
+        delivery
+      );
       if (ok) sent += 1;
     }
   }
@@ -413,6 +423,13 @@ function formatPct(n: number): string {
   return `${sign}${n.toFixed(1)}%`;
 }
 
+function formatPriceUsd(n: number): string {
+  if (n >= 1) {
+    return `$${n.toLocaleString("en-US", { maximumFractionDigits: 4 })}`;
+  }
+  return `$${n.toPrecision(4)}`;
+}
+
 async function evaluateTokenRulesForUser(
   db: SupabaseClient,
   discordId: string,
@@ -420,7 +437,13 @@ async function evaluateTokenRulesForUser(
   delivery: AlertDeliveryOpts
 ): Promise<number> {
   let sent = 0;
-  const tokenRulesList = rules.filter((r) => r.kind === "pct_move" || r.kind === "mc_cross");
+  const tokenRulesList = rules.filter(
+    (r) =>
+      r.kind === "pct_move" ||
+      r.kind === "mc_cross" ||
+      r.kind === "price_cross" ||
+      r.kind === "mc_bands"
+  );
   if (tokenRulesList.length === 0) return 0;
 
   const mints = [...new Set(tokenRulesList.map((r) => r.mint?.trim()).filter(Boolean) as string[])];
@@ -484,6 +507,60 @@ async function evaluateTokenRulesForUser(
           delivery
         );
         if (ok) sent += 1;
+        continue;
+      }
+
+      if (rule.kind === "price_cross") {
+        const threshold = rule.threshold ?? 0;
+        const price = metrics?.priceUsd;
+        if (price == null || !Number.isFinite(price) || price < threshold) continue;
+
+        const body = [
+          `$${symbol} price crossed ${formatPriceUsd(threshold)} (now ${formatPriceUsd(price)}).`,
+          `Chart: ${chartUrl}`,
+        ].join("\n");
+
+        const ok = await fireInboxAlert(
+          db,
+          {
+            userId: discordId,
+            ruleId: rule.id,
+            fireKey: `rule:${rule.id}:price_cross`,
+            title: "Price alert",
+            body,
+          },
+          delivery
+        );
+        if (ok) sent += 1;
+        continue;
+      }
+
+      if (rule.kind === "mc_bands") {
+        const mc = metrics?.marketCapUsd;
+        if (mc == null || !Number.isFinite(mc)) continue;
+
+        const bands = [...(rule.bands ?? [])].sort((a, b) => a - b);
+        for (const band of bands) {
+          if (mc < band) continue;
+
+          const body = [
+            `$${symbol} market cap crossed ${formatMarketCapAtCall(band)} (now ${formatMarketCapAtCall(mc)}).`,
+            `Chart: ${chartUrl}`,
+          ].join("\n");
+
+          const ok = await fireInboxAlert(
+            db,
+            {
+              userId: discordId,
+              ruleId: rule.id,
+              fireKey: `rule:${rule.id}:mc_band:${band}`,
+              title: "Market cap band alert",
+              body,
+            },
+            delivery
+          );
+          if (ok) sent += 1;
+        }
       }
     }
   }

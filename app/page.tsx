@@ -9,6 +9,7 @@ import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { ActivityPopup, type ActivityPopupItem } from "./components/ActivityPopup";
 import { AddToWatchlistModal } from "./components/AddToWatchlistModal";
 import { DashboardAlertsModal } from "./components/DashboardAlertsModal";
+import { useDashboardAlertInboxToasts } from "@/app/hooks/useDashboardAlertInboxToasts";
 import { ModQueueHomePanel } from "./components/ModQueueHomePanel";
 import { DashboardChatPanel } from "./components/DashboardChatPanel";
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
@@ -3751,6 +3752,7 @@ export default function Home() {
   const searchParams = useSearchParams();
   const { addNotification } = useNotifications();
   const { openTokenChart } = useTokenChartModal();
+  useDashboardAlertInboxToasts(status === "authenticated");
   const oauthErrorHandledRef = useRef(false);
   const lastSeenActivityKeysRef = useRef(new Set<string>());
   /** Avoid rank / calls “skeleton flash” on `homeDataRefreshNonce` background refetch. */
