@@ -64,6 +64,7 @@ import { terminalListRefreshOpacity, terminalListRow } from "@/lib/terminalListR
 import {
   SOCIAL_FEED_CATEGORY_OPTIONS,
   formatSocialFeedCategoryLabel,
+  formatSocialFeedCategoryShort,
   normalizeCategoryOther,
   parseSocialFeedCategorySlug,
   type SocialFeedCategorySlug,
@@ -673,13 +674,15 @@ function SocialFeedFirstLinkPreview({ url, compact }: { url: string; compact: bo
     return null;
   }
   const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+  const fullPathTitle = path && path !== "/" ? `${host}${path}` : host;
 
   return (
     <a
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`mt-1.5 flex w-full max-w-full items-stretch gap-2.5 overflow-hidden rounded-lg border border-zinc-800/60 bg-zinc-950/40 text-left transition hover:border-zinc-600/50 hover:bg-zinc-900/50 sm:gap-3 ${
+      title={fullPathTitle}
+      className={`mt-1.5 flex w-full max-w-full items-stretch gap-2.5 overflow-hidden rounded-lg border border-zinc-800/60 bg-zinc-950/40 text-left transition hover:border-zinc-600/50 hover:bg-zinc-900/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/35 sm:gap-3 ${
         compact ? "py-1.5 pl-2 pr-2.5" : "py-2 pl-2.5 pr-3"
       }`}
     >
@@ -694,9 +697,10 @@ function SocialFeedFirstLinkPreview({ url, compact }: { url: string; compact: bo
       />
         <span className="min-w-0 flex-1">
         <span className="block truncate text-[11px] font-semibold tracking-tight text-zinc-100">{host}</span>
-        <span className="mt-0.5 block truncate text-[10px] leading-snug text-zinc-500">{path}</span>
+        <span className="mt-0.5 hidden truncate text-[10px] leading-snug text-zinc-500 sm:block">{path}</span>
         <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-sky-400/85">
-          Open link
+          <span className="sm:hidden">Open</span>
+          <span className="hidden sm:inline">Open link</span>
           <span aria-hidden>↗</span>
         </span>
       </span>
@@ -1443,7 +1447,7 @@ function TrendingPanel() {
   const rows = apiRows;
 
   const chipClass = (active: boolean) =>
-    `rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+    `rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 ${
       active
         ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
         : "bg-zinc-900/70 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
@@ -1497,16 +1501,11 @@ function TrendingPanel() {
               <TerminalListSkeleton rows={6} aria-label="Loading trending tokens" />
             </div>
           ) : rows.length === 0 ? (
-            <div className="flex h-full items-center justify-center px-3 py-10">
-              <div className="text-center">
-                <p className="text-sm font-semibold text-zinc-200">
-                  No matches
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Try a different timeframe, or retry in a moment if Dexscreener is rate-limited.
-                </p>
-              </div>
-            </div>
+            <DashboardWidgetEmpty
+              badge="Trending"
+              title="No trending tokens"
+              description="Try another timeframe, or wait a moment if Dexscreener is rate-limited."
+            />
           ) : (
             <ul
               className={`${terminalListRow.cardList} ${terminalListRefreshOpacity(trendingLoading)}`}
@@ -2760,10 +2759,15 @@ function SocialFeedPostRow({
               <span className="text-xs tabular-nums text-zinc-500">{item.postedAtLabel}</span>
             </div>
             <span
-              className="inline-flex max-w-[min(11rem,40vw)] shrink-0 truncate rounded-md border border-zinc-600/35 bg-zinc-800/25 px-1.5 py-0.5 text-[9px] font-medium uppercase leading-tight tracking-wide text-zinc-500 sm:max-w-[13rem] sm:px-2 sm:text-[10px]"
+              className="inline-flex max-w-[min(5.5rem,28vw)] shrink-0 truncate rounded-md border border-zinc-600/35 bg-zinc-800/25 px-1.5 py-0.5 text-[9px] font-medium uppercase leading-tight tracking-wide text-zinc-500 sm:max-w-[13rem] sm:px-2 sm:text-[10px]"
               title={formatSocialFeedCategoryLabel(item.categorySlug, item.categoryOther)}
             >
-              {formatSocialFeedCategoryLabel(item.categorySlug, item.categoryOther)}
+              <span className="sm:hidden">
+                {formatSocialFeedCategoryShort(item.categorySlug, item.categoryOther)}
+              </span>
+              <span className="hidden sm:inline">
+                {formatSocialFeedCategoryLabel(item.categorySlug, item.categoryOther)}
+              </span>
             </span>
           </div>
 
@@ -3566,7 +3570,7 @@ function OpportunitiesPanel() {
   }, [apiRows, market, timeframe]);
 
   const chipClass = (active: boolean) =>
-    `rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+    `rounded-lg px-3 py-1.5 text-xs font-semibold tabular-nums transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 ${
       active
         ? "bg-zinc-700 text-zinc-50 shadow-sm shadow-black/20"
         : "bg-zinc-900/70 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
@@ -5048,7 +5052,7 @@ export default function Home() {
               titleRight={
                 <Link
                   href="/calls"
-                  className="shrink-0 rounded-md border border-zinc-800/50 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-zinc-500 ring-1 ring-white/[0.03] transition hover:border-zinc-600/80 hover:bg-zinc-900/25 hover:text-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40"
+                  className="shrink-0 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-500 transition hover:text-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40"
                 >
                   Full log →
                 </Link>
@@ -5099,22 +5103,7 @@ export default function Home() {
                             >
                               {summary}
                             </p>
-                            <div className="flex basis-full flex-wrap items-center justify-end gap-x-1 gap-y-1 pl-9 sm:basis-auto sm:flex-nowrap sm:pl-0 sm:gap-2">
-                              {call.excludedFromStats ? (
-                                <span
-                                  className="max-w-[2.75rem] truncate rounded border border-red-500/25 bg-red-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-200/90"
-                                  title="Excluded from stats"
-                                >
-                                  Excl.
-                                </span>
-                              ) : null}
-                              <span
-                                className={`shrink-0 rounded-md border border-zinc-800/50 bg-black/30 px-2 py-0.5 text-xs font-bold tabular-nums shadow-inner shadow-black/20 ring-1 ring-white/[0.03] ${multipleClass(
-                                  call.multiple
-                                )}`}
-                              >
-                                {call.multiple.toFixed(1)}×
-                              </span>
+                            <div className="flex basis-full flex-wrap items-center justify-end gap-x-1.5 gap-y-1 pl-9 sm:basis-auto sm:flex-nowrap sm:pl-0 sm:gap-2">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -5126,13 +5115,28 @@ export default function Home() {
                                     tokenImageUrl: call.tokenImageUrl ?? null,
                                   })
                                 }
-                                className="inline-flex shrink-0 basis-full items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-300/95 ring-1 ring-emerald-500/10 transition hover:border-emerald-400/45 hover:bg-emerald-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 max-sm:w-full sm:basis-auto sm:w-auto"
+                                className="inline-flex shrink-0 basis-full items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-100 shadow-sm shadow-emerald-950/30 transition hover:border-emerald-400/55 hover:bg-emerald-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45 max-sm:order-1 max-sm:w-full sm:order-none sm:basis-auto sm:w-auto"
                                 title="Live chart (TradingView)"
                               >
                                 Chart
                               </button>
+                              {call.excludedFromStats ? (
+                                <span
+                                  className="max-w-[2.75rem] shrink-0 truncate rounded border border-red-500/25 bg-red-500/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-200/90 max-sm:order-3"
+                                  title="Excluded from stats"
+                                >
+                                  Excl.
+                                </span>
+                              ) : null}
+                              <span
+                                className={`shrink-0 rounded-md border border-zinc-800/50 bg-black/30 px-2 py-0.5 text-xs font-bold tabular-nums shadow-inner shadow-black/20 ring-1 ring-white/[0.03] max-sm:order-2 ${multipleClass(
+                                  call.multiple
+                                )}`}
+                              >
+                                {call.multiple.toFixed(1)}×
+                              </span>
                               <time
-                                className="w-9 shrink-0 text-right text-[10px] font-medium tabular-nums text-zinc-500 max-sm:ml-auto sm:w-11 sm:text-[11px]"
+                                className="w-9 shrink-0 text-right text-[10px] font-medium tabular-nums text-zinc-500 max-sm:order-4 max-sm:ml-auto sm:order-none sm:w-11 sm:text-[11px]"
                                 dateTime={Number.isFinite(tMs) && tMs > 0 ? new Date(tMs).toISOString() : undefined}
                                 title={timeFull}
                               >

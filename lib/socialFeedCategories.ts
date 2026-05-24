@@ -65,3 +65,17 @@ export function formatSocialFeedCategoryLabel(
   if (s === "other" && other && other.trim()) return `${base}: ${other.trim()}`;
   return base;
 }
+
+/** Compact chip label for narrow post headers (full label in `title`). */
+export function formatSocialFeedCategoryShort(
+  slug: string | null | undefined,
+  other: string | null | undefined
+): string {
+  const s = parseSocialFeedCategorySlug(slug) ?? "other";
+  const opt = SOCIAL_FEED_CATEGORY_OPTIONS.find((o) => o.id === s);
+  if (s === "other" && other && other.trim()) {
+    const t = other.trim();
+    return t.length > 14 ? `${t.slice(0, 13)}…` : t;
+  }
+  return opt?.short ?? s;
+}
