@@ -24,10 +24,14 @@ export const CP_TAPE_LEGACY =
 
 export const CP_TAPE_WITH_SNAPSHOT = `${CP_TAPE_LEGACY}, token_name, token_ticker, call_market_cap_usd, token_image_url, spot_multiple, live_market_cap_usd`;
 
+export const CP_TAPE_WITH_X_CONTEXT = `${CP_TAPE_WITH_SNAPSHOT}, call_narrative, call_media_urls, source_x_tweet_id`;
+
 export const CP_ACTIVITY_LEGACY =
   "username, discord_id, ath_multiple, call_time, source, call_ca, message_url, excluded_from_stats";
 
 export const CP_ACTIVITY_WITH_SNAPSHOT = `${CP_ACTIVITY_LEGACY}, token_name, token_ticker, call_market_cap_usd, token_image_url, spot_multiple, live_market_cap_usd`;
+
+export const CP_ACTIVITY_WITH_X_CONTEXT = `${CP_ACTIVITY_WITH_SNAPSHOT}, call_narrative, call_media_urls, source_x_tweet_id`;
 
 /** Leaderboard “top single calls” — minimal columns + optional token snapshot. */
 export const CP_TOP_CALLS_LEGACY =

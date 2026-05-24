@@ -35,6 +35,8 @@ type TapeRow = {
   tokenTicker?: string | null;
   callMarketCapUsd?: number | null;
   tokenImageUrl?: string | null;
+  callNarrative?: string | null;
+  callMediaUrls?: string[];
 };
 
 const WINDOWS = [
@@ -451,6 +453,32 @@ export default function CallTapePage() {
                               callCa: r.callCa,
                             })}
                           </div>
+                          {r.callNarrative ? (
+                            <p className="mt-1 line-clamp-3 text-[11px] leading-relaxed text-zinc-500">
+                              {r.callNarrative}
+                            </p>
+                          ) : null}
+                          {r.callMediaUrls && r.callMediaUrls.length > 0 ? (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {r.callMediaUrls.map((url) => (
+                                <a
+                                  key={url}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block overflow-hidden rounded border border-zinc-700/50"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={url}
+                                    alt=""
+                                    className="h-10 w-10 object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          ) : null}
                           </div>
                         </div>
                       </td>
@@ -510,6 +538,16 @@ export default function CallTapePage() {
                               className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-100/90 transition hover:border-cyan-400/35 hover:bg-cyan-500/15 sm:py-1 sm:text-[11px]"
                             >
                               Dex
+                            </a>
+                          ) : null}
+                          {r.messageUrl ? (
+                            <a
+                              href={r.messageUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="rounded-md border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-100/90 transition hover:border-sky-400/35 hover:bg-sky-500/15 sm:py-1 sm:text-[11px]"
+                            >
+                              Post
                             </a>
                           ) : null}
                           <Link

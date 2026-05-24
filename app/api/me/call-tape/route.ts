@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import {
   CP_TAPE_LEGACY,
   CP_TAPE_WITH_SNAPSHOT,
+  CP_TAPE_WITH_X_CONTEXT,
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
 import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
@@ -70,8 +71,8 @@ export async function GET(request: Request) {
 
     const [{ data, error, count }, bestPick] = await Promise.all([
       selectCallPerformanceWithSnapshotFallback({
-        columnsWithSnapshot: CP_TAPE_WITH_SNAPSHOT,
-        columnsLegacy: CP_TAPE_LEGACY,
+        columnsWithSnapshot: CP_TAPE_WITH_X_CONTEXT,
+        columnsLegacy: CP_TAPE_WITH_SNAPSHOT,
         run: async (columns) => {
           const res = await tapeQuery(columns);
           return { data: res.data, error: res.error, count: res.count };
@@ -121,6 +122,22 @@ export async function GET(request: Request) {
         callMarketCapUsd:
           Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
         tokenImageUrl,
+        callNarrative:
+          typeof r.call_narrative === "string" && String(r.call_narrative).trim()
+            ? String(r.call_narrative).trim()
+            : null,
+        callMediaUrls: (() => {
+          const raw = r.call_media_urls;
+          if (!Array.isArray(raw)) return [] as string[];
+          const urls: string[] = [];
+          for (const u of raw) {
+            const s = String(u ?? "").trim();
+            if (!s || !/^https?:\/\//i.test(s)) continue;
+            if (!urls.includes(s)) urls.push(s);
+            if (urls.length >= 4) break;
+          }
+          return urls;
+        })(),
       };
     });
 

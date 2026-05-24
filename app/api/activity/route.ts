@@ -11,6 +11,7 @@ import {
 import {
   CP_ACTIVITY_LEGACY,
   CP_ACTIVITY_WITH_SNAPSHOT,
+  CP_ACTIVITY_WITH_X_CONTEXT,
   selectCallPerformanceWithSnapshotFallback,
 } from "@/lib/callPerformanceColumnFallback";
 import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
@@ -95,8 +96,8 @@ export async function GET(request: Request) {
 
     const [{ data, error }, cutoverMs, excludedDiscordIds] = await Promise.all([
       selectCallPerformanceWithSnapshotFallback({
-        columnsWithSnapshot: CP_ACTIVITY_WITH_SNAPSHOT,
-        columnsLegacy: CP_ACTIVITY_LEGACY,
+        columnsWithSnapshot: CP_ACTIVITY_WITH_X_CONTEXT,
+        columnsLegacy: CP_ACTIVITY_WITH_SNAPSHOT,
         run: async (columns) => {
           let q = buildBaseQuery(columns);
           if (followingIds) {
@@ -150,6 +151,8 @@ export async function GET(request: Request) {
         callMarketCapUsd: number | null;
         hitMarketCapUsd: number | null;
         callCa: string | null;
+        callNarrative: string | null;
+        callMediaUrls: string[];
       };
     };
 
@@ -203,6 +206,22 @@ export async function GET(request: Request) {
           ? imgRaw.trim().slice(0, 800)
           : null;
 
+      const narrativeRaw = r.call_narrative;
+      const callNarrative =
+        typeof narrativeRaw === "string" && narrativeRaw.trim() ? narrativeRaw.trim() : null;
+      const callMediaUrls = (() => {
+        const raw = r.call_media_urls;
+        if (!Array.isArray(raw)) return [] as string[];
+        const urls: string[] = [];
+        for (const u of raw) {
+          const s = String(u ?? "").trim();
+          if (!s || !/^https?:\/\//i.test(s)) continue;
+          if (!urls.includes(s)) urls.push(s);
+          if (urls.length >= 4) break;
+        }
+        return urls;
+      })();
+
       const meta = {
         tokenName: tn,
         tokenTicker: tt,
@@ -210,6 +229,8 @@ export async function GET(request: Request) {
           Number.isFinite(mcNum) && mcNum > 0 ? mcNum : null,
         hitMarketCapUsd,
         callCa: rawCa,
+        callNarrative,
+        callMediaUrls,
       };
 
       const sourceRaw = r.source;

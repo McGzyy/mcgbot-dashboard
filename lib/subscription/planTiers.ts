@@ -18,6 +18,8 @@ export const MEMBERSHIP_TIER_FEATURES: TierFeatureRow[] = [
   { label: "Caller intelligence (7d / 30d / 90d)", basic: true, pro: true },
   { label: "Contract watchlist (save CAs)", basic: true, pro: true },
   { label: "Desk calls (submit from terminal)", basic: "10_per_day", pro: true },
+  { label: "Log desk calls from X (@McGBot + CA)", basic: false, pro: true },
+  { label: "Rich X calls on X (narrative + images, Trusted Pro & staff)", basic: false, pro: true },
   { label: "Outside Calls (off-desk X lane)", basic: false, pro: true },
   { label: "Social feed on home (when enabled)", basic: false, pro: true },
   { label: "Personal alerts (watchlist / follows)", basic: "limited", pro: true },
@@ -56,6 +58,7 @@ export const TIER_COMPARE_HIGHLIGHTS: Record<ProductTier, string[]> = {
   ],
   pro: [
     "Unlimited desk submissions — no daily cap",
+    "Tag @McGBot on X with a CA to log desk calls",
     "Off-desk Outside Calls tape + propose monitors",
     "Full alerts + optional Discord DM mirror",
     "Home social feed when staff enable it",

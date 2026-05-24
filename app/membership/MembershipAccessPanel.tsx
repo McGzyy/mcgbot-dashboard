@@ -25,12 +25,14 @@ type MembershipAccessPanelProps = {
 };
 
 const PRO_PERK_LINKS = [
+  { label: "Call from X", href: "/settings", detail: "Link X in Settings, then tag @McGBot with a Solana CA" },
   { label: "Outside Calls tape", href: "/outside-calls", detail: "Off-desk X monitors in the live feed" },
   { label: "Full alerts + Discord DMs", href: "/", detail: "Create Alert on home — toggle DM mirror on Pro" },
   { label: "Unlimited desk submissions", href: "/?submitCall=1", detail: "No daily cap on logged calls" },
 ] as const;
 
 const BASIC_UPGRADE_PERKS = [
+  "Log desk calls from X (@McGBot + CA)",
   "Outside Calls & off-desk X tape",
   "Full personal alerts + Discord DM mirror",
   `Unlimited desk calls (Basic caps at ${BASIC_DAILY_CALLS_LIMIT}/day)`,
