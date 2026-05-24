@@ -525,8 +525,15 @@ export const authOptions: NextAuthOptions = {
       const productTier =
         productTierRaw === "pro" || productTierRaw === "basic" ? productTierRaw : "basic";
       (session.user as { productTier?: string }).productTier = productTier;
+      const helpTierForPro =
+        token.helpTier === "admin" || token.helpTier === "mod" || token.helpTier === "user"
+          ? token.helpTier
+          : "user";
       (session.user as { hasProFeatures?: boolean }).hasProFeatures =
-        tierIncludesProFeatures(productTier);
+        tierIncludesProFeatures(productTier) ||
+        helpTierForPro === "admin" ||
+        helpTierForPro === "mod" ||
+        exempt;
 
       // Expose Discord gate status to the client for UX.
       (session.user as any).discordInGuild =

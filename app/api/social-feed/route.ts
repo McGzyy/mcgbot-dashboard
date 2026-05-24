@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import type { SocialFeedCategorySlug } from "@/lib/socialFeedCategories";
 import { normalizeCategoryOther, parseSocialFeedCategorySlug } from "@/lib/socialFeedCategories";
-import { requireProFeatures } from "@/lib/subscription/productTierAccess";
+import { requireProFeaturesForSession } from "@/lib/subscription/productTierAccess";
 import { isSocialFeedEnabled } from "@/lib/socialFeedSettings";
 import { maybeRefreshSocialFeedFromX } from "@/lib/socialFeedXIngest";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -66,11 +66,10 @@ export async function GET(request: Request) {
   }
 
   const session = await getServerSession(authOptions);
-  const discordId = session?.user?.id?.trim() ?? "";
-  if (!discordId) {
+  if (!session?.user?.id?.trim()) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const proGate = await requireProFeatures(discordId);
+  const proGate = await requireProFeaturesForSession(session);
   if (!proGate.ok) return proGate.response;
 
   const db = getSupabaseAdmin();

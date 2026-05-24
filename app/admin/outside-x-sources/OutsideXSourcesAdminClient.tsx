@@ -33,6 +33,9 @@ function statusBadgeClass(status: string): string {
 }
 
 export function OutsideXSourcesAdminClient() {
+  const [featureEnabled, setFeatureEnabled] = useState(true);
+  const [featureToggleBusy, setFeatureToggleBusy] = useState(false);
+  const [featureMsg, setFeatureMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [sources, setSources] = useState<SourceRow[]>([]);
@@ -41,11 +44,62 @@ export function OutsideXSourcesAdminClient() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
+  const loadSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/app-settings", { credentials: "same-origin", cache: "no-store" });
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        settings?: { outside_calls_enabled?: boolean };
+      };
+      if (res.ok && j.success && j.settings) {
+        setFeatureEnabled(j.settings.outside_calls_enabled !== false);
+      }
+    } catch {
+      /* keep prior */
+    }
+  }, []);
+
+  const setFeatureEnabledRemote = useCallback(async (next: boolean) => {
+    setFeatureToggleBusy(true);
+    setFeatureMsg(null);
+    setErr(null);
+    try {
+      const res = await fetch("/api/admin/app-settings", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outside_calls_enabled: next }),
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        settings?: { outside_calls_enabled?: boolean };
+      };
+      if (!res.ok || !j.success) {
+        setErr(typeof j.error === "string" ? j.error : "Could not update Outside Calls setting.");
+        return;
+      }
+      const on = j.settings?.outside_calls_enabled !== false;
+      setFeatureEnabled(on);
+      setFeatureMsg(
+        on
+          ? "Outside Calls live for Pro — tape, submissions, and bot X polling active."
+          : "Outside Calls off — Pro users see coming soon; bot stops X timeline reads."
+      );
+      window.setTimeout(() => setFeatureMsg(null), 4000);
+    } catch {
+      setErr("Network error while updating Outside Calls setting.");
+    } finally {
+      setFeatureToggleBusy(false);
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
     setMsg(null);
     try {
+      await loadSettings();
       const q = filter === "all" ? "" : `?status=${encodeURIComponent(filter)}`;
       const res = await fetch(`/api/admin/outside-x-sources${q}`, {
         credentials: "same-origin",
@@ -78,7 +132,7 @@ export function OutsideXSourcesAdminClient() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, loadSettings]);
 
   useEffect(() => {
     void load();
@@ -161,6 +215,53 @@ export function OutsideXSourcesAdminClient() {
       />
 
       <OutsideXPollStatusBanner />
+
+      <AdminPanel
+        className={`p-4 ${featureEnabled ? "border-emerald-500/30 bg-emerald-950/15" : "border-cyan-500/30 bg-cyan-950/15"}`}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+              Outside Calls (Pro lane)
+            </p>
+            <p className="mt-1 text-sm text-zinc-300">
+              {featureEnabled ? (
+                <>
+                  <span className="font-medium text-emerald-200">Live</span> — Pro tape and submissions on{" "}
+                  <Link href="/outside-calls" className="text-cyan-400/90 underline-offset-2 hover:underline">
+                    /outside-calls
+                  </Link>
+                  ; bot polls active monitors (lean mode, X read credits).
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-cyan-200">Coming soon</span> — Pro members see the preview page;
+                  bot X polling pauses to save API credits. Monitors below stay configured for launch.
+                </>
+              )}
+            </p>
+            {featureMsg ? <p className="mt-2 text-xs text-emerald-300/90">{featureMsg}</p> : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={featureToggleBusy || featureEnabled}
+              onClick={() => void setFeatureEnabledRemote(true)}
+              className="rounded-lg border border-emerald-600/40 bg-emerald-950/40 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-900/50 disabled:opacity-45"
+            >
+              Go live
+            </button>
+            <button
+              type="button"
+              disabled={featureToggleBusy || !featureEnabled}
+              onClick={() => void setFeatureEnabledRemote(false)}
+              className="rounded-lg border border-cyan-600/40 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-900/50 disabled:opacity-45"
+            >
+              Coming soon
+            </button>
+          </div>
+        </div>
+      </AdminPanel>
 
       <div className="flex flex-wrap gap-2">
         {(["all", "active", "suspended", "removed"] as const).map((id) => (

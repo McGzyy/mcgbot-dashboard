@@ -115,8 +115,14 @@ export function OutsideXPollStatusBanner({ className = "" }: { className?: strin
                 <p className="mt-2 text-sm leading-relaxed text-zinc-300">{poll.hint}</p>
                 {poll.status === "running" ? (
                   <p className="mt-1 text-[11px] text-zinc-500">
-                    Interval ~{Math.round(poll.pollIntervalMs / 1000)}s · uses X{" "}
-                    <span className="text-zinc-400">read</span> credits per active monitor
+                    {poll.leanMode ? (
+                      <span className="text-cyan-400/90">Lean mode</span>
+                    ) : (
+                      <span className="text-zinc-400">Legacy cadence</span>
+                    )}
+                    {" · "}
+                    Interval ~{Math.round(poll.pollIntervalMs / 1000)}s · one X{" "}
+                    <span className="text-zinc-400">read</span> per active monitor per pass
                   </p>
                 ) : poll.status === "disabled" ? (
                   <p className="mt-1 text-[11px] text-zinc-500">

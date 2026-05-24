@@ -5,7 +5,11 @@ import {
   fetchDexMetaByMint,
   fetchLatestPerformanceByMint,
 } from "@/lib/outsideCallsTapeEnrich";
-import { requireProFeatures } from "@/lib/subscription/productTierAccess";
+import { requireProFeaturesForSession } from "@/lib/subscription/productTierAccess";
+import {
+  isOutsideCallsEnabled,
+  outsideCallsFeatureDisabledResponse,
+} from "@/lib/outsideCallsSettings";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -36,13 +40,16 @@ type CallRow = {
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.id?.trim() ?? "";
-  if (!userId) {
+  if (!session?.user?.id?.trim()) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const proGate = await requireProFeatures(userId);
+  const proGate = await requireProFeaturesForSession(session);
   if (!proGate.ok) return proGate.response;
+
+  if (!(await isOutsideCallsEnabled())) {
+    return outsideCallsFeatureDisabledResponse();
+  }
 
   const db = getSupabaseAdmin();
   if (!db) {

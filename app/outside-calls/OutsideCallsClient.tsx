@@ -7,6 +7,7 @@ import {
   OutsideSubmissionTracker,
   type OutsideSubmissionUi,
 } from "@/app/components/outside-calls/OutsideSubmissionTracker";
+import { OutsideCallsComingSoon } from "@/app/components/outside-calls/OutsideCallsComingSoon";
 import { ProUpgradePrompt } from "@/app/components/subscription/ProUpgradePrompt";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { abbreviateCa } from "@/lib/callDisplayFormat";
@@ -91,10 +92,9 @@ export function OutsideCallsClient() {
   const { data: session, status } = useSession();
   const { openTokenChart } = useTokenChartModal();
   const isAdmin = session?.user?.helpTier === "admin";
-  const hasProFeatures =
-    session?.user?.hasProFeatures === true ||
-    session?.user?.helpTier === "admin" ||
-    session?.user?.helpTier === "mod";
+  const hasProFeatures = session?.user?.hasProFeatures === true;
+  const [feedProLocked, setFeedProLocked] = useState(false);
+  const [featureEnabled, setFeatureEnabled] = useState<boolean | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -115,24 +115,49 @@ export function OutsideCallsClient() {
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [adminErr, setAdminErr] = useState<string | null>(null);
 
+  const loadFeatureStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/outside-calls/status", { credentials: "same-origin", cache: "no-store" });
+      const j = (await res.json().catch(() => ({}))) as { success?: boolean; enabled?: boolean };
+      setFeatureEnabled(res.ok && j.success && j.enabled === true);
+    } catch {
+      setFeatureEnabled(false);
+    }
+  }, []);
+
   const loadFeed = useCallback(async (opts?: { background?: boolean }) => {
     const background = opts?.background === true;
     if (background) setRefreshing(true);
     else {
       setLoading(true);
       setErr(null);
+      setFeedProLocked(false);
     }
     try {
       const res = await fetch("/api/outside-calls/feed?limit=100", { credentials: "same-origin", cache: "no-store" });
-      const j = (await res.json().catch(() => ({}))) as { success?: boolean; calls?: FeedCall[]; error?: string };
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        calls?: FeedCall[];
+        error?: string;
+        code?: string;
+      };
       if (!res.ok) {
+        if (res.status === 403 && j.code === "pro_required") {
+          setFeedProLocked(true);
+          setErr(null);
+          if (!background) setCalls([]);
+          return;
+        }
+        setFeedProLocked(false);
         setErr(typeof j.error === "string" ? j.error : "Could not load Outside Calls.");
         if (!background) setCalls([]);
         return;
       }
       setCalls(Array.isArray(j.calls) ? j.calls : []);
       setErr(null);
+      setFeedProLocked(false);
     } catch {
+      setFeedProLocked(false);
       setErr("Could not load Outside Calls.");
       if (!background) setCalls([]);
     } finally {
@@ -169,8 +194,15 @@ export function OutsideCallsClient() {
   }, [loadFeed, loadSubmissions]);
 
   useEffect(() => {
+    void loadFeatureStatus();
+  }, [loadFeatureStatus]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (!hasProFeatures) return;
+    if (featureEnabled !== true) return;
     void load();
-  }, [load]);
+  }, [featureEnabled, hasProFeatures, load, status]);
 
   const submit = useCallback(async () => {
     setSubmitting(true);
@@ -273,6 +305,18 @@ export function OutsideCallsClient() {
     );
   }
 
+  if (status === "authenticated" && hasProFeatures && featureEnabled === false) {
+    return <OutsideCallsComingSoon />;
+  }
+
+  if (status === "loading" || (status === "authenticated" && hasProFeatures && featureEnabled === null)) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 pb-20 pt-12 sm:px-6">
+        <TerminalListSkeleton variant="compact" rows={3} aria-label="Loading Outside Calls" />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 pb-20 pt-4 sm:px-6">
       <div>
@@ -367,6 +411,17 @@ export function OutsideCallsClient() {
 
           {err ? (
             <p className="mt-4 text-sm text-red-300/90">{err}</p>
+          ) : null}
+
+          {feedProLocked ? (
+            <div className="mt-4">
+              <ProUpgradePrompt
+                title="Pro membership required"
+                description="Live outside-call tape, trust scores, and monitor submissions are part of Pro. Upgrade to unlock the full signal lane."
+                ctaHref="/membership?line=pro"
+                ctaLabel="View Pro plans"
+              />
+            </div>
           ) : null}
 
           <div className={`relative mt-4 min-w-0 ${terminalSurface.dashboardListWell}`}>

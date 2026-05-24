@@ -1,6 +1,10 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { requireProFeatures } from "@/lib/subscription/productTierAccess";
+import { requireProFeaturesForSession } from "@/lib/subscription/productTierAccess";
+import {
+  isOutsideCallsEnabled,
+  outsideCallsFeatureDisabledResponse,
+} from "@/lib/outsideCallsSettings";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -21,13 +25,18 @@ type SubmissionRow = {
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.id?.trim() ?? "";
-  if (!userId) {
+  if (!session?.user?.id?.trim()) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const proGate = await requireProFeatures(userId);
+  const proGate = await requireProFeaturesForSession(session);
   if (!proGate.ok) return proGate.response;
+
+  if (!(await isOutsideCallsEnabled())) {
+    return outsideCallsFeatureDisabledResponse();
+  }
+
+  const userId = session.user!.id!.trim();
 
   const db = getSupabaseAdmin();
   if (!db) {

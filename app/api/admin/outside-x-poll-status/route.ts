@@ -11,6 +11,7 @@ export type OutsideXPollStatusPayload = {
   readyToRun: boolean;
   running: boolean;
   pollIntervalMs: number;
+  leanMode: boolean;
   blockers: string[];
   hint: string;
 };
@@ -28,15 +29,19 @@ function parsePollBody(body: unknown): OutsideXPollStatusPayload | null {
   const blockers = Array.isArray(o.blockers)
     ? o.blockers.map((x) => String(x).trim()).filter(Boolean)
     : [];
+  const pollIntervalMs =
+    typeof o.pollIntervalMs === "number" && Number.isFinite(o.pollIntervalMs)
+      ? Math.floor(o.pollIntervalMs)
+      : 90_000;
+  const leanMode =
+    typeof o.leanMode === "boolean" ? o.leanMode : pollIntervalMs >= 75_000;
   return {
     status,
     disabledByEnv: Boolean(o.disabledByEnv),
     readyToRun: Boolean(o.readyToRun),
     running: Boolean(o.running),
-    pollIntervalMs:
-      typeof o.pollIntervalMs === "number" && Number.isFinite(o.pollIntervalMs)
-        ? Math.floor(o.pollIntervalMs)
-        : 45_000,
+    pollIntervalMs,
+    leanMode,
     blockers,
     hint: typeof o.hint === "string" ? o.hint : "",
   };

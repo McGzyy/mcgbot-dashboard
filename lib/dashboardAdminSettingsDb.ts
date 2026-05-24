@@ -49,6 +49,8 @@ export type DashboardAdminSettingsRow = {
   x_leaderboard_digest_format: unknown | null;
   /** Home Social Feed panel + X Bearer timeline ingest. */
   social_feed_enabled: boolean;
+  /** Pro Outside Calls tape + bot outside_x_sources X poller. */
+  outside_calls_enabled: boolean;
   /** Last announcement content version fan-out to user inboxes (dedupe). */
   announcement_inbox_broadcast_version: string | null;
   updated_at: string;
@@ -89,6 +91,7 @@ function defaultRow(): DashboardAdminSettingsRow {
     tutorial_auto_start_enabled: true,
     x_leaderboard_digest_format: null,
     social_feed_enabled: false,
+    outside_calls_enabled: true,
     announcement_inbox_broadcast_version: null,
     updated_at: now,
     updated_by_discord_id: null,
@@ -191,6 +194,12 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
       return v as Record<string, unknown>;
     })(),
     social_feed_enabled: (r as { social_feed_enabled?: unknown }).social_feed_enabled === true,
+    outside_calls_enabled: (() => {
+      const v = (r as { outside_calls_enabled?: unknown }).outside_calls_enabled;
+      if (v === false) return false;
+      if (v === true) return true;
+      return true;
+    })(),
     announcement_inbox_broadcast_version:
       typeof (r as { announcement_inbox_broadcast_version?: unknown }).announcement_inbox_broadcast_version ===
       "string"
@@ -232,6 +241,7 @@ export async function patchDashboardAdminSettings(input: {
   tutorial_auto_start_enabled?: boolean;
   x_leaderboard_digest_format?: XLeaderboardDigestFormat | null;
   social_feed_enabled?: boolean;
+  outside_calls_enabled?: boolean;
   updatedByDiscordId: string;
 }): Promise<DashboardAdminSettingsRow | null> {
   const db = getSupabaseAdmin();
@@ -352,6 +362,9 @@ export async function patchDashboardAdminSettings(input: {
   if (typeof input.social_feed_enabled === "boolean") {
     next.social_feed_enabled = input.social_feed_enabled;
   }
+  if (typeof input.outside_calls_enabled === "boolean") {
+    next.outside_calls_enabled = input.outside_calls_enabled;
+  }
 
   const upsertPayload = (omit = new Set<string>()) => {
     const row: Record<string, unknown> = {
@@ -386,6 +399,7 @@ export async function patchDashboardAdminSettings(input: {
       tutorial_auto_start_enabled: next.tutorial_auto_start_enabled,
       x_leaderboard_digest_format: next.x_leaderboard_digest_format,
       social_feed_enabled: next.social_feed_enabled,
+      outside_calls_enabled: next.outside_calls_enabled,
       updated_at: next.updated_at,
       updated_by_discord_id: next.updated_by_discord_id,
     };
@@ -402,7 +416,7 @@ export async function patchDashboardAdminSettings(input: {
     );
   };
 
-  const optionalColumns = ["announcement_global", "social_feed_enabled"] as const;
+  const optionalColumns = ["announcement_global", "social_feed_enabled", "outside_calls_enabled"] as const;
   let omit = new Set<string>();
 
   for (let attempt = 0; attempt < optionalColumns.length + 1; attempt++) {

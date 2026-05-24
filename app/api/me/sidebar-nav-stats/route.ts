@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { rolling24HoursStartUtcMs } from "@/lib/leaderboardTimeWindows";
-import { requireProFeatures } from "@/lib/subscription/productTierAccess";
+import { requireProFeaturesForSession } from "@/lib/subscription/productTierAccess";
+import { isOutsideCallsEnabled } from "@/lib/outsideCallsSettings";
 import {
   avgAthFromCallPerformanceRows,
   avgAthFromOutsideCallRows,
@@ -29,9 +30,10 @@ export async function GET() {
     }
 
     const nowMs = Date.now();
-    const [cutoverMs, proGate] = await Promise.all([
+    const [cutoverMs, proGate, outsideEnabled] = await Promise.all([
       getStatsCutoverUtcMs(),
-      requireProFeatures(discordId),
+      requireProFeaturesForSession(session),
+      isOutsideCallsEnabled(),
     ]);
     const minMs = mergeStatsCutoverIntoMin(rolling24HoursStartUtcMs(nowMs), cutoverMs);
     const minIso = new Date(minMs).toISOString();
@@ -59,7 +61,7 @@ export async function GET() {
         .eq("status", "approved")
         .gte("created_at", minIso)
         .limit(2000),
-      proGate.ok
+      proGate.ok && outsideEnabled
         ? db
             .from("outside_calls")
             .select(
@@ -91,7 +93,7 @@ export async function GET() {
       window: "rolling24h" as const,
       botCalls: avgAthFromCallPerformanceRows(botRows, cutoverMs, minMs, nowMs),
       trustedPro: avgAthFromTrustedProRows(tpRows, minMs, nowMs),
-      outsideCalls: proGate.ok ? avgAthFromOutsideCallRows(outRows, minMs, nowMs) : null,
+      outsideCalls: proGate.ok && outsideEnabled ? avgAthFromOutsideCallRows(outRows, minMs, nowMs) : null,
       myCallLog: avgAthFromCallPerformanceRows(mineRows, cutoverMs, minMs, nowMs),
     });
   } catch (e) {

@@ -1,4 +1,5 @@
-import { resolveHelpTierAsync } from "@/lib/helpRole";
+import { resolveHelpTier, resolveHelpTierAsync } from "@/lib/helpRole";
+import type { Session } from "next-auth";
 import { computeSubscriptionExempt } from "@/lib/subscriptionExemption";
 import {
   getPlanById,
@@ -95,8 +96,54 @@ export function utcDayStartIso(): string {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
 }
 
+/** Client + API: Pro plan, staff, or exempt (matches sidebar / Outside Calls page gate). */
+export function sessionHasProFeatures(session: Session | null): boolean {
+  const u = session?.user as
+    | {
+        hasProFeatures?: boolean;
+        helpTier?: string;
+        subscriptionExempt?: boolean;
+      }
+    | undefined;
+  if (!u) return false;
+  if (u.hasProFeatures === true) return true;
+  if (u.subscriptionExempt === true) return true;
+  if (u.helpTier === "admin" || u.helpTier === "mod") return true;
+  return false;
+}
+
+/** Pro API gate using session claims first (avoids staff JWT vs server tier drift). */
+export async function requireProFeaturesForSession(
+  session: Session | null
+): Promise<ProGateOk | ProGateFail> {
+  const userId = session?.user?.id?.trim() ?? "";
+  if (!userId) {
+    return {
+      ok: false,
+      response: Response.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+  if (sessionHasProFeatures(session)) {
+    return { ok: true, tier: "pro" };
+  }
+  return requireProFeatures(userId);
+}
+
 export async function requireProFeatures(discordId: string): Promise<ProGateOk | ProGateFail> {
-  const tier = await resolveUserProductTier(discordId);
+  const id = discordId.trim();
+  if (!id) {
+    return {
+      ok: false,
+      response: Response.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  const envStaff = resolveHelpTier(id);
+  if (envStaff === "admin" || envStaff === "mod") {
+    return { ok: true, tier: "pro" };
+  }
+
+  const tier = await resolveUserProductTier(id);
   if (tierIncludesProFeatures(tier)) {
     return { ok: true, tier };
   }
