@@ -9,6 +9,7 @@ import { isDashboardAdminFromJwt } from "@/lib/middlewareDashboardAdmin";
 import { discordIdFromTokenFields } from "@/lib/tokenDashboardGate";
 import { getSiteOperationalState } from "@/lib/siteOperationalState";
 import { isPublicProfileApi, isPublicProfilePage } from "@/lib/publicProfileRoutes";
+import { membershipUrlAllowsEntitledStay } from "@/lib/membershipActivation";
 import { isAffiliatePortalPath } from "@/lib/affiliate/affiliatePortalPaths";
 import { affiliateDedicatedPortalHostname } from "@/lib/affiliate/affiliatePortalUrl";
 import { affiliatePostAuthPath } from "@/lib/affiliate/affiliatePostAuthPath";
@@ -592,6 +593,17 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname.startsWith("/subscribe") || pathname.startsWith("/membership")) {
+    /** Entitled users should not bounce on /membership after OAuth — send them to `/` unless checkout/upgrade funnel. */
+    if (
+      pathname.startsWith("/membership") &&
+      !membershipUrlAllowsEntitledStay(req.nextUrl.search) &&
+      (await resolveDashboardAccessForToken(token))
+    ) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
     return NextResponse.next();
   }
 

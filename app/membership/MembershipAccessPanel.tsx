@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
+import { clearMembershipWelcome } from "@/lib/membershipActivation";
 import { ProBadge } from "@/app/components/subscription/ProBadge";
 import {
   BASIC_DAILY_CALLS_LIMIT,
@@ -57,7 +57,6 @@ export function MembershipAccessPanel({
   discordInviteUrl,
   onDismissWelcome,
 }: MembershipAccessPanelProps) {
-  const router = useRouter();
   const { update } = useSession();
   const [dashboardNavBusy, setDashboardNavBusy] = useState(false);
   const tierMeta = TIER_MARKETING[userProductTier];
@@ -67,9 +66,9 @@ export function MembershipAccessPanel({
     if (dashboardNavBusy) return;
     setDashboardNavBusy(true);
     try {
+      clearMembershipWelcome();
       await update({ refreshAccess: true });
-      router.push(path);
-      router.refresh();
+      window.location.replace(path);
     } finally {
       setDashboardNavBusy(false);
     }

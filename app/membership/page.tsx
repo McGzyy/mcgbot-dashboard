@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { DISCORD_SERVER_INVITE_URL, resolveDiscordEntryUrl } from "@/lib/discordInvite";
@@ -12,7 +12,7 @@ import { membershipPaywallUserMessage } from "@/lib/membershipPaywallUserMessage
 import { MembershipAccessPanel } from "@/app/membership/MembershipAccessPanel";
 import { MembershipBillingSection, type MembershipPlan } from "@/app/membership/MembershipBillingSection";
 import { MembershipProductCompare } from "@/app/membership/MembershipProductCompare";
-import { markMembershipWelcome } from "@/lib/membershipActivation";
+import { clearMembershipWelcome, markMembershipWelcome, membershipUrlAllowsEntitledStay, MEMBERSHIP_WELCOME_KEY } from "@/lib/membershipActivation";
 import { planMonthlyEquivalent } from "@/lib/subscription/planDisplay";
 import { MembershipFlowSteps } from "@/app/membership/MembershipFlowSteps";
 import { MembershipIncludedToday } from "@/app/membership/MembershipIncludedToday";
@@ -90,6 +90,8 @@ export default function MembershipPage() {
   const [guildGate, setGuildGate] = useState<GuildGateState>({ status: "idle" });
   const [guildGateRetry, setGuildGateRetry] = useState(0);
   const [showActivationWelcome, setShowActivationWelcome] = useState(false);
+  const accessWasGrantedRef = useRef(false);
+  const entitledRedirectStartedRef = useRef(false);
   const lineParam = (searchParams?.get("line") ?? searchParams?.get("productLine") ?? "").trim().toLowerCase();
   const [productLine, setProductLine] = useState<"basic" | "pro">(
     lineParam === "pro" ? "pro" : "basic"
@@ -105,6 +107,7 @@ export default function MembershipPage() {
   const hasProFeatures = Boolean(session?.user?.hasProFeatures);
   const accessState = dashboardAccessStateFromSession(status, session?.user);
   const hasAccess = accessState === "granted";
+  if (hasAccess) accessWasGrantedRef.current = true;
   const exempt = Boolean(session?.user?.subscriptionExempt);
   const periodEnd = session?.user?.subscriptionActiveUntil ?? null;
   const sessionUser = session?.user as { helpTier?: string } | undefined;
@@ -601,7 +604,7 @@ export default function MembershipPage() {
     if (!hasAccess || showUpgradeCheckout) return;
     if (showActivationWelcome) return;
     try {
-      if (sessionStorage.getItem("mcg_membership_welcome")) {
+      if (sessionStorage.getItem(MEMBERSHIP_WELCOME_KEY)) {
         setShowActivationWelcome(true);
       }
     } catch {
@@ -609,7 +612,28 @@ export default function MembershipPage() {
     }
   }, [hasAccess, showActivationWelcome, showUpgradeCheckout]);
 
-  if (status === "loading" || accessState === "loading") {
+  useEffect(() => {
+    if (!hasAccess || showUpgradeCheckout || showActivationWelcome) return;
+    if (typeof window === "undefined") return;
+    if (membershipUrlAllowsEntitledStay(window.location.search)) return;
+    try {
+      if (sessionStorage.getItem(MEMBERSHIP_WELCOME_KEY)) return;
+    } catch {
+      /* ignore */
+    }
+    if (entitledRedirectStartedRef.current) return;
+    entitledRedirectStartedRef.current = true;
+    void (async () => {
+      try {
+        await update({ refreshAccess: true });
+      } catch {
+        /* navigate anyway */
+      }
+      window.location.replace("/");
+    })();
+  }, [hasAccess, showActivationWelcome, showUpgradeCheckout, update]);
+
+  if (status === "loading" || (accessState === "loading" && !accessWasGrantedRef.current)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[color:var(--mcg-page)] px-6 text-sm text-zinc-400">
         Loading…
@@ -659,7 +683,10 @@ export default function MembershipPage() {
             userProductTier={userProductTier}
             periodEnd={periodEnd}
             discordInviteUrl={discordInvite}
-            onDismissWelcome={() => setShowActivationWelcome(false)}
+            onDismissWelcome={() => {
+              clearMembershipWelcome();
+              setShowActivationWelcome(false);
+            }}
           />
         </main>
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { membershipUrlAllowsEntitledStay, peekMembershipWelcome } from "@/lib/membershipActivation";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef } from "react";
 
@@ -7,15 +8,22 @@ const FOCUS_DEBOUNCE_MS = 12_000;
 
 /**
  * Refetch session when Discord/subscription gates look stuck (stale JWT).
- * Also helps users escape /membership after a transient false "not in guild" lock.
+ * Also helps entitled users leave /membership once after OAuth (without refresh loops).
  */
 export function SessionGateRecovery() {
   const { data: session, status, update } = useSession();
   const lastAtRef = useRef(0);
   const mountedRefreshRef = useRef(false);
+  const membershipEscapeStartedRef = useRef(false);
 
   useEffect(() => {
     if (status !== "authenticated") return;
+    if (typeof window === "undefined") return;
+
+    const pathname = window.location.pathname;
+    if (!pathname.startsWith("/membership")) {
+      membershipEscapeStartedRef.current = false;
+    }
 
     const u = session?.user as {
       helpTier?: string;
@@ -41,24 +49,39 @@ export function SessionGateRecovery() {
       u.canModerate === true ||
       u.subscriptionExempt === true;
 
-    /** Session says unlocked but JWT may be stale — refresh so middleware on `/` sees updated claims. */
+    /** Entitled users should not linger on /membership — refresh JWT once, then hard-nav to `/`. */
     if (
       u.hasDashboardAccess === true &&
-      typeof window !== "undefined" &&
-      window.location.pathname.startsWith("/membership")
+      pathname.startsWith("/membership") &&
+      !membershipEscapeStartedRef.current
     ) {
-      bump(true);
+      if (peekMembershipWelcome()) return;
+      if (membershipUrlAllowsEntitledStay(window.location.search)) return;
+
+      membershipEscapeStartedRef.current = true;
+      void (async () => {
+        try {
+          await update({ refreshAccess: true });
+        } catch {
+          /* still navigate — middleware may have a fresh enough JWT */
+        }
+        window.location.replace("/");
+      })();
       return;
     }
 
-    /** Staff / exempt / subscribed on /membership while session flag is stale — refresh JWT before next navigation. */
+    /** Staff / exempt / subscribed on /membership while session flag is stale — one refresh per mount. */
     if (
       staffLike &&
-      (u.hasActiveSubscription === true || u.subscriptionExempt === true || u.helpTier === "admin" || u.helpTier === "mod") &&
-      typeof window !== "undefined" &&
-      window.location.pathname.startsWith("/membership") &&
-      u.hasDashboardAccess !== true
+      (u.hasActiveSubscription === true ||
+        u.subscriptionExempt === true ||
+        u.helpTier === "admin" ||
+        u.helpTier === "mod") &&
+      pathname.startsWith("/membership") &&
+      u.hasDashboardAccess !== true &&
+      !mountedRefreshRef.current
     ) {
+      mountedRefreshRef.current = true;
       bump(true);
       return;
     }
