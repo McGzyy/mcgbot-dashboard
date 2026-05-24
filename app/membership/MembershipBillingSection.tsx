@@ -58,6 +58,9 @@ type MembershipBillingSectionProps = {
   maintenanceNote?: React.ReactNode;
   signupsPausedNote?: React.ReactNode;
   signupsPausedAdminNote?: React.ReactNode;
+  /** Renders inside unified checkout shell (no extra outer card). */
+  embedded?: boolean;
+  unlockCheckoutHint?: string | null;
 };
 
 function CheckIcon({ className = "" }: { className?: string }) {
@@ -104,6 +107,8 @@ export function MembershipBillingSection({
   maintenanceNote,
   signupsPausedNote,
   signupsPausedAdminNote,
+  embedded = false,
+  unlockCheckoutHint = null,
 }: MembershipBillingSectionProps) {
   const lineMeta = TIER_MARKETING[productLine];
   const isPro = productLine === "pro";
@@ -127,29 +132,39 @@ export function MembershipBillingSection({
   const selectedAnnualSavings =
     selectedPlan?.billingMonths === 12 ? annualSavings : null;
 
+  const shellClass = embedded
+    ? "w-full"
+    : "overflow-hidden rounded-3xl border border-zinc-800/60 bg-[linear-gradient(168deg,rgba(18,18,20,0.95)_0%,rgba(6,6,8,0.98)_48%,rgba(0,0,0,0.85)_100%)] shadow-[0_32px_120px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.04]";
+
+  const bodyPad = embedded ? "" : "px-5 py-6 sm:px-7 sm:py-8";
+
   return (
     <section className="mx-auto w-full max-w-4xl" aria-labelledby="membership-billing-heading">
-      <div className="overflow-hidden rounded-3xl border border-zinc-800/60 bg-[linear-gradient(168deg,rgba(18,18,20,0.95)_0%,rgba(6,6,8,0.98)_48%,rgba(0,0,0,0.85)_100%)] shadow-[0_32px_120px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.04]">
-        <div className="border-b border-zinc-800/50 px-5 py-4 sm:px-7 sm:py-5">
-          <div className="flex items-center justify-between gap-4">
-            <h2
-              id="membership-billing-heading"
-              className="text-lg font-semibold tracking-tight text-white sm:text-xl"
-            >
-              2. Billing & pay
-            </h2>
-            <a
-              href={discordInviteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 text-xs font-medium text-zinc-500 transition hover:text-zinc-300"
-            >
-              Support
-            </a>
-          </div>
+      <div className={shellClass}>
+        <div
+          className={
+            embedded
+              ? "flex items-center justify-between gap-4 border-t border-zinc-800/50 pt-8"
+              : "border-b border-zinc-800/50 px-5 py-4 sm:px-7 sm:py-5"
+          }
+        >
+          <h2
+            id="membership-billing-heading"
+            className="text-lg font-semibold tracking-tight text-white sm:text-xl"
+          >
+            Billing & pay
+          </h2>
+          <a
+            href={discordInviteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 text-xs font-medium text-zinc-500 transition hover:text-zinc-300"
+          >
+            Support
+          </a>
         </div>
 
-        <div className="px-5 py-6 sm:px-7 sm:py-8">
+        <div className={bodyPad}>
           {maintenanceNote}
           {signupsPausedNote}
           {signupsPausedAdminNote}
@@ -400,9 +415,9 @@ export function MembershipBillingSection({
                       for a year.
                     </p>
                   ) : null}
-                  {!checkoutAllowed ? (
-                    <p className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/8 px-3 py-2.5 text-[11px] leading-relaxed text-amber-100/85">
-                      Sign in with Discord and join the server to unlock checkout.
+                  {!checkoutAllowed && unlockCheckoutHint ? (
+                    <p className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/8 px-3 py-2.5 text-xs leading-relaxed text-amber-100/85">
+                      {unlockCheckoutHint}
                     </p>
                   ) : null}
                 </>

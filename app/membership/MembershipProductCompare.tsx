@@ -30,18 +30,18 @@ function TierCard({
 
   const shell = isPro
     ? selected
-      ? "border-sky-400/55 ring-1 ring-sky-400/30"
-      : "border-zinc-800/80 hover:border-sky-500/35"
+      ? "border-sky-400/50 bg-[linear-gradient(165deg,rgba(14,116,144,0.2)_0%,rgba(9,9,11,0.95)_55%)] shadow-[0_0_0_1px_rgba(56,189,248,0.25)]"
+      : "border-zinc-800/70 bg-zinc-950/40 hover:border-sky-500/30"
     : selected
-      ? "border-emerald-400/50 ring-1 ring-emerald-400/25"
-      : "border-zinc-800/80 hover:border-zinc-600/70";
+      ? "border-emerald-400/45 bg-[linear-gradient(165deg,rgba(16,185,129,0.12)_0%,rgba(9,9,11,0.95)_55%)] shadow-[0_0_0_1px_rgba(52,211,153,0.2)]"
+      : "border-zinc-800/70 bg-zinc-950/40 hover:border-zinc-600/60";
 
   return (
     <button
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`flex h-full flex-col rounded-2xl border bg-zinc-950/60 p-5 text-left transition duration-200 ${shell}`}
+      className={`flex h-full flex-col rounded-2xl border p-5 text-left transition duration-200 ${shell}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -99,7 +99,7 @@ export function MembershipProductCompare({
         id="membership-compare-heading"
         className="text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl"
       >
-        1. Choose Basic or Pro
+        Basic or Pro
       </h2>
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">

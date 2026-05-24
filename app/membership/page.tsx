@@ -746,7 +746,7 @@ export default function MembershipPage() {
       </div>
 
       <header className="sticky top-0 z-10 border-b border-zinc-800/80 bg-black/40 px-4 py-4 backdrop-blur sm:px-6">
-        <div className="mx-auto flex max-w-4xl items-center justify-between">
+        <div className="mx-auto flex max-w-5xl items-center justify-between">
           <Link href="/" className="flex min-w-0 items-center" aria-label="McGBot Terminal home">
             <Image
               src="/brand/mcgbot-terminal-logo.png"
@@ -767,19 +767,18 @@ export default function MembershipPage() {
               Log out
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={() => void signIn("discord", { callbackUrl: membershipCallbackUrl })}
-              className="rounded-lg bg-[#5865F2] px-3 py-1.5 text-xs font-bold text-white shadow-[0_0_20px_rgba(88,101,242,0.35)] transition hover:bg-[#4752c4]"
+            <Link
+              href="/"
+              className="text-xs font-medium text-zinc-500 transition hover:text-zinc-300"
             >
-              Continue with Discord
-            </button>
+              ← Home
+            </Link>
           )}
         </div>
       </header>
 
       <main className="mx-auto flex min-w-0 max-w-5xl flex-col gap-6 overflow-x-clip px-4 py-6 pb-28 sm:px-6 sm:py-8 sm:pb-10">
-        <div className="order-1 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="order-1 flex flex-col gap-5 border-b border-zinc-800/60 pb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
               {siteFlags?.paywall_title?.trim() || "Choose a plan"}
@@ -789,6 +788,25 @@ export default function MembershipPage() {
             ) : null}
           </div>
 
+          {!isLoggedIn ? (
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[220px] sm:items-stretch">
+              <button
+                type="button"
+                onClick={() => void signIn("discord", { callbackUrl: membershipCallbackUrl })}
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-[#5865F2] px-5 text-sm font-bold text-white shadow-[0_8px_32px_rgba(88,101,242,0.35)] transition hover:bg-[#4752c4]"
+              >
+                Continue with Discord
+              </button>
+              <a
+                href={resolveDiscordInviteUrl(siteFlags)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-center text-xs text-zinc-500 underline-offset-2 hover:text-zinc-400 hover:underline sm:text-right"
+              >
+                Need a server invite?
+              </a>
+            </div>
+          ) : (
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <span
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium sm:px-3 sm:py-1 sm:text-[11px] ${
@@ -836,34 +854,12 @@ export default function MembershipPage() {
               ) : null}
             </span>
           </div>
+          )}
         </div>
 
         <div className="order-2 md:hidden">
           <MembershipFlowSteps />
         </div>
-
-        {anonPreview ? (
-          <div className="order-3 flex flex-col gap-2 rounded-xl border border-[#5865F2]/35 bg-[#5865F2]/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-zinc-200">Sign in with Discord and join the server to pay.</p>
-            <div className="flex shrink-0 gap-2">
-              <button
-                type="button"
-                onClick={() => void signIn("discord", { callbackUrl: membershipCallbackUrl })}
-                className="inline-flex h-9 items-center justify-center rounded-lg bg-[#5865F2] px-4 text-xs font-bold text-white transition hover:bg-[#4752c4]"
-              >
-                Continue with Discord
-              </button>
-              <a
-                href={resolveDiscordInviteUrl(siteFlags)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-600 px-3 text-xs font-semibold text-zinc-300 hover:bg-zinc-800/50"
-              >
-                Invite
-              </a>
-            </div>
-          </div>
-        ) : null}
 
         <div className="order-8 md:hidden">
           <MembershipValueProps />
@@ -975,7 +971,19 @@ export default function MembershipPage() {
           </div>
         ) : null}
 
-        <div className="order-5 space-y-8">
+        <div className="order-5 overflow-hidden rounded-3xl border border-zinc-800/60 bg-zinc-950/30 shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.04]">
+          {!checkoutAllowed && !isLoggedIn ? (
+            <p className="border-b border-zinc-800/50 bg-zinc-900/40 px-5 py-3 text-center text-sm text-zinc-400 sm:px-7">
+              Continue with Discord above to unlock checkout.
+            </p>
+          ) : null}
+          {!checkoutAllowed && isLoggedIn ? (
+            <p className="border-b border-zinc-800/50 bg-amber-500/5 px-5 py-3 text-center text-sm text-amber-100/90 sm:px-7">
+              Join the McGBot Discord server and complete verification to unlock checkout.
+            </p>
+          ) : null}
+
+          <div className="space-y-10 px-5 py-6 sm:px-7 sm:py-8">
           <MembershipProductCompare
             productLine={productLine}
             onProductLineChange={(line) => {
@@ -992,6 +1000,8 @@ export default function MembershipPage() {
           ) : null}
 
           <MembershipBillingSection
+          embedded
+          unlockCheckoutHint={null}
           productLine={productLine}
           plansForLine={plansForLine}
           plansError={plansError}
@@ -1060,6 +1070,7 @@ export default function MembershipPage() {
             ) : null
           }
         />
+          </div>
         </div>
       </main>
     </div>
