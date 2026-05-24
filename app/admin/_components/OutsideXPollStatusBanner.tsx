@@ -133,7 +133,15 @@ export function OutsideXPollStatusBanner({ className = "" }: { className?: strin
                     in <span className="font-mono text-[10px]">mcgzyy-bot/.env</span>, then restart the Discord bot.
                   </p>
                 ) : poll.blockers.length > 0 ? (
-                  <p className="mt-1 font-mono text-[10px] text-zinc-500">{poll.blockers.join(" · ")}</p>
+                  <>
+                    <p className="mt-2 text-[11px] leading-relaxed text-amber-200/85">
+                      These variables must live on your{" "}
+                      <span className="font-semibold text-amber-100">bot VPS</span> where{" "}
+                      <span className="font-mono text-[10px]">index.js</span> / pm2 runs — Vercel env does
+                      not apply to X polling.
+                    </p>
+                    <p className="mt-1 font-mono text-[10px] text-zinc-500">{poll.blockers.join(" · ")}</p>
+                  </>
                 ) : null}
               </>
             ) : (
