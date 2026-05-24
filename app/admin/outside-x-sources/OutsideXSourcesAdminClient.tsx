@@ -3,6 +3,11 @@
 import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { OutsideXPollStatusBanner } from "@/app/admin/_components/OutsideXPollStatusBanner";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import {
+  DEFAULT_OUTSIDE_COOLDOWN_MAX,
+  DEFAULT_OUTSIDE_COOLDOWN_MINUTES,
+  formatOutsideBlockPhrasesForAdmin,
+} from "@/lib/outsideIngestPolicy";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -34,8 +39,16 @@ function statusBadgeClass(status: string): string {
 
 export function OutsideXSourcesAdminClient() {
   const [featureEnabled, setFeatureEnabled] = useState(true);
+  const [xPollingEnabled, setXPollingEnabled] = useState(true);
   const [featureToggleBusy, setFeatureToggleBusy] = useState(false);
+  const [xPollToggleBusy, setXPollToggleBusy] = useState(false);
   const [featureMsg, setFeatureMsg] = useState<string | null>(null);
+  const [xPollMsg, setXPollMsg] = useState<string | null>(null);
+  const [blockPhrasesText, setBlockPhrasesText] = useState("");
+  const [cooldownMax, setCooldownMax] = useState(String(DEFAULT_OUTSIDE_COOLDOWN_MAX));
+  const [cooldownMinutes, setCooldownMinutes] = useState(String(DEFAULT_OUTSIDE_COOLDOWN_MINUTES));
+  const [ingestPolicyBusy, setIngestPolicyBusy] = useState(false);
+  const [ingestPolicyMsg, setIngestPolicyMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [sources, setSources] = useState<SourceRow[]>([]);
@@ -49,10 +62,27 @@ export function OutsideXSourcesAdminClient() {
       const res = await fetch("/api/admin/app-settings", { credentials: "same-origin", cache: "no-store" });
       const j = (await res.json().catch(() => ({}))) as {
         success?: boolean;
-        settings?: { outside_calls_enabled?: boolean };
+        settings?: {
+          outside_calls_enabled?: boolean;
+          outside_x_polling_enabled?: boolean;
+          outside_block_phrases?: string[];
+          outside_source_cooldown_max?: number;
+          outside_source_cooldown_minutes?: number;
+        };
       };
       if (res.ok && j.success && j.settings) {
         setFeatureEnabled(j.settings.outside_calls_enabled !== false);
+        setXPollingEnabled(j.settings.outside_x_polling_enabled !== false);
+        const phrases = Array.isArray(j.settings.outside_block_phrases)
+          ? j.settings.outside_block_phrases
+          : [];
+        setBlockPhrasesText(formatOutsideBlockPhrasesForAdmin(phrases));
+        if (typeof j.settings.outside_source_cooldown_max === "number") {
+          setCooldownMax(String(j.settings.outside_source_cooldown_max));
+        }
+        if (typeof j.settings.outside_source_cooldown_minutes === "number") {
+          setCooldownMinutes(String(j.settings.outside_source_cooldown_minutes));
+        }
       }
     } catch {
       /* keep prior */
@@ -83,8 +113,8 @@ export function OutsideXSourcesAdminClient() {
       setFeatureEnabled(on);
       setFeatureMsg(
         on
-          ? "Outside Calls live for Pro — tape, submissions, and bot X polling active."
-          : "Outside Calls off — Pro users see coming soon; bot stops X timeline reads."
+          ? "Outside Calls live for Pro — tape and submissions active."
+          : "Outside Calls off — Pro users see coming soon; X polling pauses automatically."
       );
       window.setTimeout(() => setFeatureMsg(null), 4000);
     } catch {
@@ -93,6 +123,92 @@ export function OutsideXSourcesAdminClient() {
       setFeatureToggleBusy(false);
     }
   }, []);
+
+  const setXPollingEnabledRemote = useCallback(async (next: boolean) => {
+    setXPollToggleBusy(true);
+    setXPollMsg(null);
+    setErr(null);
+    try {
+      const res = await fetch("/api/admin/app-settings", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outside_x_polling_enabled: next }),
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        settings?: { outside_x_polling_enabled?: boolean };
+      };
+      if (!res.ok || !j.success) {
+        setErr(typeof j.error === "string" ? j.error : "Could not update X polling setting.");
+        return;
+      }
+      const on = j.settings?.outside_x_polling_enabled !== false;
+      setXPollingEnabled(on);
+      setXPollMsg(
+        on
+          ? "X polling resumed — bot reads active monitors (lean mode, X API credits)."
+          : "X polling paused — no timeline reads; Outside Calls tape can stay live."
+      );
+      window.setTimeout(() => setXPollMsg(null), 4000);
+    } catch {
+      setErr("Network error while updating X polling setting.");
+    } finally {
+      setXPollToggleBusy(false);
+    }
+  }, []);
+
+  const saveIngestPolicy = useCallback(async () => {
+    setIngestPolicyBusy(true);
+    setIngestPolicyMsg(null);
+    setErr(null);
+    try {
+      const max = Number(cooldownMax);
+      const minutes = Number(cooldownMinutes);
+      const res = await fetch("/api/admin/app-settings", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outside_block_phrases: blockPhrasesText,
+          outside_source_cooldown_max: max,
+          outside_source_cooldown_minutes: minutes,
+        }),
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        settings?: {
+          outside_block_phrases?: string[];
+          outside_source_cooldown_max?: number;
+          outside_source_cooldown_minutes?: number;
+        };
+      };
+      if (!res.ok || !j.success) {
+        setErr(typeof j.error === "string" ? j.error : "Could not save ingest policy.");
+        return;
+      }
+      if (j.settings) {
+        const phrases = Array.isArray(j.settings.outside_block_phrases)
+          ? j.settings.outside_block_phrases
+          : [];
+        setBlockPhrasesText(formatOutsideBlockPhrasesForAdmin(phrases));
+        if (typeof j.settings.outside_source_cooldown_max === "number") {
+          setCooldownMax(String(j.settings.outside_source_cooldown_max));
+        }
+        if (typeof j.settings.outside_source_cooldown_minutes === "number") {
+          setCooldownMinutes(String(j.settings.outside_source_cooldown_minutes));
+        }
+      }
+      setIngestPolicyMsg("Ingest policy saved — bot picks this up within ~15s.");
+      window.setTimeout(() => setIngestPolicyMsg(null), 4000);
+    } catch {
+      setErr("Network error while saving ingest policy.");
+    } finally {
+      setIngestPolicyBusy(false);
+    }
+  }, [blockPhrasesText, cooldownMax, cooldownMinutes]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -231,12 +347,12 @@ export function OutsideXSourcesAdminClient() {
                   <Link href="/outside-calls" className="text-cyan-400/90 underline-offset-2 hover:underline">
                     /outside-calls
                   </Link>
-                  ; bot polls active monitors (lean mode, X read credits).
+                  ; X polling can be controlled separately below.
                 </>
               ) : (
                 <>
                   <span className="font-medium text-cyan-200">Coming soon</span> — Pro members see the preview page;
-                  bot X polling pauses to save API credits. Monitors below stay configured for launch.
+                  X polling pauses automatically. Monitors below stay configured for launch.
                 </>
               )}
             </p>
@@ -260,6 +376,110 @@ export function OutsideXSourcesAdminClient() {
               Coming soon
             </button>
           </div>
+        </div>
+      </AdminPanel>
+
+      <AdminPanel
+        className={`p-4 ${xPollingEnabled && featureEnabled ? "border-emerald-500/25 bg-zinc-950/40" : "border-amber-500/30 bg-amber-950/15"}`}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+              X polling (bot host)
+            </p>
+            <p className="mt-1 text-sm text-zinc-300">
+              {!featureEnabled ? (
+                <>
+                  <span className="font-medium text-zinc-400">Off</span> — enable Outside Calls above first.
+                </>
+              ) : xPollingEnabled ? (
+                <>
+                  <span className="font-medium text-emerald-200">On</span> — bot reads active monitors on X (lean
+                  cadence; uses read credits).
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-amber-200">Paused</span> — no X timeline reads; tape and
+                  submissions stay live.
+                </>
+              )}
+            </p>
+            {xPollMsg ? <p className="mt-2 text-xs text-emerald-300/90">{xPollMsg}</p> : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={xPollToggleBusy || !featureEnabled || xPollingEnabled}
+              onClick={() => void setXPollingEnabledRemote(true)}
+              className="rounded-lg border border-emerald-600/40 bg-emerald-950/40 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-900/50 disabled:opacity-45"
+            >
+              Resume polling
+            </button>
+            <button
+              type="button"
+              disabled={xPollToggleBusy || !featureEnabled || !xPollingEnabled}
+              onClick={() => void setXPollingEnabledRemote(false)}
+              className="rounded-lg border border-amber-600/40 bg-amber-950/40 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-900/50 disabled:opacity-45"
+            >
+              Pause polling
+            </button>
+          </div>
+        </div>
+      </AdminPanel>
+
+      <AdminPanel className="p-4 border-zinc-700/80 bg-zinc-950/40">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+          Ingest policy
+        </p>
+        <p className="mt-1 text-sm text-zinc-400">
+          Applied on the bot host when X polling runs. Posts matching a block phrase are skipped (cursor still
+          advances). Cooldown caps how many tape rows each monitor can add per window (0 max = unlimited).
+        </p>
+        <label className="mt-4 block text-xs font-semibold text-zinc-400">
+          Block phrases <span className="font-normal text-zinc-600">(one per line, case-insensitive substring)</span>
+          <textarea
+            value={blockPhrasesText}
+            onChange={(e) => setBlockPhrasesText(e.target.value)}
+            rows={5}
+            className="mt-1 w-full max-w-lg rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 font-mono text-xs text-zinc-100 outline-none ring-cyan-500/30 focus:ring-2"
+            placeholder={"scam\nstay away\nexit liquidity\ndon't buy\nrug pull\nhoneypot"}
+            spellCheck={false}
+          />
+        </label>
+        <div className="mt-4 flex flex-wrap gap-4">
+          <label className="block text-xs font-semibold text-zinc-400">
+            Max calls per source
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={cooldownMax}
+              onChange={(e) => setCooldownMax(e.target.value)}
+              className="mt-1 w-24 rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan-500/30 focus:ring-2"
+            />
+          </label>
+          <label className="block text-xs font-semibold text-zinc-400">
+            Window (minutes)
+            <input
+              type="number"
+              min={1}
+              max={1440}
+              value={cooldownMinutes}
+              onChange={(e) => setCooldownMinutes(e.target.value)}
+              className="mt-1 w-28 rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 outline-none ring-cyan-500/30 focus:ring-2"
+            />
+          </label>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={ingestPolicyBusy}
+            onClick={() => void saveIngestPolicy()}
+            className="rounded-lg border border-cyan-600/40 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-900/50 disabled:opacity-45"
+          >
+            {ingestPolicyBusy ? "Saving…" : "Save ingest policy"}
+          </button>
+          {ingestPolicyMsg ? <p className="text-xs text-emerald-300/90">{ingestPolicyMsg}</p> : null}
         </div>
       </AdminPanel>
 

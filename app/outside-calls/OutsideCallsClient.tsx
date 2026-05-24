@@ -16,6 +16,7 @@ import { normalizeXHandle } from "@/lib/outsideXCalls/normalizeXHandle";
 import {
   OUTSIDE_CALLS_EYEBROW,
   OUTSIDE_CALLS_FEATURES,
+  OUTSIDE_CALLS_EMPTY_TAPE,
   OUTSIDE_CALLS_LIVE_HEADER,
   OUTSIDE_CALLS_PRO_GATE_INLINE,
   OUTSIDE_CALLS_PRO_UPGRADE,
@@ -44,6 +45,8 @@ type FeedCall = {
   tokenName?: string | null;
   tokenTicker?: string | null;
   tokenImageUrl?: string | null;
+  postText?: string | null;
+  postMediaUrls?: string[];
   source: { displayName: string; xHandle: string; trustScore: number | null };
 };
 
@@ -567,6 +570,32 @@ export function OutsideCallsClient() {
                             </a>
                           ) : null}
                         </div>
+                        {c.postText ? (
+                          <p className="mt-3 whitespace-pre-wrap text-xs leading-relaxed text-zinc-400">
+                            {c.postText.length > 480 ? `${c.postText.slice(0, 480)}…` : c.postText}
+                          </p>
+                        ) : null}
+                        {c.postMediaUrls && c.postMediaUrls.length > 0 ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {c.postMediaUrls.map((url) => (
+                              <a
+                                key={url}
+                                href={url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block overflow-hidden rounded-lg border border-zinc-700/60"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={url}
+                                  alt=""
+                                  className="h-20 w-20 object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                              </a>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </li>

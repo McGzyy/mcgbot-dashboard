@@ -126,11 +126,11 @@ export function OutsideXPollStatusBanner({ className = "" }: { className?: strin
                   </p>
                 ) : poll.status === "disabled" ? (
                   <p className="mt-1 text-[11px] text-zinc-500">
-                    Set or clear{" "}
+                    Pause via Admin → Outside X monitors → <span className="text-zinc-400">Pause polling</span>, or set{" "}
                     <code className="rounded bg-black/40 px-1 font-mono text-[10px]">
-                      OUTSIDE_X_CALLS_POLL_DISABLED
+                      OUTSIDE_X_CALLS_POLL_DISABLED=1
                     </code>{" "}
-                    in <span className="font-mono text-[10px]">mcgzyy-bot/.env</span>, then restart the Discord bot.
+                    on the bot host, then restart pm2.
                   </p>
                 ) : poll.blockers.length > 0 ? (
                   <>

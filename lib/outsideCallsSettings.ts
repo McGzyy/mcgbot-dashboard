@@ -1,6 +1,6 @@
 import { getDashboardAdminSettings } from "@/lib/dashboardAdminSettingsDb";
 
-let cache: { expires: number; enabled: boolean } | null = null;
+let cache: { expires: number; enabled: boolean; xPollingEnabled: boolean } | null = null;
 const TTL_MS = 15_000;
 
 function truthyEnv(v: string | undefined): boolean {
@@ -31,8 +31,25 @@ export async function isOutsideCallsEnabled(): Promise<boolean> {
 
   const row = await getDashboardAdminSettings();
   const enabled = row == null ? true : row.outside_calls_enabled !== false;
-  cache = { expires: now + TTL_MS, enabled };
+  const xPollingEnabled = row == null ? true : row.outside_x_polling_enabled !== false;
+  cache = { expires: now + TTL_MS, enabled, xPollingEnabled };
   return enabled;
+}
+
+/** Bot X timeline reads — requires product live and polling toggle on. */
+export async function isOutsideXPollingEnabled(): Promise<boolean> {
+  if (envForceOff()) return false;
+
+  const now = Date.now();
+  if (cache && cache.expires > now) {
+    return cache.enabled && cache.xPollingEnabled;
+  }
+
+  const row = await getDashboardAdminSettings();
+  const enabled = row == null ? true : row.outside_calls_enabled !== false;
+  const xPollingEnabled = row == null ? true : row.outside_x_polling_enabled !== false;
+  cache = { expires: now + TTL_MS, enabled, xPollingEnabled };
+  return enabled && xPollingEnabled;
 }
 
 export function outsideCallsFeatureDisabledResponse(): Response {

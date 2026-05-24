@@ -32,6 +32,8 @@ type CallRow = {
   posted_at: string;
   signal_ticker?: string | null;
   mint_resolution?: string | null;
+  post_text?: string | null;
+  post_media_urls?: unknown;
   trust_max_ath_multiple?: number | null;
   entry_mcap_usd?: number | null;
   trust_failure_applied?: boolean | null;
@@ -73,6 +75,8 @@ export async function GET(request: Request) {
       posted_at,
       signal_ticker,
       mint_resolution,
+      post_text,
+      post_media_urls,
       trust_max_ath_multiple,
       entry_mcap_usd,
       trust_failure_applied,
@@ -111,6 +115,8 @@ export async function GET(request: Request) {
         postedAt: r.posted_at,
         signalTicker: r.signal_ticker ?? null,
         mintResolution: r.mint_resolution ?? null,
+        postText: typeof r.post_text === "string" && r.post_text.trim() ? r.post_text.trim() : null,
+        postMediaUrls,
         peakMultiple: peakFromTrust,
         entryMcapUsd:
           typeof r.entry_mcap_usd === "number" && Number.isFinite(r.entry_mcap_usd)

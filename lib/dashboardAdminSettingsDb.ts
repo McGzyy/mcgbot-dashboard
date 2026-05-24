@@ -1,4 +1,12 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  clampOutsideCooldownMax,
+  clampOutsideCooldownMinutes,
+  DEFAULT_OUTSIDE_BLOCK_PHRASES,
+  DEFAULT_OUTSIDE_COOLDOWN_MAX,
+  DEFAULT_OUTSIDE_COOLDOWN_MINUTES,
+  parseOutsideBlockPhrasesInput,
+} from "@/lib/outsideIngestPolicy";
 import type { XLeaderboardDigestFormat } from "@/lib/xDigestTweetFormat";
 
 export type DashboardAdminSettingsRow = {
@@ -49,8 +57,16 @@ export type DashboardAdminSettingsRow = {
   x_leaderboard_digest_format: unknown | null;
   /** Home Social Feed panel + X Bearer timeline ingest. */
   social_feed_enabled: boolean;
-  /** Pro Outside Calls tape + bot outside_x_sources X poller. */
+  /** Pro Outside Calls tape + submissions. */
   outside_calls_enabled: boolean;
+  /** Bot X timeline reads for outside_x_sources (requires outside_calls_enabled). */
+  outside_x_polling_enabled: boolean;
+  /** Substrings that block an X post before Telegram/FaSol ingest. */
+  outside_block_phrases: string[];
+  /** Max outside_calls per source in the cooldown window (0 = unlimited). */
+  outside_source_cooldown_max: number;
+  /** Rolling cooldown window in minutes. */
+  outside_source_cooldown_minutes: number;
   /** Last announcement content version fan-out to user inboxes (dedupe). */
   announcement_inbox_broadcast_version: string | null;
   updated_at: string;
@@ -92,6 +108,10 @@ function defaultRow(): DashboardAdminSettingsRow {
     x_leaderboard_digest_format: null,
     social_feed_enabled: false,
     outside_calls_enabled: true,
+    outside_x_polling_enabled: true,
+    outside_block_phrases: [...DEFAULT_OUTSIDE_BLOCK_PHRASES],
+    outside_source_cooldown_max: DEFAULT_OUTSIDE_COOLDOWN_MAX,
+    outside_source_cooldown_minutes: DEFAULT_OUTSIDE_COOLDOWN_MINUTES,
     announcement_inbox_broadcast_version: null,
     updated_at: now,
     updated_by_discord_id: null,
@@ -200,6 +220,21 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
       if (v === true) return true;
       return true;
     })(),
+    outside_x_polling_enabled: (() => {
+      const v = (r as { outside_x_polling_enabled?: unknown }).outside_x_polling_enabled;
+      if (v === false) return false;
+      if (v === true) return true;
+      return true;
+    })(),
+    outside_block_phrases: parseOutsideBlockPhrasesInput(
+      (r as { outside_block_phrases?: unknown }).outside_block_phrases
+    ),
+    outside_source_cooldown_max: clampOutsideCooldownMax(
+      (r as { outside_source_cooldown_max?: unknown }).outside_source_cooldown_max
+    ),
+    outside_source_cooldown_minutes: clampOutsideCooldownMinutes(
+      (r as { outside_source_cooldown_minutes?: unknown }).outside_source_cooldown_minutes
+    ),
     announcement_inbox_broadcast_version:
       typeof (r as { announcement_inbox_broadcast_version?: unknown }).announcement_inbox_broadcast_version ===
       "string"
@@ -242,6 +277,10 @@ export async function patchDashboardAdminSettings(input: {
   x_leaderboard_digest_format?: XLeaderboardDigestFormat | null;
   social_feed_enabled?: boolean;
   outside_calls_enabled?: boolean;
+  outside_x_polling_enabled?: boolean;
+  outside_block_phrases?: string[];
+  outside_source_cooldown_max?: number;
+  outside_source_cooldown_minutes?: number;
   updatedByDiscordId: string;
 }): Promise<DashboardAdminSettingsRow | null> {
   const db = getSupabaseAdmin();
@@ -365,6 +404,20 @@ export async function patchDashboardAdminSettings(input: {
   if (typeof input.outside_calls_enabled === "boolean") {
     next.outside_calls_enabled = input.outside_calls_enabled;
   }
+  if (typeof input.outside_x_polling_enabled === "boolean") {
+    next.outside_x_polling_enabled = input.outside_x_polling_enabled;
+  }
+  if ("outside_block_phrases" in input) {
+    next.outside_block_phrases = parseOutsideBlockPhrasesInput(input.outside_block_phrases);
+  }
+  if (typeof input.outside_source_cooldown_max === "number") {
+    next.outside_source_cooldown_max = clampOutsideCooldownMax(input.outside_source_cooldown_max);
+  }
+  if (typeof input.outside_source_cooldown_minutes === "number") {
+    next.outside_source_cooldown_minutes = clampOutsideCooldownMinutes(
+      input.outside_source_cooldown_minutes
+    );
+  }
 
   const upsertPayload = (omit = new Set<string>()) => {
     const row: Record<string, unknown> = {
@@ -400,6 +453,10 @@ export async function patchDashboardAdminSettings(input: {
       x_leaderboard_digest_format: next.x_leaderboard_digest_format,
       social_feed_enabled: next.social_feed_enabled,
       outside_calls_enabled: next.outside_calls_enabled,
+      outside_x_polling_enabled: next.outside_x_polling_enabled,
+      outside_block_phrases: next.outside_block_phrases,
+      outside_source_cooldown_max: next.outside_source_cooldown_max,
+      outside_source_cooldown_minutes: next.outside_source_cooldown_minutes,
       updated_at: next.updated_at,
       updated_by_discord_id: next.updated_by_discord_id,
     };
@@ -416,7 +473,15 @@ export async function patchDashboardAdminSettings(input: {
     );
   };
 
-  const optionalColumns = ["announcement_global", "social_feed_enabled", "outside_calls_enabled"] as const;
+  const optionalColumns = [
+    "announcement_global",
+    "social_feed_enabled",
+    "outside_calls_enabled",
+    "outside_x_polling_enabled",
+    "outside_block_phrases",
+    "outside_source_cooldown_max",
+    "outside_source_cooldown_minutes",
+  ] as const;
   let omit = new Set<string>();
 
   for (let attempt = 0; attempt < optionalColumns.length + 1; attempt++) {

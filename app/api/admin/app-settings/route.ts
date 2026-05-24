@@ -13,6 +13,11 @@ import {
   patchTouchesAnnouncement,
 } from "@/lib/announcementInboxBroadcast";
 import { assertAnnouncementScheduleOrder } from "@/lib/announcementSchedule";
+import {
+  clampOutsideCooldownMax,
+  clampOutsideCooldownMinutes,
+  parseOutsideBlockPhrasesInput,
+} from "@/lib/outsideIngestPolicy";
 import { mergeDigestFormat } from "@/lib/xDigestTweetFormat";
 
 export const runtime = "nodejs";
@@ -294,6 +299,20 @@ export async function PATCH(req: Request) {
   }
   if (typeof o.outside_calls_enabled === "boolean") {
     patch.outside_calls_enabled = o.outside_calls_enabled;
+  }
+  if (typeof o.outside_x_polling_enabled === "boolean") {
+    patch.outside_x_polling_enabled = o.outside_x_polling_enabled;
+  }
+  if ("outside_block_phrases" in o) {
+    patch.outside_block_phrases = parseOutsideBlockPhrasesInput(o.outside_block_phrases);
+  }
+  if (typeof o.outside_source_cooldown_max === "number") {
+    patch.outside_source_cooldown_max = clampOutsideCooldownMax(o.outside_source_cooldown_max);
+  }
+  if (typeof o.outside_source_cooldown_minutes === "number") {
+    patch.outside_source_cooldown_minutes = clampOutsideCooldownMinutes(
+      o.outside_source_cooldown_minutes
+    );
   }
 
   if ("announcement_visible_from" in patch || "announcement_visible_until" in patch) {

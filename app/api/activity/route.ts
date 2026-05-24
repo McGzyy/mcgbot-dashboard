@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getUserTier } from "@/lib/getUserTier";
+import { sessionHasProFeatures } from "@/lib/subscription/productTierAccess";
+import { isOutsideCallsEnabled } from "@/lib/outsideCallsSettings";
 import {
   formatNewCallActivityLine,
   formatWinActivityLine,
@@ -416,7 +418,12 @@ export async function GET(request: Request) {
     }
     let payload: ActivityApiRow[] = events;
 
-    if (supabaseAdmin && mode !== "following") {
+    const showOutsideInActivity =
+      mode !== "following" &&
+      (await isOutsideCallsEnabled()) &&
+      (sessionHasProFeatures(session) || tier === "admin" || tier === "mod");
+
+    if (supabaseAdmin && showOutsideInActivity) {
       const { data: ocData, error: ocErr } = await supabaseAdmin
         .from("outside_calls")
         .select(

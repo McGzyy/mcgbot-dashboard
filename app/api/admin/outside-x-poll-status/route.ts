@@ -12,6 +12,8 @@ export type OutsideXPollStatusPayload = {
   running: boolean;
   pollIntervalMs: number;
   leanMode: boolean;
+  disabledByDashboard?: boolean;
+  disabledByDashboardPolling?: boolean;
   blockers: string[];
   hint: string;
 };
