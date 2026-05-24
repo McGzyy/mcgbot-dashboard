@@ -4,9 +4,14 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import { DashboardWidgetEmpty } from "@/app/components/dashboard/DashboardWidgetEmpty";
 import { WatchlistContractRowsSkeleton } from "@/app/components/dashboard/dashboardRouteSkeletons";
 import { parseSolanaContractAddressFromInput } from "@/lib/solanaCa";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
+import {
+  terminalListRefreshOpacity,
+  terminalListRowBorder,
+} from "@/lib/terminalListRow";
 
 type WatchlistPayload = {
   private: string[];
@@ -26,7 +31,9 @@ function ContractAddressRow({
 }) {
   const href = `https://dexscreener.com/solana/${encodeURIComponent(contractAddress)}`;
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800/80 bg-black/30 px-3 py-2.5">
+    <div
+      className={`flex items-center justify-between gap-3 rounded-xl bg-zinc-900/25 px-3 py-2.5 ${terminalListRowBorder}`}
+    >
       <div className="min-w-0">
         <p className="truncate font-mono text-[12px] text-zinc-200">{contractAddress}</p>
         <a
@@ -210,7 +217,7 @@ export default function WatchlistPage() {
             <button
               type="button"
               onClick={() => setScope("public")}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/35 ${
                 scope === "public"
                   ? "bg-cyan-500/15 text-cyan-100 ring-1 ring-cyan-500/25"
                   : "text-zinc-400 hover:text-white"
@@ -264,7 +271,7 @@ export default function WatchlistPage() {
 
       <section className="rounded-2xl border border-zinc-800/70 bg-black/20 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-zinc-100">
+          <h2 className="text-sm font-semibold tracking-tight text-zinc-100">
             {scope === "private" ? "Private contracts" : "Public contracts"}{" "}
             <span className="ml-2 rounded-full border border-zinc-800/80 bg-zinc-950/70 px-2 py-0.5 text-[11px] font-semibold text-zinc-400">
               {loading ? "…" : list.length}
@@ -273,7 +280,7 @@ export default function WatchlistPage() {
           <button
             type="button"
             onClick={() => void load()}
-            className="rounded-lg border border-zinc-800/80 bg-zinc-900/25 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-900/40"
+            className="rounded-lg border border-zinc-800/80 bg-zinc-900/25 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:bg-zinc-900/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40 disabled:opacity-50"
             disabled={loading}
           >
             Refresh
@@ -282,17 +289,16 @@ export default function WatchlistPage() {
 
         <div className={`relative mt-4 min-w-0 ${terminalSurface.dashboardListWell}`}>
           <DashboardRefreshBar active={loading && list.length > 0} />
-          {loading ? (
+          {loading && list.length === 0 ? (
             <WatchlistContractRowsSkeleton />
           ) : list.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-800/80 bg-zinc-950/40 p-6 text-center">
-              <p className="text-sm font-semibold text-zinc-200">No contracts yet</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                Add a contract address above to start building your {scope} watchlist.
-              </p>
-            </div>
+            <DashboardWidgetEmpty
+              badge="Watchlist"
+              title="No contracts yet"
+              description={`Add a contract address above to build your ${scope} list.`}
+            />
           ) : (
-            <div className="space-y-2">
+            <div className={`space-y-2 ${terminalListRefreshOpacity(loading && list.length > 0)}`}>
             {list.map((m) => (
               <ContractAddressRow
                 key={`${scope}:${m}`}

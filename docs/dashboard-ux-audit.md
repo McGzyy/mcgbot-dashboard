@@ -6,12 +6,13 @@ Cross-cutting UX review for the McGBot home dashboard and related surfaces.
 | Theme | Files | Status | Notes |
 | --- | --- | --- | --- |
 | **Motion - shared loading opacity (150-200ms)** | `lib/terminalListRow.ts`, `app/page.tsx` (trending, social, recent calls) | **done** | `terminalListRefreshOpacity()` + list `transition-opacity duration-200` on refetch |
-| **Motion - height-stable skeletons (not text "Loading…")** | `components/terminal/TerminalListSkeleton.tsx`, `app/page.tsx` | **done** | Shared compact/social/recent-calls skeletons |
+| **Motion - height-stable skeletons (not text "Loading…")** | `components/terminal/TerminalListSkeleton.tsx`, `app/page.tsx` | **done** | Shared compact/social/recent-calls/activity skeletons |
+| **Motion - activity poll refetch (no skeleton flash)** | `app/page.tsx` (`ActivityFeedPanel`) | **done** | `TerminalActivitySkeleton` first load only; `terminalListRefreshOpacity` on poll |
 | **Motion - animate-pulse only on first load** | `app/page.tsx` (`SocialsFeedPanel`) | **done** | Poll refetch uses refresh bar + dim; skeleton + pulse only when `rows.length === 0` |
-| **Density - unified list row height/padding** | `lib/terminalListRow.ts`, `components/terminal/TerminalListRow.tsx`, `app/page.tsx` | **partial** | Trending + recent calls wired; social keeps card layout (taller) |
+| **Density - unified list row height/padding** | `lib/terminalListRow.ts`, `components/terminal/TerminalListRow.tsx`, `app/page.tsx`, `app/calls/page.tsx`, `app/watchlist/page.tsx` | **partial** | Trending + recent calls + watchlist rows; activity/calls refetch opacity; social keeps card layout (taller) |
 | **Density - chips, borders, radii alignment** | `lib/terminalDesignTokens.ts`, `lib/terminalListRow.ts` | **partial** | Unified border `border-zinc-800/50 ring-1 ring-white/[0.03]` on list rows; chip pass deferred |
 | **Empty/error - headline + guidance + CTA** | `app/components/dashboard/DashboardWidgetEmpty.tsx`, `app/page.tsx` | **done** | Recent calls, trending, social use `DashboardWidgetEmpty` |
-| **Focus/keyboard - chips, Full log, chart, docks** | `app/page.tsx`, layout shells | **partial** | Trending/opportunity chips + activity tabs + chart have focus rings; docks deferred |
+| **Focus/keyboard - chips, Full log, chart, docks** | `app/page.tsx`, `app/calls/page.tsx`, `app/watchlist/page.tsx` | **partial** | Trending/opportunity/activity tabs + calls window chips + watchlist scope tabs; docks deferred |
 | **Social - category/title truncation narrow** | `app/page.tsx`, `lib/socialFeedCategories.ts` | **done** | Short category labels on `max-sm`; full label in `title` |
 | **Social - link preview hostname-only mobile** | `app/page.tsx` (`SocialFeedFirstLinkPreview`) | **done** | Path hidden below `sm`; full URL in `title` |
 | **Social - hide zero metric columns** | `app/page.tsx` (`SocialFeedPostRow`) | **done** | Metrics render only when non-null |
@@ -35,7 +36,7 @@ Cross-cutting UX review for the McGBot home dashboard and related surfaces.
 | --- | --- |
 | List row tokens | `lib/terminalListRow.ts` |
 | List row component | `components/terminal/TerminalListRow.tsx` |
-| Skeleton rows | `components/terminal/TerminalListSkeleton.tsx` |
+| Skeleton rows | `components/terminal/TerminalListSkeleton.tsx` (`TerminalActivitySkeleton`, `TerminalRecentCallsSkeleton`, …) |
 | Panel refetch bar | `components/terminal/TerminalPanelRefresh.tsx` (re-exports `DashboardRefreshBar`) |
 
 ## Manual verify

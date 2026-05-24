@@ -8,6 +8,7 @@ import { CallTapeTableSkeleton } from "@/app/components/dashboard/dashboardRoute
 import { MyCallLogMobileList } from "@/app/components/dashboard/MyCallLogMobileList";
 import { SubmitDeskCallModal } from "@/app/components/dashboard/SubmitDeskCallModal";
 import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
+import { terminalListRefreshOpacity } from "@/lib/terminalListRow";
 import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { deskCallQuotaFromApi, type DeskCallQuotaUi } from "@/lib/deskCallQuotaDisplay";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
@@ -217,7 +218,7 @@ export default function CallTapePage() {
     return (
       <div className="mx-auto max-w-lg px-4 py-12">
         <h1 className="text-xl font-semibold tracking-tight text-zinc-50">My Call Log</h1>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-500">Sign in with Discord to see your verified calls.</p>
+        <p className="mt-3 text-sm leading-relaxed text-zinc-500">Sign in with Discord to see your logged calls.</p>
         <Link href="/" className="mt-6 inline-flex text-sm font-semibold text-[color:var(--accent)] hover:underline">
           ← Back to dashboard
         </Link>
@@ -248,7 +249,7 @@ export default function CallTapePage() {
               key={w.id}
               type="button"
               onClick={() => setTapeWindow(w.id)}
-              className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
+              className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/35 ${
                 tapeWindow === w.id
                   ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-100 shadow-[0_0_14px_-4px_rgba(34,211,238,0.35)]"
                   : "border-zinc-700/80 bg-zinc-950/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
@@ -333,9 +334,11 @@ export default function CallTapePage() {
         <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">{err}</div>
       ) : null}
 
-      <div className={`relative mt-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/40 ${terminalSurface.insetEdge}`}>
+      <div className={`relative mt-6 ${terminalSurface.dashboardListWell}`}>
         <DashboardRefreshBar active={loading && rows.length > 0} />
-        <div className="lg:hidden">
+        <div
+          className={`lg:hidden ${terminalListRefreshOpacity(loading && rows.length > 0)}`}
+        >
           <MyCallLogMobileList
             rows={rows}
             loading={loading}
@@ -364,7 +367,9 @@ export default function CallTapePage() {
                 <th className="px-3 py-2 text-right sm:px-4">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/60">
+            <tbody
+              className={`divide-y divide-zinc-800/60 ${terminalListRefreshOpacity(loading && rows.length > 0)}`}
+            >
               {loading && rows.length === 0 ? (
                 <CallTapeTableSkeleton />
               ) : rows.length === 0 ? (

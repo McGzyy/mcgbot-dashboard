@@ -104,6 +104,35 @@ export function TerminalListSkeleton({
   );
 }
 
+/** Live Activity feed skeleton (home dashboard). */
+export function TerminalActivitySkeleton({
+  pulse = true,
+  rows = 7,
+}: {
+  pulse?: boolean;
+  rows?: number;
+}) {
+  return (
+    <ul className="space-y-2.5 px-1 py-2 sm:space-y-2" aria-busy="true" aria-label="Loading activity">
+      {Array.from({ length: rows }, (_, i) => (
+        <li key={`act-sk-${i}`}>
+          <div
+            className={`flex gap-2 rounded-lg ${terminalListRowBorder} bg-zinc-900/20 px-3 py-2.5 sm:px-3 sm:py-2 ${skeletonPulse(pulse)}`}
+          >
+            <SkBlock className="h-7 w-7 shrink-0 rounded-full bg-zinc-800/60 sm:h-8 sm:w-8" />
+            <SkBlock className="mt-0.5 h-7 w-7 shrink-0 rounded-lg bg-zinc-800/55" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <SkBlock className="h-3 w-32 max-w-[55%] rounded bg-zinc-800/50" />
+              <SkBlock className="h-2.5 max-w-[95%] rounded bg-zinc-800/40" />
+              <SkBlock className="h-2.5 max-w-[78%] rounded bg-zinc-800/35" />
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Divided recent-calls skeleton (matches static row height). */
 export function TerminalRecentCallsSkeleton({ pulse = true }: { pulse?: boolean }) {
   return (

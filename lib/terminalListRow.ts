@@ -7,6 +7,10 @@
 export const terminalListRowBorder =
   "border border-zinc-800/50 ring-1 ring-white/[0.03]";
 
+/** Section kickers inside dashboard list wells (Tier, Billing, etc.). */
+export const terminalSectionLabel =
+  "text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500";
+
 /** Opacity transition when a panel refetches with existing rows visible. */
 export function terminalListRefreshOpacity(active: boolean): string {
   return `transition-opacity duration-200 ${active ? "opacity-[0.86]" : "opacity-100"}`;

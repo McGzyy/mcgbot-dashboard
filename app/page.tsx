@@ -14,6 +14,7 @@ import { DashboardChatPanel } from "./components/DashboardChatPanel";
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
 import { TerminalListRow } from "@/components/terminal/TerminalListRow";
 import {
+  TerminalActivitySkeleton,
   TerminalListSkeleton,
   TerminalRecentCallsSkeleton,
 } from "@/components/terminal/TerminalListSkeleton";
@@ -1319,25 +1320,6 @@ function widgetEnabled(
 }
 
 
-function ActivityFeedSkeleton() {
-  return (
-    <ul className="space-y-2.5 px-1 py-2 sm:space-y-2" aria-busy="true" aria-label="Loading activity">
-      {Array.from({ length: 8 }, (_, i) => (
-        <li key={`act-sk-${i}`}>
-          <div className="flex animate-pulse gap-2 rounded-lg border border-zinc-800/90 bg-zinc-900/20 px-3 py-2.5 sm:px-3 sm:py-2">
-            <div className="h-8 w-8 shrink-0 rounded-full bg-zinc-800/60" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-3 w-32 max-w-[55%] rounded bg-zinc-800/50" />
-              <div className="h-2.5 max-w-[95%] rounded bg-zinc-800/40" />
-              <div className="h-2.5 max-w-[78%] rounded bg-zinc-800/35" />
-            </div>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function TopPerformersSkeletonRows() {
   return (
     <ul className="space-y-2" aria-busy="true" aria-label="Loading top performers">
@@ -2440,12 +2422,16 @@ function ActivityFeedPanel({
           active={activityRefreshing && !loadingActivity && activity.length > 0}
         />
         <div className="h-[300px] overflow-y-auto pr-1 text-sm no-scrollbar">
-        {loadingActivity ? (
-          <ActivityFeedSkeleton />
+        {loadingActivity && activity.length === 0 ? (
+          <TerminalActivitySkeleton />
         ) : filteredActivity.length === 0 ? (
           <DashboardWidgetEmpty {...emptyFeed} />
         ) : (
-          <ul className="space-y-2.5 text-sm sm:space-y-0">
+          <ul
+            className={`space-y-2.5 text-sm sm:space-y-0 ${terminalListRefreshOpacity(
+              activityRefreshing && !loadingActivity && filteredActivity.length > 0
+            )}`}
+          >
             {filteredActivity.map((item, i) => {
               const rowMint = (viewerId ?? "").trim() ? resolveActivityMint(item) : null;
               const rowKey = item.outsideCallId?.trim()
