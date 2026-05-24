@@ -14,6 +14,7 @@ import {
 import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover";
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
+import { rowCallTimeUtcMs } from "@/lib/callPerformanceLeaderboard";
 import { fetchDiscordIdsExcludedFromLeaderboards } from "@/lib/guildMembershipSync";
 import { buildOutsideActivityLineText } from "@/lib/outsideActivityFeedFormat";
 
@@ -332,12 +333,7 @@ export async function GET(request: Request) {
         | null;
     };
 
-    const activityTimeMs = (t: unknown): number => {
-      if (t instanceof Date) return t.getTime();
-      const s = typeof t === "string" ? t : t != null ? String(t) : "";
-      const ms = Date.parse(s);
-      return Number.isFinite(ms) ? ms : 0;
-    };
+    const activityTimeMs = (t: unknown): number => rowCallTimeUtcMs({ call_time: t });
 
     type ActivityApiRow = (typeof events)[number] & { outside_call_id?: string };
 
