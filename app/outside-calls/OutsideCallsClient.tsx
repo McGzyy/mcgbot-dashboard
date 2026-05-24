@@ -119,7 +119,7 @@ export function OutsideCallsClient() {
     try {
       const res = await fetch("/api/outside-calls/status", { credentials: "same-origin", cache: "no-store" });
       const j = (await res.json().catch(() => ({}))) as { success?: boolean; enabled?: boolean };
-      setFeatureEnabled(res.ok && j.success && j.enabled === true);
+      setFeatureEnabled(res.ok === true && j.success === true && j.enabled === true);
     } catch {
       setFeatureEnabled(false);
     }
