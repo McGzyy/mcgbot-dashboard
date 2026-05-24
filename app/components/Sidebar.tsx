@@ -21,6 +21,36 @@ import {
   getDashDiscordLastRead,
   setDashDiscordLastRead,
 } from "@/lib/discordDashboardChatRead";
+import { formatSidebarNavAthAvg } from "@/lib/sidebarNavFeedStats";
+
+type SidebarNavFeedStats = {
+  botCalls: number | null;
+  trustedPro: number | null;
+  outsideCalls: number | null;
+  myCallLog: number | null;
+};
+
+function SidebarNavAthBadge({
+  avgX,
+  pending,
+}: {
+  avgX: number | null | undefined;
+  pending?: boolean;
+}) {
+  const text = pending ? "—" : formatSidebarNavAthAvg(avgX);
+  const hasValue = !pending && avgX != null && Number.isFinite(avgX) && avgX > 0;
+
+  return (
+    <span
+      className={`ml-auto shrink-0 text-[10px] tabular-nums ${
+        hasValue ? "text-zinc-500" : "text-zinc-600"
+      }`}
+      title="Rolling 24h avg ATH"
+    >
+      {text}
+    </span>
+  );
+}
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -53,6 +83,8 @@ type SidebarBodyProps = {
   getNavItemClass: (active: boolean) => string;
   onNavigate?: () => void;
   hasProFeatures: boolean;
+  navFeedStats: SidebarNavFeedStats | null;
+  navFeedStatsPending: boolean;
 };
 
 function isCallsNavPath(pathname: string): boolean {
@@ -79,6 +111,8 @@ function SidebarBody({
   getNavItemClass,
   onNavigate,
   hasProFeatures,
+  navFeedStats,
+  navFeedStatsPending,
 }: SidebarBodyProps) {
   const pick = onNavigate
     ? () => {
@@ -92,7 +126,7 @@ function SidebarBody({
   }, [pathname]);
 
   const getSubNavItemClass = (active: boolean) =>
-    `relative flex items-center gap-2 rounded-md py-1.5 pl-3 pr-3 text-[13px] transition-all duration-150 hover:bg-zinc-900/55 ${
+    `relative flex w-full items-center justify-between gap-2 rounded-md py-1.5 pl-3 pr-3 text-[13px] transition-all duration-150 hover:bg-zinc-900/55 ${
       active
         ? "bg-zinc-800/90 text-white border border-zinc-700/80 shadow-[0_0_8px_rgba(56,189,248,0.1)]"
         : "text-zinc-400 hover:text-zinc-100"
@@ -193,14 +227,20 @@ function SidebarBody({
                     }`}
                     aria-hidden
                   />
-                  <span
-                    className={
-                      isActive(pathname, "/bot-calls")
-                        ? "min-w-0"
-                        : "min-w-0 text-zinc-300 [text-shadow:0_0_12px_rgba(56,189,248,0.45),0_0_24px_rgba(56,189,248,0.28)]"
-                    }
-                  >
-                    Bot Calls
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                    <span
+                      className={
+                        isActive(pathname, "/bot-calls")
+                          ? "min-w-0 truncate"
+                          : "min-w-0 truncate text-zinc-300 [text-shadow:0_0_12px_rgba(56,189,248,0.45),0_0_24px_rgba(56,189,248,0.28)]"
+                      }
+                    >
+                      Bot Calls
+                    </span>
+                    <SidebarNavAthBadge
+                      avgX={navFeedStats?.botCalls}
+                      pending={navFeedStatsPending}
+                    />
                   </span>
                 </Link>
                 <Link
@@ -215,7 +255,13 @@ function SidebarBody({
                     }`}
                     aria-hidden
                   />
-                  <span>Trusted Pro</span>
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                    <span className="min-w-0 truncate">Trusted Pro</span>
+                    <SidebarNavAthBadge
+                      avgX={navFeedStats?.trustedPro}
+                      pending={navFeedStatsPending}
+                    />
+                  </span>
                 </Link>
                 {hasProFeatures ? (
                   <Link
@@ -232,7 +278,13 @@ function SidebarBody({
                       }`}
                       aria-hidden
                     />
-                    <span>Outside Calls</span>
+                    <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                      <span className="min-w-0 truncate">Outside Calls</span>
+                      <SidebarNavAthBadge
+                        avgX={navFeedStats?.outsideCalls}
+                        pending={navFeedStatsPending}
+                      />
+                    </span>
                   </Link>
                 ) : (
                   <Link
@@ -295,7 +347,10 @@ function SidebarBody({
                 isActive(pathname, "/calls") ? `${tierNavBarClass("user")} opacity-100` : "opacity-0"
               }`}
             />
-            <span>My Call Log</span>
+            <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+              <span className="truncate">My Call Log</span>
+              <SidebarNavAthBadge avgX={navFeedStats?.myCallLog} pending={navFeedStatsPending} />
+            </span>
           </Link>
           <Link href="/performance" onClick={pick} data-tutorial="sidebar.nav.performance" className={getNavItemClass(isActive(pathname, "/performance"))}>
             <div
@@ -469,6 +524,8 @@ export function Sidebar() {
   /** Unread counts for mirrored dashboard Discord chats (general = all users; mod = staff only). */
   const [discordGeneralUnread, setDiscordGeneralUnread] = useState(0);
   const [discordModUnread, setDiscordModUnread] = useState(0);
+  const [navFeedStats, setNavFeedStats] = useState<SidebarNavFeedStats | null>(null);
+  const [navFeedStatsPending, setNavFeedStatsPending] = useState(false);
 
   const profileId = session?.user?.id?.trim() || "";
   const profileName =
@@ -619,6 +676,57 @@ export function Sidebar() {
   }, [profileId, staffNav, status]);
 
   useEffect(() => {
+    if (status !== "authenticated") {
+      setNavFeedStats(null);
+      setNavFeedStatsPending(false);
+      return;
+    }
+
+    let cancelled = false;
+    setNavFeedStatsPending(true);
+
+    const loadNavFeedStats = async () => {
+      try {
+        const res = await fetch("/api/me/sidebar-nav-stats", {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        const json = (await res.json().catch(() => null)) as {
+          success?: boolean;
+          botCalls?: number | null;
+          trustedPro?: number | null;
+          outsideCalls?: number | null;
+          myCallLog?: number | null;
+        } | null;
+        if (cancelled) return;
+        if (!res.ok || !json?.success) {
+          setNavFeedStats(null);
+          return;
+        }
+        const num = (v: unknown) =>
+          typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null;
+        setNavFeedStats({
+          botCalls: num(json.botCalls),
+          trustedPro: num(json.trustedPro),
+          outsideCalls: num(json.outsideCalls),
+          myCallLog: num(json.myCallLog),
+        });
+      } catch {
+        if (!cancelled) setNavFeedStats(null);
+      } finally {
+        if (!cancelled) setNavFeedStatsPending(false);
+      }
+    };
+
+    void loadNavFeedStats();
+    const timer = window.setInterval(() => void loadNavFeedStats(), 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [status]);
+
+  useEffect(() => {
     if (status !== "authenticated" || !staffNav) {
       setModPendingTotal(null);
       return;
@@ -692,6 +800,8 @@ export function Sidebar() {
       session?.user?.hasProFeatures === true ||
       session?.user?.helpTier === "admin" ||
       session?.user?.helpTier === "mod",
+    navFeedStats,
+    navFeedStatsPending,
   };
 
   return (
