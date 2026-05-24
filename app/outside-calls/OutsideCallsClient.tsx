@@ -1,6 +1,8 @@
 "use client";
 
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import { DashboardWidgetEmpty } from "@/app/components/dashboard/DashboardWidgetEmpty";
+import { TerminalListSkeleton } from "@/components/terminal/TerminalListSkeleton";
 import {
   OutsideSubmissionTracker,
   type OutsideSubmissionUi,
@@ -10,6 +12,7 @@ import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { abbreviateCa } from "@/lib/callDisplayFormat";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import { normalizeXHandle } from "@/lib/outsideXCalls/normalizeXHandle";
+import { terminalListRefreshOpacity, terminalListRowBorder } from "@/lib/terminalListRow";
 import { terminalChrome, terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -349,8 +352,7 @@ export function OutsideCallsClient() {
 
         <OutsideSubmissionTracker submissions={submissions} loading={submissionsLoading} />
 
-        <div className={`relative mt-6 rounded-2xl ${terminalSurface.panelCard} p-5`}>
-          <DashboardRefreshBar active={refreshing} />
+        <div className={`mt-6 rounded-2xl ${terminalSurface.panelCard} p-5`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-zinc-200">Live tape</h2>
             <button
@@ -365,20 +367,28 @@ export function OutsideCallsClient() {
 
           {err ? (
             <p className="mt-4 text-sm text-red-300/90">{err}</p>
-          ) : loading ? (
-            <div className="mt-6 animate-pulse space-y-3">
-              <div className="h-16 rounded-lg bg-zinc-800/40" />
-              <div className="h-16 rounded-lg bg-zinc-800/30" />
-            </div>
-          ) : calls.length === 0 ? (
-            <div className="mt-6 rounded-xl border border-dashed border-zinc-800/60 bg-zinc-950/25 px-5 py-8 text-center ring-1 ring-white/[0.03]">
-              <p className="text-sm font-semibold text-zinc-200">No outside calls yet</p>
-              <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-500">
-                When the bot records a CA from an active monitor, rows appear here automatically — newest first.
-              </p>
-            </div>
-          ) : (
-            <ul className="mt-4 space-y-3">
+          ) : null}
+
+          <div className={`relative mt-4 min-w-0 ${terminalSurface.dashboardListWell}`}>
+            <DashboardRefreshBar active={refreshing && calls.length > 0} />
+            {loading && calls.length === 0 ? (
+              <TerminalListSkeleton variant="compact" rows={4} aria-label="Loading outside calls" />
+            ) : calls.length === 0 ? (
+              <DashboardWidgetEmpty
+                badge="Signal"
+                title="No outside calls yet"
+                description="When the bot records a CA from an active monitor, rows appear here automatically — newest first."
+                actionLabel="Submit monitor"
+                onAction={() => {
+                  setSubmitErr(null);
+                  setSubmitMsg(null);
+                  setModalOpen(true);
+                }}
+              />
+            ) : (
+              <ul
+                className={`space-y-3 ${terminalListRefreshOpacity(refreshing && calls.length > 0)}`}
+              >
               {calls.map((c) => {
                 const dex = isSolanaMint(c.mint) ? dexscreenerTokenUrl("solana", c.mint) : null;
                 const echo = c.callRole === "echo";
@@ -391,7 +401,7 @@ export function OutsideCallsClient() {
                 return (
                   <li
                     key={c.id}
-                    className="rounded-xl border border-zinc-800/50 bg-zinc-950/50 px-4 py-3 text-sm text-zinc-300 ring-1 ring-white/[0.03]"
+                    className={`rounded-xl ${terminalListRowBorder} bg-zinc-950/50 px-4 py-3 text-sm text-zinc-300`}
                   >
                     <div className="flex gap-3">
                       {c.tokenImageUrl ? (
@@ -419,7 +429,10 @@ export function OutsideCallsClient() {
                                 @{c.source.xHandle}
                               </a>
                               {typeof c.source.trustScore === "number" ? (
-                                <span className="text-zinc-600"> · trust {c.source.trustScore}</span>
+                                <span className="tabular-nums text-zinc-600">
+                                  {" "}
+                                  · trust {c.source.trustScore}
+                                </span>
                               ) : null}
                             </p>
                             <p className="mt-1 font-mono text-[11px] text-zinc-500">
@@ -427,7 +440,9 @@ export function OutsideCallsClient() {
                             </p>
                           </div>
                           <div className="flex shrink-0 flex-col items-end gap-1">
-                            <span className="text-[10px] text-zinc-500">{formatRelativeTime(c.postedAt)}</span>
+                            <span className="text-[10px] tabular-nums text-zinc-500">
+                              {formatRelativeTime(c.postedAt)}
+                            </span>
                             {echo ? (
                               <span className="rounded border border-amber-500/35 bg-amber-950/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-100/90">
                                 Echo
@@ -493,8 +508,9 @@ export function OutsideCallsClient() {
                   </li>
                 );
               })}
-            </ul>
-          )}
+              </ul>
+            )}
+          </div>
         </div>
 
         <p className="mt-6 text-center text-xs text-zinc-600">

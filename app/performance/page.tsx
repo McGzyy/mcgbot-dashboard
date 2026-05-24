@@ -1,6 +1,7 @@
 "use client";
 
 import { DashboardRefreshBar } from "@/app/components/dashboard/DashboardRefreshBar";
+import { DashboardWidgetEmpty } from "@/app/components/dashboard/DashboardWidgetEmpty";
 import { PerformancePeriodCompare } from "@/app/components/performance/PerformancePeriodCompare";
 import { PerformanceWeeklyCard } from "@/app/components/performance/PerformanceWeeklyCard";
 import Link from "next/link";
@@ -11,6 +12,7 @@ import {
   type PeriodCompare,
 } from "@/lib/performanceLabInsights";
 import type { DailyCallBucket } from "@/lib/performanceSeries";
+import { terminalListRefreshOpacity, terminalListRowBorder } from "@/lib/terminalListRow";
 import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -73,36 +75,6 @@ function ChartSkeleton() {
           <div key={i} className="h-2 flex-1 animate-pulse rounded bg-zinc-800/50" />
         ))}
       </div>
-    </div>
-  );
-}
-
-function ChartEmptyState({
-  title,
-  body,
-  ctaHref,
-  ctaLabel,
-}: {
-  title: string;
-  body: string;
-  ctaHref?: string;
-  ctaLabel?: string;
-}) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center px-5 py-8 text-center">
-      <span className="text-2xl opacity-25" aria-hidden>
-        📊
-      </span>
-      <p className="mt-3 text-sm font-medium text-zinc-400">{title}</p>
-      <p className="mx-auto mt-1.5 max-w-[22rem] text-xs leading-relaxed text-zinc-600">{body}</p>
-      {ctaHref && ctaLabel ? (
-        <Link
-          href={ctaHref}
-          className="mt-4 text-xs font-semibold text-emerald-300/90 underline-offset-2 hover:underline"
-        >
-          {ctaLabel}
-        </Link>
-      ) : null}
     </div>
   );
 }
@@ -263,7 +235,10 @@ export default function PerformanceLabPage() {
         <div className="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 px-4 py-3 text-sm text-red-200">{err}</div>
       ) : null}
 
-      <div className="mt-7 grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4" data-tutorial="performance.summary">
+      <div
+        className={`mt-7 grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4 ${terminalListRefreshOpacity(refreshing && !!s)}`}
+        data-tutorial="performance.summary"
+      >
         <StatCard
           label="Avg × (all)"
           value={loading ? "…" : s ? s.avgX.toFixed(2) + "×" : "—"}
@@ -298,7 +273,9 @@ export default function PerformanceLabPage() {
         />
       </div>
 
-      <div className="mt-3 grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
+      <div
+        className={`mt-3 grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5 ${terminalListRefreshOpacity(refreshing && !!s)}`}
+      >
         <StatCard label="Total calls" value={loading ? "…" : s ? String(s.totalCalls) : "—"} />
         <StatCard label="Calls (24h)" value={loading ? "…" : s ? String(s.callsToday) : "—"} hint="Rolling day" />
         <StatCard
@@ -339,22 +316,26 @@ export default function PerformanceLabPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-5">
         <section className="relative lg:col-span-3" data-tutorial="performance.activity">
-          <DashboardRefreshBar active={refreshing} />
+          <div className={`relative min-w-0 ${terminalSurface.dashboardListWell}`}>
+          <DashboardRefreshBar active={refreshing && series.length > 0} />
           <h2 className="text-base font-semibold tracking-tight text-white">
             Activity · last {window === "7d" ? "7" : window === "30d" ? "30" : "14"} UTC days
           </h2>
           <p className="mt-1 text-xs text-zinc-500">
             Bars = call count per UTC day · line = average ATH multiple that day.
           </p>
-          <div className="relative mt-3 h-64 rounded-2xl border border-emerald-500/15 bg-gradient-to-b from-emerald-950/20 to-black/40 p-3 pl-0 ring-1 ring-emerald-500/10">
+          <div
+            className={`relative mt-3 h-64 rounded-2xl border border-emerald-500/15 bg-gradient-to-b from-emerald-950/20 to-black/40 p-3 pl-0 ring-1 ring-emerald-500/10 ${terminalListRefreshOpacity(refreshing && series.length > 0)}`}
+          >
             {loading && series.length === 0 ? (
               <ChartSkeleton />
             ) : series.length === 0 ? (
-              <ChartEmptyState
+              <DashboardWidgetEmpty
+                badge="Activity"
                 title="No activity in this window"
-                body="Once you log calls on the dashboard, you’ll see daily bars plus the average multiple line for each UTC day here."
-                ctaHref="/calls"
-                ctaLabel="Open call log →"
+                description="Once you log calls on the dashboard, you'll see daily bars plus the average multiple line for each UTC day here."
+                actionLabel="Open call log"
+                actionHref="/calls"
               />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -406,23 +387,28 @@ export default function PerformanceLabPage() {
               </ResponsiveContainer>
             )}
           </div>
+          </div>
         </section>
 
         <section className="relative lg:col-span-2" data-tutorial="performance.distribution">
-          <DashboardRefreshBar active={refreshing} />
+          <div className={`relative min-w-0 ${terminalSurface.dashboardListWell}`}>
+          <DashboardRefreshBar active={refreshing && distChart.length > 0} />
           <h2 className="text-base font-semibold tracking-tight text-white">Multiple mix · all-time tape</h2>
           <p className="mt-1 text-xs text-zinc-500">
             Buckets use ATH multiple since each call (peak ÷ entry MC) across your full eligible history.
           </p>
-          <div className="relative mt-3 h-64 rounded-2xl border border-zinc-800/90 bg-zinc-950/50 p-3 ring-1 ring-zinc-700/20">
+          <div
+            className={`relative mt-3 h-64 rounded-2xl ${terminalListRowBorder} bg-zinc-950/50 p-3 ${terminalListRefreshOpacity(refreshing && distChart.length > 0)}`}
+          >
             {loading && distChart.length === 0 ? (
               <ChartSkeleton />
             ) : distChart.length === 0 || !dist || dist.total === 0 ? (
-              <ChartEmptyState
+              <DashboardWidgetEmpty
+                badge="Mix"
                 title="No multiple mix yet"
-                body="This chart needs a few logged calls so we can bucket how often you land under 2×, between 2–5×, or 5×+ (ATH vs entry MC)."
-                ctaHref="/calls"
-                ctaLabel="Log a call →"
+                description="This chart needs a few logged calls so we can bucket how often you land under 2×, between 2–5×, or 5×+ (ATH vs entry MC)."
+                actionLabel="Open call log"
+                actionHref="/calls"
               />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -445,6 +431,7 @@ export default function PerformanceLabPage() {
                 </BarChart>
               </ResponsiveContainer>
             )}
+          </div>
           </div>
         </section>
       </div>

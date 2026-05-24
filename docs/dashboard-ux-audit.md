@@ -26,8 +26,8 @@ Cross-cutting UX review for the McGBot home dashboard and related surfaces.
 | **TOTP - recovery code copy (10-char hex uppercase)** | `app/settings/page.tsx` | **partial** | Disable-2FA hint + placeholder; enroll flow unchanged |
 | **TOTP - admin reset confirm + Discord ID echo** | Admin TOTP reset UI | **deferred** | |
 | **Elite - leading-snug dense lists** | `app/page.tsx`, glance cards | **deferred** | |
-| **Elite - tabular-nums on numerics** | Various panels | **partial** | Recent calls + trending already use tabular-nums in places |
-| **Elite - unified border language** | `lib/terminalListRow.ts` | **partial** | Applied to new list-row primitive |
+| **Elite - tabular-nums on numerics** | Various panels | **partial** | Recent calls + trending + outside calls + performance stats |
+| **Elite - unified border language** | `lib/terminalListRow.ts` | **partial** | List rows, outside calls tape, performance distribution chart |
 | **Elite - user-facing microcopy (no "terminal"/"verified rows")** | `app/page.tsx`, empty states | **partial** | Home "logged" copy + activity empties; X verified badge unchanged |
 
 ## Shared primitives (this pass)
