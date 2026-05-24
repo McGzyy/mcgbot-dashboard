@@ -778,20 +778,18 @@ export default function MembershipPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex min-w-0 max-w-4xl flex-col gap-5 overflow-x-clip px-4 py-5 pb-28 sm:gap-8 sm:px-6 sm:py-10 sm:pb-10">
-        <div className="order-1 mx-auto w-full max-w-3xl text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-zinc-600">
-            McGBot Terminal
-          </p>
-          <h1 className="mt-2 bg-gradient-to-b from-white to-zinc-400 bg-clip-text text-2xl font-semibold tracking-tight text-transparent sm:mt-3 sm:text-3xl sm:leading-tight md:text-[2.35rem]">
-            {siteFlags?.paywall_title?.trim() || "Membership"}
-          </h1>
-          <p className="mx-auto mt-2 max-w-lg text-xs leading-relaxed text-zinc-500 sm:mt-3 sm:text-sm">
-            {siteFlags?.paywall_subtitle?.trim() ||
-              "Start with Basic for the daily desk loop — log calls, track performance, compete on the board. Annual billing saves vs monthly."}
-          </p>
+      <main className="mx-auto flex min-w-0 max-w-5xl flex-col gap-6 overflow-x-clip px-4 py-6 pb-28 sm:px-6 sm:py-8 sm:pb-10">
+        <div className="order-1 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
+              {siteFlags?.paywall_title?.trim() || "Choose a plan"}
+            </h1>
+            {siteFlags?.paywall_subtitle?.trim() ? (
+              <p className="mt-1.5 max-w-xl text-sm text-zinc-500">{siteFlags.paywall_subtitle.trim()}</p>
+            ) : null}
+          </div>
 
-          <div className="-mx-1 mt-4 flex flex-nowrap items-center justify-start gap-1.5 overflow-x-auto px-1 pb-0.5 sm:mx-0 sm:mt-6 sm:flex-wrap sm:justify-center sm:gap-2 sm:overflow-visible sm:pb-0">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <span
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium sm:px-3 sm:py-1 sm:text-[11px] ${
                 isLoggedIn
@@ -840,29 +838,18 @@ export default function MembershipPage() {
           </div>
         </div>
 
-        <div className="order-2">
+        <div className="order-2 md:hidden">
           <MembershipFlowSteps />
         </div>
 
-        <div className="order-8 md:order-3">
-          <MembershipValueProps />
-        </div>
-
-        <div className="order-9 md:order-4">
-          <MembershipIncludedToday />
-        </div>
-
         {anonPreview ? (
-          <div className="order-4 mx-auto w-full max-w-3xl rounded-xl border border-[#5865F2]/45 bg-[linear-gradient(135deg,rgba(88,101,242,0.18),rgba(24,24,27,0.85))] p-4 shadow-[0_20px_60px_rgba(88,101,242,0.12)] sm:rounded-2xl sm:p-6 md:order-5">
-            <p className="text-xs font-semibold text-zinc-50 sm:text-sm">Preview only — checkout locked</p>
-            <p className="mt-1.5 text-xs leading-relaxed text-zinc-300 sm:mt-2 sm:text-sm">
-              Sign in with Discord and join the McGBot server to unlock pay buttons.
-            </p>
-            <div className="mt-3 flex flex-col gap-2 sm:mt-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          <div className="order-3 flex flex-col gap-2 rounded-xl border border-[#5865F2]/35 bg-[#5865F2]/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-zinc-200">Sign in with Discord and join the server to pay.</p>
+            <div className="flex shrink-0 gap-2">
               <button
                 type="button"
                 onClick={() => void signIn("discord", { callbackUrl: membershipCallbackUrl })}
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-[#5865F2] px-4 text-sm font-bold text-white shadow-[0_0_28px_rgba(88,101,242,0.45)] transition hover:bg-[#4752c4] sm:h-11 sm:px-5"
+                className="inline-flex h-9 items-center justify-center rounded-lg bg-[#5865F2] px-4 text-xs font-bold text-white transition hover:bg-[#4752c4]"
               >
                 Continue with Discord
               </button>
@@ -870,16 +857,24 @@ export default function MembershipPage() {
                 href={resolveDiscordInviteUrl(siteFlags)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-center text-xs font-semibold text-[#b4b9ff] underline-offset-4 hover:underline sm:text-left sm:text-sm"
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-600 px-3 text-xs font-semibold text-zinc-300 hover:bg-zinc-800/50"
               >
-                Open server invite
+                Invite
               </a>
             </div>
           </div>
         ) : null}
 
+        <div className="order-8 md:hidden">
+          <MembershipValueProps />
+        </div>
+
+        <div className="order-9 md:hidden">
+          <MembershipIncludedToday />
+        </div>
+
         {isLoggedIn && guildGateReady && !guildGate.guildMembershipKnown ? (
-          <div className="order-6 mx-auto w-full max-w-3xl rounded-xl border border-zinc-600/50 bg-zinc-900/45 p-4 sm:rounded-2xl sm:p-6 md:order-5">
+          <div className="order-4 rounded-xl border border-zinc-600/50 bg-zinc-900/45 p-4 sm:p-5">
             <p className="text-sm font-semibold text-zinc-50">We couldn&apos;t verify Discord server membership</p>
             <p className="mt-2 text-sm leading-relaxed text-zinc-300">
               Checkout stays disabled until we can confirm you&apos;re in the McGBot Discord server. Try joining below,
@@ -909,7 +904,7 @@ export default function MembershipPage() {
         ) : null}
 
         {isLoggedIn && guildGateReady && guildGate.guildMembershipKnown && guildGate.inGuild === false ? (
-          <div className="order-6 mx-auto w-full max-w-3xl rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 sm:rounded-2xl sm:p-6 md:order-5">
+          <div className="order-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 sm:p-5">
             <p className="text-sm font-semibold text-amber-50">Join the Discord server first</p>
             <p className="mt-2 text-sm leading-relaxed text-amber-100/85">
               Your Discord account is linked, but you are not in the server yet. After you join, use{" "}
@@ -939,7 +934,7 @@ export default function MembershipPage() {
         ) : null}
 
         {isLoggedIn && verificationBlocksCheckout ? (
-          <div className="order-6 mx-auto w-full max-w-3xl rounded-xl border border-violet-500/35 bg-violet-500/10 p-4 sm:rounded-2xl sm:p-6 md:order-5">
+          <div className="order-4 rounded-xl border border-violet-500/35 bg-violet-500/10 p-4 sm:p-5">
             <p className="text-sm font-semibold text-violet-50">Finish Discord verification to unlock checkout</p>
             <p className="mt-2 text-sm leading-relaxed text-violet-100/85">
               {guildGateReady && guildGate.verificationReason === "unverified_role"
@@ -980,7 +975,7 @@ export default function MembershipPage() {
           </div>
         ) : null}
 
-        <div className="order-3 md:order-7">
+        <div className="order-5 space-y-8">
           <MembershipProductCompare
             productLine={productLine}
             onProductLineChange={(line) => {
@@ -989,19 +984,13 @@ export default function MembershipPage() {
             }}
             monthlyFromUsd={monthlyFromUsd}
           />
-        </div>
 
-        {showUpgradeCheckout ? (
-          <div className="order-4 mx-auto w-full max-w-3xl rounded-xl border border-sky-500/25 bg-sky-500/10 px-4 py-3 text-sm text-sky-100/90 sm:rounded-2xl sm:px-5 sm:py-4 md:order-8">
-            <p className="font-semibold text-sky-50">Upgrade to Pro</p>
-            <p className="mt-1 text-sky-100/80">
-              Your Basic membership stays active. Choose a Pro billing period below — checkout extends your access
-              and unlocks Pro features after payment.
+          {showUpgradeCheckout ? (
+            <p className="rounded-lg border border-sky-500/25 bg-sky-500/10 px-4 py-2.5 text-sm text-sky-100/90">
+              Upgrading to Pro — your Basic access stays until checkout completes.
             </p>
-          </div>
-        ) : null}
+          ) : null}
 
-        <div className="order-5 md:order-9">
           <MembershipBillingSection
           productLine={productLine}
           plansForLine={plansForLine}

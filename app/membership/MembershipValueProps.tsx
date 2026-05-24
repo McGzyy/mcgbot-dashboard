@@ -88,20 +88,6 @@ export function MembershipValueProps() {
         <ValuePropCards />
       </details>
 
-      {/* Desktop: always expanded */}
-      <div className="hidden md:block">
-        <h2
-          id="membership-value-heading"
-          className="text-center text-sm font-semibold tracking-tight text-zinc-100 sm:text-base"
-        >
-          The desk loop
-        </h2>
-        <p className="mx-auto mt-2 max-w-lg text-center text-xs leading-relaxed text-zinc-500 sm:text-sm">
-          Basic covers the daily rhythm. Pro unlocks outside signal, full alerts, and unlimited
-          submissions.
-        </p>
-        <ValuePropCards />
-      </div>
     </section>
   );
 }

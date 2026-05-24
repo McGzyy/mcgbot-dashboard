@@ -68,13 +68,6 @@ function FeatureMatrix() {
         </table>
       </div>
 
-      <div className="mt-4 rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-3 py-2.5 text-xs leading-relaxed text-emerald-100/90 sm:mt-5 sm:px-4 sm:py-3 sm:text-sm">
-        <p className="font-semibold text-emerald-50">Personal alerts — inbox on Basic, DMs on Pro</p>
-        <p className="mt-1 text-emerald-100/85">
-          Rules for followed callers, price moves, and thresholds land in your bell inbox. Pro mirrors the
-          same hit to Discord DMs (toggle when you create an alert).
-        </p>
-      </div>
     </>
   );
 }
@@ -114,22 +107,6 @@ export function MembershipIncludedToday() {
         <FeatureMatrix />
       </details>
 
-      {/* Desktop: always expanded */}
-      <section
-        className="mx-auto hidden w-full max-w-3xl rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-5 ring-1 ring-white/[0.03] sm:p-6 md:block"
-        aria-labelledby="membership-included-heading"
-      >
-        <h2
-          id="membership-included-heading"
-          className="text-center text-sm font-semibold tracking-tight text-zinc-100 sm:text-base"
-        >
-          What&apos;s included today
-        </h2>
-        <p className="mx-auto mt-2 max-w-lg text-center text-xs leading-relaxed text-zinc-500 sm:text-sm">
-          Live on the terminal now. No mockups — this is the real feature matrix from checkout.
-        </p>
-        <FeatureMatrix />
-      </section>
     </>
   );
 }

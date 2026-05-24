@@ -130,35 +130,19 @@ export function MembershipBillingSection({
   return (
     <section className="mx-auto w-full max-w-4xl" aria-labelledby="membership-billing-heading">
       <div className="overflow-hidden rounded-3xl border border-zinc-800/60 bg-[linear-gradient(168deg,rgba(18,18,20,0.95)_0%,rgba(6,6,8,0.98)_48%,rgba(0,0,0,0.85)_100%)] shadow-[0_32px_120px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.04]">
-        <div className="border-b border-zinc-800/50 px-5 py-5 sm:px-7 sm:py-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Step 2</p>
-              <h2
-                id="membership-billing-heading"
-                className="mt-1.5 text-xl font-semibold tracking-tight text-white sm:text-2xl"
-              >
-                Billing & checkout
-              </h2>
-              <p className="mt-2 max-w-lg text-sm leading-relaxed text-zinc-500">
-                <span
-                  className={`font-medium ${isPro ? "text-sky-300/90" : "text-emerald-300/90"}`}
-                >
-                  {lineMeta.title}
-                </span>
-                {" · "}
-                {isPro
-                  ? "Unlocks Outside Calls, full alerts with Discord DMs, and unlimited desk submissions."
-                  : "Covers the daily desk loop — log calls, track multiples, and compete on the board."}
-                {" "}
-                Monthly or annual; Stripe promos apply at checkout.
-              </p>
-            </div>
+        <div className="border-b border-zinc-800/50 px-5 py-4 sm:px-7 sm:py-5">
+          <div className="flex items-center justify-between gap-4">
+            <h2
+              id="membership-billing-heading"
+              className="text-lg font-semibold tracking-tight text-white sm:text-xl"
+            >
+              2. Billing & pay
+            </h2>
             <a
               href={discordInviteUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex shrink-0 items-center justify-center self-start rounded-xl border border-zinc-700/50 bg-zinc-900/50 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-200"
+              className="shrink-0 text-xs font-medium text-zinc-500 transition hover:text-zinc-300"
             >
               Support
             </a>
@@ -189,38 +173,6 @@ export function MembershipBillingSection({
             </p>
           ) : (
             <>
-            {annualSavings ? (
-              <div
-                className={`mb-4 max-w-xl rounded-2xl border px-4 py-3.5 sm:px-5 ${
-                  isPro
-                    ? "border-sky-500/25 bg-sky-500/10"
-                    : "border-emerald-500/25 bg-emerald-500/10"
-                }`}
-              >
-                <p
-                  className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
-                    isPro ? "text-sky-300/90" : "text-emerald-300/90"
-                  }`}
-                >
-                  Save with annual
-                </p>
-                <p className="mt-1.5 text-sm leading-relaxed text-zinc-200">
-                  Pay{" "}
-                  <span className="font-semibold tabular-nums text-white">
-                    {formatUsd(annualSavings.savingsUsd)}
-                  </span>{" "}
-                  less than twelve monthly payments (
-                  <span className="font-semibold tabular-nums text-zinc-300">
-                    {annualSavings.savingsPercent}% off
-                  </span>
-                  ) — about{" "}
-                  <span className="font-semibold tabular-nums text-zinc-300">
-                    {formatUsd(annualSavings.monthlyIfAnnual)}/mo
-                  </span>{" "}
-                  effective on annual billing.
-                </p>
-              </div>
-            ) : null}
             <div
               className={
                 planCardsVisuallyLocked
@@ -334,11 +286,8 @@ export function MembershipBillingSection({
             </>
           )}
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_280px] lg:items-start">
+          <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_260px] lg:items-start">
             <div className="flex flex-col gap-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-600">
-                Step 3 · Pay
-              </p>
               {onReferralCreditRedeemed ? (
                 <MembershipReferralCreditPanel
                   isLoggedIn={isLoggedIn}
@@ -470,15 +419,9 @@ export function MembershipBillingSection({
           ) : null}
           {pollNote ? <p className="mt-3 text-sm text-emerald-400/90">{pollNote}</p> : null}
 
-          <div className="mt-8 flex flex-col gap-3 border-t border-zinc-800/40 pt-6 text-[11px] leading-relaxed text-zinc-600 sm:flex-row sm:justify-between sm:gap-8">
-            <p>
-              <span className="font-medium text-zinc-500">Access</span> — Payments stack on your current
-              end date. Stripe renews automatically; SOL confirms on-chain.
-            </p>
-            <p>
-              <span className="font-medium text-zinc-500">Refunds</span> — Contact moderators in Discord.
-            </p>
-          </div>
+          <p className="mt-6 border-t border-zinc-800/40 pt-4 text-center text-[11px] text-zinc-600">
+            Stripe renews automatically · SOL is manual each term · Refunds via Discord mods
+          </p>
         </div>
       </div>
     </section>

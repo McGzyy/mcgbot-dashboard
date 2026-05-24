@@ -12,7 +12,7 @@ export function MembershipFlowSteps() {
   return (
     <nav
       aria-label="Membership steps"
-      className="mx-auto w-full max-w-3xl rounded-xl border border-zinc-800/70 bg-zinc-950/50 p-2 ring-1 ring-white/[0.03] sm:rounded-2xl sm:p-4"
+      className="mx-auto w-full max-w-3xl rounded-xl border border-zinc-800/70 bg-zinc-950/50 p-2 ring-1 ring-white/[0.03] sm:rounded-2xl sm:p-4 md:hidden"
     >
       <ol className="grid grid-cols-3 gap-1.5 sm:gap-3">
         {STEPS.map((s) => (
