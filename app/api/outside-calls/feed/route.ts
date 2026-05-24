@@ -105,6 +105,18 @@ export async function GET(request: Request) {
       const trustAth = Number(r.trust_max_ath_multiple);
       const peakFromTrust =
         Number.isFinite(trustAth) && trustAth > 0 ? clampAthMultipleForStats(trustAth) : null;
+      const postMediaUrls = (() => {
+        const raw = r.post_media_urls;
+        if (!Array.isArray(raw)) return [] as string[];
+        const urls: string[] = [];
+        for (const u of raw) {
+          const s = String(u ?? "").trim();
+          if (!s || !/^https?:\/\//i.test(s)) continue;
+          if (!urls.includes(s)) urls.push(s);
+          if (urls.length >= 4) break;
+        }
+        return urls;
+      })();
       return {
         id: r.id,
         mint: r.mint,
