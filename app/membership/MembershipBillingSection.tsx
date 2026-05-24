@@ -132,6 +132,9 @@ export function MembershipBillingSection({
   const selectedAnnualSavings =
     selectedPlan?.billingMonths === 12 ? annualSavings : null;
 
+  const sectionLabelClass =
+    "text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500";
+
   const shellClass = embedded
     ? "w-full"
     : "overflow-hidden rounded-3xl border border-zinc-800/60 bg-[linear-gradient(168deg,rgba(18,18,20,0.95)_0%,rgba(6,6,8,0.98)_48%,rgba(0,0,0,0.85)_100%)] shadow-[0_32px_120px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.04]";
@@ -144,21 +147,26 @@ export function MembershipBillingSection({
         <div
           className={
             embedded
-              ? "flex items-center justify-between gap-4 border-t border-zinc-800/50 pt-8"
+              ? "flex items-center justify-between gap-4 border-t border-zinc-800/45 pt-10"
               : "border-b border-zinc-800/50 px-5 py-4 sm:px-7 sm:py-5"
           }
         >
-          <h2
-            id="membership-billing-heading"
-            className="text-lg font-semibold tracking-tight text-white sm:text-xl"
-          >
-            Billing & pay
-          </h2>
+          <div>
+            <h2
+              id="membership-billing-heading"
+              className={embedded ? sectionLabelClass : "text-lg font-semibold tracking-tight text-white sm:text-xl"}
+            >
+              {embedded ? "Billing" : "Billing & pay"}
+            </h2>
+            {embedded ? (
+              <p className="mt-1.5 text-sm text-zinc-500">Monthly or annual — pay with card or SOL.</p>
+            ) : null}
+          </div>
           <a
             href={discordInviteUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="shrink-0 text-xs font-medium text-zinc-500 transition hover:text-zinc-300"
+            className="shrink-0 self-start text-xs font-medium text-zinc-500 transition hover:text-zinc-300"
           >
             Support
           </a>
@@ -189,11 +197,9 @@ export function MembershipBillingSection({
           ) : (
             <>
             <div
-              className={
-                planCardsVisuallyLocked
-                  ? "pointer-events-none grid max-w-xl gap-3 opacity-45 grayscale sm:grid-cols-2"
-                  : "grid max-w-xl gap-3 sm:grid-cols-2"
-              }
+              className={`mt-4 grid max-w-2xl gap-3 sm:grid-cols-2 ${
+                planCardsVisuallyLocked ? "pointer-events-none opacity-45 grayscale" : ""
+              }`}
             >
               {plansForLine.map((p) => {
                 const selected = p.slug === selectedSlug;
@@ -301,7 +307,7 @@ export function MembershipBillingSection({
             </>
           )}
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_260px] lg:items-start">
+          <div className="mt-9 grid gap-8 lg:grid-cols-[1fr_280px] lg:items-start">
             <div className="flex flex-col gap-3">
               {onReferralCreditRedeemed ? (
                 <MembershipReferralCreditPanel
@@ -392,11 +398,11 @@ export function MembershipBillingSection({
                   <p className="mt-1 text-xs text-zinc-600">
                     {billingCadenceLabel(selectedPlan.billingMonths, selectedPlan.durationDays)}
                   </p>
-                  <div className="mt-5 flex items-end justify-between gap-3 border-t border-zinc-800/50 pt-4">
-                    <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  <div className="mt-6 flex items-end justify-between gap-3 border-t border-zinc-800/45 pt-5">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
                       Due today
                     </span>
-                    <span className="text-2xl font-bold tabular-nums tracking-tight text-white">
+                    <span className="text-[1.75rem] font-bold tabular-nums leading-none tracking-tight text-white">
                       {formatUsd(selectedPlan.priceUsd)}
                     </span>
                   </div>

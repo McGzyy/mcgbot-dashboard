@@ -777,23 +777,48 @@ export default function MembershipPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex min-w-0 max-w-5xl flex-col gap-6 overflow-x-clip px-4 py-6 pb-28 sm:px-6 sm:py-8 sm:pb-10">
-        <div className="order-1 flex flex-col gap-5 border-b border-zinc-800/60 pb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
+      <main className="mx-auto flex min-w-0 max-w-5xl flex-col gap-7 overflow-x-clip px-4 py-7 pb-28 sm:gap-8 sm:px-6 sm:py-9 sm:pb-10">
+        <div className="order-1 flex flex-col gap-6 border-b border-zinc-800/50 pb-7 sm:flex-row sm:items-end sm:justify-between sm:gap-10 sm:pb-8">
+          <div className="min-w-0 max-w-2xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+              Membership
+            </p>
+            <h1 className="mt-2 text-[1.75rem] font-semibold leading-[1.15] tracking-tight text-zinc-50 sm:text-4xl">
               {siteFlags?.paywall_title?.trim() || "Choose a plan"}
             </h1>
             {siteFlags?.paywall_subtitle?.trim() ? (
-              <p className="mt-1.5 max-w-xl text-sm text-zinc-500">{siteFlags.paywall_subtitle.trim()}</p>
+              <p className="mt-2.5 max-w-lg text-[15px] leading-relaxed text-zinc-400">
+                {siteFlags.paywall_subtitle.trim()}
+              </p>
+            ) : (
+              <p className="mt-2.5 max-w-lg text-[15px] leading-relaxed text-zinc-500">
+                Basic or Pro — billed monthly or annually. Cancel anytime via Discord support.
+              </p>
+            )}
+            {isLoggedIn ? (
+              <p className="mt-3 text-sm text-zinc-500" role="status">
+                {active || exempt ? (
+                  <>
+                    <span className="font-medium text-emerald-400/95">Membership active</span>
+                    {periodEnd ? (
+                      <span className="text-zinc-500"> · renews {formatExpiry(periodEnd)}</span>
+                    ) : null}
+                  </>
+                ) : guildGateLoading ? (
+                  "Verifying Discord access…"
+                ) : checkoutAllowed ? (
+                  "Signed in — pick a tier and billing period below."
+                ) : null}
+              </p>
             ) : null}
           </div>
 
           {!isLoggedIn ? (
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[220px] sm:items-stretch">
+            <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[232px] sm:shrink-0 sm:items-stretch">
               <button
                 type="button"
                 onClick={() => void signIn("discord", { callbackUrl: membershipCallbackUrl })}
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-[#5865F2] px-5 text-sm font-bold text-white shadow-[0_8px_32px_rgba(88,101,242,0.35)] transition hover:bg-[#4752c4]"
+                className="inline-flex h-12 items-center justify-center rounded-xl bg-[#5865F2] px-6 text-sm font-semibold text-white shadow-[0_10px_40px_rgba(88,101,242,0.32)] transition hover:bg-[#4752c4]"
               >
                 Continue with Discord
               </button>
@@ -801,60 +826,12 @@ export default function MembershipPage() {
                 href={resolveDiscordInviteUrl(siteFlags)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-center text-xs text-zinc-500 underline-offset-2 hover:text-zinc-400 hover:underline sm:text-right"
+                className="text-center text-xs text-zinc-500 underline-offset-2 transition hover:text-zinc-400 hover:underline sm:text-right"
               >
                 Need a server invite?
               </a>
             </div>
-          ) : (
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <span
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium sm:px-3 sm:py-1 sm:text-[11px] ${
-                isLoggedIn
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
-                  : "border-[#5865F2]/35 bg-[#5865F2]/10 text-[#c4c8ff]"
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${isLoggedIn ? "bg-emerald-400" : "bg-[#5865F2]"}`}
-                aria-hidden
-              />
-              Discord {isLoggedIn ? "connected" : "required"}
-            </span>
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-zinc-800/70 bg-zinc-950/50 px-2.5 py-0.5 text-[10px] font-medium text-zinc-400 sm:px-3 sm:py-1 sm:text-[11px]">
-              <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" aria-hidden />
-              Server:{" "}
-              {!isLoggedIn
-                ? "—"
-                : guildGateLoading
-                  ? "Checking…"
-                  : guildGateReady && !guildGate.guildMembershipKnown
-                    ? "Could not verify"
-                    : guildGateReady && guildGate.inGuild
-                      ? "Member"
-                      : guildGateReady
-                        ? "Not joined"
-                        : "—"}
-            </span>
-            <span
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium sm:px-3 sm:py-1 sm:text-[11px] ${
-                active || exempt
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
-                  : "border-amber-500/30 bg-amber-500/10 text-amber-100"
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${active || exempt ? "bg-emerald-400" : "bg-amber-400"}`}
-                aria-hidden
-              />
-              Access{" "}
-              {!isLoggedIn ? "— sign in" : active || exempt ? "active" : "inactive"}
-              {periodEnd && isLoggedIn && (active || exempt) ? (
-                <span className="text-zinc-500"> · {formatExpiry(periodEnd)}</span>
-              ) : null}
-            </span>
-          </div>
-          )}
+          ) : null}
         </div>
 
         <div className="order-2 md:hidden">
@@ -971,20 +948,44 @@ export default function MembershipPage() {
           </div>
         ) : null}
 
-        <div className="order-5 overflow-hidden rounded-3xl border border-zinc-800/60 bg-zinc-950/30 shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.04]">
+        <div className="order-5 overflow-hidden rounded-[1.35rem] border border-zinc-800/55 bg-[linear-gradient(180deg,rgba(24,24,27,0.55)_0%,rgba(9,9,11,0.92)_100%)] shadow-[0_28px_90px_rgba(0,0,0,0.5)] ring-1 ring-white/[0.05]">
           {!checkoutAllowed && !isLoggedIn ? (
-            <p className="border-b border-zinc-800/50 bg-zinc-900/40 px-5 py-3 text-center text-sm text-zinc-400 sm:px-7">
-              Continue with Discord above to unlock checkout.
-            </p>
+            <div className="flex items-center justify-center gap-2 border-b border-zinc-800/45 bg-zinc-900/35 px-5 py-2.5 sm:px-8">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden>
+                <path
+                  fillRule="evenodd"
+                  d="M10 1a4.5 4.5 0 0 0-4.5 4.5V7H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-.5A4.5 4.5 0 0 0 10 1Zm3 8.5V5.5a3 3 0 1 0-6 0V9.5h6Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <p className="text-xs font-medium text-zinc-400">
+                Continue with Discord above to unlock checkout
+              </p>
+            </div>
           ) : null}
-          {!checkoutAllowed && isLoggedIn ? (
-            <p className="border-b border-zinc-800/50 bg-amber-500/5 px-5 py-3 text-center text-sm text-amber-100/90 sm:px-7">
-              Join the McGBot Discord server and complete verification to unlock checkout.
-            </p>
+          {!checkoutAllowed &&
+          isLoggedIn &&
+          !(
+            (guildGateReady && (!guildGate.guildMembershipKnown || guildGate.inGuild === false)) ||
+            verificationBlocksCheckout
+          ) ? (
+            <div className="flex items-center justify-center gap-2 border-b border-amber-500/15 bg-amber-500/[0.06] px-5 py-2.5 sm:px-8">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 shrink-0 text-amber-400/80" aria-hidden>
+                <path
+                  fillRule="evenodd"
+                  d="M10 1a4.5 4.5 0 0 0-4.5 4.5V7H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-.5A4.5 4.5 0 0 0 10 1Zm3 8.5V9.5h-6V5.5a3 3 0 1 1 6 0V9.5Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <p className="text-xs font-medium text-amber-100/85">
+                Complete the steps above to unlock checkout
+              </p>
+            </div>
           ) : null}
 
-          <div className="space-y-10 px-5 py-6 sm:px-7 sm:py-8">
+          <div className="space-y-11 px-5 py-7 sm:space-y-12 sm:px-8 sm:py-9">
           <MembershipProductCompare
+            embedded
             productLine={productLine}
             onProductLineChange={(line) => {
               setProductLine(line);
