@@ -3881,8 +3881,6 @@ export default function Home() {
   const showBasicProUpsell =
     Boolean(session?.user?.hasActiveSubscription) &&
     !hasProFeatures &&
-    helpTier !== "admin" &&
-    helpTier !== "mod" &&
     !session?.user?.subscriptionExempt;
   const [referralVanityForHome, setReferralVanityForHome] = useState<string | null>(null);
 
