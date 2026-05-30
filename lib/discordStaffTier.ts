@@ -8,6 +8,7 @@
  * Either set role ids (recommended for production):
  * - DISCORD_ADMIN_ROLE_IDS — comma-separated role ids → admin
  * - DISCORD_MOD_ROLE_IDS — comma-separated role ids → mod (if not admin)
+ * If id lists are set but do not match (stale snowflakes), role **names** are tried next.
  *
  * Or leave both id lists empty to match by role name (case-insensitive):
  * - DISCORD_ADMIN_ROLE_NAMES — default "ADMIN"
@@ -53,6 +54,8 @@ export async function staffTierFromDiscord(
   try {
     const roleIds = await fetchDiscordGuildMemberRoleIds(uid);
     if (roleIds === null) return null;
+    // Inconclusive (not in guild / no roles) — let env allowlists decide.
+    if (roleIds.length === 0) return null;
 
     const adminIds = idSet(process.env.DISCORD_ADMIN_ROLE_IDS);
     const modIds = idSet(process.env.DISCORD_MOD_ROLE_IDS);
@@ -60,7 +63,8 @@ export async function staffTierFromDiscord(
     if (adminIds.size > 0 || modIds.size > 0) {
       if (roleIds.some((id) => adminIds.has(id))) return "admin";
       if (roleIds.some((id) => modIds.has(id))) return "mod";
-      return "user";
+      // Stale/wrong role-id env on Vercel used to hard-return "user" here and skip name matching.
+      // Fall through to role-name matching before treating as non-staff.
     }
 
     const rolesRes = await fetch(

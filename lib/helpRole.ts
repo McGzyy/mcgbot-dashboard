@@ -82,12 +82,12 @@ export async function resolveHelpTierWithSource(
     return { tier: hit.tier, source: hit.source };
   }
 
+  const envTier = resolveHelpTier(id);
   const fromDiscord = await staffTierFromDiscord(id);
   const discordTier: HelpTier =
     fromDiscord === "admin" || fromDiscord === "mod" || fromDiscord === "user"
       ? fromDiscord
       : "user";
-  const envTier = resolveHelpTier(id);
   const tier = mergeHelpTiers(discordTier, envTier);
 
   let source: HelpTierSource;
