@@ -15,8 +15,28 @@ function tierRank(t: HelpTier): number {
 }
 
 /** Highest privilege (admin > mod > user). */
-function mergeHelpTiers(a: HelpTier, b: HelpTier): HelpTier {
+export function mergeHelpTiers(a: HelpTier, b: HelpTier): HelpTier {
   return tierRank(a) >= tierRank(b) ? a : b;
+}
+
+function normalizeHelpTier(raw: unknown): HelpTier {
+  const t = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (t === "admin" || t === "mod" || t === "user") return t;
+  return "user";
+}
+
+/**
+ * Staff tier for in-route mod/admin gates: live Discord/env resolution merged with JWT
+ * `helpTier` so a refreshed session (e.g. prevTier kept on transient Discord errors) is not
+ * contradicted by a colder live lookup on the next `/api/mod/*` request.
+ */
+export async function resolveEffectiveStaffTier(
+  discordUserId: string,
+  sessionTier?: unknown
+): Promise<HelpTier> {
+  const live = await resolveHelpTierAsync(discordUserId);
+  const jwt = normalizeHelpTier(sessionTier);
+  return mergeHelpTiers(live, jwt);
 }
 
 function idSet(raw: string | undefined): Set<string> {

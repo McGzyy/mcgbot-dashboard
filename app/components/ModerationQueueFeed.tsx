@@ -676,7 +676,7 @@ export function ModerationQueueFeed({
         <div
           className={
             mode === "full"
-              ? "mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_14.5rem] lg:items-start lg:gap-5 2xl:grid-cols-[minmax(0,1fr)_17rem] 2xl:gap-6"
+              ? "mt-4 grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1fr)_17rem] 2xl:items-start"
               : "mt-4"
           }
         >
@@ -965,7 +965,7 @@ export function ModerationQueueFeed({
           {mode === "full" ? (
             <aside
               id="mod-action-log"
-              className={`mt-6 shrink-0 lg:mt-0 lg:sticky lg:top-20 ${terminalSurface.panelCard} rounded-xl border px-3 py-3`}
+              className={`shrink-0 2xl:sticky 2xl:top-20 ${terminalSurface.panelCard} rounded-xl border px-3 py-3`}
               aria-label="Moderation action log"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/60 pb-2">

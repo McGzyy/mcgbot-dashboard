@@ -52,6 +52,7 @@ export function UserCallSuspensionStaffPanel({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [errHint, setErrHint] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [single, setSingle] = useState<EnrichedSuspension | null>(null);
   const [rows, setRows] = useState<EnrichedSuspension[]>([]);
@@ -62,6 +63,7 @@ export function UserCallSuspensionStaffPanel({
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
+    setErrHint(null);
     setOk(null);
     try {
       if (mode === "profile") {
@@ -73,18 +75,30 @@ export function UserCallSuspensionStaffPanel({
         const res = await fetch(`/api/mod/user-call-suspensions?discordId=${encodeURIComponent(id)}`, {
           credentials: "same-origin",
         });
-        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; suspension?: EnrichedSuspension | null; error?: string };
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          suspension?: EnrichedSuspension | null;
+          error?: string;
+          hint?: string;
+        };
         if (!res.ok || json.ok !== true) {
           setErr(typeof json.error === "string" ? json.error : `HTTP ${res.status}`);
+          setErrHint(typeof json.hint === "string" ? json.hint : null);
           setSingle(null);
           return;
         }
         setSingle(json.suspension ?? null);
       } else {
         const res = await fetch("/api/mod/user-call-suspensions", { credentials: "same-origin" });
-        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; rows?: EnrichedSuspension[]; error?: string };
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          rows?: EnrichedSuspension[];
+          error?: string;
+          hint?: string;
+        };
         if (!res.ok || json.ok !== true) {
           setErr(typeof json.error === "string" ? json.error : `HTTP ${res.status}`);
+          setErrHint(typeof json.hint === "string" ? json.hint : null);
           setRows([]);
           return;
         }
@@ -92,6 +106,7 @@ export function UserCallSuspensionStaffPanel({
       }
     } catch {
       setErr("Could not load call suspensions.");
+      setErrHint(null);
     } finally {
       setLoading(false);
     }
@@ -105,6 +120,7 @@ export function UserCallSuspensionStaffPanel({
     async (body: Record<string, unknown>) => {
       setBusy(true);
       setErr(null);
+      setErrHint(null);
       setOk(null);
       try {
         const res = await fetch("/api/mod/user-call-suspensions", {
@@ -113,9 +129,10 @@ export function UserCallSuspensionStaffPanel({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; hint?: string };
         if (!res.ok || json.ok !== true) {
           setErr(typeof json.error === "string" ? json.error : `HTTP ${res.status}`);
+          setErrHint(typeof json.hint === "string" ? json.hint : null);
           return;
         }
         setOk("Saved.");
@@ -169,7 +186,10 @@ export function UserCallSuspensionStaffPanel({
       </p>
 
       {err ? (
-        <p className="mt-3 rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-2 text-xs text-red-200">{err}</p>
+        <div className="mt-3 rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-2 text-xs text-red-200">
+          <p>{err}</p>
+          {errHint ? <p className="mt-2 text-[11px] leading-relaxed text-red-200/75">{errHint}</p> : null}
+        </div>
       ) : null}
       {ok ? (
         <p className="mt-2 rounded-lg border border-emerald-500/25 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-100/90">

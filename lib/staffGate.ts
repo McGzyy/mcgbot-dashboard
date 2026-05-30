@@ -1,7 +1,11 @@
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
-import { meetsModerationMinTier, moderationStaffForbiddenPayload, resolveHelpTierAsync } from "@/lib/helpRole";
+import {
+  meetsModerationMinTier,
+  moderationStaffForbiddenPayload,
+  resolveEffectiveStaffTier,
+} from "@/lib/helpRole";
 
 type Fail = { ok: false; response: Response };
 type Ok = { ok: true; discordId: string; tier: "mod" | "admin" };
@@ -12,7 +16,7 @@ export async function requireDashboardStaff(): Promise<Ok | Fail> {
   if (!id) {
     return { ok: false, response: Response.json({ error: "Unauthorized" }, { status: 401 }) };
   }
-  const tier = await resolveHelpTierAsync(id);
+  const tier = await resolveEffectiveStaffTier(id, session?.user?.helpTier);
   if (!meetsModerationMinTier(tier)) {
     return {
       ok: false,
