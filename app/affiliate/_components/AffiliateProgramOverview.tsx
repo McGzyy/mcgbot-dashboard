@@ -71,10 +71,11 @@ function RateTable({
   );
 }
 
-type Variant = "marketing" | "admin" | "compact";
+type Variant = "marketing" | "admin" | "adminCheatsheet" | "compact";
 
 export function AffiliateProgramOverview({ variant = "marketing" }: { variant?: Variant }) {
   const isAdmin = variant === "admin";
+  const isAdminCheatsheet = variant === "adminCheatsheet";
   const isCompact = variant === "compact";
   const programLabel = affiliateCommissionProgramShortLabel();
 
@@ -84,6 +85,33 @@ export function AffiliateProgramOverview({ variant = "marketing" }: { variant?: 
         <p className="text-xs font-semibold text-zinc-900">Standard program · {programLabel}</p>
         <RateTable title="Monthly track" rows={AFFILIATE_RECURRING_COMMISSION_COPY.monthlyRows} compact />
         <p className="text-[11px] leading-relaxed text-zinc-500">{AFFILIATE_EARNINGS_SUMMARY.timingNote}</p>
+      </div>
+    );
+  }
+
+  if (isAdminCheatsheet) {
+    return (
+      <div className="space-y-3">
+        <p className="text-xs leading-relaxed text-zinc-600">{AFFILIATE_RECURRING_COMMISSION_COPY.lead}</p>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <RateTable title="Monthly track" rows={AFFILIATE_RECURRING_COMMISSION_COPY.monthlyRows} compact />
+          <RateTable title="Annual track" rows={AFFILIATE_RECURRING_COMMISSION_COPY.annualRows} compact />
+        </div>
+        <div className="space-y-1.5 rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 text-[11px] leading-relaxed text-zinc-600">
+          <p>
+            <span className="font-semibold text-zinc-800">Milestones — </span>
+            {AFFILIATE_EARNINGS_SUMMARY.milestones}
+          </p>
+          <p>
+            <span className="font-semibold text-zinc-800">Annual bonus — </span>
+            {AFFILIATE_ANNUAL_BONUS_COPY.body}
+          </p>
+          <p>
+            <span className="font-semibold text-zinc-800">Hold — </span>
+            {AFFILIATE_EARNINGS_SUMMARY.hold}
+          </p>
+          <p className="text-zinc-500">{AFFILIATE_EARNINGS_SUMMARY.timingNote}</p>
+        </div>
       </div>
     );
   }

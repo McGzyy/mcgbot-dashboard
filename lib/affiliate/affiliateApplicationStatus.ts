@@ -43,7 +43,7 @@ export function affiliateAccountRowClass(
 
   switch (status) {
     case "denied":
-      return `${base} bg-zinc-100/95 text-zinc-500 ${selectedRing}`;
+      return `${base} bg-zinc-200/40 text-zinc-400 opacity-80 ${selectedRing}`;
     case "active":
       return `${base} cursor-pointer bg-emerald-50/70 hover:bg-emerald-100/80 border-l-2 border-l-emerald-500 ${selectedRing}`;
     case "needs_contact":
