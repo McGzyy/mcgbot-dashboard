@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AffiliateProgramOverview } from "@/app/affiliate/_components/AffiliateProgramOverview";
 import { AffiliateApplicationContactModal } from "@/app/affiliate/admin/_components/AffiliateApplicationContactModal";
 import {
   AffiliateApplicationDenyModal,
@@ -10,7 +12,13 @@ import {
 import { reapplyAfterFromDenyPolicy } from "@/lib/affiliate/affiliateDenialReapply";
 import { AffiliateApplicationDetails } from "@/app/affiliate/admin/_components/AffiliateApplicationDetails";
 import { AffiliatePartnerSummarySection } from "@/app/affiliate/admin/_components/AffiliatePartnerSummarySection";
-import { AFFILIATE_STATUS_LABELS } from "@/lib/affiliate/affiliateApplicationStatus";
+import {
+  AFFILIATE_STATUS_BADGE_CLASS,
+  AFFILIATE_STATUS_LABELS,
+  affiliateAccountOpensPartnerProfile,
+  affiliateAccountRowClass,
+  affiliateAccountRowClickHint,
+} from "@/lib/affiliate/affiliateApplicationStatus";
 import { affiliateCommissionProgramShortLabel } from "@/lib/affiliate/affiliateCommissionSchedule";
 import type { AffiliateAccountStatus } from "@/lib/affiliate/affiliateSession";
 
@@ -48,6 +56,8 @@ type AffiliateRow = {
 };
 
 export function AffiliateAdminConsole() {
+  const router = useRouter();
+  const detailRef = useRef<HTMLElement | null>(null);
   const [accounts, setAccounts] = useState<AffiliateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -195,6 +205,21 @@ export function AffiliateAdminConsole() {
   }
   const selected = accounts.find((a) => a.id === selectedId) ?? null;
 
+  function handleAccountRowClick(row: AffiliateRow) {
+    if (affiliateAccountOpensPartnerProfile(row.status as AffiliateAccountStatus)) {
+      router.push(`/affiliate/admin/partners/${encodeURIComponent(row.id)}`);
+      return;
+    }
+    setSelectedId(row.id);
+  }
+
+  useEffect(() => {
+    if (!selectedId || !detailRef.current) return;
+    const row = accounts.find((a) => a.id === selectedId);
+    if (!row || affiliateAccountOpensPartnerProfile(row.status as AffiliateAccountStatus)) return;
+    detailRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedId, accounts]);
+
   useEffect(() => {
     setReviewNotesDraft(selected?.application?.adminReviewNotes ?? "");
   }, [selected?.id, selected?.application?.adminReviewNotes]);
@@ -254,10 +279,20 @@ export function AffiliateAdminConsole() {
       <div>
         <h2 className="text-lg font-semibold text-zinc-900">Affiliates</h2>
         <p className="mt-1 text-sm text-zinc-600">
-          Approve self-serve applications, suspend accounts, and copy tracking paths for active affiliates. All partners
-          use the standard {affiliateCommissionProgramShortLabel()} program.
+          Review applications, manage partners, and copy tracking paths. Standard program for every account:{" "}
+          <span className="font-semibold text-zinc-800">{affiliateCommissionProgramShortLabel()}</span>.
         </p>
       </div>
+
+      <section className="rounded-2xl border border-violet-200/70 bg-gradient-to-br from-violet-50/50 to-white p-4 shadow-sm sm:p-5">
+        <h3 className="text-sm font-semibold text-zinc-900">Program reference</h3>
+        <p className="mt-1 text-xs text-zinc-600">
+          What partners receive and how loyalty tiers accrue — use when approving or answering applicant questions.
+        </p>
+        <div className="mt-4">
+          <AffiliateProgramOverview variant="admin" />
+        </div>
+      </section>
 
       {pendingCount > 0 ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
@@ -343,21 +378,37 @@ export function AffiliateAdminConsole() {
                   </td>
                 </tr>
               ) : (
-                accounts.map((a) => (
+                accounts.map((a) => {
+                  const accountStatus = a.status as AffiliateAccountStatus;
+                  const rowHint = affiliateAccountRowClickHint(accountStatus);
+                  return (
                   <tr
                     key={a.id}
-                    className={`cursor-pointer text-zinc-800 ${selectedId === a.id ? "bg-violet-50/80" : "hover:bg-zinc-50"}`}
-                    onClick={() => setSelectedId(a.id)}
+                    title={rowHint}
+                    className={affiliateAccountRowClass(accountStatus, selectedId === a.id)}
+                    onClick={() => handleAccountRowClick(a)}
                   >
                     <td className="max-w-[12rem] px-3 py-2 sm:max-w-none">
-                      <span className="block truncate text-sm font-medium text-zinc-900">{a.email}</span>
-                      {a.displayName ? <span className="text-zinc-500">{a.displayName}</span> : null}
+                      <span
+                        className={`block truncate text-sm font-medium ${accountStatus === "denied" ? "text-zinc-500" : "text-zinc-900"}`}
+                      >
+                        {a.email}
+                      </span>
+                      {a.displayName ? (
+                        <span className={accountStatus === "denied" ? "text-zinc-400" : "text-zinc-500"}>
+                          {a.displayName}
+                        </span>
+                      ) : null}
                       {a.application?.legalName ? (
                         <span className="block text-[10px] text-zinc-400">{a.application.legalName}</span>
                       ) : null}
                     </td>
-                    <td className="px-3 py-2 text-zinc-700">
-                      {AFFILIATE_STATUS_LABELS[a.status as AffiliateAccountStatus] ?? a.status}
+                    <td className="px-3 py-2">
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${AFFILIATE_STATUS_BADGE_CLASS[accountStatus] ?? "border-zinc-200 bg-zinc-50 text-zinc-700"}`}
+                      >
+                        {AFFILIATE_STATUS_LABELS[accountStatus] ?? a.status}
+                      </span>
                     </td>
                     <td className="px-3 py-2 text-zinc-600">{a.totpEnabled ? "Enabled" : "Required"}</td>
                     <td className="px-3 py-2 text-[10px] font-medium text-zinc-600">
@@ -374,7 +425,7 @@ export function AffiliateAdminConsole() {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-wrap justify-end gap-1">
-                        {isReviewableStatus(a.status) ? (
+                        {isReviewableStatus(a.status) && a.status !== "denied" ? (
                           <>
                             <button
                               type="button"
@@ -402,6 +453,11 @@ export function AffiliateAdminConsole() {
                             </button>
                           </>
                         ) : null}
+                        {a.status === "denied" ? (
+                          <span className="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-[10px] font-medium text-zinc-500">
+                            Closed
+                          </span>
+                        ) : null}
                         {a.status === "active" ? (
                           <button
                             type="button"
@@ -425,7 +481,8 @@ export function AffiliateAdminConsole() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -454,7 +511,18 @@ export function AffiliateAdminConsole() {
       />
 
       {selected ? (
-        <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:p-5">
+        <section
+          ref={detailRef}
+          className={`rounded-2xl border p-4 shadow-sm sm:p-5 ${
+            selected.status === "denied"
+              ? "border-zinc-200/90 bg-zinc-50"
+              : selected.status === "needs_contact"
+                ? "border-amber-200/90 bg-amber-50/40"
+                : selected.status === "active"
+                  ? "border-emerald-200/90 bg-emerald-50/30"
+                  : "border-zinc-200/90 bg-white"
+          }`}
+        >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-zinc-900">

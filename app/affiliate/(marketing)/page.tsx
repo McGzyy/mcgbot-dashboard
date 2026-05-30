@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AffiliateProgramOverview } from "@/app/affiliate/_components/AffiliateProgramOverview";
 import { AffiliateEarningsGuide } from "@/app/affiliate/(partner)/_components/AffiliateEarningsGuide";
+import { affiliateCommissionProgramShortLabel, AFFILIATE_MONTHLY_MAX_COMMISSION_PAYMENTS, AFFILIATE_REVSHARE_BASE_BPS, AFFILIATE_REVSHARE_LOYAL_BPS, AFFILIATE_REVSHARE_MID_BPS, AFFILIATE_REVSHARE_UNLOCK_LOYAL_AT_PAYMENT, AFFILIATE_REVSHARE_UNLOCK_MID_AT_PAYMENT, revshareRatePercentLabel } from "@/lib/affiliate/affiliateCommissionSchedule";
 import { AFFILIATE_AFTER_APPLY_STEPS } from "@/lib/affiliate/affiliateRegisterCopy";
 
 export const metadata: Metadata = {
@@ -8,27 +10,7 @@ export const metadata: Metadata = {
   description: "Earn recurring commission and bonuses promoting McGBot Terminal to your audience.",
 };
 
-const FEATURES = [
-  {
-    title: "Tracking link",
-    body: "Your own landing URL plus campaign sub-links to see what content converts.",
-  },
-  {
-    title: "Commission ledger",
-    body: "Pending, approved, and paid amounts with rev share and bonuses broken out.",
-  },
-  {
-    title: "Payout requests",
-    body: "Request withdrawals from approved balance when you hit the minimum.",
-  },
-  {
-    title: "Brand resources",
-    body: "Approved logo and promotion rules so you stay compliant.",
-  },
-] as const;
-
-export default function AffiliateMarketingHomePage() {
-  return (
+export default function AffiliateMarketingHomePage() {  return (
     <div>
       <section className="relative overflow-hidden border-b border-violet-200/60 bg-gradient-to-br from-violet-600 via-violet-700 to-indigo-900 text-white">
         <div
@@ -41,9 +23,32 @@ export default function AffiliateMarketingHomePage() {
             Earn when your audience subscribes to McGBot Terminal
           </h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-violet-100 sm:text-lg">
-            Promote the member trading dashboard with your link. Earn 15% to start, up to 25% as referrals stay subscribed,
-            plus milestone and annual signup bonuses. Separate portal — not Discord member login.
+            Promote McGBot Terminal with your link. Standard program:{" "}
+            <span className="font-semibold text-white">{affiliateCommissionProgramShortLabel()}</span> rev-share on
+            each referred member&apos;s payments, plus milestone bonuses and annual signup extras.
           </p>
+          <dl className="mt-6 flex flex-wrap gap-3">
+            {[
+              { label: "Base rev-share", value: revshareRatePercentLabel(AFFILIATE_REVSHARE_BASE_BPS) },
+              {
+                label: `Unlocks at payment ${AFFILIATE_REVSHARE_UNLOCK_MID_AT_PAYMENT}`,
+                value: revshareRatePercentLabel(AFFILIATE_REVSHARE_MID_BPS),
+              },
+              {
+                label: `Unlocks at payment ${AFFILIATE_REVSHARE_UNLOCK_LOYAL_AT_PAYMENT}`,
+                value: revshareRatePercentLabel(AFFILIATE_REVSHARE_LOYAL_BPS),
+              },
+              { label: "Monthly cap", value: `${AFFILIATE_MONTHLY_MAX_COMMISSION_PAYMENTS} payments` },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 backdrop-blur"
+              >
+                <dt className="text-[10px] font-semibold uppercase tracking-wider text-violet-200">{s.label}</dt>
+                <dd className="mt-0.5 text-lg font-semibold tabular-nums text-white">{s.value}</dd>
+              </div>
+            ))}
+          </dl>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/affiliate/register"
@@ -62,31 +67,47 @@ export default function AffiliateMarketingHomePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
+        <AffiliateProgramOverview variant="marketing" />
+      </section>
+
+      <section id="how-you-earn" className="scroll-mt-8 border-y border-zinc-200/80 bg-zinc-50/80 py-14 sm:py-16">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">Full earnings breakdown</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-600">
+            Exact rules for recurring %, milestone bonuses, annual signup extras, and hold periods — what we use in the
+            ledger when you refer real subscribers.
+          </p>
+          <div className="mt-8 rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm sm:p-6">
+            <AffiliateEarningsGuide variant="full" />
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
         <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">What you&apos;re promoting</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">Application process</h2>
             <p className="mt-3 text-sm leading-relaxed text-zinc-600 sm:text-base">
-              McGBot Terminal is our paid member product — scanner, desk calls, leaderboards, and performance tools for
-              crypto traders. Your job is to send qualified subscribers, not to sell access to this affiliate portal.
+              We manually review every partner for promotion fit and compliance. Mandatory 2FA before dashboard access.
             </p>
             <ul className="mt-6 space-y-3 text-sm text-zinc-700">
               <li className="flex gap-2">
                 <span className="text-violet-600" aria-hidden>
                   ✓
                 </span>
-                Real product with monthly and annual plans
+                Real product — Basic and Pro monthly or annual plans
               </li>
               <li className="flex gap-2">
                 <span className="text-violet-600" aria-hidden>
                   ✓
                 </span>
-                Manual application review — we care about fit and compliance
+                Net rev-share on qualifying subscription invoices
               </li>
               <li className="flex gap-2">
                 <span className="text-violet-600" aria-hidden>
                   ✓
                 </span>
-                Mandatory 2FA on your affiliate account
+                Separate affiliate portal — not Discord member login
               </li>
             </ul>
           </div>
@@ -103,31 +124,6 @@ export default function AffiliateMarketingHomePage() {
               ))}
             </ol>
           </div>
-        </div>
-      </section>
-
-      <section id="how-you-earn" className="scroll-mt-8 border-y border-zinc-200/80 bg-white py-14 sm:py-16">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">How you earn</h2>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-            Three ways to get paid — loyalty rev-share (15% base, up to 25% as referrals stay subscribed), referral
-            milestones, and annual signup bonuses.
-          </p>
-          <div className="mt-8">
-            <AffiliateEarningsGuide variant="full" />
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-        <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">What you get after approval</h2>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-zinc-900">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">{f.body}</p>
-            </div>
-          ))}
         </div>
       </section>
 
@@ -155,7 +151,6 @@ export default function AffiliateMarketingHomePage() {
             .
           </p>
         </div>
-      </section>
-    </div>
+      </section>    </div>
   );
 }

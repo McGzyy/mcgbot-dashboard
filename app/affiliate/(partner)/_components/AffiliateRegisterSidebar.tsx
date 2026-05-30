@@ -1,3 +1,4 @@
+import { AffiliateProgramOverview } from "@/app/affiliate/_components/AffiliateProgramOverview";
 import { AffiliateEarningsGuide } from "@/app/affiliate/(partner)/_components/AffiliateEarningsGuide";
 import { AFFILIATE_AFTER_APPLY_STEPS } from "@/lib/affiliate/affiliateRegisterCopy";
 
@@ -10,7 +11,12 @@ export function AffiliateRegisterSidebar() {
           Earn when your audience subscribes to McGBot Terminal through your tracking link. This portal is separate from
           the member Discord dashboard.
         </p>
-        <AffiliateEarningsGuide variant="compact" />
+        <div className="mt-4 border-t border-violet-200/60 pt-4">
+          <AffiliateProgramOverview variant="compact" />
+        </div>
+        <div className="mt-4 border-t border-violet-200/60 pt-4">
+          <AffiliateEarningsGuide variant="compact" />
+        </div>
       </div>
       <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm">
         <p className="text-xs font-semibold text-zinc-900">After you submit</p>
