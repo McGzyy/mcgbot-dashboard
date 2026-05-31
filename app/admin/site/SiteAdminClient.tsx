@@ -14,6 +14,18 @@ type Summary = {
     vercelEnv?: string | null;
   };
   integrations?: Record<string, boolean>;
+  launchReadiness?: {
+    requiredOk?: boolean;
+    optionalFailed?: number;
+    checks?: Array<{
+      id: string;
+      label: string;
+      ok: boolean;
+      required: boolean;
+      migration?: string;
+      hint?: string;
+    }>;
+  };
 };
 
 type AppSettings = {
@@ -319,6 +331,8 @@ export function SiteAdminClient() {
 
   const int = data?.integrations ?? {};
   const dep = data?.deployment;
+  const launch = data?.launchReadiness;
+  const launchChecks = launch?.checks ?? [];
 
   const rows: { key: string; label: string }[] = [
     { key: "supabaseUrl", label: "Supabase URL" },
@@ -329,6 +343,9 @@ export function SiteAdminClient() {
     { key: "discordGuild", label: "DISCORD_GUILD_ID" },
     { key: "discordBotToken", label: "DISCORD_BOT_TOKEN / DISCORD_TOKEN" },
     { key: "cronSecret", label: "CRON_SECRET" },
+    { key: "stripeSecret", label: "STRIPE_SECRET_KEY (paid launch)" },
+    { key: "stripeWebhook", label: "STRIPE_WEBHOOK_SECRET (paid launch)" },
+    { key: "discordPremiumRole", label: "DISCORD_PREMIUM_ROLE_ID (paid launch)" },
     { key: "solanaTreasuryPubkey", label: "SOLANA_TREASURY_PUBKEY" },
   ];
 
@@ -416,6 +433,88 @@ export function SiteAdminClient() {
             )}
           </AdminPanel>
         </div>
+      </div>
+
+      <div>
+        <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+          Beta launch readiness
+        </h3>
+        <AdminPanel
+          className={`p-5 ${
+            launch?.requiredOk
+              ? "border-emerald-500/20 bg-emerald-950/10"
+              : "border-amber-500/25 bg-amber-950/10"
+          }`}
+        >
+          {loading ? (
+            <p className="text-sm text-zinc-500">Loading…</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-zinc-300">
+                  {launch?.requiredOk
+                    ? "Required checks passed — safe to invite beta testers after you grant access."
+                    : "Fix required items before inviting beta testers."}
+                </p>
+                <span
+                  className={`shrink-0 rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                    launch?.requiredOk
+                      ? "bg-emerald-500/15 text-emerald-300"
+                      : "bg-amber-500/15 text-amber-200"
+                  }`}
+                >
+                  {launch?.requiredOk ? "Ready" : "Action needed"}
+                </span>
+              </div>
+              <ul className="mt-4 space-y-2">
+                {launchChecks.map((check) => (
+                  <li
+                    key={check.id}
+                    className="rounded-lg border border-zinc-800/55 bg-black/25 px-3 py-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-zinc-200">
+                          {check.label}
+                          {!check.required ? (
+                            <span className="ml-1.5 text-[10px] font-normal uppercase tracking-wide text-zinc-500">
+                              optional
+                            </span>
+                          ) : null}
+                        </p>
+                        {check.hint ? (
+                          <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">{check.hint}</p>
+                        ) : null}
+                        {check.migration && !check.ok ? (
+                          <p className={`mt-1 font-mono text-[10px] ${adminChrome.code} text-zinc-600`}>
+                            {check.migration}
+                          </p>
+                        ) : null}
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                          check.ok
+                            ? "bg-emerald-500/15 text-emerald-300"
+                            : check.required
+                              ? "bg-red-500/15 text-red-300"
+                              : "bg-zinc-800/80 text-zinc-500"
+                        }`}
+                      >
+                        {check.ok ? "Ok" : check.required ? "Missing" : "Skip"}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {launch?.optionalFailed ? (
+                <p className="mt-3 text-[11px] text-zinc-500">
+                  {launch.optionalFailed} optional mod-program migration
+                  {launch.optionalFailed === 1 ? "" : "s"} not applied — only needed if mods are live.
+                </p>
+              ) : null}
+            </>
+          )}
+        </AdminPanel>
       </div>
 
       <SettingsSection

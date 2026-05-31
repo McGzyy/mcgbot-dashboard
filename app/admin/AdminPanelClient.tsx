@@ -78,7 +78,7 @@ export function AdminPanelClient() {
       if (!res.ok || !json.success || !Array.isArray(json.rows)) {
         const hint =
           json.code === "supabase_env"
-            ? " Configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, and run `sql/subscription_exempt_allowlist.sql` in Supabase."
+            ? " Configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, and run `supabase/migrations/20260701120000_subscription_exempt_allowlist.sql` in Supabase."
             : "";
         setLoadError((typeof json.error === "string" ? json.error : "Could not load list.") + hint);
         setRows([]);
