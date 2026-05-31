@@ -262,8 +262,9 @@ export default function AdminModStaffPage() {
       <div>
         <h2 className="text-lg font-semibold text-white">Mod staff roster</h2>
         <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-          Invite moderators, set stipends, and suspend access. Staff must still sign the dashboard agreement before queue
-          tools unlock.
+          Invite moderators, set stipends, and suspend access. Desk APIs require roster status{" "}
+          <span className="font-medium text-zinc-300">active</span> plus a signed agreement on the current version
+          before queue tools unlock.
         </p>
       </div>
 

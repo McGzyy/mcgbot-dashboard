@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { actionLabel, actionTone } from "@/lib/mod/modAudit";
+import { MOD_AUDIT_REFRESH_EVENT } from "@/lib/mod/modAuditRefresh";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import { useCallback, useEffect, useState } from "react";
 
@@ -45,6 +46,12 @@ export function ModerationActivityLogPanel() {
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const onRefresh = () => void refresh();
+    window.addEventListener(MOD_AUDIT_REFRESH_EVENT, onRefresh);
+    return () => window.removeEventListener(MOD_AUDIT_REFRESH_EVENT, onRefresh);
   }, [refresh]);
 
   return (

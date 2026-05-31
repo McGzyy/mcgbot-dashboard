@@ -1,6 +1,7 @@
 "use client";
 
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
+import { dispatchModAuditRefresh } from "@/lib/mod/modAuditRefresh";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import { ModQueueItemTools } from "@/app/moderation/_components/ModQueueItemTools";
 import Link from "next/link";
@@ -226,6 +227,7 @@ export function ModerationStaffQueues() {
           setErr(typeof j.error === "string" ? j.error : "Update failed");
         } else {
           setCallReports((prev) => prev.filter((r) => r.id !== id));
+          dispatchModAuditRefresh();
         }
       } finally {
         setActingId(null);
@@ -249,6 +251,7 @@ export function ModerationStaffQueues() {
           setErr(typeof j.error === "string" ? j.error : "Update failed");
         } else {
           setProfileReports((prev) => prev.filter((r) => r.id !== id));
+          dispatchModAuditRefresh();
         }
       } finally {
         setActingId(null);
@@ -271,6 +274,7 @@ export function ModerationStaffQueues() {
         setErr(typeof j.error === "string" ? j.error : "Action failed");
       } else {
         setTpApps((prev) => prev.filter((r) => r.id !== id));
+        dispatchModAuditRefresh();
       }
     } finally {
       setActingId(null);
@@ -291,6 +295,7 @@ export function ModerationStaffQueues() {
         setErr(typeof j.error === "string" ? j.error : "Action failed");
       } else {
         setTpCalls((prev) => prev.filter((r) => r.id !== id));
+        dispatchModAuditRefresh();
       }
     } finally {
       setActingId(null);
@@ -321,6 +326,7 @@ export function ModerationStaffQueues() {
       } else {
         setDeskInfo(typeof j.message === "string" ? j.message : "Source approved.");
       }
+      dispatchModAuditRefresh();
       await refreshOutsideSubmissions();
     } finally {
       setActingId(null);
@@ -345,6 +351,7 @@ export function ModerationStaffQueues() {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
         setErr(typeof j.error === "string" ? j.error : "Reject failed");
       } else {
+        dispatchModAuditRefresh();
         await refreshOutsideSubmissions();
       }
     } finally {

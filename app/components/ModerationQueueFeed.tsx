@@ -3,6 +3,7 @@
 import type { ModQueueCallApproval, ModQueueDevSubmission, ModQueuePayload } from "@/lib/modQueue";
 import { ModerationCallApprovalsTable } from "@/app/components/ModerationCallApprovalsTable";
 import { ModQueueItemTools } from "@/app/moderation/_components/ModQueueItemTools";
+import { dispatchModAuditRefresh } from "@/lib/mod/modAuditRefresh";
 import { dexscreenerTokenUrl, formatListField, formatRelativeTime, parseTagsList } from "@/lib/modUiUtils";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
@@ -267,6 +268,7 @@ export function ModerationQueueFeed({
         if (!res.ok || json.success !== true) {
           return;
         }
+        dispatchModAuditRefresh();
         await load();
       } catch {
         /* network error — queue refresh skipped */
