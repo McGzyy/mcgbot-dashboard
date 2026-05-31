@@ -161,7 +161,9 @@ export function ModerationQueueFeed({
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Record<string, { call: ModQueueCallApproval; origin: CallOrigin }>>({});
   const [bulkBusy, setBulkBusy] = useState(false);
-  const { isHighlighted } = useModQueueHighlight({ ready: !loading });
+  const { isHighlighted, highlightMissed, dismissHighlightMiss } = useModQueueHighlight({
+    ready: !loading,
+  });
 
   const limit = mode === "full" ? 100 : 8;
   /** Full desk lists up to the API limit so large queues stay on one scannable surface. */
@@ -439,6 +441,22 @@ export function ModerationQueueFeed({
                 </label>
               </div>
             </div>
+
+            {highlightMissed ? (
+              <div
+                role="status"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-violet-500/25 bg-violet-950/25 px-3 py-2 text-xs text-violet-100/90"
+              >
+                <span>Highlighted item not in current filter.</span>
+                <button
+                  type="button"
+                  onClick={dismissHighlightMiss}
+                  className="shrink-0 rounded-md border border-violet-500/30 px-2 py-0.5 text-[10px] font-semibold text-violet-200/90 hover:bg-violet-500/10"
+                >
+                  Dismiss
+                </button>
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap items-center gap-2">
               {(

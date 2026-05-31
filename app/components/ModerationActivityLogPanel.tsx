@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { actionLabel, actionTone } from "@/lib/mod/modAudit";
+import { modQueueLinkForSubject } from "@/lib/mod/modEscalationSubjectLinks";
 import { MOD_AUDIT_REFRESH_EVENT } from "@/lib/mod/modAuditRefresh";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import { useCallback, useEffect, useState } from "react";
@@ -117,6 +118,19 @@ export function ModerationActivityLogPanel() {
               </div>
               {row.subjectId ? (
                 <p className="mt-1 break-all font-mono text-xs text-zinc-400">{row.subjectId}</p>
+              ) : null}
+              {row.subjectType && row.subjectId ? (
+                (() => {
+                  const queue = modQueueLinkForSubject(row.subjectType, row.subjectId);
+                  return queue ? (
+                    <Link
+                      href={queue.href}
+                      className="mt-1.5 inline-block text-[10px] font-semibold text-violet-300 hover:underline"
+                    >
+                      {queue.label}
+                    </Link>
+                  ) : null;
+                })()
               ) : null}
             </li>
           ))}
