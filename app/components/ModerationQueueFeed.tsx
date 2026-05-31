@@ -8,6 +8,7 @@ import {
   type ModActivityLogEntry,
   type ModActivityOutcome,
 } from "@/lib/modActivityLog";
+import { terminalSurface } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
