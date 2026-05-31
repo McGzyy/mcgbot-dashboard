@@ -14,14 +14,14 @@ function adminDiscordIdSet(): Set<string> {
   );
 }
 
-async function resolveAdminDashboardUserIds(): Promise<string[]> {
+async function resolveAdminInboxUserIds(): Promise<string[]> {
   const discordIds = [...adminDiscordIdSet()];
   if (discordIds.length === 0) return [];
 
   const db = getSupabaseAdmin();
   if (!db) return [];
 
-  const { data, error } = await db.from("users").select("id").in("discord_id", discordIds);
+  const { data, error } = await db.from("users").select("discord_id").in("discord_id", discordIds);
   if (error) {
     console.error("[modEscalationAdminInbox] users lookup:", error);
     return [];
@@ -30,8 +30,11 @@ async function resolveAdminDashboardUserIds(): Promise<string[]> {
   const ids = new Set<string>();
   for (const row of data ?? []) {
     if (!row || typeof row !== "object") continue;
-    const id = typeof (row as { id?: unknown }).id === "string" ? (row as { id: string }).id.trim() : "";
-    if (id) ids.add(id);
+    const discordId =
+      typeof (row as { discord_id?: unknown }).discord_id === "string"
+        ? (row as { discord_id: string }).discord_id.trim()
+        : "";
+    if (discordId) ids.add(discordId);
   }
   return [...ids];
 }
@@ -53,7 +56,7 @@ function buildInboxCopy(row: ModEscalationRow): { title: string; body: string } 
 }
 
 async function sendModEscalationAdminInbox(row: ModEscalationRow): Promise<void> {
-  const userIds = await resolveAdminDashboardUserIds();
+  const userIds = await resolveAdminInboxUserIds();
   if (userIds.length === 0) return;
 
   const db = getSupabaseAdmin();

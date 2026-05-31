@@ -14,8 +14,8 @@ type InboxRow = {
 };
 
 /**
- * When enabled, polls bell inbox for new dashboard alerts and shows a home toast
- * for followed-caller hits (cron-evaluated; complements live activity toasts).
+ * When enabled, polls bell inbox and shows home toasts for dashboard alerts
+ * (followed-caller hits) and mod escalation notices (admin inbox only).
  */
 export function useDashboardAlertInboxToasts(enabled: boolean): void {
   const { status } = useSession();
@@ -78,23 +78,39 @@ export function useDashboardAlertInboxToasts(enabled: boolean): void {
         for (const row of items) {
           if (!row?.id || seenIdsRef.current.has(row.id)) continue;
           seenIdsRef.current.add(row.id);
-          if (row.kind !== "alert") continue;
 
           const title = typeof row.title === "string" ? row.title.trim() : "";
-          if (title === "Followed caller posted" && !followedCallersRef.current) continue;
-
           const bodyText = inboxBodyForDisplay(typeof row.body === "string" ? row.body : "");
-          const firstLine = bodyText.split("\n")[0]?.trim() || title || "Dashboard alert";
-          const toastText =
-            title && title !== firstLine ? `${title} — ${firstLine}` : firstLine;
+          const firstLine = bodyText.split("\n")[0]?.trim() || title || "Notice";
 
-          addNotification({
-            id: crypto.randomUUID(),
-            text: toastText.slice(0, 280),
-            type: "call",
-            createdAt: Date.now(),
-            priority: title === "Followed caller posted" ? "high" : "medium",
-          });
+          if (row.kind === "alert") {
+            if (title === "Followed caller posted" && !followedCallersRef.current) continue;
+
+            const toastText =
+              title && title !== firstLine ? `${title} — ${firstLine}` : firstLine;
+
+            addNotification({
+              id: crypto.randomUUID(),
+              text: toastText.slice(0, 280),
+              type: "call",
+              createdAt: Date.now(),
+              priority: title === "Followed caller posted" ? "high" : "medium",
+            });
+            continue;
+          }
+
+          if (row.kind === "mod_escalation") {
+            const toastText =
+              title && title !== firstLine ? `${title} — ${firstLine}` : firstLine;
+
+            addNotification({
+              id: crypto.randomUUID(),
+              text: toastText.slice(0, 280),
+              type: "call",
+              createdAt: Date.now(),
+              priority: "high",
+            });
+          }
         }
       } catch {
         /* ignore */

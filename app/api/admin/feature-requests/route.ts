@@ -1,5 +1,6 @@
 import { requireDashboardAdmin } from "@/lib/adminGate";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { insertUserInboxNotification } from "@/lib/userInboxNotifications";
 
 const DEFAULT_LIMIT = 50;
 
@@ -96,17 +97,13 @@ export async function PATCH(request: Request) {
         ? String((updated as { title: string }).title)
         : "Feature request";
     if (reporter) {
-      const notifTitle = "Feature request update";
-      const bodyText = `Your feature request (“${title.slice(0, 140)}”) has been closed. Thank you for helping shape the roadmap.`;
-      const { error: insErr } = await db.from("user_inbox_notifications").insert({
-        user_id: reporter,
-        title: notifTitle,
-        body: bodyText,
+      void insertUserInboxNotification(db, {
+        userId: reporter,
+        title: "Feature request update",
+        body: `Your feature request (“${title.slice(0, 140)}”) has been closed. Thank you for helping shape the roadmap.`,
         kind: "feature_closed",
+        actionHref: "/help",
       });
-      if (insErr) {
-        console.error("[admin/feature-requests] notify insert:", insErr);
-      }
     }
   }
 

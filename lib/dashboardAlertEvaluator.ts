@@ -63,6 +63,7 @@ type CallRow = {
 
 function userHasEvaluableConfig(prefs: DashboardAlertPrefs, watchlist: string[]): boolean {
   if (prefs.general.followed_callers) return true;
+  if (prefs.general.hot_trending) return true;
   if (prefs.rules.length > 0) return true;
   if (watchlist.length > 0) return true;
   return false;
