@@ -5,6 +5,7 @@ export type UserInboxKind =
   | "info"
   | "announcement"
   | "bug_closed"
+  | "feature_closed"
   | "profile_report_resolved"
   | "profile_report_rejected"
   | "call_report_resolved"
@@ -45,18 +46,46 @@ export async function insertUserInboxNotification(
   return { ok: true };
 }
 
+/** Parse optional `Link: /path` line embedded in notification body. */
+function parseInboxLinkLine(body?: string): string | null {
+  const linkLine = (body ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l.startsWith("Link:"));
+  if (!linkLine) return null;
+  const href = linkLine.slice("Link:".length).trim();
+  return href.startsWith("/") ? href : null;
+}
+
 /** Client-safe href for bell inbox rows when the kind maps to a dashboard route. */
 export function inboxNotificationHref(input: { kind: string; body?: string }): string | null {
+  const linkFromBody = parseInboxLinkLine(input.body);
+  if (linkFromBody) return linkFromBody;
+
   const kind = input.kind.trim().toLowerCase();
-  if (kind === "mod_escalation") {
-    const linkLine = (input.body ?? "")
-      .split("\n")
-      .map((l) => l.trim())
-      .find((l) => l.startsWith("Link:"));
-    if (linkLine) return linkLine.slice("Link:".length).trim();
-    return "/admin/mod-escalations";
+  if (kind === "mod_escalation") return "/admin/mod-escalations";
+  if (
+    kind === "bug_closed" ||
+    kind === "feature_closed" ||
+    kind === "profile_report_resolved" ||
+    kind === "profile_report_rejected" ||
+    kind === "call_report_resolved" ||
+    kind === "call_report_rejected"
+  ) {
+    return "/help";
   }
   return null;
+}
+
+/** Short CTA label for linked inbox rows in the bell dropdown. */
+export function inboxNotificationCtaLabel(kind: string): string {
+  const k = kind.trim().toLowerCase();
+  if (k === "mod_escalation") return "Open escalation inbox →";
+  if (k === "bug_closed") return "Open Help →";
+  if (k === "feature_closed") return "Open Help →";
+  if (k === "profile_report_resolved" || k === "profile_report_rejected") return "View in Help →";
+  if (k === "call_report_resolved" || k === "call_report_rejected") return "View in Help →";
+  return "Open →";
 }
 
 /** Hide machine-readable link lines from inbox body copy. */

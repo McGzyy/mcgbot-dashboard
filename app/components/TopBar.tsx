@@ -8,7 +8,7 @@ import { dashboardChrome } from "@/lib/roleTierStyles";
 import { terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import { ModStaffBadge } from "@/app/moderation/_components/ModStaffBadge";
 import { userProfileHref, userProfilePathMatches } from "@/lib/userProfileHref";
-import { inboxBodyForDisplay, inboxNotificationHref } from "@/lib/userInboxNotifications";
+import { inboxBodyForDisplay, inboxNotificationCtaLabel, inboxNotificationHref } from "@/lib/userInboxNotifications";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -623,7 +623,9 @@ export function TopBar() {
                                 {formatTimeAgo(new Date(row.created_at).getTime(), Date.now())}
                               </p>
                               {href ? (
-                                <p className="mt-2 text-[11px] font-semibold text-violet-300/90">Open escalation inbox →</p>
+                                <p className="mt-2 text-[11px] font-semibold text-violet-300/90">
+                                  {inboxNotificationCtaLabel(row.kind)}
+                                </p>
                               ) : null}
                             </>
                           );
