@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ModStaffSubpageShell } from "@/app/moderation/_components/ModStaffSubpageShell";
 import { actionLabel, actionTone } from "@/lib/mod/modAudit";
-import { modQueueLinkForSubjectType } from "@/lib/mod/modEscalationSubjectLinks";
+import { modQueueLinkForSubject } from "@/lib/mod/modEscalationSubjectLinks";
 import { modChrome } from "@/lib/roleTierStyles";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 
@@ -139,7 +139,7 @@ export default function ModStaffActivityPage() {
                 ) : null}
                 {row.subjectType && row.subjectId ? (
                   (() => {
-                    const queue = modQueueLinkForSubjectType(row.subjectType);
+                    const queue = modQueueLinkForSubject(row.subjectType, row.subjectId);
                     return queue ? (
                       <Link
                         href={queue.href}

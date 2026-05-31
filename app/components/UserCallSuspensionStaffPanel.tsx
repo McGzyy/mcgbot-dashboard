@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { modQueueHighlightRing } from "@/lib/mod/modQueueHighlight";
+import { useModQueueHighlight } from "@/lib/mod/useModQueueHighlight";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import type { SuspensionDurationPreset } from "@/lib/userCallSuspensionDuration";
 
@@ -59,6 +61,7 @@ export function UserCallSuspensionStaffPanel({
   const [duration, setDuration] = useState<SuspensionDurationPreset>("24h");
   const [customUntil, setCustomUntil] = useState("");
   const [note, setNote] = useState("");
+  const { isHighlighted } = useModQueueHighlight({ ready: !loading });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -305,7 +308,11 @@ export function UserCallSuspensionStaffPanel({
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.discord_id} className="border-b border-zinc-800/60 text-zinc-300">
+                  <tr
+                    key={r.discord_id}
+                    data-mod-queue-highlight={r.discord_id}
+                    className={`border-b border-zinc-800/60 text-zinc-300 ${modQueueHighlightRing(isHighlighted(r.discord_id))}`}
+                  >
                     <td className="py-2 pr-3">
                       <Link
                         href={`/user/${encodeURIComponent(r.discord_id)}`}

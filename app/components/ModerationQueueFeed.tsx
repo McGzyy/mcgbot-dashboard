@@ -4,6 +4,8 @@ import type { ModQueueCallApproval, ModQueueDevSubmission, ModQueuePayload } fro
 import { ModerationCallApprovalsTable } from "@/app/components/ModerationCallApprovalsTable";
 import { ModQueueItemTools } from "@/app/moderation/_components/ModQueueItemTools";
 import { dispatchModAuditRefresh } from "@/lib/mod/modAuditRefresh";
+import { modQueueHighlightRing } from "@/lib/mod/modQueueHighlight";
+import { useModQueueHighlight } from "@/lib/mod/useModQueueHighlight";
 import { dexscreenerTokenUrl, formatListField, formatRelativeTime, parseTagsList } from "@/lib/modUiUtils";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
@@ -159,6 +161,7 @@ export function ModerationQueueFeed({
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Record<string, { call: ModQueueCallApproval; origin: CallOrigin }>>({});
   const [bulkBusy, setBulkBusy] = useState(false);
+  const { isHighlighted } = useModQueueHighlight({ ready: !loading });
 
   const limit = mode === "full" ? 100 : 8;
   /** Full desk lists up to the API limit so large queues stay on one scannable surface. */
@@ -569,6 +572,7 @@ export function ModerationQueueFeed({
                     submitCallDecision={submitCallDecision}
                     actingKey={actingKey}
                     bulkBusy={bulkBusy}
+                    isRowHighlighted={(ca) => isHighlighted(ca)}
                   />
                 ) : null}
                 {fullDevItems.length > 0 ? (
@@ -581,7 +585,11 @@ export function ModerationQueueFeed({
                         const d = item.dev;
                         const tags = parseTagsList(d.tags);
                         return (
-                          <div key={d.id} className={devShell()}>
+                          <div
+                            key={d.id}
+                            data-mod-queue-highlight={d.id}
+                            className={`${devShell()} ${modQueueHighlightRing(isHighlighted(d.id))}`}
+                          >
                             <div className="flex flex-wrap items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <p className="text-xs font-semibold text-zinc-200">
@@ -656,9 +664,14 @@ export function ModerationQueueFeed({
                     const milestones = Array.isArray(c.approvalMilestonesTriggered)
                       ? c.approvalMilestonesTriggered.map(String).join(", ")
                       : "—";
-                    const busy = actingKey === c.contractAddress.trim();
+                    const ca = c.contractAddress.trim();
+                    const busy = actingKey === ca;
                     return (
-                      <div key={`${origin}-${c.contractAddress}-${c.approvalMessageId ?? ""}`} className={callShell(origin)}>
+                      <div
+                        key={`${origin}-${c.contractAddress}-${c.approvalMessageId ?? ""}`}
+                        data-mod-queue-highlight={ca}
+                        className={`${callShell(origin)} ${modQueueHighlightRing(isHighlighted(ca))}`}
+                      >
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-zinc-200">{label}</p>
@@ -776,7 +789,11 @@ export function ModerationQueueFeed({
                   const d = item.dev;
                   const tags = parseTagsList(d.tags);
                   return (
-                    <div key={d.id} className={devShell()}>
+                    <div
+                      key={d.id}
+                      data-mod-queue-highlight={d.id}
+                      className={`${devShell()} ${modQueueHighlightRing(isHighlighted(d.id))}`}
+                    >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-xs font-semibold text-zinc-200">

@@ -1,3 +1,5 @@
+import { appendHighlightQuery } from "@/lib/mod/modQueueHighlight";
+
 /**
  * Maps mod escalation / audit subject types to moderation queue anchors.
  * Section ids must stay in sync with ModerationStaffQueues + moderation/page.tsx.
@@ -24,6 +26,25 @@ export function modQueueLinkForSubjectType(subjectType: string): ModQueueDeepLin
   const key = subjectType.trim().toLowerCase();
   if (!key) return null;
   return SUBJECT_QUEUE_LINKS[key] ?? null;
+}
+
+/** Queue deep link with optional `?highlight=` for scrolling to a specific row. */
+export function modQueueLinkForSubject(
+  subjectType: string,
+  subjectId?: string | null
+): ModQueueDeepLink | null {
+  const base = modQueueLinkForSubjectType(subjectType);
+  if (!base) return null;
+  const id = subjectId?.trim();
+  if (!id) return base;
+  return { ...base, href: appendHighlightQuery(base.href, id) };
+}
+
+/** Admin escalations inbox with optional row highlight (escalation uuid). */
+export function modEscalationAdminInboxHref(escalationId?: string | null): string {
+  const base = "/admin/mod-escalations";
+  const id = escalationId?.trim();
+  return id ? appendHighlightQuery(base, id) : base;
 }
 
 /** Optional profile shortcut when subject id is a dashboard user id (not report row ids). */

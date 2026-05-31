@@ -1,6 +1,10 @@
 import Link from "next/link";
 
-export default async function AuthErrorPage(props: PageProps<"/auth/error">) {
+type AuthErrorPageProps = {
+  searchParams: Promise<{ error?: string | string[] }>;
+};
+
+export default async function AuthErrorPage(props: AuthErrorPageProps) {
   const sp = await props.searchParams;
   const errorRaw = sp?.error;
   const error = Array.isArray(errorRaw) ? errorRaw[0] : errorRaw;

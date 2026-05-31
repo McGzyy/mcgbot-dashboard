@@ -1,4 +1,4 @@
-import { modQueueLinkForSubjectType } from "@/lib/mod/modEscalationSubjectLinks";
+import { modEscalationAdminInboxHref, modQueueLinkForSubject } from "@/lib/mod/modEscalationSubjectLinks";
 import type { ModEscalationRow } from "@/lib/mod/modQueueOps";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { insertUserInboxNotification } from "@/lib/userInboxNotifications";
@@ -37,15 +37,16 @@ async function resolveAdminDashboardUserIds(): Promise<string[]> {
 }
 
 function buildInboxCopy(row: ModEscalationRow): { title: string; body: string } {
-  const queue = modQueueLinkForSubjectType(row.subjectType);
+  const queue = modQueueLinkForSubject(row.subjectType, row.subjectId);
   const subject = `${row.subjectType} · ${row.subjectId}`.slice(0, 160);
   const reason = row.reason.trim().slice(0, 280);
+  const adminHref = modEscalationAdminInboxHref(row.id);
   const lines = [
     `A moderator escalated a queue item for admin review.`,
     subject,
     reason ? `Reason: ${reason}` : null,
     queue ? `Queue: ${queue.href}` : null,
-    `Admin inbox: /admin/mod-escalations`,
+    `Link: ${adminHref}`,
   ].filter(Boolean) as string[];
   return {
     title: "Mod escalation — admin review",
@@ -75,6 +76,7 @@ async function sendModEscalationAdminInbox(row: ModEscalationRow): Promise<void>
 
 /**
  * Fire-and-forget dashboard bell notifications for DISCORD_ADMIN_IDS users.
+ * Requires each admin Discord id to exist in `users` (matched by discord_id) or no bell is sent.
  * Never throws; logs failures to console only.
  */
 export function notifyModEscalationAdminsInbox(row: ModEscalationRow): void {

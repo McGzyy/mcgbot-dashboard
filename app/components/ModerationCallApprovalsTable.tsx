@@ -3,6 +3,7 @@
 import type { ModQueueCallApproval } from "@/lib/modQueue";
 import { ModQueueItemTools } from "@/app/moderation/_components/ModQueueItemTools";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
+import { modQueueHighlightRing } from "@/lib/mod/modQueueHighlight";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { useCallback, type ReactNode } from "react";
 
@@ -63,6 +64,7 @@ type Props = {
   ) => void;
   actingKey: string | null;
   bulkBusy: boolean;
+  isRowHighlighted?: (contractAddress: string) => boolean;
 };
 
 function Metric({ label, value, emphasis }: { label: string; value: ReactNode; emphasis?: boolean }) {
@@ -85,6 +87,7 @@ export function ModerationCallApprovalsTable({
   submitCallDecision,
   actingKey,
   bulkBusy,
+  isRowHighlighted,
 }: Props) {
   const copyCa = useCallback((ca: string) => {
     void navigator.clipboard.writeText(ca.trim()).catch(() => {});
@@ -109,10 +112,14 @@ export function ModerationCallApprovalsTable({
                 ? "border-amber-500/20"
                 : "border-sky-500/20";
 
+        const ca = c.contractAddress.trim();
+        const highlighted = isRowHighlighted?.(ca) ?? false;
+
         return (
           <article
             key={`${origin}-${c.contractAddress}-${c.approvalMessageId ?? ""}`}
-            className={`rounded-2xl border bg-[linear-gradient(180deg,rgba(12,12,14,0.98)_0%,rgba(6,6,8,0.99)_100%)] shadow-[inset_0_1px_0_0_rgba(63,63,70,0.2)] ${borderTone}`}
+            data-mod-queue-highlight={ca}
+            className={`rounded-2xl border bg-[linear-gradient(180deg,rgba(12,12,14,0.98)_0%,rgba(6,6,8,0.99)_100%)] shadow-[inset_0_1px_0_0_rgba(63,63,70,0.2)] ${borderTone} ${modQueueHighlightRing(highlighted)}`}
           >
             <div className="flex flex-col gap-5 p-5 lg:p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

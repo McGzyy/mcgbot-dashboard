@@ -2,6 +2,8 @@
 
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import { dispatchModAuditRefresh } from "@/lib/mod/modAuditRefresh";
+import { modQueueHighlightRing } from "@/lib/mod/modQueueHighlight";
+import { useModQueueHighlight } from "@/lib/mod/useModQueueHighlight";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import { ModQueueItemTools } from "@/app/moderation/_components/ModQueueItemTools";
 import Link from "next/link";
@@ -104,6 +106,7 @@ export function ModerationStaffQueues() {
   const [outsideSubs, setOutsideSubs] = useState<OutsideSourceSubmissionRow[]>([]);
   const [actingId, setActingId] = useState<string | null>(null);
   const [deskInfo, setDeskInfo] = useState<string | null>(null);
+  const { isHighlighted } = useModQueueHighlight({ ready: !loading });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -425,7 +428,8 @@ export function ModerationStaffQueues() {
                   return (
                     <li
                       key={r.id}
-                      className="rounded-lg border border-rose-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300"
+                      data-mod-queue-highlight={r.id}
+                      className={`rounded-lg border border-rose-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300 ${modQueueHighlightRing(isHighlighted(r.id))}`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <p className="font-semibold text-rose-100/90">{r.reason}</p>
@@ -526,7 +530,8 @@ export function ModerationStaffQueues() {
                   return (
                     <li
                       key={r.id}
-                      className="rounded-lg border border-fuchsia-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300"
+                      data-mod-queue-highlight={r.id}
+                      className={`rounded-lg border border-fuchsia-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300 ${modQueueHighlightRing(isHighlighted(r.id))}`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <p className="font-semibold text-fuchsia-100/90">{r.reason}</p>
@@ -611,7 +616,8 @@ export function ModerationStaffQueues() {
                   return (
                     <li
                       key={a.id}
-                      className="rounded-lg border border-emerald-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300"
+                      data-mod-queue-highlight={a.id}
+                      className={`rounded-lg border border-emerald-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300 ${modQueueHighlightRing(isHighlighted(a.id))}`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <p className="font-semibold text-emerald-100/90">
@@ -700,7 +706,8 @@ export function ModerationStaffQueues() {
                   return (
                     <li
                       key={s.id}
-                      className="rounded-lg border border-sky-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300"
+                      data-mod-queue-highlight={s.id}
+                      className={`rounded-lg border border-sky-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300 ${modQueueHighlightRing(isHighlighted(s.id))}`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -806,7 +813,8 @@ export function ModerationStaffQueues() {
                   return (
                     <li
                       key={c.id}
-                      className="rounded-lg border border-teal-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300"
+                      data-mod-queue-highlight={c.id}
+                      className={`rounded-lg border border-teal-500/20 bg-black/25 px-3 py-3 text-xs text-zinc-300 ${modQueueHighlightRing(isHighlighted(c.id))}`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <p className="min-w-0 font-semibold text-teal-100/90">{c.thesis}</p>

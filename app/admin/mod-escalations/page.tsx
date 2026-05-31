@@ -5,8 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import {
   modProfileLinkForSubject,
-  modQueueLinkForSubjectType,
+  modQueueLinkForSubject,
 } from "@/lib/mod/modEscalationSubjectLinks";
+import { modQueueHighlightRing } from "@/lib/mod/modQueueHighlight";
+import { useModQueueHighlight } from "@/lib/mod/useModQueueHighlight";
 import { adminChrome } from "@/lib/roleTierStyles";
 
 type EscalationRow = {
@@ -28,6 +30,10 @@ export default function AdminModEscalationsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [adminNotesDraft, setAdminNotesDraft] = useState<Record<string, string>>({});
+  const { isHighlighted } = useModQueueHighlight({
+    ready: !loading,
+    attr: "data-mod-escalation-highlight",
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -142,7 +148,11 @@ export default function AdminModEscalationsPage() {
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="border-b border-zinc-800/50 align-top hover:bg-zinc-900/40">
+                  <tr
+                    key={row.id}
+                    data-mod-escalation-highlight={row.id}
+                    className={`border-b border-zinc-800/50 align-top hover:bg-zinc-900/40 ${modQueueHighlightRing(isHighlighted(row.id))}`}
+                  >
                     <td className="px-4 py-3 text-xs text-zinc-500">
                       {row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}
                     </td>
@@ -152,7 +162,7 @@ export default function AdminModEscalationsPage() {
                         {row.subjectId}
                       </span>
                       {(() => {
-                        const queue = modQueueLinkForSubjectType(row.subjectType);
+                        const queue = modQueueLinkForSubject(row.subjectType, row.subjectId);
                         const profile = modProfileLinkForSubject(row.subjectType, row.subjectId);
                         return (
                           <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">

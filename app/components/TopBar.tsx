@@ -8,6 +8,7 @@ import { dashboardChrome } from "@/lib/roleTierStyles";
 import { terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
 import { ModStaffBadge } from "@/app/moderation/_components/ModStaffBadge";
 import { userProfileHref, userProfilePathMatches } from "@/lib/userProfileHref";
+import { inboxBodyForDisplay, inboxNotificationHref } from "@/lib/userInboxNotifications";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -612,18 +613,39 @@ export function TopBar() {
                     ) : null}
                     {inboxItems.length > 0 ? (
                       <ul className={terminalUi.notificationsList}>
-                        {inboxItems.map((row) => (
-                          <li
-                            key={row.id}
-                            className={`px-4 py-3 ${row.read_at == null ? "bg-sky-950/15" : ""}`}
-                          >
-                            <p className="text-sm font-medium text-zinc-100">{row.title || "Notice"}</p>
-                            <p className="mt-1 text-sm text-zinc-300">{row.body}</p>
-                            <p className="mt-1 text-xs text-zinc-500">
-                              {formatTimeAgo(new Date(row.created_at).getTime(), Date.now())}
-                            </p>
-                          </li>
-                        ))}
+                        {inboxItems.map((row) => {
+                          const href = inboxNotificationHref({ kind: row.kind, body: row.body });
+                          const inner = (
+                            <>
+                              <p className="text-sm font-medium text-zinc-100">{row.title || "Notice"}</p>
+                              <p className="mt-1 text-sm text-zinc-300">{inboxBodyForDisplay(row.body)}</p>
+                              <p className="mt-1 text-xs text-zinc-500">
+                                {formatTimeAgo(new Date(row.created_at).getTime(), Date.now())}
+                              </p>
+                              {href ? (
+                                <p className="mt-2 text-[11px] font-semibold text-violet-300/90">Open escalation inbox →</p>
+                              ) : null}
+                            </>
+                          );
+                          return (
+                            <li
+                              key={row.id}
+                              className={`px-4 py-3 ${row.read_at == null ? "bg-sky-950/15" : ""}`}
+                            >
+                              {href ? (
+                                <Link
+                                  href={href}
+                                  onClick={() => setOpenNotifications(false)}
+                                  className="-mx-1 block rounded-lg px-1 py-0.5 transition hover:bg-zinc-800/40"
+                                >
+                                  {inner}
+                                </Link>
+                              ) : (
+                                inner
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     ) : null}
                     {inboxItems.length > 0 && notifications.length > 0 ? (

@@ -44,3 +44,26 @@ export async function insertUserInboxNotification(
   }
   return { ok: true };
 }
+
+/** Client-safe href for bell inbox rows when the kind maps to a dashboard route. */
+export function inboxNotificationHref(input: { kind: string; body?: string }): string | null {
+  const kind = input.kind.trim().toLowerCase();
+  if (kind === "mod_escalation") {
+    const linkLine = (input.body ?? "")
+      .split("\n")
+      .map((l) => l.trim())
+      .find((l) => l.startsWith("Link:"));
+    if (linkLine) return linkLine.slice("Link:".length).trim();
+    return "/admin/mod-escalations";
+  }
+  return null;
+}
+
+/** Hide machine-readable link lines from inbox body copy. */
+export function inboxBodyForDisplay(body: string): string {
+  return body
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("Link:"))
+    .join("\n")
+    .trim();
+}
