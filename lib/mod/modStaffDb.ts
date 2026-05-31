@@ -597,3 +597,106 @@ export function modStaffCanViewTeamAudit(row: ModStaffRow | null, helpTier: "use
   if (helpTier === "admin") return true;
   return row?.roleTier === "head_mod" && row.status === "active";
 }
+
+export async function createModStaffPayout(input: {
+  discordId: string;
+  amountCents: number;
+  periodLabel?: string | null;
+  status?: ModStaffPayoutRow["status"];
+  txReference?: string | null;
+  notes?: string | null;
+  paidAt?: string | null;
+}): Promise<ModStaffPayoutRow | null> {
+  const id = input.discordId.trim();
+  if (!id) return null;
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const now = new Date().toISOString();
+  const status = input.status ?? "pending";
+  const paidAt = status === "paid" ? input.paidAt ?? now : input.paidAt ?? null;
+  const { data, error } = await db
+    .from("mod_staff_payouts")
+    .insert({
+      discord_id: id,
+      amount_cents: Math.max(0, Math.floor(input.amountCents)),
+      period_label: input.periodLabel?.trim() || null,
+      status,
+      tx_reference: input.txReference?.trim() || null,
+      notes: input.notes?.trim() || null,
+      paid_at: paidAt,
+      created_at: now,
+      updated_at: now,
+    })
+    .select(
+      "id, discord_id, amount_cents, period_label, status, tx_reference, paid_at, notes, created_at, updated_at"
+    )
+    .maybeSingle();
+  if (error) {
+    console.error("[modStaffDb] payout create", error);
+    return null;
+  }
+  if (!data || typeof data !== "object") return null;
+  return mapModStaffPayoutRow(data as Record<string, unknown>);
+}
+
+export async function updateModStaffPayout(input: {
+  id: string;
+  status?: ModStaffPayoutRow["status"];
+  txReference?: string | null;
+  notes?: string | null;
+  paidAt?: string | null;
+}): Promise<ModStaffPayoutRow | null> {
+  const payoutId = input.id.trim();
+  if (!payoutId) return null;
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = { updated_at: now };
+  if (input.status) {
+    patch.status = input.status;
+    if (input.status === "paid" && input.paidAt === undefined) {
+      patch.paid_at = now;
+    }
+  }
+  if (input.txReference !== undefined) patch.tx_reference = input.txReference?.trim() || null;
+  if (input.notes !== undefined) patch.notes = input.notes?.trim() || null;
+  if (input.paidAt !== undefined) patch.paid_at = input.paidAt;
+
+  const { data, error } = await db
+    .from("mod_staff_payouts")
+    .update(patch)
+    .eq("id", payoutId)
+    .select(
+      "id, discord_id, amount_cents, period_label, status, tx_reference, paid_at, notes, created_at, updated_at"
+    )
+    .maybeSingle();
+  if (error) {
+    console.error("[modStaffDb] payout update", error);
+    return null;
+  }
+  if (!data || typeof data !== "object") return null;
+  return mapModStaffPayoutRow(data as Record<string, unknown>);
+}
+
+export async function listModStaffPayoutsAdmin(discordId?: string | null): Promise<ModStaffPayoutRow[]> {
+  const db = getSupabaseAdmin();
+  if (!db) return [];
+  let q = db
+    .from("mod_staff_payouts")
+    .select(
+      "id, discord_id, amount_cents, period_label, status, tx_reference, paid_at, notes, created_at, updated_at"
+    )
+    .order("created_at", { ascending: false })
+    .limit(200);
+  const id = discordId?.trim();
+  if (id) q = q.eq("discord_id", id);
+  const { data, error } = await q;
+  if (error) {
+    console.error("[modStaffDb] payouts admin list", error);
+    return [];
+  }
+  if (!Array.isArray(data)) return [];
+  return data
+    .map((row) => (row && typeof row === "object" ? mapModStaffPayoutRow(row as Record<string, unknown>) : null))
+    .filter((r): r is ModStaffPayoutRow => r != null);
+}

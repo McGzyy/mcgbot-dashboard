@@ -6,6 +6,7 @@ import {
   resolveHelpTier,
   resolveHelpTierWithSource,
 } from "@/lib/helpRole";
+import { getModStaffByDiscordId } from "@/lib/mod/modStaffDb";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,10 +36,13 @@ export async function GET() {
   const canModerate = meetsModerationMinTier(role);
   const moderationMinTier =
     (process.env.MODERATION_MIN_TIER ?? "mod").trim().toLowerCase() === "admin" ? "admin" : "mod";
+  const staffRow = canModerate ? await getModStaffByDiscordId(id) : null;
 
   return Response.json({
     role,
     canModerate,
+    staffRoleTier: staffRow?.roleTier ?? null,
+    staffStatus: staffRow?.status ?? null,
     moderationMinTier,
     modChatConfigured,
     staffSource,

@@ -15,6 +15,7 @@ import {
 import { useMobileSidebar } from "@/app/contexts/MobileSidebarContext";
 import { userProfileHref } from "@/lib/userProfileHref";
 import { FixItTicketLauncher } from "@/app/components/FixItTicketLauncher";
+import { ModStaffResignBanner } from "@/app/moderation/_components/ModStaffResignBanner";
 import { ProBadge } from "@/app/components/subscription/ProBadge";
 import {
   applyDashDiscordMarkReadPayload,
@@ -439,6 +440,7 @@ function SidebarBody({
           {staffNav || adminNav ? (
             <>
               <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Staff</p>
+              {staffNav ? <div className="px-3"><ModStaffResignBanner /></div> : null}
               {staffNav ? (
                 <Link
                   href="/moderation"

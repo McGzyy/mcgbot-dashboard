@@ -6,6 +6,7 @@ import { CaAnalyzerModal } from "@/app/components/CaAnalyzerModal";
 import { LinkedWalletCluster } from "@/app/components/LinkedWalletCluster";
 import { dashboardChrome } from "@/lib/roleTierStyles";
 import { terminalSurface, terminalUi } from "@/lib/terminalDesignTokens";
+import { ModStaffBadge } from "@/app/moderation/_components/ModStaffBadge";
 import { userProfileHref, userProfilePathMatches } from "@/lib/userProfileHref";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -159,6 +160,7 @@ export function TopBar() {
   const notifRef = useRef<HTMLDivElement>(null);
   const topBarRef = useRef<HTMLElement | null>(null);
   const [inGuild, setInGuild] = useState<boolean | null>(null);
+  const [staffRoleTier, setStaffRoleTier] = useState<string | null>(null);
 
   const helpTier = (session?.user as { helpTier?: string } | undefined)?.helpTier;
   const staffSessionBypass =
@@ -296,6 +298,25 @@ export function TopBar() {
       window.clearInterval(id);
     };
   }, [session?.user?.id, status]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !staffSessionBypass) {
+      setStaffRoleTier(null);
+      return;
+    }
+    let cancelled = false;
+    void fetch("/api/me/help-role", { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((j: { staffRoleTier?: string | null }) => {
+        if (!cancelled) setStaffRoleTier(typeof j.staffRoleTier === "string" ? j.staffRoleTier : null);
+      })
+      .catch(() => {
+        if (!cancelled) setStaffRoleTier(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [staffSessionBypass, status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -666,6 +687,9 @@ export function TopBar() {
                     <span className="hidden max-w-[200px] truncate text-left text-sm font-medium text-zinc-100 sm:inline">
                       {session.user?.name ?? "User"}
                     </span>
+                    {staffSessionBypass ? (
+                      <ModStaffBadge helpTier={helpTier} roleTier={staffRoleTier} compact />
+                    ) : null}
                   </button>
                   {open ? (
                     <div className={terminalUi.accountMenu} role="menu">
@@ -702,6 +726,19 @@ export function TopBar() {
                       >
                         Settings
                       </Link>
+                      {staffSessionBypass ? (
+                        <Link
+                          href="/moderation"
+                          role="menuitem"
+                          onClick={(e) => {
+                            if (tourBlocksAccountMenuNav(e)) return;
+                            setOpen(false);
+                          }}
+                          className={accountMenuItem(pathname.startsWith("/moderation"))}
+                        >
+                          Staff portal
+                        </Link>
+                      ) : null}
                       <Link
                         href="/help"
                         data-tutorial="nav.menu.help"
