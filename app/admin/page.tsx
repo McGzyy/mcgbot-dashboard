@@ -133,6 +133,12 @@ export default function AdminOverviewPage() {
           hint="Read · Supabase"
         />
         <OverviewCard
+          href="/admin/mod-escalations"
+          title="Mod escalations"
+          subtitle="Edge cases raised by moderators from queue desks — resolve or dismiss from the admin inbox."
+          hint="Workflow · Supabase"
+        />
+        <OverviewCard
           href="/admin/voice-moderation-audit"
           title="Voice moderation audit"
           subtitle="Read-only table of successful LiveKit mute and kick actions (Discord actor + target)."

@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { recordModStaffAudit } from "@/lib/mod/modQueueOps";
 import { requireDashboardStaff } from "@/lib/staffGate";
 
 export const runtime = "nodejs";
@@ -57,6 +58,14 @@ export async function POST(
     if (!data) {
       return Response.json({ success: false, error: "Not found or not pending" }, { status: 404 });
     }
+
+    void recordModStaffAudit({
+      discordId: staff.discordId,
+      action: "denied",
+      subjectType: "trusted_pro_call",
+      subjectId: callId,
+      detail: { staffNotes: staffNotes ?? undefined },
+    });
 
     return Response.json({ success: true, call: data });
   } catch (e) {

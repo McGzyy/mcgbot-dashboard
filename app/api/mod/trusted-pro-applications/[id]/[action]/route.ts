@@ -1,4 +1,5 @@
 import { createModServiceSupabase, requireModOrAdmin } from "@/lib/modStaffAuth";
+import { recordModStaffAudit } from "@/lib/mod/modQueueOps";
 import { grantTrustedProDiscordRoleAndBadgeRow } from "@/lib/trustedProApprovalSideEffects";
 
 const UUID_RE =
@@ -104,6 +105,14 @@ export async function POST(
 
     await grantTrustedProDiscordRoleAndBadgeRow(supabase, applicantDiscordId);
   }
+
+  void recordModStaffAudit({
+    discordId: gate.staffDiscordId,
+    action: action === "approve" ? "approved" : "denied",
+    subjectType: "trusted_pro_application",
+    subjectId: id,
+    detail: { staffNotes: staffNotes ?? undefined },
+  });
 
   return Response.json({ success: true });
 }

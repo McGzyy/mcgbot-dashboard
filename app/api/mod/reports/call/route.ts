@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireDashboardStaff } from "@/lib/staffGate";
 import { insertUserInboxNotification } from "@/lib/userInboxNotifications";
+import { recordModStaffAudit, reportStatusToAuditAction } from "@/lib/mod/modQueueOps";
 
 const DEFAULT_LIMIT = 50;
 
@@ -106,6 +107,16 @@ export async function PATCH(request: Request) {
         kind: resolved ? "call_report_resolved" : "call_report_rejected",
       });
     }
+  }
+
+  if (status) {
+    void recordModStaffAudit({
+      discordId: gate.discordId,
+      action: reportStatusToAuditAction(status),
+      subjectType: "call_report",
+      subjectId: id,
+      detail: { status, staffNotes: staffNotes ?? undefined },
+    });
   }
 
   return Response.json({ success: true });

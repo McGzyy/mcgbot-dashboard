@@ -2,6 +2,7 @@
 
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
+import { ModQueueItemTools } from "@/app/moderation/_components/ModQueueItemTools";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -492,6 +493,11 @@ export function ModerationStaffQueues() {
                           Reject
                         </button>
                       </div>
+                      <ModQueueItemTools
+                        subjectType="call_report"
+                        subjectId={r.id}
+                        escalateLabel={`Call report: ${r.reason}`}
+                      />
                     </li>
                   );
                 })}
@@ -571,6 +577,11 @@ export function ModerationStaffQueues() {
                           Reject
                         </button>
                       </div>
+                      <ModQueueItemTools
+                        subjectType="profile_report"
+                        subjectId={r.id}
+                        escalateLabel={`Profile report: ${r.reason}`}
+                      />
                     </li>
                   );
                 })}
@@ -652,6 +663,11 @@ export function ModerationStaffQueues() {
                           Deny
                         </button>
                       </div>
+                      <ModQueueItemTools
+                        subjectType="trusted_pro_application"
+                        subjectId={a.id}
+                        escalateLabel={`Trusted Pro application: ${a.applicant_display_name?.trim() || did || a.id}`}
+                      />
                     </li>
                   );
                 })}
@@ -753,6 +769,11 @@ export function ModerationStaffQueues() {
                           Reject
                         </button>
                       </div>
+                      <ModQueueItemTools
+                        subjectType="outside_x_submission"
+                        subjectId={s.id}
+                        escalateLabel={`Outside X source: @${handle || s.id}`}
+                      />
                     </li>
                   );
                 })}
@@ -847,6 +868,11 @@ export function ModerationStaffQueues() {
                           Deny
                         </button>
                       </div>
+                      <ModQueueItemTools
+                        subjectType="trusted_pro_call"
+                        subjectId={c.id}
+                        escalateLabel={`Trusted Pro call: ${c.thesis?.slice(0, 80) || c.id}`}
+                      />
                     </li>
                   );
                 })}
