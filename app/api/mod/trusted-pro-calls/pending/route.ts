@@ -1,11 +1,11 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireDashboardStaff } from "@/lib/staffGate";
+import { requireModOrAdmin } from "@/lib/modStaffAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const staff = await requireDashboardStaff();
+  const staff = await requireModOrAdmin();
   if (!staff.ok) return staff.response;
 
   try {

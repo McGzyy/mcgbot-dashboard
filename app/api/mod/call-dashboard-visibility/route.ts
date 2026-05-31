@@ -1,11 +1,11 @@
 import { forwardCallDashboardVisibilityToBot } from "@/lib/forwardBotCallDashboardVisibility";
-import { requireDashboardStaff } from "@/lib/staffGate";
+import { requireModOrAdmin } from "@/lib/modStaffAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const gate = await requireDashboardStaff();
+  const gate = await requireModOrAdmin();
   if (!gate.ok) return gate.response;
 
   const body = (await request.json().catch(() => null)) as unknown;
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   const reason = reasonRaw ? reasonRaw.slice(0, 500) : null;
 
   return forwardCallDashboardVisibilityToBot({
-    discordId: gate.discordId,
+    discordId: gate.staffDiscordId,
     contractAddress,
     hidden,
     reason,

@@ -4,11 +4,6 @@ import type { ModQueueCallApproval, ModQueueDevSubmission, ModQueuePayload } fro
 import { ModerationCallApprovalsTable } from "@/app/components/ModerationCallApprovalsTable";
 import { ModQueueItemTools } from "@/app/moderation/_components/ModQueueItemTools";
 import { dexscreenerTokenUrl, formatListField, formatRelativeTime, parseTagsList } from "@/lib/modUiUtils";
-import {
-  pushModActivityLog,
-  type ModActivityLogEntry,
-  type ModActivityOutcome,
-} from "@/lib/modActivityLog";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -254,31 +249,9 @@ export function ModerationQueueFeed({
     return { bot, community, calls, dev, total };
   }, [data]);
 
-  const moderatorLabel = useMemo(() => {
-    const u = session?.user;
-    const name = u?.name?.trim();
-    if (name) return name;
-    const uname = (u as { username?: string } | undefined)?.username?.trim();
-    if (uname) return uname;
-    return undefined;
-  }, [session?.user]);
-
-  const appendLog = useCallback(
-    (entry: ModActivityLogEntry) => {
-      const withMod: ModActivityLogEntry = {
-        ...entry,
-        moderatorName: entry.moderatorName ?? moderatorLabel,
-      };
-      pushModActivityLog(withMod);
-    },
-    [moderatorLabel]
-  );
-
   const submitCallDecision = useCallback(
     async (call: ModQueueCallApproval, origin: CallOrigin, decision: "approve" | "deny" | "exclude") => {
       setActingKey(call.contractAddress.trim());
-      const subject = callSubject(call);
-      const kind: ModActivityLogEntry["kind"] = origin === "bot" ? "call_bot" : "call_user";
       try {
         const res = await fetch("/api/mod/call-decision", {
           method: "POST",
@@ -290,46 +263,18 @@ export function ModerationQueueFeed({
           success?: boolean;
           error?: string;
           hint?: string;
-          warning?: string;
         };
         if (!res.ok || json.success !== true) {
-          const msg = typeof json.error === "string" ? json.error : `Request failed (${res.status})`;
-          const hint = typeof json.hint === "string" ? json.hint : null;
-          appendLog({
-            id: crypto.randomUUID(),
-            ts: Date.now(),
-            outcome: "failed",
-            kind,
-            subject,
-            detail: hint ? `${msg} — ${hint}` : msg,
-          });
           return;
         }
-        const out: ModActivityOutcome =
-          decision === "approve" ? "approved" : decision === "deny" ? "denied" : "excluded";
-        appendLog({
-          id: crypto.randomUUID(),
-          ts: Date.now(),
-          outcome: out,
-          kind,
-          subject,
-          detail: typeof json.warning === "string" ? json.warning : undefined,
-        });
         await load();
       } catch {
-        appendLog({
-          id: crypto.randomUUID(),
-          ts: Date.now(),
-          outcome: "failed",
-          kind,
-          subject,
-          detail: "Network error",
-        });
+        /* network error — queue refresh skipped */
       } finally {
         setActingKey(null);
       }
     },
-    [appendLog, load]
+    [load]
   );
 
   const toggleSelected = useCallback(

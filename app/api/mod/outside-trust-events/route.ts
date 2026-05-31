@@ -1,22 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { meetsModerationMinTier, moderationStaffForbiddenPayload, resolveHelpTierAsync } from "@/lib/helpRole";
+import { requireModOrAdmin } from "@/lib/modStaffAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id?.trim() ?? "";
-  if (!userId) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const tier = await resolveHelpTierAsync(userId);
-  if (!meetsModerationMinTier(tier)) {
-    return Response.json(moderationStaffForbiddenPayload(), { status: 403 });
-  }
+  const auth = await requireModOrAdmin();
+  if (!auth.ok) return auth.response;
 
   const url = new URL(request.url);
   const sourceId = (url.searchParams.get("sourceId") ?? "").trim();

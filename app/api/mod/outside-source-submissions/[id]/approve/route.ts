@@ -1,6 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { meetsModerationMinTier, moderationStaffForbiddenPayload, resolveHelpTierAsync } from "@/lib/helpRole";
+import { requireModOrAdmin } from "@/lib/modStaffAuth";
 import { recordModStaffAudit } from "@/lib/mod/modQueueOps";
 import { OUTSIDE_X_MAX_ACTIVE_SOURCES } from "@/lib/outsideXCalls/constants";
 import { countActiveOutsideXSources } from "@/lib/outsideXCalls/activeSourcesCount";
@@ -23,16 +21,10 @@ type SubmissionRow = {
 };
 
 export async function POST(_request: Request, ctx: Ctx) {
-  const session = await getServerSession(authOptions);
-  const modId = session?.user?.id?.trim() ?? "";
-  if (!modId) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireModOrAdmin();
+  if (!auth.ok) return auth.response;
 
-  const tier = await resolveHelpTierAsync(modId);
-  if (!meetsModerationMinTier(tier)) {
-    return Response.json(moderationStaffForbiddenPayload(), { status: 403 });
-  }
+  const modId = auth.staffDiscordId;
 
   const { id: rawId } = await ctx.params;
   const submissionId = typeof rawId === "string" ? rawId.trim() : "";

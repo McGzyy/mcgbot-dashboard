@@ -1,5 +1,5 @@
 import { forwardCallDashboardVisibilityToBot } from "@/lib/forwardBotCallDashboardVisibility";
-import { requireDashboardStaff } from "@/lib/staffGate";
+import { requireModOrAdmin } from "@/lib/modStaffAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -9,7 +9,7 @@ export async function PATCH(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const gate = await requireDashboardStaff();
+  const gate = await requireModOrAdmin();
   if (!gate.ok) return gate.response;
 
   const { id: rawId } = await context.params;
@@ -56,7 +56,7 @@ export async function PATCH(
   }
 
   return forwardCallDashboardVisibilityToBot({
-    discordId: gate.discordId,
+    discordId: gate.staffDiscordId,
     contractAddress,
     hidden,
     reason,

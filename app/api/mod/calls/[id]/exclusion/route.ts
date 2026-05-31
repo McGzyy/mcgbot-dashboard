@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { recordModStaffAudit } from "@/lib/mod/modQueueOps";
 import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
-import { requireDashboardStaff } from "@/lib/staffGate";
+import { requireModOrAdmin } from "@/lib/modStaffAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export async function PATCH(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const gate = await requireDashboardStaff();
+  const gate = await requireModOrAdmin();
   if (!gate.ok) return gate.response;
 
   const { id: rawId } = await context.params;
@@ -37,7 +37,7 @@ export async function PATCH(
       excluded_from_stats: excluded,
       excluded_reason: excluded ? reason ?? "mod_exclusion" : null,
       excluded_at: excluded ? nowIso : null,
-      excluded_by_discord_id: excluded ? gate.discordId : null,
+      excluded_by_discord_id: excluded ? gate.staffDiscordId : null,
     })
     .eq("id", callId);
 
@@ -49,7 +49,7 @@ export async function PATCH(
   invalidateStatsCutoverCache();
 
   void recordModStaffAudit({
-    discordId: gate.discordId,
+    discordId: gate.staffDiscordId,
     action: excluded ? "excluded" : "other",
     subjectType: "call",
     subjectId: callId,

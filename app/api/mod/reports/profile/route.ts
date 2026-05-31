@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireDashboardStaff } from "@/lib/staffGate";
+import { requireModOrAdmin } from "@/lib/modStaffAuth";
 import { insertUserInboxNotification } from "@/lib/userInboxNotifications";
 import { recordModStaffAudit, reportStatusToAuditAction } from "@/lib/mod/modQueueOps";
 
@@ -19,7 +19,7 @@ function cleanStatus(raw: unknown): string | null {
 }
 
 export async function GET(request: Request) {
-  const gate = await requireDashboardStaff();
+  const gate = await requireModOrAdmin();
   if (!gate.ok) return gate.response;
 
   const db = getSupabaseAdmin();
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const gate = await requireDashboardStaff();
+  const gate = await requireModOrAdmin();
   if (!gate.ok) return gate.response;
 
   const db = getSupabaseAdmin();
@@ -66,7 +66,7 @@ export async function PATCH(request: Request) {
   if (status) {
     patch.status = status;
     patch.reviewed_at = new Date().toISOString();
-    patch.reviewed_by_discord_id = gate.discordId;
+    patch.reviewed_by_discord_id = gate.staffDiscordId;
   }
   if ("staff_notes" in o || "staffNotes" in o) {
     patch.staff_notes = staffNotes;
@@ -108,7 +108,7 @@ export async function PATCH(request: Request) {
 
   if (status) {
     void recordModStaffAudit({
-      discordId: gate.discordId,
+      discordId: gate.staffDiscordId,
       action: reportStatusToAuditAction(status),
       subjectType: "profile_report",
       subjectId: id,

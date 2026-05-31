@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { recordModStaffAudit } from "@/lib/mod/modQueueOps";
-import { requireDashboardStaff } from "@/lib/staffGate";
+import { requireModOrAdmin } from "@/lib/modStaffAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export async function POST(
   request: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const staff = await requireDashboardStaff();
+  const staff = await requireModOrAdmin();
   if (!staff.ok) return staff.response;
 
   try {
@@ -42,7 +42,7 @@ export async function POST(
       .update({
         status: "denied",
         reviewed_at: nowIso,
-        reviewed_by_discord_id: staff.discordId,
+        reviewed_by_discord_id: staff.staffDiscordId,
         staff_notes: staffNotes,
         updated_at: nowIso,
       })
@@ -60,7 +60,7 @@ export async function POST(
     }
 
     void recordModStaffAudit({
-      discordId: staff.discordId,
+      discordId: staff.staffDiscordId,
       action: "denied",
       subjectType: "trusted_pro_call",
       subjectId: callId,

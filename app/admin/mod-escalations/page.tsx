@@ -23,6 +23,7 @@ export default function AdminModEscalationsPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [adminNotesDraft, setAdminNotesDraft] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,12 +52,13 @@ export default function AdminModEscalationsPage() {
   async function closeEscalation(id: string, status: "resolved" | "dismissed") {
     setBusyId(id);
     setErr(null);
+    const adminNotes = adminNotesDraft[id]?.trim() || null;
     try {
       const res = await fetch("/api/admin/mod-escalations", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify({ id, status, adminNotes }),
       });
       const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
       if (!res.ok || !j.success) {
@@ -151,7 +153,16 @@ export default function AdminModEscalationsPage() {
                     <td className="px-4 py-3 capitalize text-xs text-zinc-400">{row.status}</td>
                     <td className="px-4 py-3">
                       {row.status === "open" ? (
-                        <div className="flex flex-col gap-1">
+                        <div className="flex min-w-[10rem] flex-col gap-2">
+                          <textarea
+                            rows={2}
+                            value={adminNotesDraft[row.id] ?? row.adminNotes ?? ""}
+                            onChange={(e) =>
+                              setAdminNotesDraft((prev) => ({ ...prev, [row.id]: e.target.value }))
+                            }
+                            placeholder="Admin notes (optional)"
+                            className="w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2 py-1.5 text-[11px] text-zinc-300 placeholder:text-zinc-600"
+                          />
                           <button
                             type="button"
                             disabled={busyId === row.id}
@@ -169,6 +180,8 @@ export default function AdminModEscalationsPage() {
                             Dismiss
                           </button>
                         </div>
+                      ) : row.adminNotes ? (
+                        <p className="max-w-[14rem] text-[11px] leading-relaxed text-zinc-500">{row.adminNotes}</p>
                       ) : null}
                     </td>
                   </tr>

@@ -1,33 +1,51 @@
 "use client";
 
 import Link from "next/link";
-import {
-  MOD_ACTIVITY_LOG_EVENT,
-  clearModActivityLog,
-  loadModActivityLog,
-  type ModActivityLogEntry,
-} from "@/lib/modActivityLog";
+import { actionLabel, actionTone } from "@/lib/mod/modAudit";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 import { useCallback, useEffect, useState } from "react";
 
-export function ModerationActivityLogPanel() {
-  const [activityLog, setActivityLog] = useState<ModActivityLogEntry[]>([]);
+type AuditEntry = {
+  id: string;
+  action: "approved" | "denied" | "excluded" | "other";
+  subjectType: string | null;
+  subjectId: string | null;
+  createdAt: string;
+};
 
-  const refresh = useCallback(() => {
-    setActivityLog(loadModActivityLog());
+export function ModerationActivityLogPanel() {
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/mod/audit?scope=self&limit=12", { credentials: "same-origin" });
+      const j = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        code?: string;
+        entries?: AuditEntry[];
+      };
+      if (!res.ok || !j.success) {
+        setErr(typeof j.error === "string" ? j.error : "Could not load recent actions.");
+        setEntries([]);
+        return;
+      }
+      setEntries(Array.isArray(j.entries) ? j.entries : []);
+    } catch {
+      setErr("Network error.");
+      setEntries([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    refresh();
-    const onUpdate = () => refresh();
-    window.addEventListener(MOD_ACTIVITY_LOG_EVENT, onUpdate);
-    return () => window.removeEventListener(MOD_ACTIVITY_LOG_EVENT, onUpdate);
+    void refresh();
   }, [refresh]);
-
-  const wipeActivityLog = useCallback(() => {
-    clearModActivityLog();
-    setActivityLog([]);
-  }, []);
 
   return (
     <section
@@ -37,9 +55,9 @@ export function ModerationActivityLogPanel() {
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/60 pb-3">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Mod log</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Recent actions</h2>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-zinc-600">
-            Session log for this browser. Permanent audit trail lives on{" "}
+            Last server audit entries for your account. Full history on{" "}
             <Link href="/moderation/activity" className="font-medium text-emerald-400/90 hover:underline">
               Staff → Activity
             </Link>
@@ -48,59 +66,53 @@ export function ModerationActivityLogPanel() {
         </div>
         <button
           type="button"
-          onClick={wipeActivityLog}
-          disabled={activityLog.length === 0}
+          onClick={() => void refresh()}
+          disabled={loading}
           className="rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-600 hover:text-zinc-100 disabled:opacity-40"
         >
-          Clear log
+          {loading ? "…" : "Refresh"}
         </button>
       </div>
 
-      {activityLog.length === 0 ? (
-        <p className="mt-4 text-sm text-zinc-500">No actions yet this session.</p>
+      {err ? (
+        <p className="mt-4 text-sm text-red-400" role="alert">
+          {err}
+        </p>
+      ) : null}
+
+      {loading && entries.length === 0 ? (
+        <div className="mt-4 h-24 animate-pulse rounded-lg bg-zinc-900/50" />
+      ) : entries.length === 0 ? (
+        <p className="mt-4 text-sm text-zinc-500">No server audit entries yet.</p>
       ) : (
         <ul className="mt-4 divide-y divide-zinc-800/50">
-          {activityLog.map((row) => {
-            const tone =
-              row.outcome === "approved"
-                ? "text-emerald-300/90"
-                : row.outcome === "denied"
-                  ? "text-zinc-400"
-                  : row.outcome === "excluded"
-                    ? "text-amber-200/85"
-                    : row.outcome === "failed"
-                      ? "text-red-300/85"
-                      : "text-zinc-400";
-            const kind =
-              row.kind === "call_bot"
-                ? "Bot"
-                : row.kind === "call_user"
-                  ? "Community"
-                  : row.kind === "dev"
-                    ? "Dev"
-                    : "";
-            return (
-              <li key={row.id} className="py-3 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[11px]">
-                  <span className="shrink-0 tabular-nums text-zinc-600">
-                    {new Date(row.ts).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+          {entries.map((row) => (
+            <li key={row.id} className="py-3 first:pt-0 last:pb-0">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[11px]">
+                <span className={`shrink-0 font-semibold uppercase tracking-wide ${actionTone(row.action)}`}>
+                  {actionLabel(row.action)}
+                </span>
+                {row.subjectType ? (
+                  <span className="rounded bg-zinc-800/70 px-1.5 py-0.5 text-[10px] uppercase text-zinc-500">
+                    {row.subjectType}
                   </span>
-                  <span className={`shrink-0 font-semibold uppercase ${tone}`}>{row.outcome}</span>
-                  <span className="text-zinc-600">{kind}</span>
-                </div>
-                <p className="mt-1 text-sm font-medium text-zinc-200">{row.subject}</p>
-                {row.moderatorName ? (
-                  <p className="mt-0.5 text-[11px] text-zinc-500">by {row.moderatorName}</p>
                 ) : null}
-                {row.detail ? <p className="mt-1 text-xs leading-relaxed text-zinc-500">{row.detail}</p> : null}
-              </li>
-            );
-          })}
+                <time className="ml-auto shrink-0 tabular-nums text-zinc-600">
+                  {row.createdAt
+                    ? new Date(row.createdAt).toLocaleString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "—"}
+                </time>
+              </div>
+              {row.subjectId ? (
+                <p className="mt-1 break-all font-mono text-xs text-zinc-400">{row.subjectId}</p>
+              ) : null}
+            </li>
+          ))}
         </ul>
       )}
     </section>

@@ -1,8 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { recordModStaffAudit } from "@/lib/mod/modQueueOps";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireDashboardStaff } from "@/lib/staffGate";
+import { requireModOrAdmin } from "@/lib/modStaffAuth";
 import {
   deleteCallSuspension,
   getCallSuspensionForUser,
@@ -35,7 +33,7 @@ function enrichRow(row: UserCallSuspensionRow) {
 }
 
 export async function GET(request: Request) {
-  const gate = await requireDashboardStaff();
+  const gate = await requireModOrAdmin();
   if (!gate.ok) return gate.response;
 
   const db = getSupabaseAdmin();
@@ -57,12 +55,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const gate = await requireDashboardStaff();
+  const gate = await requireModOrAdmin();
   if (!gate.ok) return gate.response;
 
-  const session = await getServerSession(authOptions);
-  const actorId = session?.user?.id?.trim() ?? "";
-  if (!actorId) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const actorId = gate.staffDiscordId;
 
   const db = getSupabaseAdmin();
   if (!db) return Response.json({ ok: false, error: "Supabase not configured" }, { status: 500 });
