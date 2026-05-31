@@ -93,6 +93,9 @@ export async function broadcastAnnouncementToUserInboxes(
 
   const title = "New announcement";
   const body = message.slice(0, 4000);
+  const ctaRaw = after.announcement_cta_url?.trim() ?? "";
+  const actionHref =
+    ctaRaw.startsWith("/") || ctaRaw.startsWith("https://") ? ctaRaw.slice(0, 500) : null;
   const userIds = await listDiscordUserIds();
   if (userIds.length === 0) {
     return { sent: 0, skipped: true };
@@ -106,6 +109,7 @@ export async function broadcastAnnouncementToUserInboxes(
       title,
       body,
       kind: "announcement",
+      ...(actionHref ? { action_href: actionHref } : {}),
     }));
     const { error } = await db.from("user_inbox_notifications").insert(rows);
     if (error) {

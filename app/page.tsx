@@ -341,6 +341,10 @@ type PublicTeasers = {
     avgXBot?: number | null;
     /** Mean ATH× for non-bot calls (user / trusted_pro / etc.) in the same 7d window. */
     avgXUser?: number | null;
+    /** Mean ATH× of the top 10 bot calls in the 7d window (null if none). */
+    top10AvgXBot?: number | null;
+    /** Mean ATH× of the top 10 desk calls in the 7d window (null if none). */
+    top10AvgXUser?: number | null;
     topCalls: PublicTeaserCall[];
   };
 };
@@ -385,8 +389,8 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
   }, []);
 
   const weekCalls = teasers?.week.calls ?? 0;
-  const weekAvgXBot = teasers?.week.avgXBot ?? null;
-  const weekAvgXUser = teasers?.week.avgXUser ?? null;
+  const weekTop10AvgXBot = teasers?.week.top10AvgXBot ?? null;
+  const weekTop10AvgXUser = teasers?.week.top10AvgXUser ?? null;
   const topCalls = teasers?.week.topCalls ?? [];
 
   const formatTeaserAvgX = (v: number | null | undefined) => {
@@ -468,7 +472,7 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
               </div>
               <div className={`col-span-1 ${terminalPage.statTile}`}>
                 <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500 sm:text-[10px] sm:tracking-[0.2em]">
-                  7d avg ATH×
+                  7d top 10 avg ATH×
                 </p>
                 {loading ? (
                   <p className="mt-1 text-base font-bold tabular-nums text-zinc-500 sm:mt-1.5 sm:text-lg">—</p>
@@ -477,13 +481,13 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
                     <div className="flex items-baseline justify-between gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wide text-violet-300/90">Bot</span>
                       <span className="text-sm font-bold tabular-nums text-violet-200 sm:text-base">
-                        {formatTeaserAvgX(weekAvgXBot)}
+                        {formatTeaserAvgX(weekTop10AvgXBot)}
                       </span>
                     </div>
                     <div className="flex items-baseline justify-between gap-1 border-t border-zinc-800/50 pt-0.5 sm:pt-1">
                       <span className="text-[9px] font-bold uppercase tracking-wide text-emerald-300/90">Desk</span>
                       <span className="text-sm font-bold tabular-nums text-emerald-200 sm:text-base">
-                        {formatTeaserAvgX(weekAvgXUser)}
+                        {formatTeaserAvgX(weekTop10AvgXUser)}
                       </span>
                     </div>
                   </div>

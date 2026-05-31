@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 
@@ -214,8 +215,34 @@ export function AdminPanelClient() {
     <div className="mx-auto max-w-3xl space-y-8">
       <AdminPageHeader
         title="Subscription access"
-        description="Manage database and env-based subscription exemptions. Timed entries expire automatically."
+        description="Grant beta or comp access before paid launch. Timed entries expire automatically; members may need to refresh session after you add them."
       />
+
+      <AdminPanel className="border-emerald-500/20 bg-emerald-950/15 p-5">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200/90">
+          Beta invite checklist
+        </h2>
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-zinc-300">
+          <li>Confirm they joined the Discord server and passed verification.</li>
+          <li>Add their Discord user ID below (Developer Mode → Copy User ID).</li>
+          <li>
+            Start with <span className="font-medium text-zinc-100">30d</span> or{" "}
+            <span className="font-medium text-zinc-100">90d</span> for early testers; use{" "}
+            <span className="font-medium text-zinc-100">Forever</span> only for staff/comp accounts.
+          </li>
+          <li>
+            Ask them to sign out/in or open <span className="font-mono text-zinc-400">/membership</span>{" "}
+            and use <span className="font-medium text-zinc-100">Go to dashboard</span> so access refreshes.
+          </li>
+          <li>
+            Before charging: turn off{" "}
+            <Link href="/admin/site" className="font-medium text-emerald-300/90 hover:text-emerald-200">
+              Pause new checkouts
+            </Link>{" "}
+            only when you are ready for public paid signups.
+          </li>
+        </ol>
+      </AdminPanel>
 
       <AdminPanel className="p-5">
         <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">Add exempt user</h2>

@@ -659,7 +659,7 @@ export function SiteAdminClient() {
               <SettingsSection
                 kicker="Banner"
                 title="Announcement bar"
-                description="Shows below the top bar on the main dashboard when enabled. Optional schedule: leave times empty to follow the toggle only."
+                description="Shows below the top bar when enabled. Saving a new message also fans out one bell inbox row per user (deduped by content version)."
               >
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
                   <input
@@ -835,7 +835,7 @@ export function SiteAdminClient() {
               <SettingsSection
                 kicker="Operations"
                 title="Maintenance &amp; checkout"
-                description="Maintenance redirects non-admins to /maintenance (503 on most APIs). Paused checkouts still allow admins to test."
+                description="For beta: grant access via Subscription access, keep Pause new checkouts on until paid launch. Maintenance redirects non-admins to /maintenance."
               >
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
                   <input

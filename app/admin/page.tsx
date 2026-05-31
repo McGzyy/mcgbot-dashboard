@@ -81,7 +81,7 @@ export default function AdminOverviewPage() {
         <OverviewCard
           href="/admin/subscription-exempt"
           title="Subscription access"
-          subtitle="Database bypass list and env-based exempt Discord IDs."
+          subtitle="Beta/comp bypass list — add Discord IDs for early testers before public checkout opens."
           hint="Writes · Supabase"
           data-tutorial="admin.card.subscription"
         />
@@ -129,8 +129,8 @@ export default function AdminOverviewPage() {
         <OverviewCard
           href="/admin/mods"
           title="Mod staff roster"
-          subtitle="Read-only dashboard moderators — agreement version, status, and stipend placeholders."
-          hint="Read · Supabase"
+          subtitle="Invite mods, edit stipends, record payouts, and review agreement status."
+          hint="Writes · Supabase"
         />
         <OverviewCard
           href="/admin/mod-escalations"

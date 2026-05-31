@@ -110,6 +110,20 @@ export function useDashboardAlertInboxToasts(enabled: boolean): void {
               createdAt: Date.now(),
               priority: "high",
             });
+            continue;
+          }
+
+          if (row.kind === "announcement") {
+            const toastText =
+              title && title !== firstLine ? `${title} — ${firstLine}` : firstLine;
+
+            addNotification({
+              id: crypto.randomUUID(),
+              text: toastText.slice(0, 280),
+              type: "call",
+              createdAt: Date.now(),
+              priority: "medium",
+            });
           }
         }
       } catch {

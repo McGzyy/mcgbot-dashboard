@@ -102,6 +102,19 @@ export async function GET() {
       .sort((a, b) => b.multiple - a.multiple)
       .slice(0, 5);
 
+    const top10Avg = (entries: { multiple: number }[]) => {
+      const slice = entries
+        .filter((x) => x.multiple > 0)
+        .sort((a, b) => b.multiple - a.multiple)
+        .slice(0, 10);
+      if (slice.length === 0) return null;
+      return slice.reduce((acc, x) => acc + x.multiple, 0) / slice.length;
+    };
+
+    const allCalls = [...top.values()];
+    const top10AvgXBot = top10Avg(allCalls.filter((x) => x.source === "bot"));
+    const top10AvgXUser = top10Avg(allCalls.filter((x) => x.source !== "bot"));
+
     return Response.json({
       success: true,
       week: {
@@ -109,6 +122,8 @@ export async function GET() {
         avgX: n > 0 ? sum / n : 0,
         avgXBot: nBot > 0 ? sumBot / nBot : null,
         avgXUser: nUser > 0 ? sumUser / nUser : null,
+        top10AvgXBot,
+        top10AvgXUser,
         topCalls: topWeek,
       },
     });
