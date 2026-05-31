@@ -102,7 +102,6 @@ type TrendingTokenRow = {
   changePct: number;
   liquidityUsd: number;
   volumeUsd: number;
-  holders: number;
   source: "Dexscreener" | "Axiom" | "Gecko" | "GMGN";
   timeframe: "5m" | "1h" | "24h";
 };
@@ -1407,7 +1406,6 @@ function TrendingPanel() {
             changePct: Number(o.changePct ?? 0) || 0,
             liquidityUsd: Number(o.liquidityUsd ?? 0) || 0,
             volumeUsd: Number(o.volumeUsd ?? 0) || 0,
-            holders: Math.max(0, Number(o.holders ?? 0) || 0),
             source: "Dexscreener",
             timeframe: tf,
           });

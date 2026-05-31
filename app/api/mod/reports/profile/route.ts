@@ -102,6 +102,7 @@ export async function PATCH(request: Request) {
           ? `Thanks — we reviewed your profile report (${reason}). The team has marked it resolved.`
           : `We reviewed your profile report (${reason}). No further action will be taken on this report.`,
         kind: resolved ? "profile_report_resolved" : "profile_report_rejected",
+        actionHref: "/help",
       });
     }
   }

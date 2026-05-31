@@ -25,7 +25,6 @@ export async function GET(request: Request) {
     return NextResponse.json({
       rows: top.map((row) => ({
         ...row,
-        holders: 0,
         source: "Dexscreener",
       })),
       health,

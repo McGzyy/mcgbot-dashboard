@@ -2,6 +2,7 @@
 
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { normalizeAlertPrefs } from "@/lib/dashboardAlertPrefs";
+import { inboxBodyForDisplay } from "@/lib/userInboxNotifications";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef } from "react";
 
@@ -48,15 +49,23 @@ export function useDashboardAlertInboxToasts(enabled: boolean): void {
 
     const poll = async () => {
       try {
-        const res = await fetch("/api/me/inbox-notifications", {
+        const res = await fetch("/api/me/inbox?limit=30", {
           credentials: "same-origin",
         });
         const j = (await res.json().catch(() => null)) as
-          | { items?: InboxRow[] }
+          | {
+              rows?: InboxRow[];
+              unread?: number;
+            }
           | null;
         if (!res.ok || cancelled || !j) return;
 
-        const items = Array.isArray(j.items) ? j.items : [];
+        const items = (Array.isArray(j.rows) ? j.rows : []).map((r) => ({
+          id: String(r?.id ?? ""),
+          title: String(r?.title ?? ""),
+          body: String(r?.body ?? ""),
+          kind: String(r?.kind ?? "info"),
+        }));
 
         if (!bootstrappedRef.current) {
           for (const row of items) {
@@ -66,26 +75,25 @@ export function useDashboardAlertInboxToasts(enabled: boolean): void {
           return;
         }
 
-        if (!followedCallersRef.current) return;
-
         for (const row of items) {
           if (!row?.id || seenIdsRef.current.has(row.id)) continue;
           seenIdsRef.current.add(row.id);
           if (row.kind !== "alert") continue;
 
           const title = typeof row.title === "string" ? row.title.trim() : "";
-          if (title !== "Followed caller posted") continue;
+          if (title === "Followed caller posted" && !followedCallersRef.current) continue;
 
-          const firstLine =
-            typeof row.body === "string" && row.body.trim()
-              ? row.body.trim().split("\n")[0]
-              : "Someone you follow posted a new call.";
+          const bodyText = inboxBodyForDisplay(typeof row.body === "string" ? row.body : "");
+          const firstLine = bodyText.split("\n")[0]?.trim() || title || "Dashboard alert";
+          const toastText =
+            title && title !== firstLine ? `${title} — ${firstLine}` : firstLine;
+
           addNotification({
             id: crypto.randomUUID(),
-            text: firstLine.slice(0, 280),
+            text: toastText.slice(0, 280),
             type: "call",
             createdAt: Date.now(),
-            priority: "high",
+            priority: title === "Followed caller posted" ? "high" : "medium",
           });
         }
       } catch {

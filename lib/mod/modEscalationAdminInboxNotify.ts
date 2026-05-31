@@ -40,13 +40,11 @@ function buildInboxCopy(row: ModEscalationRow): { title: string; body: string } 
   const queue = modQueueLinkForSubject(row.subjectType, row.subjectId);
   const subject = `${row.subjectType} · ${row.subjectId}`.slice(0, 160);
   const reason = row.reason.trim().slice(0, 280);
-  const adminHref = modEscalationAdminInboxHref(row.id);
   const lines = [
     `A moderator escalated a queue item for admin review.`,
     subject,
     reason ? `Reason: ${reason}` : null,
     queue ? `Queue: ${queue.href}` : null,
-    `Link: ${adminHref}`,
   ].filter(Boolean) as string[];
   return {
     title: "Mod escalation — admin review",
@@ -62,6 +60,7 @@ async function sendModEscalationAdminInbox(row: ModEscalationRow): Promise<void>
   if (!db) return;
 
   const { title, body } = buildInboxCopy(row);
+  const actionHref = modEscalationAdminInboxHref(row.id);
   await Promise.all(
     userIds.map((userId) =>
       insertUserInboxNotification(db, {
@@ -69,6 +68,7 @@ async function sendModEscalationAdminInbox(row: ModEscalationRow): Promise<void>
         title,
         body,
         kind: "mod_escalation",
+        actionHref,
       })
     )
   );

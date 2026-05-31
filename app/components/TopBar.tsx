@@ -30,6 +30,7 @@ type InboxNotificationRow = {
   title: string;
   body: string;
   kind: string;
+  action_href: string | null;
   created_at: string;
   read_at: string | null;
 };
@@ -179,14 +180,36 @@ export function TopBar() {
       return;
     }
     try {
-      const res = await fetch("/api/me/inbox-notifications", { credentials: "same-origin" });
+      const res = await fetch("/api/me/inbox?limit=50", { credentials: "same-origin" });
       const j = (await res.json().catch(() => null)) as {
-        items?: InboxNotificationRow[];
-        unreadCount?: number;
+        rows?: Array<{
+          id?: string;
+          title?: string;
+          body?: string;
+          kind?: string;
+          actionHref?: string | null;
+          createdAt?: string;
+          readAt?: string | null;
+        }>;
+        unread?: number;
       } | null;
       if (!res.ok || !j || typeof j !== "object") return;
-      setInboxItems(Array.isArray(j.items) ? j.items : []);
-      setInboxUnread(typeof j.unreadCount === "number" ? j.unreadCount : 0);
+      const rows = Array.isArray(j.rows) ? j.rows : [];
+      setInboxItems(
+        rows.map((r) => ({
+          id: String(r.id ?? ""),
+          title: String(r.title ?? ""),
+          body: String(r.body ?? ""),
+          kind: String(r.kind ?? "info"),
+          action_href:
+            typeof r.actionHref === "string" && r.actionHref.trim()
+              ? r.actionHref.trim()
+              : null,
+          created_at: String(r.createdAt ?? ""),
+          read_at: r.readAt == null ? null : String(r.readAt),
+        }))
+      );
+      setInboxUnread(typeof j.unread === "number" ? j.unread : 0);
     } catch {
       /* ignore */
     }
@@ -633,7 +656,11 @@ export function TopBar() {
                     {inboxItems.length > 0 ? (
                       <ul className={terminalUi.notificationsList}>
                         {inboxItems.map((row) => {
-                          const href = inboxNotificationHref({ kind: row.kind, body: row.body });
+                          const href = inboxNotificationHref({
+                            kind: row.kind,
+                            body: row.body,
+                            actionHref: row.action_href,
+                          });
                           const inner = (
                             <>
                               <p className="text-sm font-medium text-zinc-100">{row.title || "Notice"}</p>

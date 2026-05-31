@@ -105,6 +105,7 @@ export async function PATCH(request: Request) {
           ? `Thanks — we reviewed your call report (${reason}). The team has marked it resolved.`
           : `We reviewed your call report (${reason}). No further action will be taken on this report.`,
         kind: resolved ? "call_report_resolved" : "call_report_rejected",
+        actionHref: "/help",
       });
     }
   }

@@ -92,6 +92,7 @@ export async function PATCH(request: Request) {
         title: "Bug fixed — thank you",
         body: `Your bug report (“${title.slice(0, 140)}”) has been marked fixed/closed. Thank you for helping improve the terminal.`,
         kind: "bug_closed",
+        actionHref: "/help",
       });
     }
   }

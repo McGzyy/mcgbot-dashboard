@@ -305,6 +305,7 @@ async function fireInboxAlert(
     fireKey: string;
     title: string;
     body: string;
+    actionHref?: string | null;
   },
   delivery?: AlertDeliveryOpts
 ): Promise<boolean> {
@@ -321,6 +322,7 @@ async function fireInboxAlert(
     title: input.title,
     body: input.body,
     kind: "alert",
+    actionHref: input.actionHref,
   });
   if (!sent.ok) return false;
 
@@ -387,6 +389,7 @@ async function evaluateCallerAlertsForUser(
     if (chartUrl) bodyParts.push(`Chart: ${chartUrl}`);
     if (call.message_url) bodyParts.push(`Post: ${call.message_url}`);
     const body = bodyParts.join("\n");
+    const actionHref = chartUrl ?? profileUrl;
 
     if (prefs.general.followed_callers && followedIds.includes(call.discord_id)) {
       const ok = await fireInboxAlert(
@@ -396,6 +399,7 @@ async function evaluateCallerAlertsForUser(
           fireKey: `followed:call:${call.id}`,
           title: "Followed caller posted",
           body,
+          actionHref,
         },
         delivery
       );
@@ -413,6 +417,7 @@ async function evaluateCallerAlertsForUser(
           fireKey: `rule:${rule.id}:call:${call.id}`,
           title: "Caller alert",
           body,
+          actionHref,
         },
         delivery
       );
@@ -465,6 +470,7 @@ async function evaluateHotTrendingForUser(
         fireKey: `hot_trending:${HOT_TRENDING_TIMEFRAME}:${row.mint}:${dateKey}`,
         title: "Hot trending pulse",
         body,
+        actionHref: chartUrl,
       },
       delivery
     );
@@ -562,6 +568,7 @@ async function evaluateTokenRulesForUser(
             fireKey: `rule:${rule.id}:pct_move`,
             title: "Price move alert",
             body,
+            actionHref: chartUrl,
           },
           delivery
         );
@@ -587,6 +594,7 @@ async function evaluateTokenRulesForUser(
             fireKey: `rule:${rule.id}:mc_cross`,
             title: "Market cap alert",
             body,
+            actionHref: chartUrl,
           },
           delivery
         );
@@ -612,6 +620,7 @@ async function evaluateTokenRulesForUser(
             fireKey: `rule:${rule.id}:price_cross`,
             title: "Price alert",
             body,
+            actionHref: chartUrl,
           },
           delivery
         );
@@ -640,6 +649,7 @@ async function evaluateTokenRulesForUser(
               fireKey: `rule:${rule.id}:mc_band:${band}`,
               title: "Market cap band alert",
               body,
+              actionHref: chartUrl,
             },
             delivery
           );
@@ -668,6 +678,7 @@ async function evaluateTokenRulesForUser(
             fireKey: `rule:${rule.id}:reminder`,
             title: "Token reminder",
             body,
+            actionHref: chartUrl,
           },
           delivery
         );
@@ -700,6 +711,7 @@ async function evaluateTokenRulesForUser(
             fireKey: `rule:${rule.id}:ath:${Math.round(price * 1_000_000)}`,
             title: "New high alert",
             body,
+            actionHref: chartUrl,
           },
           delivery
         );

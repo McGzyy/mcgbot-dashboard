@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { loadUserInboxBellRows } from "@/lib/userInboxLoad";
 
 const DEFAULT_LIMIT = 20;
 
@@ -27,30 +28,18 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = parseLimit(searchParams.get("limit"));
 
-    const { data, error } = await db
-      .from("user_inbox_notifications")
-      .select("id, title, body, kind, created_at, read_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(limit);
-
-    if (error) {
-      console.error("[me/inbox] select:", error);
-      return Response.json({ error: "Failed to load inbox" }, { status: 500 });
-    }
-
-    const rows = (Array.isArray(data) ? data : []).map((r) => ({
-      id: String((r as any).id ?? ""),
-      title: String((r as any).title ?? ""),
-      body: String((r as any).body ?? ""),
-      kind: String((r as any).kind ?? "info"),
-      createdAt: String((r as any).created_at ?? ""),
-      readAt: (r as any).read_at == null ? null : String((r as any).read_at),
+    const payload = await loadUserInboxBellRows(db, userId, limit);
+    const rows = payload.items.map((r) => ({
+      id: r.id,
+      title: r.title,
+      body: r.body,
+      kind: r.kind,
+      actionHref: r.action_href,
+      createdAt: r.created_at,
+      readAt: r.read_at,
     }));
 
-    const unread = rows.filter((r) => !r.readAt).length;
-
-    return Response.json({ success: true, unread, rows });
+    return Response.json({ success: true, unread: payload.unreadCount, rows });
   } catch (e) {
     console.error("[me/inbox] GET:", e);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
@@ -120,4 +109,3 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
-

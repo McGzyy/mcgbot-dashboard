@@ -19,7 +19,17 @@ export type InsertUserInboxInput = {
   title: string;
   body: string;
   kind?: UserInboxKind | string;
+  /** Dashboard path or https URL for bell CTA (stored in action_href when migration applied). */
+  actionHref?: string | null;
 };
+
+function normalizeActionHref(raw: string | null | undefined): string | null {
+  const href = typeof raw === "string" ? raw.trim() : "";
+  if (!href) return null;
+  if (href.startsWith("/")) return href.slice(0, 500);
+  if (href.startsWith("https://")) return href.slice(0, 500);
+  return null;
+}
 
 export async function insertUserInboxNotification(
   db: SupabaseClient,
@@ -28,16 +38,28 @@ export async function insertUserInboxNotification(
   const userId = input.userId.trim();
   const title = input.title.trim().slice(0, 200);
   const body = input.body.trim().slice(0, 4000);
+  const actionHref = normalizeActionHref(input.actionHref);
   if (!userId || !title || !body) {
     return { ok: false, error: "Missing userId, title, or body" };
   }
 
-  const { error } = await db.from("user_inbox_notifications").insert({
+  const row: Record<string, unknown> = {
     user_id: userId,
     title,
     body,
     kind: (input.kind ?? "info").toString().slice(0, 64) || "info",
-  });
+  };
+  if (actionHref) row.action_href = actionHref;
+
+  const { error } = await db.from("user_inbox_notifications").insert(row);
+
+  if (error && actionHref && /action_href/i.test(error.message ?? "")) {
+    delete row.action_href;
+    const retry = await db.from("user_inbox_notifications").insert(row);
+    if (!retry.error) return { ok: true };
+    console.error("[userInbox] insert retry:", retry.error);
+    return { ok: false, error: retry.error.message };
+  }
 
   if (error) {
     console.error("[userInbox] insert:", error);
@@ -71,7 +93,14 @@ function parseInboxActionHref(body?: string): string | null {
 }
 
 /** Client-safe href for bell inbox rows when the kind maps to a dashboard route. */
-export function inboxNotificationHref(input: { kind: string; body?: string }): string | null {
+export function inboxNotificationHref(input: {
+  kind: string;
+  body?: string;
+  actionHref?: string | null;
+}): string | null {
+  const stored = normalizeActionHref(input.actionHref);
+  if (stored) return stored;
+
   const actionHref = parseInboxActionHref(input.body);
   if (actionHref) return actionHref;
 
@@ -106,7 +135,10 @@ export function inboxNotificationCtaLabel(kind: string): string {
 export function inboxBodyForDisplay(body: string): string {
   return body
     .split("\n")
-    .filter((line) => !line.trim().startsWith("Link:"))
+    .filter((line) => {
+      const trimmed = line.trim();
+      return !trimmed.startsWith("Link:") && !trimmed.startsWith("Chart:");
+    })
     .join("\n")
     .trim();
 }
