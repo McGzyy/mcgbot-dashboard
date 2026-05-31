@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   MOD_ACTIVITY_LOG_EVENT,
   clearModActivityLog,
@@ -38,8 +39,11 @@ export function ModerationActivityLogPanel() {
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Mod log</h2>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-zinc-600">
-            Approve, deny, and exclude actions from the coin queue. Stored in this browser — clear when you want a fresh
-            panel.
+            Session log for this browser. Permanent audit trail lives on{" "}
+            <Link href="/moderation/activity" className="font-medium text-emerald-400/90 hover:underline">
+              Staff → Activity
+            </Link>
+            .
           </p>
         </div>
         <button

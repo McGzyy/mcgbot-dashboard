@@ -377,3 +377,223 @@ export function callDecisionToAuditAction(
   if (d === "exclude") return "excluded";
   return null;
 }
+
+export type ModActionAuditEntry = {
+  id: string;
+  discordId: string;
+  action: ModActionAuditAction;
+  subjectType: string | null;
+  subjectId: string | null;
+  detail: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type ModStaffPayoutRow = {
+  id: string;
+  discordId: string;
+  amountCents: number;
+  periodLabel: string | null;
+  status: "pending" | "paid" | "voided";
+  txReference: string | null;
+  paidAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+const MOD_AUDIT_SELECT =
+  "id, discord_id, action, subject_type, subject_id, detail, created_at";
+
+function mapModActionAuditRow(data: Record<string, unknown>): ModActionAuditEntry | null {
+  const id = typeof data.id === "string" ? data.id : "";
+  const discordId = typeof data.discord_id === "string" ? data.discord_id.trim() : "";
+  const action = data.action;
+  if (!id || !discordId) return null;
+  if (action !== "approved" && action !== "denied" && action !== "excluded" && action !== "other") {
+    return null;
+  }
+  return {
+    id,
+    discordId,
+    action,
+    subjectType: typeof data.subject_type === "string" ? data.subject_type : null,
+    subjectId: typeof data.subject_id === "string" ? data.subject_id : null,
+    detail:
+      data.detail && typeof data.detail === "object" && !Array.isArray(data.detail)
+        ? (data.detail as Record<string, unknown>)
+        : {},
+    createdAt: typeof data.created_at === "string" ? data.created_at : "",
+  };
+}
+
+function mapModStaffPayoutRow(data: Record<string, unknown>): ModStaffPayoutRow | null {
+  const id = typeof data.id === "string" ? data.id : "";
+  const discordId = typeof data.discord_id === "string" ? data.discord_id.trim() : "";
+  if (!id || !discordId) return null;
+  const status = data.status;
+  if (status !== "pending" && status !== "paid" && status !== "voided") return null;
+  const amountRaw = data.amount_cents;
+  const amountCents = Number.isFinite(Number(amountRaw)) ? Math.floor(Number(amountRaw)) : 0;
+  return {
+    id,
+    discordId,
+    amountCents,
+    periodLabel: typeof data.period_label === "string" ? data.period_label : null,
+    status,
+    txReference: typeof data.tx_reference === "string" ? data.tx_reference : null,
+    paidAt: typeof data.paid_at === "string" ? data.paid_at : null,
+    notes: typeof data.notes === "string" ? data.notes : null,
+    createdAt: typeof data.created_at === "string" ? data.created_at : "",
+    updatedAt: typeof data.updated_at === "string" ? data.updated_at : "",
+  };
+}
+
+export async function listModActionAudit(input?: {
+  discordId?: string | null;
+  limit?: number;
+  since?: string | null;
+}): Promise<ModActionAuditEntry[]> {
+  const db = getSupabaseAdmin();
+  if (!db) return [];
+  const limit = Math.min(200, Math.max(1, input?.limit ?? 80));
+  let q = db.from("mod_action_audit").select(MOD_AUDIT_SELECT).order("created_at", { ascending: false }).limit(limit);
+  const discordId = input?.discordId?.trim();
+  if (discordId) q = q.eq("discord_id", discordId);
+  if (input?.since?.trim()) q = q.gte("created_at", input.since.trim());
+  const { data, error } = await q;
+  if (error) {
+    console.error("[modStaffDb] audit list", error);
+    return [];
+  }
+  if (!Array.isArray(data)) return [];
+  return data
+    .map((row) => (row && typeof row === "object" ? mapModActionAuditRow(row as Record<string, unknown>) : null))
+    .filter((r): r is ModActionAuditEntry => r != null);
+}
+
+export async function countModActionAudit(input?: {
+  discordId?: string | null;
+  since?: string | null;
+}): Promise<{ approvals: number; denies: number; excludes: number; other: number; total: number }> {
+  const rows = await listModActionAudit({ ...input, limit: 2000 });
+  const buckets = { approvals: 0, denies: 0, excludes: 0, other: 0, total: 0 };
+  for (const row of rows) {
+    buckets.total += 1;
+    if (row.action === "approved") buckets.approvals += 1;
+    else if (row.action === "denied") buckets.denies += 1;
+    else if (row.action === "excluded") buckets.excludes += 1;
+    else buckets.other += 1;
+  }
+  return buckets;
+}
+
+export async function updateModStaffAdmin(input: {
+  discordId: string;
+  displayName?: string | null;
+  status?: ModStaffStatus;
+  roleTier?: ModStaffRoleTier;
+  stipendCents?: number | null;
+  payoutNotes?: string | null;
+}): Promise<ModStaffRow | null> {
+  const id = input.discordId.trim();
+  if (!id) return null;
+  const db = getSupabaseAdmin();
+  if (!db) return null;
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = { updated_at: now };
+  if (input.displayName !== undefined) {
+    patch.display_name = input.displayName?.trim() || null;
+  }
+  if (input.status) patch.status = input.status;
+  if (input.roleTier) patch.role_tier = input.roleTier;
+  if (input.stipendCents !== undefined) {
+    patch.stipend_cents = input.stipendCents == null ? null : Math.max(0, Math.floor(input.stipendCents));
+  }
+  if (input.payoutNotes !== undefined) {
+    patch.payout_notes = input.payoutNotes?.trim() || null;
+  }
+  const { data, error } = await db
+    .from("mod_staff")
+    .update(patch)
+    .eq("discord_id", id)
+    .select(MOD_STAFF_SELECT)
+    .maybeSingle();
+  if (error) {
+    console.error("[modStaffDb] admin update", error);
+    return null;
+  }
+  if (!data || typeof data !== "object") return null;
+  return mapModStaffRow(data as Record<string, unknown>);
+}
+
+export async function inviteModStaffAdmin(input: {
+  discordId: string;
+  displayName?: string | null;
+  roleTier?: ModStaffRoleTier;
+  stipendCents?: number | null;
+  payoutNotes?: string | null;
+}): Promise<{ ok: true; row: ModStaffRow } | { ok: false; error: string }> {
+  const id = input.discordId.trim();
+  if (!/^\d{5,30}$/.test(id)) {
+    return { ok: false, error: "Enter a valid numeric Discord user ID." };
+  }
+  const existing = await getModStaffByDiscordId(id);
+  if (existing) {
+    return { ok: false, error: "That Discord ID is already on the mod roster." };
+  }
+  const db = getSupabaseAdmin();
+  if (!db) return { ok: false, error: "Supabase is not configured on the server." };
+  const now = new Date().toISOString();
+  const { data, error } = await db
+    .from("mod_staff")
+    .insert({
+      discord_id: id,
+      display_name: input.displayName?.trim() || null,
+      status: "invited",
+      role_tier: input.roleTier ?? "mod",
+      stipend_cents:
+        input.stipendCents == null ? null : Math.max(0, Math.floor(input.stipendCents)),
+      payout_notes: input.payoutNotes?.trim() || null,
+      invited_at: now,
+      created_at: now,
+      updated_at: now,
+    })
+    .select(MOD_STAFF_SELECT)
+    .maybeSingle();
+  if (error) {
+    console.error("[modStaffDb] admin invite", error);
+    return { ok: false, error: error.message || "Could not invite mod." };
+  }
+  if (!data || typeof data !== "object") return { ok: false, error: "Invite did not return a row." };
+  const row = mapModStaffRow(data as Record<string, unknown>);
+  if (!row) return { ok: false, error: "Could not parse invited row." };
+  return { ok: true, row };
+}
+
+export async function listModStaffPayouts(discordId: string): Promise<ModStaffPayoutRow[]> {
+  const id = discordId.trim();
+  if (!id) return [];
+  const db = getSupabaseAdmin();
+  if (!db) return [];
+  const { data, error } = await db
+    .from("mod_staff_payouts")
+    .select(
+      "id, discord_id, amount_cents, period_label, status, tx_reference, paid_at, notes, created_at, updated_at"
+    )
+    .eq("discord_id", id)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (error) {
+    console.error("[modStaffDb] payouts list", error);
+    return [];
+  }
+  if (!Array.isArray(data)) return [];
+  return data
+    .map((row) => (row && typeof row === "object" ? mapModStaffPayoutRow(row as Record<string, unknown>) : null))
+    .filter((r): r is ModStaffPayoutRow => r != null);
+}
+
+export function modStaffCanViewTeamAudit(row: ModStaffRow | null, helpTier: "user" | "mod" | "admin"): boolean {
+  if (helpTier === "admin") return true;
+  return row?.roleTier === "head_mod" && row.status === "active";
+}

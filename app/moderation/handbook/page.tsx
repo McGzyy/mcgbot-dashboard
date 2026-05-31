@@ -34,7 +34,7 @@ const SECTIONS: { heading: string; bullets: string[] }[] = [
   {
     heading: "Tools & accountability",
     bullets: [
-      "Dashboard mod log tracks recent actions on your browser; server audit backs critical bot decisions.",
+      "Dashboard activity log is server-side — your approve/deny/exclude actions are audited in Supabase.",
       "Re-read the staff agreement when the version bumps — you must re-sign to keep access.",
       "Suspended or terminated roster status blocks queue tools until an admin restores you.",
     ],
