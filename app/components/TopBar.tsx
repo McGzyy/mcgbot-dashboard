@@ -222,13 +222,32 @@ export function TopBar() {
     };
   }, []);
 
+  const markInboxRead = useCallback(
+    async (ids: string[]) => {
+      const clean = ids.map((id) => id.trim()).filter(Boolean);
+      if (clean.length === 0) return;
+      try {
+        const res = await fetch("/api/me/inbox", {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: clean }),
+        });
+        if (res.ok) void refreshInbox();
+      } catch {
+        /* ignore */
+      }
+    },
+    [refreshInbox]
+  );
+
   const markInboxAllRead = useCallback(async () => {
     try {
-      const res = await fetch("/api/me/inbox-notifications", {
-        method: "POST",
+      const res = await fetch("/api/me/inbox", {
+        method: "PATCH",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ readAll: true }),
+        body: JSON.stringify({ all: true }),
       });
       if (res.ok) void refreshInbox();
     } catch {
@@ -637,13 +656,24 @@ export function TopBar() {
                               {href ? (
                                 <Link
                                   href={href}
-                                  onClick={() => setOpenNotifications(false)}
+                                  onClick={() => {
+                                    setOpenNotifications(false);
+                                    if (row.read_at == null) void markInboxRead([row.id]);
+                                  }}
                                   className="-mx-1 block rounded-lg px-1 py-0.5 transition hover:bg-zinc-800/40"
                                 >
                                   {inner}
                                 </Link>
                               ) : (
-                                inner
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (row.read_at == null) void markInboxRead([row.id]);
+                                  }}
+                                  className="-mx-1 block w-full rounded-lg px-1 py-0.5 text-left transition hover:bg-zinc-800/40"
+                                >
+                                  {inner}
+                                </button>
                               )}
                             </li>
                           );
