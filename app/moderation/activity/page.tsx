@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ModStaffSubpageShell } from "@/app/moderation/_components/ModStaffSubpageShell";
 import { actionLabel, actionTone } from "@/lib/mod/modAudit";
+import { modQueueLinkForSubjectType } from "@/lib/mod/modEscalationSubjectLinks";
 import { modChrome } from "@/lib/roleTierStyles";
 import { terminalSurface } from "@/lib/terminalDesignTokens";
 
@@ -134,6 +136,19 @@ export default function ModStaffActivityPage() {
                 </div>
                 {row.subjectId ? (
                   <p className="mt-1.5 break-all font-mono text-xs text-zinc-400">{row.subjectId}</p>
+                ) : null}
+                {row.subjectType && row.subjectId ? (
+                  (() => {
+                    const queue = modQueueLinkForSubjectType(row.subjectType);
+                    return queue ? (
+                      <Link
+                        href={queue.href}
+                        className="mt-1.5 inline-block text-[10px] font-semibold text-violet-300 hover:underline"
+                      >
+                        {queue.label}
+                      </Link>
+                    ) : null;
+                  })()
                 ) : null}
               </li>
             ))}

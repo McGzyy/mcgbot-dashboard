@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import {
+  modProfileLinkForSubject,
+  modQueueLinkForSubjectType,
+} from "@/lib/mod/modEscalationSubjectLinks";
 import { adminChrome } from "@/lib/roleTierStyles";
 
 type EscalationRow = {
@@ -147,6 +151,32 @@ export default function AdminModEscalationsPage() {
                       <span className="mt-0.5 block max-w-[14rem] break-all font-mono text-[10px] text-zinc-500">
                         {row.subjectId}
                       </span>
+                      {(() => {
+                        const queue = modQueueLinkForSubjectType(row.subjectType);
+                        const profile = modProfileLinkForSubject(row.subjectType, row.subjectId);
+                        return (
+                          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                            {queue ? (
+                              <Link
+                                href={queue.href}
+                                className="text-[10px] font-semibold text-violet-300 hover:underline"
+                              >
+                                {queue.label}
+                              </Link>
+                            ) : (
+                              <span className="text-[10px] text-zinc-600">No queue link</span>
+                            )}
+                            {profile ? (
+                              <Link
+                                href={profile.href}
+                                className="text-[10px] font-semibold text-emerald-400/90 hover:underline"
+                              >
+                                {profile.label}
+                              </Link>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-xs leading-relaxed text-zinc-400">{row.reason}</td>
                     <td className="px-4 py-3 font-mono text-xs text-zinc-500">{row.raisedByDiscordId}</td>

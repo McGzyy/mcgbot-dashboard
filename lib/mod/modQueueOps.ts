@@ -1,3 +1,4 @@
+import { notifyModEscalationAdminsInbox } from "@/lib/mod/modEscalationAdminInboxNotify";
 import { notifyModEscalationCreated } from "@/lib/mod/modEscalationDiscordNotify";
 import type { ModActionAuditAction } from "@/lib/mod/modStaffDb";
 import { insertModActionAudit } from "@/lib/mod/modStaffDb";
@@ -169,7 +170,10 @@ export async function createModEscalation(input: {
   }
   if (!data || typeof data !== "object") return null;
   const row = mapEscalationRow(data as Record<string, unknown>);
-  if (row) notifyModEscalationCreated(row);
+  if (row) {
+    notifyModEscalationCreated(row);
+    notifyModEscalationAdminsInbox(row);
+  }
   return row;
 }
 

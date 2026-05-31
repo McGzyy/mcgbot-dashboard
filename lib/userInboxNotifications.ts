@@ -9,6 +9,7 @@ export type UserInboxKind =
   | "profile_report_rejected"
   | "call_report_resolved"
   | "call_report_rejected"
+  | "mod_escalation"
   | "subscription"
   | "alert";
 
