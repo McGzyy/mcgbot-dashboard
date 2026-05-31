@@ -238,7 +238,6 @@ export async function recordModAgreementSignature(
     .insert({
       discord_id: id,
       display_name: displayName?.trim() || null,
-      status: "active",
       role_tier: "mod",
       invited_at: now,
       created_at: now,
