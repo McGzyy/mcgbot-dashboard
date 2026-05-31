@@ -17,7 +17,7 @@ export type DashboardAlertGeneral = {
   trusted_only: boolean;
   /** Pro: mirror fired alerts to Discord DMs (inbox always receives when rules match). */
   discord_dm: boolean;
-  /** Hot Right Now panel–style pulses (evaluation TBD). */
+  /** Hot Right Now / Dexscreener trending pulses (Pro, evaluated in alerts cron). */
   hot_trending: boolean;
   /** Dashboard / inbox-style announcements already on the roadmap. */
   announcements: boolean;
@@ -68,11 +68,8 @@ export const DEFAULT_DASHBOARD_ALERT_PREFS: DashboardAlertPrefs = {
 export const DASHBOARD_ALERT_RULES_CAP = 25;
 export const BASIC_ALERT_RULES_CAP = 5;
 
-/** Rule kinds shown in settings but not evaluated yet (v1.2). */
-export const COMING_SOON_DASHBOARD_ALERT_RULE_KINDS: readonly DashboardAlertRuleKind[] = [
-  "ath_since_added",
-  "reminder",
-] as const;
+/** Rule kinds shown in settings but not evaluated yet. */
+export const COMING_SOON_DASHBOARD_ALERT_RULE_KINDS: readonly DashboardAlertRuleKind[] = [] as const;
 
 export function isComingSoonAlertRuleKind(kind: DashboardAlertRuleKind): boolean {
   return (COMING_SOON_DASHBOARD_ALERT_RULE_KINDS as readonly string[]).includes(kind);

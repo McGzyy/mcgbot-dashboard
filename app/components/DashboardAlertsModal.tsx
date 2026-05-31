@@ -429,19 +429,29 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
                   </span>
                 </span>
               </label>
-              <label className="mt-2 flex cursor-not-allowed items-start gap-2.5 opacity-50">
+              <label
+                className={`mt-2 flex items-start gap-2.5 ${
+                  isPro ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+                }`}
+              >
                 <input
                   type="checkbox"
-                  checked={false}
-                  disabled
-                  readOnly
-                  className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-900"
+                  checked={prefs.general.hot_trending}
+                  disabled={!isPro || saving}
+                  onChange={(e) =>
+                    setPrefs((p) => ({
+                      ...p,
+                      general: { ...p.general, hot_trending: e.target.checked },
+                    }))
+                  }
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-[color:var(--accent)]"
                 />
                 <span className="text-xs leading-relaxed text-zinc-300">
                   <span className="font-medium text-zinc-100">Hot / trending pulses</span>
                   <span className="block text-zinc-500">
-                    Coming soon — Hot Right Now–style alerts.
-                    {!isPro ? " Pro feature when live." : ""}
+                    {isPro
+                      ? "Inbox ping when a token hits the top of Dexscreener trending (up to once per token per day)."
+                      : "Pro only — trending pulse alerts from the Hot Right Now feed."}
                   </span>
                 </span>
               </label>
@@ -501,6 +511,7 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
                       else if (k === "mc_cross") setDraftThreshold("1000000");
                       else if (k === "price_cross") setDraftThreshold("1");
                       else if (k === "reminder") setDraftThreshold("30");
+                      else if (k === "ath_since_added") setDraftThreshold("");
                     }}
                     disabled={prefs.rules.length >= DASHBOARD_ALERT_RULES_CAP || saving}
                     className={`mt-1 ${terminalUi.formInput}`}
@@ -510,12 +521,8 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
                     <option value="price_cross">Token: price crosses $X</option>
                     <option value="mc_bands">Token: MC crosses multiple bands</option>
                     <option value="caller_post">Caller: posts a call</option>
-                    <option value="ath_since_added" disabled>
-                      Token: new ATH since I added (coming soon)
-                    </option>
-                    <option value="reminder" disabled>
-                      Token: reminder in 15/30/60 min (coming soon)
-                    </option>
+                    <option value="ath_since_added">Token: new high since I added</option>
+                    <option value="reminder">Token: reminder in 15/30/60 min</option>
                   </select>
                 </label>
 
@@ -606,7 +613,12 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
                           className={`mt-1 ${terminalUi.formInput}`}
                         />
                       </label>
-                    ) : draftKind === "ath_since_added" ? null : draftKind === "reminder" ? (
+                    ) : draftKind === "ath_since_added" ? (
+                      <p className="text-[11px] leading-relaxed text-zinc-500">
+                        Alerts when price makes a new high vs the level recorded on the first check after you save
+                        (Dexscreener spot price).
+                      </p>
+                    ) : draftKind === "reminder" ? (
                       <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                         Reminder in (minutes)
                         <select
@@ -683,12 +695,10 @@ export function DashboardAlertsModal({ open, onClose, addNotification }: Props) 
                                 : r.mint}
                           </span>
                           <span className="block text-[10px] text-zinc-500 sm:inline sm:before:content-['—_']">
-                            {isComingSoonAlertRuleKind(r.kind)
-                              ? " Coming soon — not evaluated yet"
-                              : r.kind === "price_cross"
+                            {r.kind === "price_cross"
                               ? ` Price ≥ $${Number(r.threshold ?? 0).toLocaleString("en-US")}`
                               : r.kind === "ath_since_added"
-                                ? " New ATH since added"
+                                ? " New high since added"
                                 : r.kind === "reminder"
                                   ? ` Reminder in ${r.threshold} min`
                                   : r.kind === "mc_bands"

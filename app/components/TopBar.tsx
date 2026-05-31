@@ -654,16 +654,31 @@ export function TopBar() {
                               className={`px-4 py-3 ${row.read_at == null ? "bg-sky-950/15" : ""}`}
                             >
                               {href ? (
-                                <Link
-                                  href={href}
-                                  onClick={() => {
-                                    setOpenNotifications(false);
-                                    if (row.read_at == null) void markInboxRead([row.id]);
-                                  }}
-                                  className="-mx-1 block rounded-lg px-1 py-0.5 transition hover:bg-zinc-800/40"
-                                >
-                                  {inner}
-                                </Link>
+                                href.startsWith("http") ? (
+                                  <a
+                                    href={href}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={() => {
+                                      setOpenNotifications(false);
+                                      if (row.read_at == null) void markInboxRead([row.id]);
+                                    }}
+                                    className="-mx-1 block rounded-lg px-1 py-0.5 transition hover:bg-zinc-800/40"
+                                  >
+                                    {inner}
+                                  </a>
+                                ) : (
+                                  <Link
+                                    href={href}
+                                    onClick={() => {
+                                      setOpenNotifications(false);
+                                      if (row.read_at == null) void markInboxRead([row.id]);
+                                    }}
+                                    className="-mx-1 block rounded-lg px-1 py-0.5 transition hover:bg-zinc-800/40"
+                                  >
+                                    {inner}
+                                  </Link>
+                                )
                               ) : (
                                 <button
                                   type="button"

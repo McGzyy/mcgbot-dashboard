@@ -46,7 +46,6 @@ export async function insertUserInboxNotification(
   return { ok: true };
 }
 
-/** Parse optional `Link: /path` line embedded in notification body. */
 function parseInboxLinkLine(body?: string): string | null {
   const linkLine = (body ?? "")
     .split("\n")
@@ -54,13 +53,27 @@ function parseInboxLinkLine(body?: string): string | null {
     .find((l) => l.startsWith("Link:"));
   if (!linkLine) return null;
   const href = linkLine.slice("Link:".length).trim();
-  return href.startsWith("/") ? href : null;
+  return href.startsWith("/") || href.startsWith("http") ? href : null;
+}
+
+/** Parse optional `Link: /path` or `Chart: https://…` line embedded in notification body. */
+function parseInboxActionHref(body?: string): string | null {
+  const linkFromBody = parseInboxLinkLine(body);
+  if (linkFromBody) return linkFromBody;
+
+  const chartLine = (body ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l.startsWith("Chart:"));
+  if (!chartLine) return null;
+  const href = chartLine.slice("Chart:".length).trim();
+  return href.startsWith("http") ? href : null;
 }
 
 /** Client-safe href for bell inbox rows when the kind maps to a dashboard route. */
 export function inboxNotificationHref(input: { kind: string; body?: string }): string | null {
-  const linkFromBody = parseInboxLinkLine(input.body);
-  if (linkFromBody) return linkFromBody;
+  const actionHref = parseInboxActionHref(input.body);
+  if (actionHref) return actionHref;
 
   const kind = input.kind.trim().toLowerCase();
   if (kind === "mod_escalation") return "/admin/mod-escalations";
@@ -81,6 +94,7 @@ export function inboxNotificationHref(input: { kind: string; body?: string }): s
 export function inboxNotificationCtaLabel(kind: string): string {
   const k = kind.trim().toLowerCase();
   if (k === "mod_escalation") return "Open escalation inbox →";
+  if (k === "alert") return "Open chart →";
   if (k === "bug_closed") return "Open Help →";
   if (k === "feature_closed") return "Open Help →";
   if (k === "profile_report_resolved" || k === "profile_report_rejected") return "View in Help →";

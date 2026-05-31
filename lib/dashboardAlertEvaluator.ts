@@ -14,6 +14,10 @@ import {
 import { CALL_PERFORMANCE_ELIGIBLE_FOR_PUBLIC_STATS_OR } from "@/lib/callPerformanceDashboardVisibility";
 import { fetchDexMetricsForMint } from "@/lib/hodl/dexTokenMetrics";
 import { fetchDexscreenerMintMeta } from "@/lib/dexscreenerMintMeta";
+import {
+  fetchTrendingSolanaTokens,
+  type TrendingTokenSnapshot,
+} from "@/lib/dashboardTrendingFetch";
 import { deliverDashboardAlertDiscordDm } from "@/lib/dashboardAlertDmDelivery";
 import { tierIncludesProFeatures, type ProductTier } from "@/lib/subscription/planTiers";
 import { resolveUserProductTier } from "@/lib/subscription/productTierAccess";
@@ -25,10 +29,9 @@ export const DASHBOARD_ALERTS_EVAL_OFFSET_KV_KEY = "dashboard_alerts_eval_user_o
 
 const USER_BATCH_SIZE = 40;
 const CALL_LOOKBACK_MS = 15 * 60 * 1000;
-const DEFERRED_RULE_KINDS = new Set<DashboardAlertRule["kind"]>([
-  "ath_since_added",
-  "reminder",
-]);
+const HOT_TRENDING_TOP_N = 5;
+const HOT_TRENDING_TIMEFRAME = "1h" as const;
+const DEFERRED_RULE_KINDS = new Set<DashboardAlertRule["kind"]>([]);
 
 export type DashboardAlertsCronResult = {
   usersScanned: number;
@@ -71,7 +74,9 @@ function tokenRules(prefs: DashboardAlertPrefs): DashboardAlertRule[] {
       r.kind === "pct_move" ||
       r.kind === "mc_cross" ||
       r.kind === "price_cross" ||
-      r.kind === "mc_bands"
+      r.kind === "mc_bands" ||
+      r.kind === "ath_since_added" ||
+      r.kind === "reminder"
   );
 }
 
@@ -423,6 +428,52 @@ function formatPct(n: number): string {
   return `${sign}${n.toFixed(1)}%`;
 }
 
+function formatVolumeUsd(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${Math.round(n / 1_000)}K`;
+  return `$${Math.round(n)}`;
+}
+
+function dexChartUrl(mint: string): string {
+  return `https://dexscreener.com/solana/${encodeURIComponent(mint.trim())}`;
+}
+
+async function evaluateHotTrendingForUser(
+  db: SupabaseClient,
+  discordId: string,
+  trending: TrendingTokenSnapshot[],
+  delivery: AlertDeliveryOpts,
+  nowMs: number
+): Promise<number> {
+  if (trending.length === 0) return 0;
+  let sent = 0;
+  const dateKey = new Date(nowMs).toISOString().slice(0, 10);
+  const top = trending.slice(0, HOT_TRENDING_TOP_N);
+
+  for (const row of top) {
+    const chartUrl = dexChartUrl(row.mint);
+    const body = [
+      `$${row.symbol} is trending on Dexscreener (${HOT_TRENDING_TIMEFRAME} vol ${formatVolumeUsd(row.volumeUsd)}, ${formatPct(row.changePct)}).`,
+      `Chart: ${chartUrl}`,
+      `Link: ${chartUrl}`,
+    ].join("\n");
+
+    const ok = await fireInboxAlert(
+      db,
+      {
+        userId: discordId,
+        fireKey: `hot_trending:${HOT_TRENDING_TIMEFRAME}:${row.mint}:${dateKey}`,
+        title: "Hot trending pulse",
+        body,
+      },
+      delivery
+    );
+    if (ok) sent += 1;
+  }
+
+  return sent;
+}
+
 function formatPriceUsd(n: number): string {
   if (n >= 1) {
     return `$${n.toLocaleString("en-US", { maximumFractionDigits: 4 })}`;
@@ -430,11 +481,42 @@ function formatPriceUsd(n: number): string {
   return `$${n.toPrecision(4)}`;
 }
 
+async function patchAlertRuleFields(
+  db: SupabaseClient,
+  discordId: string,
+  ruleId: string,
+  fields: Partial<DashboardAlertRule>
+): Promise<void> {
+  const { data, error } = await db
+    .from("user_dashboard_settings")
+    .select("alert_prefs")
+    .eq("discord_id", discordId)
+    .maybeSingle();
+  if (error || !data) return;
+
+  const prefs = normalizeAlertPrefs((data as { alert_prefs?: unknown }).alert_prefs);
+  const idx = prefs.rules.findIndex((r) => r.id === ruleId);
+  if (idx < 0) return;
+
+  prefs.rules[idx] = { ...prefs.rules[idx], ...fields };
+  const { error: updErr } = await db.from("user_dashboard_settings").upsert(
+    {
+      discord_id: discordId,
+      alert_prefs: prefs as unknown as Record<string, unknown>,
+    },
+    { onConflict: "discord_id" }
+  );
+  if (updErr) {
+    console.warn("[dashboardAlerts] patch rule:", updErr.message);
+  }
+}
+
 async function evaluateTokenRulesForUser(
   db: SupabaseClient,
   discordId: string,
   rules: DashboardAlertRule[],
-  delivery: AlertDeliveryOpts
+  delivery: AlertDeliveryOpts,
+  nowMs: number = Date.now()
 ): Promise<number> {
   let sent = 0;
   const tokenRulesList = rules.filter(
@@ -442,7 +524,9 @@ async function evaluateTokenRulesForUser(
       r.kind === "pct_move" ||
       r.kind === "mc_cross" ||
       r.kind === "price_cross" ||
-      r.kind === "mc_bands"
+      r.kind === "mc_bands" ||
+      r.kind === "ath_since_added" ||
+      r.kind === "reminder"
   );
   if (tokenRulesList.length === 0) return 0;
 
@@ -561,6 +645,66 @@ async function evaluateTokenRulesForUser(
           );
           if (ok) sent += 1;
         }
+        continue;
+      }
+
+      if (rule.kind === "reminder") {
+        const minutes = rule.threshold ?? 30;
+        const createdAtMs = rule.createdAtMs ?? 0;
+        if (!createdAtMs) continue;
+        const dueMs = createdAtMs + minutes * 60 * 1000;
+        if (nowMs < dueMs) continue;
+
+        const body = [
+          `Reminder: check on $${symbol} (${minutes} min after you set this alert).`,
+          `Chart: ${chartUrl}`,
+        ].join("\n");
+
+        const ok = await fireInboxAlert(
+          db,
+          {
+            userId: discordId,
+            ruleId: rule.id,
+            fireKey: `rule:${rule.id}:reminder`,
+            title: "Token reminder",
+            body,
+          },
+          delivery
+        );
+        if (ok) sent += 1;
+        continue;
+      }
+
+      if (rule.kind === "ath_since_added") {
+        const price = metrics?.priceUsd;
+        if (price == null || !Number.isFinite(price) || price <= 0) continue;
+
+        const baseline = rule.baselineAthUsd;
+        if (baseline == null || !Number.isFinite(baseline) || baseline <= 0) {
+          await patchAlertRuleFields(db, discordId, rule.id, { baselineAthUsd: price });
+          continue;
+        }
+
+        if (price <= baseline) continue;
+
+        const body = [
+          `$${symbol} hit a new high since you added this alert: ${formatPriceUsd(price)} (previous peak ${formatPriceUsd(baseline)}).`,
+          `Chart: ${chartUrl}`,
+        ].join("\n");
+
+        const ok = await fireInboxAlert(
+          db,
+          {
+            userId: discordId,
+            ruleId: rule.id,
+            fireKey: `rule:${rule.id}:ath:${Math.round(price * 1_000_000)}`,
+            title: "New high alert",
+            body,
+          },
+          delivery
+        );
+        await patchAlertRuleFields(db, discordId, rule.id, { baselineAthUsd: price });
+        if (ok) sent += 1;
       }
     }
   }
@@ -585,6 +729,7 @@ export async function runDashboardAlertsCron(
 
   const offset = await readEvalOffset(db);
   const rows = await loadSettingsBatch(db, offset, batchSize);
+  const trendingSnapshot = await fetchTrendingSolanaTokens(HOT_TRENDING_TIMEFRAME, HOT_TRENDING_TOP_N + 4);
 
   if (rows.length === 0) {
     await writeEvalOffset(db, 0);
@@ -616,16 +761,22 @@ export async function runDashboardAlertsCron(
     for (const rule of deferredRules(prefs)) {
       deferredKindsLogged.add(rule.kind);
     }
-    if (prefs.general.hot_trending) {
-      deferredKindsLogged.add("hot_trending");
-    }
 
     const delivery: AlertDeliveryOpts = {
       tier,
       discordDm: prefs.general.discord_dm,
     };
     inboxSent += await evaluateCallerAlertsForUser(db, row.discord_id, prefs, sinceIso, delivery);
-    inboxSent += await evaluateTokenRulesForUser(db, row.discord_id, tokenRules(prefs), delivery);
+    inboxSent += await evaluateTokenRulesForUser(db, row.discord_id, tokenRules(prefs), delivery, nowMs);
+    if (prefs.general.hot_trending && tierIncludesProFeatures(tier)) {
+      inboxSent += await evaluateHotTrendingForUser(
+        db,
+        row.discord_id,
+        trendingSnapshot,
+        delivery,
+        nowMs
+      );
+    }
   }
 
   logDeferredKindsOnce(deferredKindsLogged);
@@ -638,7 +789,7 @@ export async function runDashboardAlertsCron(
     inboxSent,
     firesRecorded: inboxSent,
     nextOffset,
-    deferredKinds: [...DEFERRED_RULE_KINDS, "hot_trending"],
+    deferredKinds: [...DEFERRED_RULE_KINDS],
   };
 }
 
