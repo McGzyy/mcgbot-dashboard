@@ -153,35 +153,120 @@ export async function ensureModStaffRecord(input: {
   return mapModStaffRow(data as Record<string, unknown>);
 }
 
-export async function recordModAgreementSignature(discordId: string): Promise<boolean> {
+export type RecordModSignatureResult =
+  | { ok: true }
+  | { ok: false; code: "DB_NOT_CONFIGURED" | "TABLE_MISSING" | "STAFF_BLOCKED" | "WRITE_FAILED"; message: string };
+
+function modStaffWriteFailure(error: { message?: string; code?: string }): RecordModSignatureResult {
+  const msg = (error.message ?? "").toLowerCase();
+  console.error("[modStaffDb] write", error);
+  if (msg.includes("does not exist") || error.code === "42P01") {
+    return {
+      ok: false,
+      code: "TABLE_MISSING",
+      message:
+        "The mod staff database table is not set up yet. Ask an admin to run supabase/migrations/20260531120000_mod_staff_agreement.sql in the Supabase SQL editor, then try again.",
+    };
+  }
+  if (msg.includes("permission denied") || error.code === "42501") {
+    return {
+      ok: false,
+      code: "WRITE_FAILED",
+      message:
+        "Database permissions blocked saving your signature. Ask an admin to re-run the mod_staff migration grants.",
+    };
+  }
+  return {
+    ok: false,
+    code: "WRITE_FAILED",
+    message: "Could not record signature. Try again or contact an admin.",
+  };
+}
+
+export async function recordModAgreementSignature(
+  discordId: string,
+  displayName?: string | null
+): Promise<RecordModSignatureResult> {
   const id = discordId.trim();
-  if (!id) return false;
+  if (!id) {
+    return { ok: false, code: "WRITE_FAILED", message: "Invalid staff account." };
+  }
   const db = getSupabaseAdmin();
-  if (!db) return false;
+  if (!db) {
+    return {
+      ok: false,
+      code: "DB_NOT_CONFIGURED",
+      message: "Server database is not configured (Supabase env missing). Contact an admin.",
+    };
+  }
+
   const now = new Date().toISOString();
   const existing = await getModStaffByDiscordId(id);
-  if (!existing) {
-    const created = await ensureModStaffRecord({ discordId: id });
-    if (!created) return false;
+  if (existing?.status === "suspended" || existing?.status === "terminated") {
+    return {
+      ok: false,
+      code: "STAFF_BLOCKED",
+      message: modStaffPortalBlockedReason(existing) ?? "Your staff access is not active.",
+    };
   }
 
-  const { error } = await db
+  const signaturePatch = {
+    agreement_version: CURRENT_MOD_AGREEMENT_VERSION,
+    agreement_signed_at: now,
+    status: "active" as const,
+    activated_at: existing?.activatedAt ?? now,
+    updated_at: now,
+    ...(displayName?.trim() ? { display_name: displayName.trim() } : {}),
+  };
+
+  if (existing) {
+    const { data, error } = await db
+      .from("mod_staff")
+      .update(signaturePatch)
+      .eq("discord_id", id)
+      .select("discord_id")
+      .maybeSingle();
+    if (error) return modStaffWriteFailure(error);
+    if (!data) {
+      return { ok: false, code: "WRITE_FAILED", message: "Could not update your staff roster row." };
+    }
+    return { ok: true };
+  }
+
+  const { data, error } = await db
     .from("mod_staff")
-    .update({
-      agreement_version: CURRENT_MOD_AGREEMENT_VERSION,
-      agreement_signed_at: now,
+    .insert({
+      discord_id: id,
+      display_name: displayName?.trim() || null,
       status: "active",
-      activated_at: existing?.activatedAt ?? now,
-      updated_at: now,
+      role_tier: "mod",
+      invited_at: now,
+      created_at: now,
+      ...signaturePatch,
     })
-    .eq("discord_id", id)
-    .in("status", ["invited", "active"]);
+    .select("discord_id")
+    .maybeSingle();
 
   if (error) {
-    console.error("[modStaffDb] sign agreement", error);
-    return false;
+    if (error.code === "23505") {
+      const retry = await db
+        .from("mod_staff")
+        .update(signaturePatch)
+        .eq("discord_id", id)
+        .select("discord_id")
+        .maybeSingle();
+      if (retry.error) return modStaffWriteFailure(retry.error);
+      if (!retry.data) {
+        return { ok: false, code: "WRITE_FAILED", message: "Could not update your staff roster row." };
+      }
+      return { ok: true };
+    }
+    return modStaffWriteFailure(error);
   }
-  return true;
+  if (!data) {
+    return { ok: false, code: "WRITE_FAILED", message: "Could not create your staff roster row." };
+  }
+  return { ok: true };
 }
 
 export async function listModStaffRoster(): Promise<ModStaffRow[]> {

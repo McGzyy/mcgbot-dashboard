@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { CURRENT_MOD_AGREEMENT_VERSION } from "@/lib/mod/modAgreement";
-import { ensureModStaffRecord, recordModAgreementSignature } from "@/lib/mod/modStaffDb";
+import { recordModAgreementSignature } from "@/lib/mod/modStaffDb";
 import { requireModOrAdmin } from "@/lib/modStaffAuth";
 
 export const runtime = "nodejs";
@@ -19,11 +19,12 @@ export async function POST(request: Request) {
 
   const session = await getServerSession(authOptions);
   const displayName = typeof session?.user?.name === "string" ? session.user.name : null;
-  await ensureModStaffRecord({ discordId: auth.staffDiscordId, displayName });
-
-  const ok = await recordModAgreementSignature(auth.staffDiscordId);
-  if (!ok) {
-    return NextResponse.json({ success: false, error: "Could not record signature." }, { status: 500 });
+  const signed = await recordModAgreementSignature(auth.staffDiscordId, displayName);
+  if (!signed.ok) {
+    return NextResponse.json(
+      { success: false, error: signed.message, code: signed.code },
+      { status: signed.code === "STAFF_BLOCKED" ? 403 : 500 }
+    );
   }
 
   return NextResponse.json({
