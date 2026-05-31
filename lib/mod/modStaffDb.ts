@@ -29,12 +29,15 @@ const MOD_STAFF_SELECT =
 function mapModStaffRow(data: Record<string, unknown>): ModStaffRow | null {
   const discordId = typeof data.discord_id === "string" ? data.discord_id.trim() : "";
   if (!discordId) return null;
-  const status = data.status;
-  if (status !== "invited" && status !== "active" && status !== "suspended" && status !== "terminated") {
-    return null;
-  }
-  const roleTier = data.role_tier;
-  if (roleTier !== "mod" && roleTier !== "head_mod") return null;
+  const roleTier = data.role_tier === "head_mod" ? "head_mod" : "mod";
+  const statusRaw = data.status;
+  const status: ModStaffStatus =
+    statusRaw === "active" ||
+    statusRaw === "suspended" ||
+    statusRaw === "terminated" ||
+    statusRaw === "invited"
+      ? statusRaw
+      : "invited";
   const stipendRaw = data.stipend_cents;
   const stipendCents =
     stipendRaw == null
@@ -157,15 +160,21 @@ export type RecordModSignatureResult =
   | { ok: true }
   | { ok: false; code: "DB_NOT_CONFIGURED" | "TABLE_MISSING" | "STAFF_BLOCKED" | "WRITE_FAILED"; message: string };
 
-function modStaffWriteFailure(error: { message?: string; code?: string }): RecordModSignatureResult {
+function modStaffWriteFailure(error: { message?: string; code?: string; details?: string }): RecordModSignatureResult {
   const msg = (error.message ?? "").toLowerCase();
+  const detail = typeof error.details === "string" && error.details.trim() ? error.details.trim() : null;
   console.error("[modStaffDb] write", error);
-  if (msg.includes("does not exist") || error.code === "42P01") {
+  if (
+    msg.includes("does not exist") ||
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    /could not find the table/i.test(error.message ?? "")
+  ) {
     return {
       ok: false,
       code: "TABLE_MISSING",
       message:
-        "The mod staff database table is not set up yet. Ask an admin to run supabase/migrations/20260531120000_mod_staff_agreement.sql in the Supabase SQL editor, then try again.",
+        "The mod staff database table is not set up yet. In Supabase SQL editor, run migrations 20260531120000_mod_staff_agreement.sql and 20260531120100_mod_staff_service_grants.sql, then try again.",
     };
   }
   if (msg.includes("permission denied") || error.code === "42501") {
@@ -173,13 +182,17 @@ function modStaffWriteFailure(error: { message?: string; code?: string }): Recor
       ok: false,
       code: "WRITE_FAILED",
       message:
-        "Database permissions blocked saving your signature. Ask an admin to re-run the mod_staff migration grants.",
+        "Database permissions blocked saving your signature. Run 20260531120100_mod_staff_service_grants.sql in Supabase, then try again.",
     };
   }
   return {
     ok: false,
     code: "WRITE_FAILED",
-    message: "Could not record signature. Try again or contact an admin.",
+    message: detail
+      ? `Could not record signature (${detail}). Try again or contact an admin.`
+      : error.message?.trim()
+        ? `Could not record signature: ${error.message.trim()}`
+        : "Could not record signature. Try again or contact an admin.",
   };
 }
 
@@ -210,60 +223,30 @@ export async function recordModAgreementSignature(
     };
   }
 
-  const signaturePatch = {
+  const upsertRow = {
+    discord_id: id,
+    display_name: displayName?.trim() || existing?.displayName || null,
+    status: "active" as const,
+    role_tier: existing?.roleTier ?? ("mod" as const),
     agreement_version: CURRENT_MOD_AGREEMENT_VERSION,
     agreement_signed_at: now,
-    status: "active" as const,
-    activated_at: existing?.activatedAt ?? now,
+    invited_at: existing?.invitedAt || now,
+    activated_at: existing?.activatedAt || now,
+    created_at: existing?.createdAt || now,
     updated_at: now,
-    ...(displayName?.trim() ? { display_name: displayName.trim() } : {}),
   };
 
-  if (existing) {
-    const { data, error } = await db
-      .from("mod_staff")
-      .update(signaturePatch)
-      .eq("discord_id", id)
-      .select("discord_id")
-      .maybeSingle();
-    if (error) return modStaffWriteFailure(error);
-    if (!data) {
-      return { ok: false, code: "WRITE_FAILED", message: "Could not update your staff roster row." };
-    }
-    return { ok: true };
-  }
+  const { error } = await db.from("mod_staff").upsert(upsertRow, { onConflict: "discord_id" });
+  if (error) return modStaffWriteFailure(error);
 
-  const { data, error } = await db
-    .from("mod_staff")
-    .insert({
-      discord_id: id,
-      display_name: displayName?.trim() || null,
-      role_tier: "mod",
-      invited_at: now,
-      created_at: now,
-      ...signaturePatch,
-    })
-    .select("discord_id")
-    .maybeSingle();
-
-  if (error) {
-    if (error.code === "23505") {
-      const retry = await db
-        .from("mod_staff")
-        .update(signaturePatch)
-        .eq("discord_id", id)
-        .select("discord_id")
-        .maybeSingle();
-      if (retry.error) return modStaffWriteFailure(retry.error);
-      if (!retry.data) {
-        return { ok: false, code: "WRITE_FAILED", message: "Could not update your staff roster row." };
-      }
-      return { ok: true };
-    }
-    return modStaffWriteFailure(error);
-  }
-  if (!data) {
-    return { ok: false, code: "WRITE_FAILED", message: "Could not create your staff roster row." };
+  const verified = await getModStaffByDiscordId(id);
+  if (!verified || verified.status !== "active" || modStaffNeedsAgreement(verified)) {
+    return {
+      ok: false,
+      code: "WRITE_FAILED",
+      message:
+        "Signature saved but could not be verified. Confirm mod_staff grants migration ran, then refresh and try again.",
+    };
   }
   return { ok: true };
 }

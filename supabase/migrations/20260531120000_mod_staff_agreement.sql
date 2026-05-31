@@ -1,5 +1,7 @@
 -- Mod staff roster + server-side action audit (dashboard service role only).
 
+create extension if not exists pgcrypto;
+
 create table if not exists public.mod_staff (
   discord_id text primary key,
   display_name text,

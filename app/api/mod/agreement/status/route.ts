@@ -7,6 +7,7 @@ import {
   modStaffPortalBlockedReason,
 } from "@/lib/mod/modStaffDb";
 import { requireModOrAdmin } from "@/lib/modStaffAuth";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { meetsModerationMinTier, resolveEffectiveStaffTier } from "@/lib/helpRole";
 
 export const runtime = "nodejs";
@@ -51,6 +52,7 @@ export async function GET() {
   return Response.json({
     success: true,
     canModerate: true,
+    dbConfigured: !!getSupabaseAdmin(),
     needsAgreement: row ? modStaffNeedsAgreement(row) : true,
     signedCurrent,
     agreementVersion: row?.agreementVersion ?? null,
