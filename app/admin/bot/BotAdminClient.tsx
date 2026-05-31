@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AdminPanel, AdminMetric } from "@/app/admin/_components/adminUi";
 import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { OutsideXPollStatusBanner } from "@/app/admin/_components/OutsideXPollStatusBanner";
+import { XAutomationAdminPanel } from "@/app/admin/_components/XAutomationAdminPanel";
 import { adminChrome } from "@/lib/roleTierStyles";
 
 type HealthBody = {
@@ -476,6 +477,8 @@ export function BotAdminClient() {
           )}
         </AdminPanel>
       </AdminSection>
+
+      <XAutomationAdminPanel />
 
       <OutsideXPollStatusBanner className="mb-2" />
 

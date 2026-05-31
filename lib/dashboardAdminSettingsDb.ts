@@ -61,6 +61,10 @@ export type DashboardAdminSettingsRow = {
   outside_calls_enabled: boolean;
   /** Bot X timeline reads for outside_x_sources (requires outside_calls_enabled). */
   outside_x_polling_enabled: boolean;
+  /** When true, bot skips automated X reads/writes (milestones, digests, outside poll). */
+  x_automation_paused: boolean;
+  /** When true, daily / 7d / monthly digest scheduler runs (if not paused). */
+  x_scheduled_digests_enabled: boolean;
   /** Substrings that block an X post before Telegram/FaSol ingest. */
   outside_block_phrases: string[];
   /** Max outside_calls per source in the cooldown window (0 = unlimited). */
@@ -109,6 +113,8 @@ function defaultRow(): DashboardAdminSettingsRow {
     social_feed_enabled: false,
     outside_calls_enabled: true,
     outside_x_polling_enabled: true,
+    x_automation_paused: false,
+    x_scheduled_digests_enabled: false,
     outside_block_phrases: [...DEFAULT_OUTSIDE_BLOCK_PHRASES],
     outside_source_cooldown_max: DEFAULT_OUTSIDE_COOLDOWN_MAX,
     outside_source_cooldown_minutes: DEFAULT_OUTSIDE_COOLDOWN_MINUTES,
@@ -226,6 +232,9 @@ function normalizeAdminSettingsRow(r: Record<string, unknown>): DashboardAdminSe
       if (v === true) return true;
       return true;
     })(),
+    x_automation_paused: (r as { x_automation_paused?: unknown }).x_automation_paused === true,
+    x_scheduled_digests_enabled:
+      (r as { x_scheduled_digests_enabled?: unknown }).x_scheduled_digests_enabled === true,
     outside_block_phrases: parseOutsideBlockPhrasesInput(
       (r as { outside_block_phrases?: unknown }).outside_block_phrases
     ),
@@ -278,6 +287,8 @@ export async function patchDashboardAdminSettings(input: {
   social_feed_enabled?: boolean;
   outside_calls_enabled?: boolean;
   outside_x_polling_enabled?: boolean;
+  x_automation_paused?: boolean;
+  x_scheduled_digests_enabled?: boolean;
   outside_block_phrases?: string[];
   outside_source_cooldown_max?: number;
   outside_source_cooldown_minutes?: number;
@@ -407,6 +418,12 @@ export async function patchDashboardAdminSettings(input: {
   if (typeof input.outside_x_polling_enabled === "boolean") {
     next.outside_x_polling_enabled = input.outside_x_polling_enabled;
   }
+  if (typeof input.x_automation_paused === "boolean") {
+    next.x_automation_paused = input.x_automation_paused;
+  }
+  if (typeof input.x_scheduled_digests_enabled === "boolean") {
+    next.x_scheduled_digests_enabled = input.x_scheduled_digests_enabled;
+  }
   if ("outside_block_phrases" in input) {
     next.outside_block_phrases = parseOutsideBlockPhrasesInput(input.outside_block_phrases);
   }
@@ -454,6 +471,8 @@ export async function patchDashboardAdminSettings(input: {
       social_feed_enabled: next.social_feed_enabled,
       outside_calls_enabled: next.outside_calls_enabled,
       outside_x_polling_enabled: next.outside_x_polling_enabled,
+      x_automation_paused: next.x_automation_paused,
+      x_scheduled_digests_enabled: next.x_scheduled_digests_enabled,
       outside_block_phrases: next.outside_block_phrases,
       outside_source_cooldown_max: next.outside_source_cooldown_max,
       outside_source_cooldown_minutes: next.outside_source_cooldown_minutes,
@@ -478,6 +497,8 @@ export async function patchDashboardAdminSettings(input: {
     "social_feed_enabled",
     "outside_calls_enabled",
     "outside_x_polling_enabled",
+    "x_automation_paused",
+    "x_scheduled_digests_enabled",
     "outside_block_phrases",
     "outside_source_cooldown_max",
     "outside_source_cooldown_minutes",

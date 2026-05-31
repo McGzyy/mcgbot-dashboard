@@ -3,30 +3,17 @@
 import type { ModQueueCallApproval, ModQueueDevSubmission, ModQueuePayload } from "@/lib/modQueue";
 import { ModerationCallApprovalsTable } from "@/app/components/ModerationCallApprovalsTable";
 import { dexscreenerTokenUrl, formatListField, formatRelativeTime, parseTagsList } from "@/lib/modUiUtils";
-import { terminalSurface } from "@/lib/terminalDesignTokens";
+import {
+  pushModActivityLog,
+  type ModActivityLogEntry,
+  type ModActivityOutcome,
+} from "@/lib/modActivityLog";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const CARD_HOVER =
   "transition-[box-shadow,border-color,ring-color] duration-200 ease-out hover:border-zinc-600/70 hover:shadow-lg hover:shadow-black/35 hover:ring-1 hover:ring-zinc-700/20";
-
-const LOG_KEY_V1 = "mcgbot-mod-queue-activity-v1";
-const LOG_KEY = "mcgbot-mod-queue-activity-v2";
-const MAX_LOG = 120;
-
-type ModActivityOutcome = "approved" | "denied" | "excluded" | "failed";
-
-type ModActivityLogEntry = {
-  id: string;
-  ts: number;
-  outcome: ModActivityOutcome;
-  kind: "call_bot" | "call_user" | "dev";
-  subject: string;
-  detail?: string;
-  /** Display name when logged from dashboard (optional for older rows). */
-  moderatorName?: string;
-};
 
 type CallOrigin = "bot" | "user";
 
@@ -136,64 +123,6 @@ function itemSearchText(item: UnifiedItem): string {
     .toLowerCase();
 }
 
-function migrateLegacySessionLog(): void {
-  if (typeof window === "undefined") return;
-  try {
-    if (localStorage.getItem(LOG_KEY)) return;
-    const raw = sessionStorage.getItem(LOG_KEY_V1);
-    if (!raw) return;
-    localStorage.setItem(LOG_KEY, raw);
-    sessionStorage.removeItem(LOG_KEY_V1);
-  } catch {
-    /* ignore */
-  }
-}
-
-function loadActivityLog(): ModActivityLogEntry[] {
-  if (typeof window === "undefined") return [];
-  migrateLegacySessionLog();
-  try {
-    const raw = localStorage.getItem(LOG_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter(
-        (e): e is ModActivityLogEntry =>
-          e &&
-          typeof e === "object" &&
-          typeof (e as ModActivityLogEntry).id === "string" &&
-          typeof (e as ModActivityLogEntry).ts === "number" &&
-          typeof (e as ModActivityLogEntry).outcome === "string" &&
-          typeof (e as ModActivityLogEntry).subject === "string"
-      )
-      .slice(0, MAX_LOG);
-  } catch {
-    return [];
-  }
-}
-
-function pushActivityLog(entry: ModActivityLogEntry) {
-  if (typeof window === "undefined") return;
-  try {
-    const prev = loadActivityLog();
-    const next = [entry, ...prev].slice(0, MAX_LOG);
-    localStorage.setItem(LOG_KEY, JSON.stringify(next));
-  } catch {
-    /* ignore quota */
-  }
-}
-
-function clearActivityLog() {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(LOG_KEY);
-    sessionStorage.removeItem(LOG_KEY_V1);
-  } catch {
-    /* ignore */
-  }
-}
-
 function formatExpiryLabel(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const exp = parseMs(iso);
@@ -224,7 +153,6 @@ export function ModerationQueueFeed({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [errHint, setErrHint] = useState<string | null>(null);
-  const [activityLog, setActivityLog] = useState<ModActivityLogEntry[]>([]);
   const [actingKey, setActingKey] = useState<string | null>(null);
 
   /** Full moderation page defaults to coin/call rows first; dev roster is one click away. */
@@ -285,10 +213,6 @@ export function ModerationQueueFeed({
     void load();
   }, [load]);
 
-  useEffect(() => {
-    setActivityLog(loadActivityLog());
-  }, []);
-
   const total = data?.counts?.total ?? 0;
   const hasItems = !loading && total > 0;
 
@@ -343,16 +267,10 @@ export function ModerationQueueFeed({
         ...entry,
         moderatorName: entry.moderatorName ?? moderatorLabel,
       };
-      pushActivityLog(withMod);
-      setActivityLog(loadActivityLog());
+      pushModActivityLog(withMod);
     },
     [moderatorLabel]
   );
-
-  const wipeActivityLog = useCallback(() => {
-    clearActivityLog();
-    setActivityLog([]);
-  }, []);
 
   const submitCallDecision = useCallback(
     async (call: ModQueueCallApproval, origin: CallOrigin, decision: "approve" | "deny" | "exclude") => {
@@ -369,17 +287,19 @@ export function ModerationQueueFeed({
         const json = (await res.json().catch(() => ({}))) as {
           success?: boolean;
           error?: string;
+          hint?: string;
           warning?: string;
         };
         if (!res.ok || json.success !== true) {
           const msg = typeof json.error === "string" ? json.error : `Request failed (${res.status})`;
+          const hint = typeof json.hint === "string" ? json.hint : null;
           appendLog({
             id: crypto.randomUUID(),
             ts: Date.now(),
             outcome: "failed",
             kind,
             subject,
-            detail: msg,
+            detail: hint ? `${msg} — ${hint}` : msg,
           });
           return;
         }
@@ -673,15 +593,8 @@ export function ModerationQueueFeed({
           <div className="h-24 rounded-lg bg-zinc-800/40" />
         </div>
       ) : (
-        <div
-          className={
-            mode === "full"
-              ? "mt-4 grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1fr)_17rem] 2xl:items-start"
-              : "mt-4"
-          }
-        >
-          <div className="min-w-0 space-y-3">
-            {total === 0 ? (
+        <div className="mt-4 min-w-0 space-y-3">
+          {total === 0 ? (
               <p className="text-sm text-zinc-500">Queue is clear — nothing needs review right now.</p>
             ) : orderedItems.length === 0 ? (
               <div className="rounded-xl border border-zinc-800/65 bg-zinc-950/40 px-4 py-3 text-sm leading-relaxed text-zinc-400">
@@ -960,78 +873,6 @@ export function ModerationQueueFeed({
                 })}
               </div>
             )}
-          </div>
-
-          {mode === "full" ? (
-            <aside
-              id="mod-action-log"
-              className={`shrink-0 2xl:sticky 2xl:top-20 ${terminalSurface.panelCard} rounded-xl border px-3 py-3`}
-              aria-label="Moderation action log"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/60 pb-2">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Mod log</h3>
-                <button
-                  type="button"
-                  onClick={wipeActivityLog}
-                  disabled={activityLog.length === 0}
-                  className="rounded-md border border-zinc-700/80 bg-zinc-900/60 px-2 py-1 text-[10px] font-semibold text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-200 disabled:opacity-40"
-                >
-                  Clear log
-                </button>
-              </div>
-              <p className="mt-2 text-[10px] leading-relaxed text-zinc-600">
-                Dashboard approve / deny / exclude from this page. Rows are stored on this browser (local); use Clear
-                when you want a fresh panel. Queue cards vanish after a decision — this log is the paper trail here.
-              </p>
-              {activityLog.length === 0 ? (
-                <p className="mt-3 text-xs text-zinc-500">No actions yet this session.</p>
-              ) : (
-                <ul className="mt-3 max-h-[min(28rem,55vh)] space-y-1.5 overflow-y-auto text-[11px] leading-snug text-zinc-400">
-                  {activityLog.map((row) => {
-                    const tone =
-                      row.outcome === "approved"
-                        ? "text-emerald-300/90"
-                        : row.outcome === "denied"
-                          ? "text-zinc-400"
-                          : row.outcome === "excluded"
-                            ? "text-amber-200/85"
-                            : row.outcome === "failed"
-                              ? "text-red-300/85"
-                              : "text-zinc-400";
-                    const kind =
-                      row.kind === "call_bot"
-                        ? "Bot"
-                        : row.kind === "call_user"
-                          ? "Community"
-                          : row.kind === "dev"
-                            ? "Dev"
-                            : "";
-                    return (
-                      <li key={row.id} className="border-b border-zinc-800/40 pb-2 last:border-0 last:pb-0">
-                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                          <span className="shrink-0 tabular-nums text-zinc-600">
-                            {new Date(row.ts).toLocaleString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                          <span className={`shrink-0 font-semibold uppercase ${tone}`}>{row.outcome}</span>
-                          <span className="text-zinc-600">{kind}</span>
-                        </div>
-                        <p className="mt-0.5 font-medium text-zinc-300">{row.subject}</p>
-                        {row.moderatorName ? (
-                          <p className="mt-0.5 text-[10px] text-zinc-500">by {row.moderatorName}</p>
-                        ) : null}
-                        {row.detail ? <p className="mt-0.5 text-[10px] text-zinc-500">{row.detail}</p> : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </aside>
-          ) : null}
         </div>
       )}
     </div>

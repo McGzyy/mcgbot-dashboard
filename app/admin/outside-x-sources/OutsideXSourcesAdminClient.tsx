@@ -2,6 +2,7 @@
 
 import { AdminPageHeader } from "@/app/admin/_components/AdminPageHeader";
 import { OutsideXPollStatusBanner } from "@/app/admin/_components/OutsideXPollStatusBanner";
+import { XAutomationAdminPanel } from "@/app/admin/_components/XAutomationAdminPanel";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
 import {
   DEFAULT_OUTSIDE_COOLDOWN_MAX,
@@ -329,6 +330,8 @@ export function OutsideXSourcesAdminClient() {
           </>
         }
       />
+
+      <XAutomationAdminPanel />
 
       <OutsideXPollStatusBanner />
 

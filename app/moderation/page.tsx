@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { ModQueueHomePanel } from "@/app/components/ModQueueHomePanel";
+import { ModerationActivityLogPanel } from "@/app/components/ModerationActivityLogPanel";
 import { ModerationStaffQueues } from "@/app/components/ModerationStaffQueues";
 import { UserCallSuspensionStaffPanel } from "@/app/components/UserCallSuspensionStaffPanel";
 import { ModerationDashboardShell } from "@/app/moderation/_components/ModerationDashboardShell";
@@ -98,6 +99,12 @@ export default function ModerationPage() {
                 </p>
                 <ModQueueHomePanel mode="full" />
               </div>
+
+              {canModerate ? (
+                <div className="mt-14">
+                  <ModerationActivityLogPanel />
+                </div>
+              ) : null}
 
               {canModerate ? (
                 <div id="mod-call-suspensions">

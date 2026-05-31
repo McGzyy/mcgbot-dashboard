@@ -303,6 +303,12 @@ export async function PATCH(req: Request) {
   if (typeof o.outside_x_polling_enabled === "boolean") {
     patch.outside_x_polling_enabled = o.outside_x_polling_enabled;
   }
+  if (typeof o.x_automation_paused === "boolean") {
+    patch.x_automation_paused = o.x_automation_paused;
+  }
+  if (typeof o.x_scheduled_digests_enabled === "boolean") {
+    patch.x_scheduled_digests_enabled = o.x_scheduled_digests_enabled;
+  }
   if ("outside_block_phrases" in o) {
     patch.outside_block_phrases = parseOutsideBlockPhrasesInput(o.outside_block_phrases);
   }

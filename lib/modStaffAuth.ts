@@ -36,3 +36,23 @@ export async function requireModOrAdmin(): Promise<
   }
   return { ok: true, staffDiscordId };
 }
+
+/** Staff gate for bot-proxy mod routes (`/api/mod/queue`, call-decision, stats). */
+export async function requireModBotProxySession(): Promise<
+  | { ok: true; userId: string }
+  | { ok: false; response: Response }
+> {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id?.trim() ?? "";
+  if (!userId) {
+    return { ok: false, response: Response.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
+  const tier = await resolveEffectiveStaffTier(userId, session?.user?.helpTier);
+  if (!meetsModerationMinTier(tier)) {
+    return {
+      ok: false,
+      response: Response.json(moderationStaffForbiddenPayload(), { status: 403 }),
+    };
+  }
+  return { ok: true, userId };
+}

@@ -1,24 +1,15 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { botApiBaseUrl } from "@/lib/botInternal";
 import { botUnreachableChecklist, describeBotApiFetchError } from "@/lib/botUpstreamFetchError";
-import { meetsModerationMinTier, moderationStaffForbiddenPayload, resolveHelpTierAsync } from "@/lib/helpRole";
+import { requireModBotProxySession } from "@/lib/modStaffAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id?.trim() ?? "";
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const tier = await resolveHelpTierAsync(userId);
-    if (!meetsModerationMinTier(tier)) {
-      return Response.json(moderationStaffForbiddenPayload(), { status: 403 });
-    }
+    const auth = await requireModBotProxySession();
+    if (!auth.ok) return auth.response;
+    const userId = auth.userId;
 
     const botUrl = botApiBaseUrl();
     if (!botUrl) {
