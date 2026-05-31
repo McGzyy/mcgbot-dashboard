@@ -110,7 +110,7 @@ export function MembershipAccessPanel({
             "Your membership is active and linked to this Discord account."
           )
         ) : exempt ? (
-          "Your account has staff or exempt access — the full dashboard is unlocked."
+          "Your account has complimentary access — the full dashboard is unlocked."
         ) : (
           "Your account has dashboard access with this Discord login."
         )}
@@ -118,7 +118,7 @@ export function MembershipAccessPanel({
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
         <span className="rounded-full border border-[color:var(--accent)]/35 bg-[color:var(--accent)]/10 px-3 py-1.5 text-xs font-medium text-[color:var(--accent)]/95">
-          {active ? "Paid membership active" : exempt ? "Exempt access" : "Dashboard access"}
+          {active ? "Paid membership active" : exempt ? "Complimentary access" : "Dashboard access"}
         </span>
         <span className="rounded-full border border-zinc-700/60 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-200">
           {tierMeta.title} plan

@@ -1,4 +1,4 @@
--- Beta/comp subscription bypass list (admin-managed timed or permanent exemptions).
+-- Comp subscription bypass list (admin-managed timed or permanent exemptions).
 
 create table if not exists public.subscription_exempt_allowlist (
   discord_id text primary key,

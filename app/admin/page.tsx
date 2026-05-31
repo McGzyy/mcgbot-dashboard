@@ -81,7 +81,7 @@ export default function AdminOverviewPage() {
         <OverviewCard
           href="/admin/subscription-exempt"
           title="Subscription access"
-          subtitle="Beta/comp bypass list — add Discord IDs for early testers before public checkout opens."
+          subtitle="Comp and timed bypass list — grant dashboard access without checkout."
           hint="Writes · Supabase"
           data-tutorial="admin.card.subscription"
         />
@@ -122,8 +122,8 @@ export default function AdminOverviewPage() {
         />
         <OverviewCard
           href="/admin/fix-it-tickets"
-          title="Fix-it tickets (beta)"
-          subtitle="Temporary tester inbox for UI/UX notes, ideas, and preferences from the floating button."
+          title="Fix-it tickets"
+          subtitle="UI/UX feedback from the floating button — ideas, polish notes, and preferences."
           hint="Read · Supabase + Storage"
         />
         <OverviewCard
@@ -148,7 +148,7 @@ export default function AdminOverviewPage() {
         <OverviewCard
           href="/admin/vouchers"
           title="Vouchers"
-          subtitle="Generate discount codes for SOL checkout (tester access, promos, limited-use drops)."
+          subtitle="Generate discount codes for SOL checkout (promos, comp access, limited-use drops)."
           hint="Writes · Supabase"
           data-tutorial="admin.card.vouchers"
         />

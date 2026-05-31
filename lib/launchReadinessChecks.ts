@@ -37,21 +37,11 @@ export async function runLaunchReadinessChecks(
   const checks: LaunchReadinessCheck[] = [];
 
   checks.push({
-    id: "public_signups_paused",
-    label: "Pause new checkouts (beta)",
-    ok: opts.publicSignupsPaused === true,
-    required: true,
-    hint: opts.publicSignupsPaused
-      ? undefined
-      : "Keep enabled until paid launch — toggle under Maintenance & checkout below.",
-  });
-
-  checks.push({
     id: "maintenance_off",
     label: "Maintenance mode off",
     ok: opts.maintenanceEnabled !== true,
     required: true,
-    hint: opts.maintenanceEnabled ? "Turn off maintenance before inviting testers." : undefined,
+    hint: opts.maintenanceEnabled ? "Turn off maintenance before opening the dashboard to members." : undefined,
   });
 
   if (!db) {
@@ -75,7 +65,7 @@ export async function runLaunchReadinessChecks(
   }> = [
     {
       id: "subscription_exempt_allowlist",
-      label: "Beta access allowlist table",
+      label: "Comp access allowlist table",
       table: "subscription_exempt_allowlist",
       columns: "discord_id, exempt_until",
       migration: "20260701120000_subscription_exempt_allowlist.sql",
@@ -137,6 +127,16 @@ export async function runLaunchReadinessChecks(
     });
   }
 
+  checks.push({
+    id: "checkout_availability",
+    label: "New checkout availability",
+    ok: true,
+    required: false,
+    hint: opts.publicSignupsPaused
+      ? "Paused — grant comp access or share voucher codes until you re-open signups under Maintenance & checkout."
+      : "Open — new members can start checkout from /membership.",
+  });
+
   return checks;
 }
 
@@ -145,7 +145,7 @@ export function summarizeLaunchReadiness(checks: LaunchReadinessCheck[]): {
   optionalFailed: number;
 } {
   const required = checks.filter((c) => c.required);
-  const optional = checks.filter((c) => !c.required);
+  const optional = checks.filter((c) => !c.required && c.id !== "checkout_availability");
   return {
     requiredOk: required.every((c) => c.ok),
     optionalFailed: optional.filter((c) => !c.ok).length,

@@ -343,9 +343,9 @@ export function SiteAdminClient() {
     { key: "discordGuild", label: "DISCORD_GUILD_ID" },
     { key: "discordBotToken", label: "DISCORD_BOT_TOKEN / DISCORD_TOKEN" },
     { key: "cronSecret", label: "CRON_SECRET" },
-    { key: "stripeSecret", label: "STRIPE_SECRET_KEY (paid launch)" },
-    { key: "stripeWebhook", label: "STRIPE_WEBHOOK_SECRET (paid launch)" },
-    { key: "discordPremiumRole", label: "DISCORD_PREMIUM_ROLE_ID (paid launch)" },
+    { key: "stripeSecret", label: "STRIPE_SECRET_KEY" },
+    { key: "stripeWebhook", label: "STRIPE_WEBHOOK_SECRET" },
+    { key: "discordPremiumRole", label: "DISCORD_PREMIUM_ROLE_ID" },
     { key: "solanaTreasuryPubkey", label: "SOLANA_TREASURY_PUBKEY" },
   ];
 
@@ -437,7 +437,7 @@ export function SiteAdminClient() {
 
       <div>
         <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-          Beta launch readiness
+          Launch readiness
         </h3>
         <AdminPanel
           className={`p-5 ${
@@ -453,8 +453,8 @@ export function SiteAdminClient() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-zinc-300">
                   {launch?.requiredOk
-                    ? "Required checks passed — safe to invite beta testers after you grant access."
-                    : "Fix required items before inviting beta testers."}
+                    ? "Required checks passed — migrations and maintenance look good."
+                    : "Fix required items before inviting members."}
                 </p>
                 <span
                   className={`shrink-0 rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
@@ -494,13 +494,15 @@ export function SiteAdminClient() {
                       <span
                         className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                           check.ok
-                            ? "bg-emerald-500/15 text-emerald-300"
+                            ? check.id === "checkout_availability"
+                              ? "bg-sky-500/15 text-sky-300"
+                              : "bg-emerald-500/15 text-emerald-300"
                             : check.required
                               ? "bg-red-500/15 text-red-300"
                               : "bg-zinc-800/80 text-zinc-500"
                         }`}
                       >
-                        {check.ok ? "Ok" : check.required ? "Missing" : "Skip"}
+                        {check.ok ? "Ok" : check.required ? "Missing" : check.id === "checkout_availability" ? "Info" : "Skip"}
                       </span>
                     </div>
                   </li>
@@ -934,7 +936,7 @@ export function SiteAdminClient() {
               <SettingsSection
                 kicker="Operations"
                 title="Maintenance &amp; checkout"
-                description="For beta: grant access via Subscription access, keep Pause new checkouts on until paid launch. Maintenance redirects non-admins to /maintenance."
+                description="Grant comp access under Subscription access when checkouts are paused. Maintenance redirects non-admins to /maintenance."
               >
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800/70 bg-black/30 p-4">
                   <input

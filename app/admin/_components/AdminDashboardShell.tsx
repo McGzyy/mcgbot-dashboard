@@ -246,7 +246,7 @@ const NAV_GROUPS: NavGroup[] = [
       },
       {
         href: "/admin/fix-it-tickets",
-        label: "Fix-it tickets (beta)",
+        label: "Fix-it tickets",
         description: "Tester UI / idea inbox",
         icon: (a) => (
           <svg className={`h-4 w-4 ${a ? adminChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>

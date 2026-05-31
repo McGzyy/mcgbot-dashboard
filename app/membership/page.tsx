@@ -9,6 +9,7 @@ import { useSearchParams } from "next/navigation";
 import { DISCORD_SERVER_INVITE_URL, resolveDiscordEntryUrl } from "@/lib/discordInvite";
 import { dashboardAccessStateFromSession } from "@/lib/dashboardAccess";
 import { membershipPaywallUserMessage } from "@/lib/membershipPaywallUserMessage";
+import { MembershipAccessPendingPanel } from "@/app/membership/MembershipAccessPendingPanel";
 import { MembershipAccessPanel } from "@/app/membership/MembershipAccessPanel";
 import { MembershipBillingSection, type MembershipPlan } from "@/app/membership/MembershipBillingSection";
 import { MembershipProductCompare } from "@/app/membership/MembershipProductCompare";
@@ -90,6 +91,7 @@ export default function MembershipPage() {
   const [guildGate, setGuildGate] = useState<GuildGateState>({ status: "idle" });
   const [guildGateRetry, setGuildGateRetry] = useState(0);
   const [showActivationWelcome, setShowActivationWelcome] = useState(false);
+  const [accessRefreshBusy, setAccessRefreshBusy] = useState(false);
   const accessWasGrantedRef = useRef(false);
   const entitledRedirectStartedRef = useRef(false);
   const lineParam = (searchParams?.get("line") ?? searchParams?.get("productLine") ?? "").trim().toLowerCase();
@@ -197,6 +199,29 @@ export default function MembershipPage() {
       window.clearInterval(id);
     };
   }, [status, active, hasAccess, update]);
+
+  const refreshMembershipAccess = useCallback(async () => {
+    if (accessRefreshBusy) return;
+    setAccessRefreshBusy(true);
+    try {
+      await update({ refreshAccess: true });
+    } finally {
+      setAccessRefreshBusy(false);
+    }
+  }, [accessRefreshBusy, update]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || hasAccess) return;
+    let cancelled = false;
+    const id = window.setInterval(() => {
+      if (cancelled) return;
+      void update({ refreshAccess: true });
+    }, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [status, hasAccess, update]);
 
   useEffect(() => {
     let cancelled = false;
@@ -720,6 +745,14 @@ export default function MembershipPage() {
     !(Boolean(siteFlags?.public_signups_paused) && !isDashboardAdmin) &&
     !(Boolean(siteFlags?.maintenance_enabled) && !isDashboardAdmin);
 
+  const showAccessPendingPanel =
+    isLoggedIn &&
+    !hasAccess &&
+    guildGateReady &&
+    guildGate.guildMembershipKnown &&
+    guildGate.inGuild === true &&
+    !verificationBlocksCheckout;
+
   const membershipCallbackUrl =
     referralReferrerId || referralSlugForClaim
       ? `/membership?ref=${encodeURIComponent(referralReferrerId || referralSlugForClaim)}`
@@ -806,6 +839,12 @@ export default function MembershipPage() {
                   </>
                 ) : guildGateLoading ? (
                   "Verifying Discord access…"
+                ) : showAccessPendingPanel ? (
+                  siteFlags?.public_signups_paused ? (
+                    "Signed in — checkout is paused. Refresh access if staff granted you complimentary access."
+                  ) : (
+                    "Signed in — choose a plan below or refresh access if you already subscribed."
+                  )
                 ) : checkoutAllowed ? (
                   "Signed in — pick a tier and billing period below."
                 ) : null}
@@ -873,6 +912,17 @@ export default function MembershipPage() {
                 Open Discord invite
               </a>
             </div>
+          </div>
+        ) : null}
+
+        {showAccessPendingPanel ? (
+          <div className="order-3">
+            <MembershipAccessPendingPanel
+              signupsPaused={Boolean(siteFlags?.public_signups_paused)}
+              discordInviteUrl={resolveDiscordInviteUrl(siteFlags)}
+              refreshBusy={accessRefreshBusy}
+              onRefreshAccess={() => void refreshMembershipAccess()}
+            />
           </div>
         ) : null}
 
@@ -1058,15 +1108,16 @@ export default function MembershipPage() {
           signupsPausedNote={
             siteFlags?.public_signups_paused && !isDashboardAdmin ? (
               <p className="mb-4 rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                New checkouts are temporarily paused. You can review plans below; checkout unlocks when staff
-                re-opens signups.
+                New memberships are temporarily unavailable. If you received complimentary access or a voucher,
+                use <span className="font-medium text-amber-50">Refresh access</span> above or redeem your code
+                below.
               </p>
             ) : null
           }
           signupsPausedAdminNote={
             siteFlags?.public_signups_paused && isDashboardAdmin ? (
               <p className="mb-4 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/90">
-                New checkouts are paused for members, but your admin session can still start checkout for testing.
+                New checkouts are paused for members. Your admin session can still start checkout for testing.
               </p>
             ) : null
           }
