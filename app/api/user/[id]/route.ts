@@ -22,6 +22,8 @@ import { filterCallRowsForStats, getStatsCutoverUtcMs } from "@/lib/statsCutover
 import { rowAthMultiple } from "@/lib/callPerformanceMultiples";
 import { buildCallerProfileIntel } from "@/lib/callerProfileIntel";
 import { loadDeskRowsForIntel } from "@/lib/deskAvgCache";
+import { resolveHelpTierAsync } from "@/lib/helpRole";
+import { getModStaffByDiscordId } from "@/lib/mod/modStaffDb";
 import { isPublicProfileHiddenFromViewer } from "@/lib/profileGuildVisibility";
 import { rollingSevenDaysStartUtcMs } from "@/lib/leaderboardTimeWindows";
 
@@ -189,9 +191,11 @@ export async function GET(
     });
     const { data, error } = perfResult;
 
-    const [userRowResult, cutoverMs] = await Promise.all([
+    const [userRowResult, cutoverMs, modStaffRow, helpTier] = await Promise.all([
       fetchUsersProfileRow(supabase, discordId),
       getStatsCutoverUtcMs(),
+      getModStaffByDiscordId(discordId),
+      resolveHelpTierAsync(discordId),
     ]);
 
     if (error) {
@@ -282,6 +286,14 @@ export async function GET(
       }
     }
 
+    const modStaffBadge =
+      modStaffRow?.status === "active"
+        ? {
+            helpTier,
+            roleTier: modStaffRow.roleTier,
+          }
+        : null;
+
     const payload = {
       discordId,
       /** Latest handle-style name from call rows (Discord username / legacy). */
@@ -334,6 +346,7 @@ export async function GET(
       callDistribution,
       recentCalls,
       callerIntel,
+      modStaffBadge,
     };
 
     return new Response(

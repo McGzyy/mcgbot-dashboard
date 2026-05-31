@@ -2,6 +2,7 @@
 
 import { FollowButton } from "@/app/components/FollowButton";
 import { UserCallSuspensionStaffPanel } from "@/app/components/UserCallSuspensionStaffPanel";
+import { ModStaffBadge } from "@/app/moderation/_components/ModStaffBadge";
 import { useFollowingIds } from "@/app/hooks/useFollowingIds";
 import {
   abbreviateCa,
@@ -304,6 +305,10 @@ type ProfilePayload = {
   stats: ProfileStats;
   recentCalls: RecentCallRow[];
   callerIntel?: CallerProfileIntel | null;
+  modStaffBadge?: {
+    helpTier?: string | null;
+    roleTier?: string | null;
+  } | null;
 };
 
 type TrophyTimeframe = "daily" | "weekly" | "monthly";
@@ -1083,6 +1088,18 @@ function parseProfile(json: unknown): ProfilePayload | null {
       o.callerIntel && typeof o.callerIntel === "object"
         ? (o.callerIntel as CallerProfileIntel)
         : null,
+    modStaffBadge:
+      o.modStaffBadge && typeof o.modStaffBadge === "object"
+        ? (() => {
+            const badge = o.modStaffBadge as Record<string, unknown>;
+            const helpTierRaw = badge.helpTier;
+            const roleTierRaw = badge.roleTier;
+            return {
+              helpTier: typeof helpTierRaw === "string" ? helpTierRaw : null,
+              roleTier: typeof roleTierRaw === "string" ? roleTierRaw : null,
+            };
+          })()
+        : null,
   };
 }
 
@@ -1855,6 +1872,7 @@ export default function ProfilePageClient() {
   /** Honor chips follow `/api/user/.../badges`, which only includes these when the Discord roles are present. */
   const showTopCallerChip = topCallerTimes > 0;
   const showTrustedProBadgeChip = badges.includes("trusted_pro");
+  const showModStaffBadge = Boolean(profile?.modStaffBadge);
   const isTrustedPro = Boolean(profile?.isTrustedPro);
 
   const bannerUrl = profile?.banner_url?.trim() || "";
@@ -2218,6 +2236,13 @@ export default function ProfilePageClient() {
                         <span className="inline-flex shrink-0 items-center rounded-full border border-violet-500/35 bg-gradient-to-r from-violet-950/90 to-indigo-950/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-100 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.45),0_0_28px_-12px_rgba(139,92,246,0.32)]">
                           Trusted Pro
                         </span>
+                      ) : null}
+                      {!loading && showModStaffBadge && profile?.modStaffBadge ? (
+                        <ModStaffBadge
+                          helpTier={profile.modStaffBadge.helpTier}
+                          roleTier={profile.modStaffBadge.roleTier}
+                          compact
+                        />
                       ) : null}
                     </div>
                     {!loading &&

@@ -1,3 +1,4 @@
+import { notifyModEscalationCreated } from "@/lib/mod/modEscalationDiscordNotify";
 import type { ModActionAuditAction } from "@/lib/mod/modStaffDb";
 import { insertModActionAudit } from "@/lib/mod/modStaffDb";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -167,7 +168,9 @@ export async function createModEscalation(input: {
     return null;
   }
   if (!data || typeof data !== "object") return null;
-  return mapEscalationRow(data as Record<string, unknown>);
+  const row = mapEscalationRow(data as Record<string, unknown>);
+  if (row) notifyModEscalationCreated(row);
+  return row;
 }
 
 function mapEscalationRow(r: Record<string, unknown>): ModEscalationRow | null {
