@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { AdminPanel } from "@/app/admin/_components/adminUi";
+import { CURRENT_MOD_AGREEMENT_VERSION } from "@/lib/mod/modAgreement";
 import { adminChrome } from "@/lib/roleTierStyles";
 
 type ModStaffRow = {
@@ -60,6 +61,11 @@ export default function AdminModStaffPage() {
   const [payoutStatus, setPayoutStatus] = useState<"pending" | "paid">("paid");
   const [payoutTx, setPayoutTx] = useState("");
   const [payoutNotes, setPayoutNotes] = useState("");
+
+  const pendingAgreementCount = useMemo(
+    () => staff.filter((row) => row.needsAgreement && row.status === "active").length,
+    [staff]
+  );
 
   const loadPayouts = useCallback(async (discordId?: string) => {
     try {
@@ -267,6 +273,30 @@ export default function AdminModStaffPage() {
         </p>
       ) : null}
       {note ? <p className="text-sm text-emerald-300/90">{note}</p> : null}
+
+      <AdminPanel className="border-amber-500/20 bg-amber-950/10 p-4">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-200/90">Agreement version</p>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+          Current staff agreement:{" "}
+          <span className="font-mono text-emerald-200/90">{CURRENT_MOD_AGREEMENT_VERSION}</span>
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+          To require re-signatures after editing agreement text, bump{" "}
+          <code className="rounded bg-zinc-900 px-1 py-0.5 font-mono text-[11px] text-zinc-400">
+            CURRENT_MOD_AGREEMENT_VERSION
+          </code>{" "}
+          in{" "}
+          <code className="rounded bg-zinc-900 px-1 py-0.5 font-mono text-[11px] text-zinc-400">lib/mod/modAgreement.ts</code>{" "}
+          and deploy. Active mods see the resign banner until they sign.
+        </p>
+        {pendingAgreementCount > 0 ? (
+          <p className="mt-2 text-xs font-semibold text-amber-200/90">
+            {pendingAgreementCount} active mod{pendingAgreementCount === 1 ? "" : "s"} pending re-signature.
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-zinc-500">All active roster mods are on the current agreement version.</p>
+        )}
+      </AdminPanel>
 
       <AdminPanel className="p-5">
         <h3 className="text-sm font-semibold text-zinc-100">Invite mod</h3>

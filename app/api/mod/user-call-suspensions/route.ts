@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { recordModStaffAudit } from "@/lib/mod/modQueueOps";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireDashboardStaff } from "@/lib/staffGate";
 import {
@@ -81,6 +82,13 @@ export async function POST(request: Request) {
   if (action === "lift") {
     const res = await deleteCallSuspension(db, discordId);
     if (!res.ok) return Response.json({ ok: false, error: res.error }, { status: 500 });
+    void recordModStaffAudit({
+      discordId: actorId,
+      action: "other",
+      subjectType: "user_call_suspension",
+      subjectId: discordId,
+      detail: { action: "lift" },
+    });
     return Response.json({ ok: true });
   }
 
@@ -106,6 +114,13 @@ export async function POST(request: Request) {
     });
     if (!res.ok) return Response.json({ ok: false, error: res.error }, { status: 500 });
     const row = await getCallSuspensionForUser(db, discordId);
+    void recordModStaffAudit({
+      discordId: actorId,
+      action: "other",
+      subjectType: "user_call_suspension",
+      subjectId: discordId,
+      detail: { action, duration: durationRaw, until: parsed.until ?? null },
+    });
     return Response.json({ ok: true, suspension: row ? enrichRow(row) : null });
   }
 

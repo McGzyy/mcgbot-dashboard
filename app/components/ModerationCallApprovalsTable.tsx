@@ -1,6 +1,7 @@
 "use client";
 
 import type { ModQueueCallApproval } from "@/lib/modQueue";
+import { ModQueueItemTools } from "@/app/moderation/_components/ModQueueItemTools";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import { TokenCallThumb } from "@/components/TokenCallThumb";
 import { useCallback, type ReactNode } from "react";
@@ -246,6 +247,12 @@ export function ModerationCallApprovalsTable({
                   Dexscreener
                 </a>
               </div>
+
+              <ModQueueItemTools
+                subjectType="call"
+                subjectId={c.contractAddress.trim()}
+                escalateLabel={`#mod-approvals: ${callLabel(c)}`}
+              />
             </div>
           </article>
         );

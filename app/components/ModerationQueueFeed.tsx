@@ -2,6 +2,7 @@
 
 import type { ModQueueCallApproval, ModQueueDevSubmission, ModQueuePayload } from "@/lib/modQueue";
 import { ModerationCallApprovalsTable } from "@/app/components/ModerationCallApprovalsTable";
+import { ModQueueItemTools } from "@/app/moderation/_components/ModQueueItemTools";
 import { dexscreenerTokenUrl, formatListField, formatRelativeTime, parseTagsList } from "@/lib/modUiUtils";
 import {
   pushModActivityLog,
@@ -684,6 +685,11 @@ export function ModerationQueueFeed({
                                 <p className="text-[11px] text-zinc-500">No Discord jump link on this row.</p>
                               )}
                             </div>
+                            <ModQueueItemTools
+                              subjectType="dev_submission"
+                              subjectId={d.id}
+                              escalateLabel={`Dev roster: ${d.nickname?.trim() || d.submitterUsername || d.id}`}
+                            />
                           </div>
                         );
                       })}
@@ -812,6 +818,11 @@ export function ModerationQueueFeed({
                             Dexscreener
                           </a>
                         </div>
+                        <ModQueueItemTools
+                          subjectType="call"
+                          subjectId={c.contractAddress.trim()}
+                          escalateLabel={`#mod-approvals: ${label}`}
+                        />
                       </div>
                     );
                   }
@@ -869,6 +880,11 @@ export function ModerationQueueFeed({
                           <p className="text-[11px] text-zinc-500">No Discord jump link on this row.</p>
                         )}
                       </div>
+                      <ModQueueItemTools
+                        subjectType="dev_submission"
+                        subjectId={d.id}
+                        escalateLabel={`Dev roster: ${d.nickname?.trim() || d.submitterUsername || d.id}`}
+                      />
                     </div>
                   );
                 })}

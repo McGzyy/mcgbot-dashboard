@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { recordModStaffAudit } from "@/lib/mod/modQueueOps";
 import { invalidateStatsCutoverCache } from "@/lib/statsCutover";
 import { requireDashboardStaff } from "@/lib/staffGate";
 
@@ -46,6 +47,15 @@ export async function PATCH(
   }
 
   invalidateStatsCutoverCache();
+
+  void recordModStaffAudit({
+    discordId: gate.discordId,
+    action: excluded ? "excluded" : "other",
+    subjectType: "call",
+    subjectId: callId,
+    detail: { excluded, reason: reason ?? undefined, source: "stats_exclusion" },
+  });
+
   return Response.json({ success: true });
 }
 

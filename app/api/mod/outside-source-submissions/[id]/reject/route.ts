@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { meetsModerationMinTier, moderationStaffForbiddenPayload, resolveHelpTierAsync } from "@/lib/helpRole";
+import { recordModStaffAudit } from "@/lib/mod/modQueueOps";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -68,6 +69,14 @@ export async function POST(request: Request, ctx: Ctx) {
   if (!updated) {
     return Response.json({ error: "Submission is not pending" }, { status: 400 });
   }
+
+  void recordModStaffAudit({
+    discordId: modId,
+    action: "denied",
+    subjectType: "outside_x_submission",
+    subjectId: submissionId,
+    detail: reason ? { rejectReason: reason } : {},
+  });
 
   return Response.json({ success: true, message: "Submission rejected." });
 }

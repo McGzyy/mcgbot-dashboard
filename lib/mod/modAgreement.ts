@@ -1,4 +1,6 @@
-/** Bump when moderator agreement text changes — active staff must re-sign. */
+/** Bump when moderator agreement text changes — active staff must re-sign.
+ *  Workflow: edit MOD_AGREEMENT_SECTIONS below, increment CURRENT_MOD_AGREEMENT_VERSION,
+ *  deploy; ModStaffResignBanner + admin roster "Needs signature" flag staff until they sign. */
 export const CURRENT_MOD_AGREEMENT_VERSION = "2026-05-31-staff-v1";
 
 export const MOD_AGREEMENT_TITLE = "McGBot Staff Moderator Agreement";

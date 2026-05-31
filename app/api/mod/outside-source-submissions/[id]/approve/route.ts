@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { meetsModerationMinTier, moderationStaffForbiddenPayload, resolveHelpTierAsync } from "@/lib/helpRole";
+import { recordModStaffAudit } from "@/lib/mod/modQueueOps";
 import { OUTSIDE_X_MAX_ACTIVE_SOURCES } from "@/lib/outsideXCalls/constants";
 import { countActiveOutsideXSources } from "@/lib/outsideXCalls/activeSourcesCount";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -90,6 +91,14 @@ export async function POST(_request: Request, ctx: Ctx) {
       return Response.json({ error: "Submission state changed; refresh and try again." }, { status: 409 });
     }
 
+    void recordModStaffAudit({
+      discordId: modId,
+      action: "other",
+      subjectType: "outside_x_submission",
+      subjectId: submissionId,
+      detail: { step: "first_approval", proposedHandle: sub.proposed_x_handle.trim() },
+    });
+
     return Response.json({
       success: true,
       step: "first_approval_recorded",
@@ -173,6 +182,14 @@ export async function POST(_request: Request, ctx: Ctx) {
       { status: 409 }
     );
   }
+
+  void recordModStaffAudit({
+    discordId: modId,
+    action: "approved",
+    subjectType: "outside_x_submission",
+    subjectId: submissionId,
+    detail: { sourceId, proposedHandle: sub.proposed_x_handle.trim() },
+  });
 
   return Response.json({
     success: true,

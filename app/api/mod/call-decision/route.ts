@@ -1,6 +1,7 @@
 import { botApiBaseUrl } from "@/lib/botInternal";
 import { botUnreachableChecklist, describeBotApiFetchError } from "@/lib/botUpstreamFetchError";
-import { callDecisionToAuditAction, insertModActionAudit } from "@/lib/mod/modStaffDb";
+import { callDecisionToAuditAction } from "@/lib/mod/modStaffDb";
+import { recordModStaffAudit } from "@/lib/mod/modQueueOps";
 import { requireModBotProxySession } from "@/lib/modStaffAuth";
 
 export const runtime = "nodejs";
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
       if (res.ok && payload.success !== false) {
         const auditAction = callDecisionToAuditAction(decision);
         if (auditAction) {
-          void insertModActionAudit({
+          void recordModStaffAudit({
             discordId: userId,
             action: auditAction,
             subjectType: "call",
