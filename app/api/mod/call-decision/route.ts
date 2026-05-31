@@ -1,5 +1,6 @@
 import { botApiBaseUrl } from "@/lib/botInternal";
 import { botUnreachableChecklist, describeBotApiFetchError } from "@/lib/botUpstreamFetchError";
+import { callDecisionToAuditAction, insertModActionAudit } from "@/lib/mod/modStaffDb";
 import { requireModBotProxySession } from "@/lib/modStaffAuth";
 
 export const runtime = "nodejs";
@@ -87,6 +88,19 @@ export async function POST(request: Request) {
     }
 
     if (data && typeof data === "object" && !Array.isArray(data)) {
+      const payload = data as Record<string, unknown>;
+      if (res.ok && payload.success !== false) {
+        const auditAction = callDecisionToAuditAction(decision);
+        if (auditAction) {
+          void insertModActionAudit({
+            discordId: userId,
+            action: auditAction,
+            subjectType: "call",
+            subjectId: contractAddress,
+            detail: { decision, source: "bot_proxy" },
+          });
+        }
+      }
       return Response.json(data, { status: res.status });
     }
 

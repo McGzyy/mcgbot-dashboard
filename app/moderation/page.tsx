@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ModQueueHomePanel } from "@/app/components/ModQueueHomePanel";
 import { ModerationActivityLogPanel } from "@/app/components/ModerationActivityLogPanel";
 import { ModerationStaffQueues } from "@/app/components/ModerationStaffQueues";
 import { UserCallSuspensionStaffPanel } from "@/app/components/UserCallSuspensionStaffPanel";
+import { ModStaffAgreementGate } from "@/app/moderation/_components/ModStaffAgreementGate";
 import { ModerationDashboardShell } from "@/app/moderation/_components/ModerationDashboardShell";
+import { ModStaffPortalNav } from "@/app/moderation/_components/ModStaffPortalNav";
 import { StaffStatsRail } from "@/app/moderation/StaffStatsRail";
 import { modChrome } from "@/lib/roleTierStyles";
 import { terminalChrome } from "@/lib/terminalDesignTokens";
@@ -14,6 +17,27 @@ import { terminalChrome } from "@/lib/terminalDesignTokens";
 export default function ModerationPage() {
   const { data: session, status } = useSession();
   const canModerate = session?.user?.canModerate === true;
+  const [agreementSigned, setAgreementSigned] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!canModerate) {
+      setAgreementSigned(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/mod/agreement/status", { credentials: "same-origin" });
+        const j = (await res.json().catch(() => ({}))) as { signedCurrent?: boolean };
+        if (!cancelled) setAgreementSigned(j.signedCurrent === true);
+      } catch {
+        if (!cancelled) setAgreementSigned(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canModerate]);
 
   if (status === "loading") {
     return (
@@ -51,9 +75,22 @@ export default function ModerationPage() {
 
       <div className={modChrome.pageInner}>
         <header className={`${terminalChrome.headerRule} pb-10 pt-2`} data-tutorial="moderation.header">
-          <p className={`text-[10px] font-semibold uppercase tracking-[0.28em] ${modChrome.kicker}`}>Staff</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Moderation queue</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className={`text-[10px] font-semibold uppercase tracking-[0.28em] ${modChrome.kicker}`}>
+              McGBot staff program
+            </p>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-950/35 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200/90 shadow-[0_0_20px_-8px_rgba(16,185,129,0.45)]">
+              Elite staff
+            </span>
+          </div>
+          <h1 className={`mt-3 text-3xl font-bold tracking-tight sm:text-4xl ${modChrome.heroTitle}`}>
+            Moderation queue
+          </h1>
+          <div className={`mt-3 h-px w-24 ${modChrome.heroUnderline}`} aria-hidden />
+          <div className="mt-6">
+            <ModStaffPortalNav agreementSigned={canModerate ? agreementSigned : null} />
+          </div>
+          <p className="mt-5 max-w-2xl text-sm leading-relaxed text-zinc-400">
             <span className="font-medium text-zinc-200">Coin &amp; call approvals</span> from{" "}
             <span className="font-medium text-zinc-200">#mod-approvals</span> are at the top, then Supabase desks
             (reports, Trusted Pro applications, Trusted Pro longform).
@@ -84,10 +121,11 @@ export default function ModerationPage() {
           </div>
         ) : null}
 
-        <ModerationDashboardShell>
-          <div className="grid gap-10 xl:grid-cols-[1fr_22rem] xl:gap-14">
-            <div className="min-w-0 space-y-14">
-              <div id="mod-calls">
+        <ModStaffAgreementGate>
+          <ModerationDashboardShell>
+            <div className="grid gap-10 xl:grid-cols-[1fr_22rem] xl:gap-14">
+              <div className="min-w-0 space-y-14">
+                <div id="mod-calls">
                 <h2
                   className={`text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500 ${terminalChrome.headerRule} pb-4`}
                 >
@@ -117,11 +155,12 @@ export default function ModerationPage() {
               </div>
             </div>
 
-            <div className="hidden xl:block">
-              <StaffStatsRail />
+              <div className="hidden xl:block">
+                <StaffStatsRail />
+              </div>
             </div>
-          </div>
-        </ModerationDashboardShell>
+          </ModerationDashboardShell>
+        </ModStaffAgreementGate>
       </div>
     </div>
   );

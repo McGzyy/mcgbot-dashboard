@@ -6,6 +6,11 @@ import {
   moderationStaffForbiddenPayload,
   resolveEffectiveStaffTier,
 } from "@/lib/helpRole";
+import {
+  ensureModStaffRecord,
+  isActiveModWithSignedAgreement,
+  modStaffPortalBlockedReason,
+} from "@/lib/mod/modStaffDb";
 
 export function createModServiceSupabase() {
   const url = process.env.SUPABASE_URL?.trim();
@@ -14,11 +19,55 @@ export function createModServiceSupabase() {
   return createClient(url, key);
 }
 
+export type RequireModOrAdminOptions = {
+  /** Agreement + active roster not required (e.g. agreement sign/status). */
+  skipAgreement?: boolean;
+};
+
+async function assertModStaffAgreementGate(
+  staffDiscordId: string,
+  displayName?: string | null
+): Promise<{ ok: true } | { ok: false; response: Response }> {
+  const row =
+    (await ensureModStaffRecord({
+      discordId: staffDiscordId,
+      displayName,
+    })) ?? null;
+  const blocked = modStaffPortalBlockedReason(row);
+  if (blocked) {
+    return {
+      ok: false,
+      response: Response.json(
+        {
+          success: false,
+          error: blocked,
+          code: "MOD_STAFF_SUSPENDED",
+        },
+        { status: 403 }
+      ),
+    };
+  }
+  if (!isActiveModWithSignedAgreement(row)) {
+    return {
+      ok: false,
+      response: Response.json(
+        {
+          success: false,
+          error: "Sign the current McGBot staff moderator agreement to use moderation tools.",
+          code: "MOD_AGREEMENT_REQUIRED",
+          redirectTo: "/moderation/agreement",
+        },
+        { status: 403 }
+      ),
+    };
+  }
+  return { ok: true };
+}
+
 /** Staff-only (mod or admin). */
-export async function requireModOrAdmin(): Promise<
-  | { ok: true; staffDiscordId: string }
-  | { ok: false; response: Response }
-> {
+export async function requireModOrAdmin(
+  options?: RequireModOrAdminOptions
+): Promise<{ ok: true; staffDiscordId: string } | { ok: false; response: Response }> {
   const session = await getServerSession(authOptions);
   const staffDiscordId = session?.user?.id?.trim() ?? "";
   if (!staffDiscordId) {
@@ -34,6 +83,12 @@ export async function requireModOrAdmin(): Promise<
       response: Response.json({ success: false, ...moderationStaffForbiddenPayload() }, { status: 403 }),
     };
   }
+  if (!options?.skipAgreement) {
+    const name =
+      typeof session?.user?.name === "string" ? session.user.name : null;
+    const gate = await assertModStaffAgreementGate(staffDiscordId, name);
+    if (!gate.ok) return gate;
+  }
   return { ok: true, staffDiscordId };
 }
 
@@ -42,17 +97,7 @@ export async function requireModBotProxySession(): Promise<
   | { ok: true; userId: string }
   | { ok: false; response: Response }
 > {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id?.trim() ?? "";
-  if (!userId) {
-    return { ok: false, response: Response.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
-  const tier = await resolveEffectiveStaffTier(userId, session?.user?.helpTier);
-  if (!meetsModerationMinTier(tier)) {
-    return {
-      ok: false,
-      response: Response.json(moderationStaffForbiddenPayload(), { status: 403 }),
-    };
-  }
-  return { ok: true, userId };
+  const auth = await requireModOrAdmin();
+  if (!auth.ok) return auth;
+  return { ok: true, userId: auth.staffDiscordId };
 }

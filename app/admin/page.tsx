@@ -127,6 +127,12 @@ export default function AdminOverviewPage() {
           hint="Read · Supabase + Storage"
         />
         <OverviewCard
+          href="/admin/mods"
+          title="Mod staff roster"
+          subtitle="Read-only dashboard moderators — agreement version, status, and stipend placeholders."
+          hint="Read · Supabase"
+        />
+        <OverviewCard
           href="/admin/voice-moderation-audit"
           title="Voice moderation audit"
           subtitle="Read-only table of successful LiveKit mute and kick actions (Discord actor + target)."

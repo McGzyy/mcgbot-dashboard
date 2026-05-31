@@ -452,7 +452,12 @@ function SidebarBody({
                     }`}
                   />
                   <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                    <span className="truncate">Moderation</span>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate font-semibold text-emerald-100/95">Staff · Moderation</span>
+                      <span className="truncate text-[10px] font-medium uppercase tracking-wider text-emerald-500/55">
+                        Elite queue
+                      </span>
+                    </span>
                     {modPendingTotal != null && modPendingTotal > 0 ? (
                       <span className="shrink-0 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-emerald-200 ring-1 ring-emerald-500/30">
                         {modPendingTotal > 99 ? "99+" : modPendingTotal}

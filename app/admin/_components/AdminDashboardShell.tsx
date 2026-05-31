@@ -115,6 +115,16 @@ const NAV_GROUPS: NavGroup[] = [
         ),
       },
       {
+        href: "/admin/mods",
+        label: "Mod staff roster",
+        description: "Agreement & stipend roster",
+        icon: (a) => (
+          <svg className={`h-4 w-4 ${a ? adminChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.5h10.5a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25H6.75a2.25 2.25 0 01-2.25-2.25V5.25A2.25 2.25 0 016.75 3h10.5z" />
+          </svg>
+        ),
+      },
+      {
         href: "/admin/voice-moderation-audit",
         label: "Voice audit",
         description: "Mute/kick log",
