@@ -158,41 +158,111 @@ export async function ensureModStaffRecord(input: {
 
 export type RecordModSignatureResult =
   | { ok: true }
-  | { ok: false; code: "DB_NOT_CONFIGURED" | "TABLE_MISSING" | "STAFF_BLOCKED" | "WRITE_FAILED"; message: string };
+  | {
+      ok: false;
+      code: "DB_NOT_CONFIGURED" | "TABLE_MISSING" | "SCHEMA_CACHE" | "STAFF_BLOCKED" | "WRITE_FAILED";
+      message: string;
+    };
 
-function modStaffWriteFailure(error: { message?: string; code?: string; details?: string }): RecordModSignatureResult {
+export type ModStaffDbProbe = {
+  configured: boolean;
+  reachable: boolean;
+  code: string | null;
+  message: string | null;
+  supabaseHost: string | null;
+};
+
+function supabaseHostFromEnv(): string | null {
+  const url = process.env.SUPABASE_URL?.trim();
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function isPostgrestSchemaCacheError(error: { message?: string; code?: string }): boolean {
+  if (error.code === "PGRST205") return true;
+  return /could not find the table .* in the schema cache/i.test(error.message ?? "");
+}
+
+function classifyModStaffDbError(error: { message?: string; code?: string; details?: string }): {
+  code: "TABLE_MISSING" | "SCHEMA_CACHE" | "WRITE_FAILED";
+  message: string;
+} {
   const msg = (error.message ?? "").toLowerCase();
   const detail = typeof error.details === "string" && error.details.trim() ? error.details.trim() : null;
-  console.error("[modStaffDb] write", error);
-  if (
-    msg.includes("does not exist") ||
-    error.code === "42P01" ||
-    error.code === "PGRST205" ||
-    /could not find the table/i.test(error.message ?? "")
-  ) {
+  const host = supabaseHostFromEnv();
+
+  if (isPostgrestSchemaCacheError(error)) {
     return {
-      ok: false,
+      code: "SCHEMA_CACHE",
+      message:
+        "Supabase API has not picked up mod_staff yet. In the same project's SQL editor run: NOTIFY pgrst, 'reload schema'; wait 30 seconds, then try again." +
+        (host ? ` Dashboard is using ${host}.` : ""),
+    };
+  }
+
+  if (msg.includes("does not exist") || error.code === "42P01") {
+    return {
       code: "TABLE_MISSING",
       message:
-        "The mod staff database table is not set up yet. In Supabase SQL editor, run migrations 20260531120000_mod_staff_agreement.sql and 20260531120100_mod_staff_service_grants.sql, then try again.",
+        "mod_staff is missing in the Supabase project the dashboard connects to. Run 20260531120000_mod_staff_agreement.sql and 20260531120100_mod_staff_service_grants.sql in that project's SQL editor" +
+        (host ? ` (${host}).` : "."),
     };
   }
+
   if (msg.includes("permission denied") || error.code === "42501") {
     return {
-      ok: false,
       code: "WRITE_FAILED",
       message:
-        "Database permissions blocked saving your signature. Run 20260531120100_mod_staff_service_grants.sql in Supabase, then try again.",
+        "Database permissions blocked mod_staff writes. Re-run 20260531120100_mod_staff_service_grants.sql, then NOTIFY pgrst, 'reload schema';",
     };
   }
+
   return {
-    ok: false,
     code: "WRITE_FAILED",
     message: detail
       ? `Could not record signature (${detail}). Try again or contact an admin.`
       : error.message?.trim()
         ? `Could not record signature: ${error.message.trim()}`
         : "Could not record signature. Try again or contact an admin.",
+  };
+}
+
+function modStaffWriteFailure(error: { message?: string; code?: string; details?: string }): RecordModSignatureResult {
+  console.error("[modStaffDb] write", error);
+  return { ok: false, ...classifyModStaffDbError(error) };
+}
+
+/** Lightweight health check — surfaces PostgREST schema cache vs missing table. */
+export async function probeModStaffDb(): Promise<ModStaffDbProbe> {
+  const host = supabaseHostFromEnv();
+  const db = getSupabaseAdmin();
+  if (!db) {
+    return {
+      configured: false,
+      reachable: false,
+      code: "DB_NOT_CONFIGURED",
+      message: "SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing on the dashboard server.",
+      supabaseHost: host,
+    };
+  }
+
+  const { error } = await db.from("mod_staff").select("discord_id").limit(1);
+  if (!error) {
+    return { configured: true, reachable: true, code: null, message: null, supabaseHost: host };
+  }
+
+  console.error("[modStaffDb] probe", error);
+  const classified = classifyModStaffDbError(error);
+  return {
+    configured: true,
+    reachable: false,
+    code: classified.code,
+    message: classified.message,
+    supabaseHost: host,
   };
 }
 
@@ -241,6 +311,10 @@ export async function recordModAgreementSignature(
 
   const verified = await getModStaffByDiscordId(id);
   if (!verified || verified.status !== "active" || modStaffNeedsAgreement(verified)) {
+    const probe = await probeModStaffDb();
+    if (!probe.reachable && probe.message) {
+      return { ok: false, code: probe.code === "SCHEMA_CACHE" ? "SCHEMA_CACHE" : "WRITE_FAILED", message: probe.message };
+    }
     return {
       ok: false,
       code: "WRITE_FAILED",
