@@ -13,6 +13,7 @@ import { useTokenChartModal } from "@/app/contexts/TokenChartModalContext";
 import { deskCallQuotaFromApi, type DeskCallQuotaUi } from "@/lib/deskCallQuotaDisplay";
 import { dexscreenerTokenUrl, formatRelativeTime } from "@/lib/modUiUtils";
 import { normalizeDexscreenerMint } from "@/lib/dexscreenerMintMeta";
+import { downloadCsv, rowsToCsv } from "@/lib/downloadCsv";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -77,6 +78,7 @@ export default function CallTapePage() {
   const [submitCallOpen, setSubmitCallOpen] = useState(false);
   const [deskCallQuota, setDeskCallQuota] = useState<DeskCallQuotaUi | null>(null);
   const [deskCallQuotaLoading, setDeskCallQuotaLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const limit = 40;
 
   const openSubmitCall = useCallback(() => {
@@ -200,6 +202,66 @@ export default function CallTapePage() {
     return match ? match.id || match.callCa + String(match.callTime) : null;
   }, [rows, summary?.bestCallCa]);
 
+  const exportCsv = useCallback(async () => {
+    if (status !== "authenticated" || exporting) return;
+    setExporting(true);
+    try {
+      const batchLimit = 100;
+      const allRows: TapeRow[] = [];
+      let exportOffset = 0;
+      let totalCount = 0;
+      for (;;) {
+        const res = await fetch(
+          `/api/me/call-tape?window=${encodeURIComponent(tapeWindow)}&limit=${batchLimit}&offset=${exportOffset}`,
+          { credentials: "same-origin" }
+        );
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          rows?: TapeRow[];
+          total?: number;
+        };
+        if (!res.ok || !json.success || !Array.isArray(json.rows)) break;
+        totalCount = typeof json.total === "number" ? json.total : json.rows.length;
+        allRows.push(...json.rows);
+        if (json.rows.length < batchLimit || allRows.length >= totalCount) break;
+        exportOffset += batchLimit;
+      }
+      const exportRows = allRows.length > 0 ? allRows : rows;
+      const headers = [
+        "Token",
+        "Name",
+        "Mint",
+        "Call time (UTC)",
+        "Source",
+        "Live multiple",
+        "ATH multiple",
+        "Call MCAP (USD)",
+        "Live MCAP (USD)",
+        "Excluded from stats",
+        "Message URL",
+      ];
+      const csvRows = exportRows.map((r) => [
+        r.tokenTicker ?? "",
+        r.tokenName ?? "",
+        r.callCa,
+        r.callTime != null ? String(r.callTime) : "",
+        r.source,
+        r.liveMultiple,
+        r.athMultiple,
+        r.callMarketCapUsd ?? "",
+        r.liveMarketCapUsd ?? "",
+        r.excludedFromStats ? "yes" : "no",
+        r.messageUrl ?? "",
+      ]);
+      downloadCsv(
+        `my-call-log-${tapeWindow}-${new Date().toISOString().slice(0, 10)}.csv`,
+        rowsToCsv(headers, csvRows)
+      );
+    } finally {
+      setExporting(false);
+    }
+  }, [status, exporting, tapeWindow, rows]);
+
   useLayoutEffect(() => {
     if (!highlightMint || loading) return;
     const key = highlightRow?.id || highlightRow?.callCa || highlightMint;
@@ -273,6 +335,14 @@ export default function CallTapePage() {
             className="rounded-lg bg-[color:var(--accent)] px-3 py-1.5 text-xs font-semibold text-black shadow-md shadow-black/30 transition hover:bg-green-500"
           >
             Log call
+          </button>
+          <button
+            type="button"
+            onClick={() => void exportCsv()}
+            disabled={loading || exporting || total === 0}
+            className="rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-2.5 py-1.5 text-xs font-semibold text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-200 disabled:opacity-40"
+          >
+            {exporting ? "Exporting…" : "Export CSV"}
           </button>
           <button
             type="button"

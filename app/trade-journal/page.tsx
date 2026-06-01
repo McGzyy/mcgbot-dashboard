@@ -51,6 +51,24 @@ function tagsFromInput(s: string): string[] {
   ].slice(0, 24);
 }
 
+type LinkedCallOption = {
+  id: string;
+  callCa: string;
+  tokenTicker: string | null;
+  athMultiple: number;
+  callTime: unknown;
+};
+
+function callOptionLabel(c: LinkedCallOption): string {
+  const ticker = c.tokenTicker ? `$${c.tokenTicker}` : c.callCa.slice(0, 8);
+  const ath = Number.isFinite(c.athMultiple) && c.athMultiple > 0 ? `${c.athMultiple.toFixed(2)}× ATH` : "";
+  const when =
+    c.callTime != null && String(c.callTime).trim()
+      ? formatRelativeTime(String(c.callTime))
+      : "";
+  return [ticker, ath, when].filter(Boolean).join(" · ");
+}
+
 function exportMarkdown(entries: TradeJournalRow[]): string {
   const lines = [
     "# Trade journal",
@@ -128,6 +146,13 @@ export default function TradeJournalPage() {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [linkedCalls, setLinkedCalls] = useState<LinkedCallOption[]>([]);
+
+  const linkedCallById = useMemo(() => {
+    const m = new Map<string, LinkedCallOption>();
+    for (const c of linkedCalls) m.set(c.id, c);
+    return m;
+  }, [linkedCalls]);
 
   const load = useCallback(async () => {
     if (status !== "authenticated") return;
@@ -157,6 +182,33 @@ export default function TradeJournalPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setLinkedCalls([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/call-tape?window=30d&limit=100&offset=0", {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          rows?: LinkedCallOption[];
+        };
+        if (cancelled || !res.ok || !json.success || !Array.isArray(json.rows)) return;
+        setLinkedCalls(json.rows.filter((r) => r.id && r.callCa));
+      } catch {
+        if (!cancelled) setLinkedCalls([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   const stats = useMemo(() => {
     const n = entries.length;
@@ -378,9 +430,27 @@ export default function TradeJournalPage() {
                         </div>
                       {e.mint ? (
                         <p className="mt-2 font-mono text-[11px] text-zinc-500">
-                          <span className="text-zinc-600">Mint</span> {shortenMint(e.mint)}
+                          {shortenMint(e.mint)}
                         </p>
-                          ) : null}
+                      ) : null}
+                      {e.call_performance_id != null ? (
+                        (() => {
+                          const linked = linkedCallById.get(String(e.call_performance_id));
+                          const href = linked?.callCa
+                            ? `/calls?mint=${encodeURIComponent(linked.callCa)}`
+                            : "/calls";
+                          return (
+                            <Link
+                              href={href}
+                              className="mt-2 inline-flex text-xs font-semibold text-cyan-300/90 underline-offset-2 hover:underline"
+                            >
+                              Linked call
+                              {linked ? `: ${callOptionLabel(linked)}` : ` #${e.call_performance_id}`}
+                              {" →"}
+                            </Link>
+                          );
+                        })()
+                      ) : null}
                       {e.token_symbol || e.token_name ? (
                         <p className="mt-1 text-xs text-zinc-500">
                           {[e.token_symbol, e.token_name].filter(Boolean).join(" · ")}
@@ -539,6 +609,33 @@ export default function TradeJournalPage() {
                           onChange={(ev) => setEditor((s) => ({ ...s, mint: ev.target.value }))}
                           placeholder="Solana contract…"
                         />
+                      </label>
+                      <label className="block sm:col-span-2">
+                        <span className="text-xs font-medium text-zinc-500">Linked McGBot call (optional)</span>
+                        <select
+                          className={`${terminalUi.formInput} mt-1`}
+                          value={editor.callPerformanceId}
+                          onChange={(ev) => {
+                            const id = ev.target.value;
+                            const picked = linkedCalls.find((c) => c.id === id);
+                            setEditor((s) => ({
+                              ...s,
+                              callPerformanceId: id,
+                              mint: picked?.callCa && !s.mint.trim() ? picked.callCa : s.mint,
+                              tokenSymbol:
+                                picked?.tokenTicker && !s.tokenSymbol.trim()
+                                  ? picked.tokenTicker
+                                  : s.tokenSymbol,
+                            }));
+                          }}
+                        >
+                          <option value="">None</option>
+                          {linkedCalls.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {callOptionLabel(c)}
+                            </option>
+                          ))}
+                        </select>
                       </label>
                 <label className="block">
                         <span className="text-xs font-medium text-zinc-500">Timeframe</span>

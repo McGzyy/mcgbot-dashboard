@@ -27,6 +27,7 @@ export type TradeJournalEditorState = {
   entryJustification: string;
   plannedInvalidation: string;
   lessonsLearned: string;
+  callPerformanceId: string;
 };
 
 export function emptyTradeJournalEditor(): TradeJournalEditorState {
@@ -56,6 +57,7 @@ export function emptyTradeJournalEditor(): TradeJournalEditorState {
     entryJustification: "",
     plannedInvalidation: "",
     lessonsLearned: "",
+    callPerformanceId: "",
   };
 }
 
@@ -91,6 +93,7 @@ export function rowToEditor(row: TradeJournalRow): TradeJournalEditorState {
     entryJustification: row.entry_justification ?? "",
     plannedInvalidation: row.planned_invalidation ?? "",
     lessonsLearned: row.lessons_learned ?? "",
+    callPerformanceId: row.call_performance_id != null ? String(row.call_performance_id) : "",
   };
 }
 
@@ -118,5 +121,8 @@ export function editorToSaveBody(editor: TradeJournalEditorState, tags: string[]
     entryJustification: editor.entryJustification.trim() || null,
     plannedInvalidation: editor.plannedInvalidation.trim() || null,
     lessonsLearned: editor.lessonsLearned.trim() || null,
+    callPerformanceId: editor.callPerformanceId.trim()
+      ? parseOptionalNumberInput(editor.callPerformanceId)
+      : null,
   };
 }

@@ -48,6 +48,16 @@ const NAV_GROUPS: NavGroup[] = [
         ),
       },
       {
+        href: "/admin/copy-trade",
+        label: "Copy trade",
+        description: "Queue, wallets, failures, access",
+        icon: (a) => (
+          <svg className={`h-4 w-4 ${a ? adminChrome.navIconActive : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 14.25h9m-9-4.5h9M6 20.25h12a1.5 1.5 0 001.5-1.5V6.75A1.5 1.5 0 0018 5.25H6A1.5 1.5 0 004.5 6.75v12A1.5 1.5 0 006 20.25z" />
+          </svg>
+        ),
+      },
+      {
         href: "/admin/site",
         label: "Site & flags",
         description: "Maintenance, paywall, Stripe test",

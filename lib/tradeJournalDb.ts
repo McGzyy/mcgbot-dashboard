@@ -27,6 +27,7 @@ export type TradeJournalRow = {
   position_size_usd: number | null;
   entry_price_usd: number | null;
   exit_price_usd: number | null;
+  call_performance_id: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -81,6 +82,7 @@ function mapRow(raw: Record<string, unknown>): TradeJournalRow | null {
     position_size_usd: numOrNull(raw.position_size_usd),
     entry_price_usd: numOrNull(raw.entry_price_usd),
     exit_price_usd: numOrNull(raw.exit_price_usd),
+    call_performance_id: numOrNull(raw.call_performance_id),
     created_at: String(raw.created_at ?? ""),
     updated_at: String(raw.updated_at ?? ""),
   };
@@ -109,6 +111,7 @@ export type TradeJournalWritePayload = {
   positionSizeUsd?: number | null;
   entryPriceUsd?: number | null;
   exitPriceUsd?: number | null;
+  callPerformanceId?: number | null;
 };
 
 function buildInsertPatch(p: TradeJournalWritePayload, now: string): Record<string, unknown> {
@@ -143,6 +146,7 @@ function buildInsertPatch(p: TradeJournalWritePayload, now: string): Record<stri
     position_size_usd: p.positionSizeUsd ?? null,
     entry_price_usd: p.entryPriceUsd ?? null,
     exit_price_usd: p.exitPriceUsd ?? null,
+    call_performance_id: p.callPerformanceId ?? null,
     created_at: now,
     updated_at: now,
   };
@@ -193,6 +197,7 @@ function applyUpdatePatch(patch: Record<string, unknown>, p: Partial<TradeJourna
   if (p.positionSizeUsd !== undefined) patch.position_size_usd = p.positionSizeUsd;
   if (p.entryPriceUsd !== undefined) patch.entry_price_usd = p.entryPriceUsd;
   if (p.exitPriceUsd !== undefined) patch.exit_price_usd = p.exitPriceUsd;
+  if (p.callPerformanceId !== undefined) patch.call_performance_id = p.callPerformanceId;
 }
 
 export async function listTradeJournalEntries(discordUserId: string): Promise<TradeJournalRow[]> {
@@ -315,6 +320,7 @@ export function tradeJournalPayloadFromBody(body: Record<string, unknown> | null
     positionSizeUsd: parseOptionalNumberInput(body.positionSizeUsd),
     entryPriceUsd: parseOptionalNumberInput(body.entryPriceUsd),
     exitPriceUsd: parseOptionalNumberInput(body.exitPriceUsd),
+    callPerformanceId: parseOptionalNumberInput(body.callPerformanceId),
   };
 }
 
@@ -343,6 +349,7 @@ export function tradeJournalPatchFromBody(body: Record<string, unknown> | null):
   if ("positionSizeUsd" in body) out.positionSizeUsd = parseOptionalNumberInput(body.positionSizeUsd);
   if ("entryPriceUsd" in body) out.entryPriceUsd = parseOptionalNumberInput(body.entryPriceUsd);
   if ("exitPriceUsd" in body) out.exitPriceUsd = parseOptionalNumberInput(body.exitPriceUsd);
+  if ("callPerformanceId" in body) out.callPerformanceId = parseOptionalNumberInput(body.callPerformanceId);
   return out;
 }
 

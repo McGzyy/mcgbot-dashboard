@@ -14,6 +14,7 @@ import {
 import type { DailyCallBucket } from "@/lib/performanceSeries";
 import { terminalListRefreshOpacity, terminalListRowBorder } from "@/lib/terminalListRow";
 import { terminalChrome, terminalSurface } from "@/lib/terminalDesignTokens";
+import { downloadCsv, rowsToCsv } from "@/lib/downloadCsv";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -152,6 +153,61 @@ export default function PerformanceLabPage() {
     });
   }, [data, window]);
 
+  const exportCsv = useCallback(() => {
+    if (!data?.stats) return;
+    const s = data.stats;
+    const compare = data.periodCompare?.[window] ?? null;
+    const series = pickSeriesForWindow(data, window);
+    const lines: string[] = [];
+    lines.push(rowsToCsv(["Metric", "Value"], [
+      ["Avg × (all)", s.avgX.toFixed(4)],
+      ["Median ×", s.medianX.toFixed(4)],
+      ["Win rate (%)", s.winRate.toFixed(2)],
+      ["Total calls", s.totalCalls],
+      ["Calls (24h)", s.callsToday],
+      ["Best × (30d)", s.bestX30d.toFixed(4)],
+      ["Hit ≥2× (30d) (%)", s.hitRate2x30d.toFixed(2)],
+      ["UTC day streak", s.activeDaysStreak],
+      ["7d rank", data.rank7d != null ? String(data.rank7d) : ""],
+      ["Total ranked (7d)", data.totalRanked7d ?? 0],
+    ]));
+    if (compare) {
+      lines.push("");
+      lines.push(rowsToCsv(
+        ["Window", "Period", "Calls", "Avg ×", "Win rate (%)"],
+        [
+          [window, "Current", compare.current.calls, compare.current.avgX.toFixed(4), compare.current.winRate.toFixed(2)],
+          [window, "Prior", compare.prior.calls, compare.prior.avgX.toFixed(4), compare.prior.winRate.toFixed(2)],
+          [window, "Delta", compare.delta.calls, compare.delta.avgX.toFixed(4), compare.delta.winRate.toFixed(2)],
+        ]
+      ));
+    }
+    if (data.distribution) {
+      const d = data.distribution;
+      lines.push("");
+      lines.push(rowsToCsv(
+        ["Distribution bucket", "Count"],
+        [
+          ["<2×", d.under2],
+          ["2–5×", d.twoToFive],
+          ["5×+", d.fivePlus],
+          ["Total", d.total],
+        ]
+      ));
+    }
+    if (series.length > 0) {
+      lines.push("");
+      lines.push(rowsToCsv(
+        ["UTC day", "Calls", "Avg ×", "Best ×", "Wins", "Win rate (%)"],
+        series.map((b) => [b.label, b.calls, b.avgX.toFixed(4), b.bestX.toFixed(4), b.wins, b.winRate.toFixed(2)])
+      ));
+    }
+    downloadCsv(
+      `performance-lab-${window}-${new Date().toISOString().slice(0, 10)}.csv`,
+      lines.join("\r\n")
+    );
+  }, [data, window]);
+
   if (status === "loading") {
     return (
       <div className="mx-auto max-w-6xl animate-pulse space-y-4 px-4 py-10">
@@ -203,14 +259,24 @@ export default function PerformanceLabPage() {
               Performance lab
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={() => void load({ background: true })}
-            disabled={loading || refreshing}
-            className="shrink-0 rounded-lg border border-zinc-700/80 bg-zinc-950/60 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white disabled:opacity-50"
-          >
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={loading || !data?.stats}
+              className="rounded-lg border border-zinc-700/80 bg-zinc-950/60 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white disabled:opacity-50"
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => void load({ background: true })}
+              disabled={loading || refreshing}
+              className="rounded-lg border border-zinc-700/80 bg-zinc-950/60 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600 hover:text-white disabled:opacity-50"
+            >
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
         </div>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
           <span className="font-medium text-zinc-200">Proof-of-edge workspace</span> — period compare, shareable
