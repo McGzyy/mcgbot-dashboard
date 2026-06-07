@@ -86,7 +86,7 @@ export function InstallPrompt() {
 
   if (showIosHint && !deferred) {
     return (
-      <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 border-b border-zinc-800/80 bg-zinc-950/95 px-4 py-2.5 text-center text-xs text-zinc-400">
+      <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 border-b border-zinc-800/80 bg-zinc-950/95 px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-center text-xs text-zinc-400">
         <span>Add McGBot to your home screen: tap</span>
         <span className="inline-flex items-center gap-0.5 rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 font-semibold text-zinc-100">
           <IosShareGlyph className="h-3.5 w-3.5 shrink-0" />
@@ -104,7 +104,7 @@ export function InstallPrompt() {
   if (!deferred) return null;
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-3 border-b border-cyan-500/20 bg-cyan-950/30 px-4 py-2.5 text-sm">
+    <div className="flex flex-wrap items-center justify-center gap-3 border-b border-cyan-500/20 bg-cyan-950/30 px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-sm">
       <span className="text-zinc-300">Install McGBot for full-screen app access</span>
       <button
         type="button"

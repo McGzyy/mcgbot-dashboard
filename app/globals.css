@@ -10,8 +10,9 @@
   --mcg-page: #050505;
   --mcg-stage: #030406;
   /** TopBar only; updated at runtime. AnnouncementBar adds its height on top. */
-  --dashboard-topbar-height: 6rem;
-  --dashboard-sticky-below-chrome: 6rem;
+  --mcg-safe-top: env(safe-area-inset-top, 0px);
+  --dashboard-topbar-height: calc(6rem + var(--mcg-safe-top));
+  --dashboard-sticky-below-chrome: calc(6rem + var(--mcg-safe-top));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,6 +28,7 @@
 html {
   overflow-x: clip;
   -webkit-text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--dashboard-sticky-below-chrome, 6rem) + 0.5rem);
   scroll-padding-bottom: calc(6.5rem + var(--mcg-dock-stack, 0px) + env(safe-area-inset-bottom, 0px));
 }
 
@@ -40,6 +42,11 @@ body {
 @media (display-mode: standalone) {
   html {
     overscroll-behavior-y: none;
+    min-height: 100dvh;
+  }
+
+  body {
+    min-height: 100dvh;
   }
 }
 

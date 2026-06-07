@@ -535,7 +535,11 @@ export function TopBar() {
 
   return (
     <>
-      <header ref={topBarRef} className={`sticky top-0 z-50 ${dashboardChrome.topBar}`} role="banner">
+      <header
+        ref={topBarRef}
+        className={`sticky top-0 z-50 pt-[env(safe-area-inset-top,0px)] ${dashboardChrome.topBar}`}
+        role="banner"
+      >
       {/* TOP ROW (existing header content) */}
       <div className="flex w-full min-w-0 items-center gap-2 px-3 py-1.5 sm:px-6 sm:py-2">
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
