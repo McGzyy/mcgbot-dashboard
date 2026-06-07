@@ -1,5 +1,5 @@
 import type { TradeJournalRow } from "@/lib/tradeJournalDb";
-import { parseOptionalNumberInput } from "@/lib/tradeJournalDb";
+import { parseOptionalNumberInput, parseOptionalCallPerformanceId } from "@/lib/tradeJournalDb";
 
 export type TradeJournalEditorState = {
   open: boolean;
@@ -122,7 +122,7 @@ export function editorToSaveBody(editor: TradeJournalEditorState, tags: string[]
     plannedInvalidation: editor.plannedInvalidation.trim() || null,
     lessonsLearned: editor.lessonsLearned.trim() || null,
     callPerformanceId: editor.callPerformanceId.trim()
-      ? parseOptionalNumberInput(editor.callPerformanceId)
+      ? parseOptionalCallPerformanceId(editor.callPerformanceId)
       : null,
   };
 }

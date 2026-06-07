@@ -27,7 +27,7 @@ export type TradeJournalRow = {
   position_size_usd: number | null;
   entry_price_usd: number | null;
   exit_price_usd: number | null;
-  call_performance_id: number | null;
+  call_performance_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -50,6 +50,15 @@ function textOrNull(v: unknown, max: number): string | null {
   const s = String(v);
   if (!s.trim()) return null;
   return s.slice(0, max);
+}
+
+function uuidOrNull(v: unknown): string | null {
+  if (v == null || v === "") return null;
+  const s = String(v).trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)) {
+    return null;
+  }
+  return s.toLowerCase();
 }
 
 function mapRow(raw: Record<string, unknown>): TradeJournalRow | null {
@@ -82,7 +91,7 @@ function mapRow(raw: Record<string, unknown>): TradeJournalRow | null {
     position_size_usd: numOrNull(raw.position_size_usd),
     entry_price_usd: numOrNull(raw.entry_price_usd),
     exit_price_usd: numOrNull(raw.exit_price_usd),
-    call_performance_id: numOrNull(raw.call_performance_id),
+    call_performance_id: uuidOrNull(raw.call_performance_id),
     created_at: String(raw.created_at ?? ""),
     updated_at: String(raw.updated_at ?? ""),
   };
@@ -111,7 +120,7 @@ export type TradeJournalWritePayload = {
   positionSizeUsd?: number | null;
   entryPriceUsd?: number | null;
   exitPriceUsd?: number | null;
-  callPerformanceId?: number | null;
+  callPerformanceId?: string | null;
 };
 
 function buildInsertPatch(p: TradeJournalWritePayload, now: string): Record<string, unknown> {
@@ -293,6 +302,11 @@ export function parseOptionalNumberInput(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Parse optional call_performance id (uuid) from dashboard API. */
+export function parseOptionalCallPerformanceId(v: unknown): string | null {
+  return uuidOrNull(v);
+}
+
 export function tradeJournalPayloadFromBody(body: Record<string, unknown> | null): TradeJournalWritePayload | null {
   if (!body || typeof body !== "object") return null;
   const title = typeof body.title === "string" ? body.title.trim() : "";
@@ -320,7 +334,7 @@ export function tradeJournalPayloadFromBody(body: Record<string, unknown> | null
     positionSizeUsd: parseOptionalNumberInput(body.positionSizeUsd),
     entryPriceUsd: parseOptionalNumberInput(body.entryPriceUsd),
     exitPriceUsd: parseOptionalNumberInput(body.exitPriceUsd),
-    callPerformanceId: parseOptionalNumberInput(body.callPerformanceId),
+    callPerformanceId: parseOptionalCallPerformanceId(body.callPerformanceId),
   };
 }
 
@@ -349,7 +363,7 @@ export function tradeJournalPatchFromBody(body: Record<string, unknown> | null):
   if ("positionSizeUsd" in body) out.positionSizeUsd = parseOptionalNumberInput(body.positionSizeUsd);
   if ("entryPriceUsd" in body) out.entryPriceUsd = parseOptionalNumberInput(body.entryPriceUsd);
   if ("exitPriceUsd" in body) out.exitPriceUsd = parseOptionalNumberInput(body.exitPriceUsd);
-  if ("callPerformanceId" in body) out.callPerformanceId = parseOptionalNumberInput(body.callPerformanceId);
+  if ("callPerformanceId" in body) out.callPerformanceId = parseOptionalCallPerformanceId(body.callPerformanceId);
   return out;
 }
 
