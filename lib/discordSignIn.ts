@@ -58,7 +58,10 @@ export function signOutToHome(): void {
 export function pwaDiscordAuthErrorMessage(errorCode: string, description: string | null): string {
   if (isStandalonePwa() && isIosDevice()) {
     if (errorCode === "OAuthCallback" || errorCode === "OAuthSignin") {
-      return "Discord sign-in failed in the old iPhone app mode. Remove the home screen icon and add McGBot again from Safari.";
+      return "Discord sign-in was interrupted. Try again — if you use the Discord app, approve when it opens.";
+    }
+    if (errorCode === "AccessDenied") {
+      return "Discord sign-in was cancelled. Tap Continue with Discord to try again.";
     }
   }
 

@@ -4,7 +4,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { getServerSession } from "next-auth";
 import { AppChrome } from "./components/AppChrome";
 import { InstallPrompt } from "./components/pwa/InstallPrompt";
-import { IosLegacyStandaloneBanner } from "./components/pwa/IosLegacyStandaloneBanner";
 import { MobileViewportFix } from "./components/pwa/MobileViewportFix";
 import { ServiceWorkerRegister } from "./components/pwa/ServiceWorkerRegister";
 import { Providers } from "./providers";
@@ -53,6 +52,7 @@ export const metadata: Metadata = {
     title: "McGBot Terminal",
   },
   appleWebApp: {
+    capable: true,
     title: "McGBot",
     statusBarStyle: "black-translucent",
   },
@@ -88,7 +88,6 @@ export default async function RootLayout({
     >
       <body className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100 antialiased supports-[padding:env(safe-area-inset-bottom)]:pb-[env(safe-area-inset-bottom)]">
         <InstallPrompt />
-        <IosLegacyStandaloneBanner />
         <MobileViewportFix />
         <ServiceWorkerRegister />
         <Providers session={session}>
