@@ -37,7 +37,6 @@ export default function LoungeVoiceChatsPage() {
           </p>
           <DiscordSignInButton
             callbackUrl="/lounge/voice-chats"
-            showPwaHint
             className="mt-8 w-full rounded-xl bg-gradient-to-b from-[color:var(--accent)] to-green-500 py-3 text-sm font-bold text-black shadow-[0_0_28px_-8px_rgba(57,255,20,0.45)] transition hover:brightness-110"
           >
             Sign in with Discord

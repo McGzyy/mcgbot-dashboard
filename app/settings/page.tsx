@@ -1115,7 +1115,6 @@ function SettingsPageInner() {
           Sign in with Discord to manage alerts, security, and dashboard layout.
         </p>
         <DiscordSignInButton
-          showPwaHint
           className="mt-5 rounded-lg border border-[#5865F2]/50 bg-[#5865F2]/15 px-4 py-2 text-sm font-semibold text-[#e8eaff] transition hover:bg-[#5865F2]/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5865F2]/40"
         >
           Login with Discord

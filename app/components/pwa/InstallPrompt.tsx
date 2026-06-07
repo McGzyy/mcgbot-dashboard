@@ -87,13 +87,14 @@ export function InstallPrompt() {
   if (showIosHint && !deferred) {
     return (
       <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 border-b border-zinc-800/80 bg-zinc-950/95 px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-center text-xs text-zinc-400">
-        <span>Add McGBot to your home screen: tap</span>
+        <span>Add a McGBot shortcut: in Safari tap</span>
         <span className="inline-flex items-center gap-0.5 rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 font-semibold text-zinc-100">
           <IosShareGlyph className="h-3.5 w-3.5 shrink-0" />
           Share
         </span>
         <span aria-hidden>→</span>
         <strong className="text-zinc-200">Add to Home Screen</strong>
+        <span className="text-zinc-500">(opens in Safari — Discord login works)</span>
         <button type="button" className="ml-2 font-semibold text-cyan-400/90" onClick={dismiss}>
           Dismiss
         </button>

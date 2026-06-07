@@ -858,7 +858,6 @@ export default function MembershipPage() {
             <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[232px] sm:shrink-0 sm:items-stretch">
               <DiscordSignInButton
                 callbackUrl={membershipCallbackUrl}
-                showPwaHint
                 className="inline-flex h-12 items-center justify-center rounded-xl bg-[#5865F2] px-6 text-sm font-semibold text-white shadow-[0_10px_40px_rgba(88,101,242,0.32)] transition hover:bg-[#4752c4]"
               >
                 Continue with Discord

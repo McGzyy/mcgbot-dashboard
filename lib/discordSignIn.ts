@@ -10,6 +10,11 @@ export function isStandalonePwa(): boolean {
   );
 }
 
+export function isIosDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
 /** Strip nested NextAuth params from the current URL before starting OAuth. */
 export function sanitizeOAuthCallbackUrl(): void {
   if (typeof window === "undefined") return;
@@ -26,32 +31,21 @@ function resolveCallbackUrl(callbackUrl: string): string {
   return `${origin}${callbackUrl.startsWith("/") ? callbackUrl : `/${callbackUrl}`}`;
 }
 
-/** Relative NextAuth Discord sign-in path (browser tab — keeps OAuth state cookies consistent). */
+/** NextAuth Discord sign-in path (same-tab navigation). */
 export function discordSignInPath(callbackUrl = "/"): string {
   return `/api/auth/signin/discord?${new URLSearchParams({
     callbackUrl: resolveCallbackUrl(callbackUrl),
   })}`;
 }
 
-/** Installed PWA uses Safari handoff because Discord login keyboard is broken in the home-screen app. */
-export function pwaDiscordSignInPagePath(callbackUrl = "/"): string {
-  const safe = callbackUrl.startsWith("/") ? callbackUrl : `/${callbackUrl}`;
-  return `/auth/pwa?${new URLSearchParams({ callbackUrl: safe })}`;
-}
-
-/** Absolute URL for same-window navigation. */
 export function discordSignInAbsoluteUrl(callbackUrl = "/"): string {
   if (typeof window === "undefined") return discordSignInPath(callbackUrl);
   return `${window.location.origin}${discordSignInPath(callbackUrl)}`;
 }
 
-/** Start Discord OAuth. Installed PWAs route through `/auth/pwa` Safari handoff. */
+/** Full-page Discord OAuth — one tap, same window. */
 export function startDiscordSignIn(callbackUrl = "/"): void {
   sanitizeOAuthCallbackUrl();
-  if (isStandalonePwa()) {
-    window.location.assign(pwaDiscordSignInPagePath(callbackUrl));
-    return;
-  }
   window.location.assign(discordSignInAbsoluteUrl(callbackUrl));
 }
 
@@ -62,24 +56,13 @@ export function signOutToHome(): void {
 }
 
 export function pwaDiscordAuthErrorMessage(errorCode: string, description: string | null): string {
-  if (isStandalonePwa()) {
+  if (isStandalonePwa() && isIosDevice()) {
     if (errorCode === "OAuthCallback" || errorCode === "OAuthSignin") {
-      return "Discord sign-in was interrupted. Tap Continue with Discord and use the Safari handoff steps.";
+      return "Discord sign-in failed in the old iPhone app mode. Remove the home screen icon and add McGBot again from Safari.";
     }
-    if (errorCode === "AccessDenied") {
-      return "Discord sign-in was cancelled. Tap Continue with Discord to try again.";
-    }
-    return description
-      ? `Discord auth failed: ${description}`
-      : `Discord auth failed (${errorCode}). Use Continue with Discord and sign in via Safari.`;
   }
 
   return description
     ? `Discord auth failed: ${description}`
     : `Discord auth failed (${errorCode})`;
-}
-
-/** Resolve href for sign-in controls (PWA handoff vs normal OAuth). */
-export function discordSignInHref(callbackUrl = "/", standalone = false): string {
-  return standalone ? pwaDiscordSignInPagePath(callbackUrl) : discordSignInPath(callbackUrl);
 }

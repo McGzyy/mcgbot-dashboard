@@ -206,7 +206,6 @@ export default function VerifyRequiredPage() {
           <div className="mt-6 flex flex-col gap-3">
             <DiscordSignInButton
               callbackUrl="/join/verify"
-              showPwaHint
               className="inline-flex h-11 items-center justify-center rounded-xl bg-[#5865F2] px-5 text-sm font-bold text-white transition hover:bg-[#4752c4]"
             >
               Continue with Discord

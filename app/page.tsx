@@ -428,7 +428,6 @@ function UnauthedLanding() {
 
             <div className="mt-4 flex flex-col gap-2 sm:mt-5 sm:flex-row sm:flex-wrap sm:gap-3">
               <DiscordSignInButton
-                showPwaHint
                 className="inline-flex w-full items-center justify-center rounded-lg bg-[#5865F2] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5865F2]/20 transition hover:bg-[#4752c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 sm:w-auto sm:px-5 sm:py-3"
               >
                 Continue with Discord
