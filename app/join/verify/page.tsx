@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DiscordSignInButton } from "@/app/components/DiscordSignInButton";
 import { DISCORD_SERVER_INVITE_URL, resolveDiscordEntryUrl } from "@/lib/discordInvite";
+import { signOutToHome } from "@/lib/discordSignIn";
 
 const AUTO_POLL_MS = 4_000;
 const AUTO_POLL_MAX_MS = 2 * 60_000;
@@ -202,13 +204,13 @@ export default function VerifyRequiredPage() {
             Sign in with Discord to continue verification and membership.
           </p>
           <div className="mt-6 flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => void signIn("discord", { callbackUrl: "/join/verify" })}
+            <DiscordSignInButton
+              callbackUrl="/join/verify"
+              showPwaHint
               className="inline-flex h-11 items-center justify-center rounded-xl bg-[#5865F2] px-5 text-sm font-bold text-white transition hover:bg-[#4752c4]"
             >
               Continue with Discord
-            </button>
+            </DiscordSignInButton>
             <Link href="/membership" className="text-center text-sm font-medium text-zinc-500 hover:text-zinc-300">
               View membership plans
             </Link>
@@ -304,7 +306,7 @@ export default function VerifyRequiredPage() {
             </Link>
             <button
               type="button"
-              onClick={() => void signOut({ callbackUrl: "/" })}
+              onClick={() => signOutToHome()}
               className="text-sm font-semibold text-zinc-400 hover:text-zinc-200"
             >
               Log out

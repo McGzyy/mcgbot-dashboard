@@ -11,7 +11,9 @@ import { userProfileHref, userProfilePathMatches } from "@/lib/userProfileHref";
 import { inboxBodyForDisplay, inboxNotificationCtaLabel, inboxNotificationHref } from "@/lib/userInboxNotifications";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { DiscordSignInButton } from "@/app/components/DiscordSignInButton";
+import { signOutToHome } from "@/lib/discordSignIn";
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createTransfer } from "@solana/pay";
@@ -79,14 +81,6 @@ type TipStartOk = {
   amountSol: string;
   memo: string;
 };
-
-function discordSignInSafe() {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  url.searchParams.delete("callbackUrl");
-  window.history.replaceState({}, "", url.toString());
-  void signIn("discord", { callbackUrl: "/" });
-}
 
 function formatSolUsd(n: number): string {
   if (!Number.isFinite(n)) return "—";
@@ -911,7 +905,7 @@ export function TopBar() {
                         role="menuitem"
                         onClick={() => {
                           setOpen(false);
-                          signOut();
+                          signOutToHome();
                         }}
                         className="w-full px-4 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-zinc-800"
                       >
@@ -921,14 +915,13 @@ export function TopBar() {
                   ) : null}
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => discordSignInSafe()}
+                <DiscordSignInButton
+                  showPwaHint
                   className="max-w-[min(100%,9.5rem)] shrink-0 rounded-lg bg-[#5865F2] px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50 sm:max-w-none sm:px-3 sm:text-sm"
                 >
                   <span className="sm:hidden">Discord</span>
                   <span className="hidden sm:inline">Login with Discord</span>
-                </button>
+                </DiscordSignInButton>
               )}
             </>
           )}

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { signIn, useSession } from "next-auth/react";
+import { DiscordSignInButton } from "@/app/components/DiscordSignInButton";
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotifications } from "@/app/contexts/NotificationsContext";
 import { looksLikeDiscordSnowflake } from "@/lib/discordIdentity";
@@ -353,13 +354,12 @@ export default function TrustedProPage() {
               <p className={terminalPage.sectionHint}>Network aggregates across approved Trusted Pro calls.</p>
               {status === "unauthenticated" ? (
                 <p className="mt-3 text-xs leading-relaxed text-zinc-500">
-                  <button
-                    type="button"
-                    onClick={() => void signIn("discord", { callbackUrl: "/trusted-pro" })}
+                  <DiscordSignInButton
+                    callbackUrl="/trusted-pro"
                     className="font-semibold text-fuchsia-300/90 underline decoration-fuchsia-500/30 underline-offset-2 transition hover:text-fuchsia-200"
                   >
                     Sign in with Discord
-                  </button>{" "}
+                  </DiscordSignInButton>{" "}
                   to apply for Trusted Pro.
                 </p>
               ) : null}

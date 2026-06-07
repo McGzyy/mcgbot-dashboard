@@ -36,7 +36,8 @@ import PerformanceChart from "@/components/dashboard/PerformanceChart";
 import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { signIn, useSession } from "next-auth/react";
+import { DiscordSignInButton } from "@/app/components/DiscordSignInButton";
+import { useSession } from "next-auth/react";
 import {
   abbreviateCa,
   callTimeMs,
@@ -77,18 +78,6 @@ import {
 } from "@/lib/socialSourceHandleInput";
 
 const REF_BASE = "https://mcgbot.xyz/ref";
-
-function discordSignInSafe() {
-  // Never pass `window.location.href` as callbackUrl if the current URL already contains
-  // NextAuth's `callbackUrl` query param — it recursively nests and can break OAuth.
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  url.searchParams.delete("callbackUrl");
-  window.history.replaceState({}, "", url.toString());
-
-  void signIn("discord", { callbackUrl: "/" });
-}
-
 
 type TrendingTokenRow = {
   /** Ticker / short symbol (e.g. from pair base token). */
@@ -355,7 +344,7 @@ const UNAUTHED_VALUE_PROPS = [
   "Alerts when your rules hit (in-app; Pro mirrors to Discord)",
 ] as const;
 
-function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
+function UnauthedLanding() {
   const [loading, setLoading] = useState(true);
   const [teasers, setTeasers] = useState<PublicTeasers | null>(null);
 
@@ -437,13 +426,12 @@ function UnauthedLanding({ onLogin }: { onLogin: () => void }) {
             </ul>
 
             <div className="mt-4 flex flex-col gap-2 sm:mt-5 sm:flex-row sm:flex-wrap sm:gap-3">
-              <button
-                type="button"
-                onClick={onLogin}
+              <DiscordSignInButton
+                showPwaHint
                 className="inline-flex w-full items-center justify-center rounded-lg bg-[#5865F2] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#5865F2]/20 transition hover:bg-[#4752c4] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 sm:w-auto sm:px-5 sm:py-3"
               >
                 Continue with Discord
-              </button>
+              </DiscordSignInButton>
               <Link
                 href="/membership"
                 className="inline-flex w-full items-center justify-center rounded-lg border border-zinc-800/90 bg-zinc-950/50 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-900/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/25 sm:w-auto sm:px-5 sm:py-3"
@@ -4629,7 +4617,7 @@ export default function Home() {
 
   if (!session) {
     return (
-      <UnauthedLanding onLogin={() => discordSignInSafe()} />
+      <UnauthedLanding />
     );
   }
 

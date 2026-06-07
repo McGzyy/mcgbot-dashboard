@@ -1,16 +1,9 @@
 "use client";
 
 import { DashboardChatPanel } from "@/app/components/DashboardChatPanel";
+import { DiscordSignInButton } from "@/app/components/DiscordSignInButton";
 import { terminalChrome } from "@/lib/terminalDesignTokens";
-import { signIn, useSession } from "next-auth/react";
-
-function discordSignInSafe(callbackUrl: string) {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  url.searchParams.delete("callbackUrl");
-  window.history.replaceState({}, "", url.toString());
-  void signIn("discord", { callbackUrl });
-}
+import { useSession } from "next-auth/react";
 
 export default function LoungeDiscordChatsPage() {
   const { status } = useSession();
@@ -45,13 +38,13 @@ export default function LoungeDiscordChatsPage() {
           <p className="mt-2 text-sm leading-relaxed text-zinc-400">
             Sign in with Discord to mirror selected server channels inside the dashboard.
           </p>
-          <button
-            type="button"
-            onClick={() => discordSignInSafe("/lounge/discord-chats")}
+          <DiscordSignInButton
+            callbackUrl="/lounge/discord-chats"
+            showPwaHint
             className="mt-8 w-full rounded-xl bg-gradient-to-b from-[color:var(--accent)] to-green-500 py-3 text-sm font-bold text-black shadow-[0_0_28px_-8px_rgba(57,255,20,0.45)] transition hover:brightness-110"
           >
             Sign in with Discord
-          </button>
+          </DiscordSignInButton>
         </div>
       </div>
     );

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { DiscordSignInButton } from "@/app/components/DiscordSignInButton";
+import { signOutToHome } from "@/lib/discordSignIn";
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -691,7 +693,7 @@ export default function MembershipPage() {
             </Link>
             <button
               type="button"
-              onClick={() => void signOut({ callbackUrl: "/" })}
+              onClick={() => signOutToHome()}
               className="rounded-md px-2 py-1 text-xs font-medium text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
             >
               Log out
@@ -794,7 +796,7 @@ export default function MembershipPage() {
           {isLoggedIn ? (
             <button
               type="button"
-              onClick={() => void signOut({ callbackUrl: "/" })}
+              onClick={() => signOutToHome()}
               className="rounded-md px-2 py-1 text-xs font-medium text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
             >
               Log out
@@ -854,13 +856,13 @@ export default function MembershipPage() {
 
           {!isLoggedIn ? (
             <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[232px] sm:shrink-0 sm:items-stretch">
-              <button
-                type="button"
-                onClick={() => void signIn("discord", { callbackUrl: membershipCallbackUrl })}
+              <DiscordSignInButton
+                callbackUrl={membershipCallbackUrl}
+                showPwaHint
                 className="inline-flex h-12 items-center justify-center rounded-xl bg-[#5865F2] px-6 text-sm font-semibold text-white shadow-[0_10px_40px_rgba(88,101,242,0.32)] transition hover:bg-[#4752c4]"
               >
                 Continue with Discord
-              </button>
+              </DiscordSignInButton>
               <a
                 href={resolveDiscordInviteUrl(siteFlags)}
                 target="_blank"

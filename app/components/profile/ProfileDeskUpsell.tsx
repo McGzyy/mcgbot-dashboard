@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { DiscordSignInButton } from "@/app/components/DiscordSignInButton";
 
 type ProfileDeskUpsellProps = {
   variant: "anonymous" | "needs_membership";
@@ -16,13 +16,12 @@ export function ProfileDeskUpsell({ variant }: ProfileDeskUpsellProps) {
           track performance, and compete on the leaderboard.
         </p>
         <div className="mt-3 flex shrink-0 flex-wrap gap-2 sm:mt-0">
-          <button
-            type="button"
-            onClick={() => void signIn("discord", { callbackUrl: "/membership" })}
+          <DiscordSignInButton
+            callbackUrl="/membership"
             className="rounded-lg bg-[#5865F2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#4752c4]"
           >
             Sign in with Discord
-          </button>
+          </DiscordSignInButton>
           <Link
             href="/membership"
             className="rounded-lg border border-zinc-700/70 bg-zinc-900/50 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-zinc-600"

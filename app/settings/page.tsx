@@ -15,17 +15,10 @@ import {
   terminalSurface,
   terminalUi,
 } from "@/lib/terminalDesignTokens";
-import { signIn, useSession } from "next-auth/react";
+import { DiscordSignInButton } from "@/app/components/DiscordSignInButton";
+import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-
-function discordSignInSafe() {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  url.searchParams.delete("callbackUrl");
-  window.history.replaceState({}, "", url.toString());
-  void signIn("discord", { callbackUrl: "/" });
-}
 
 /** 6-digit TOTP or 10-char hex recovery code (case-insensitive). */
 function isValidTotpOrRecoveryInput(raw: string): boolean {
@@ -1121,13 +1114,12 @@ function SettingsPageInner() {
         <p className={`${terminalPage.sectionHint} mt-2`}>
           Sign in with Discord to manage alerts, security, and dashboard layout.
         </p>
-        <button
-          type="button"
-          onClick={() => discordSignInSafe()}
+        <DiscordSignInButton
+          showPwaHint
           className="mt-5 rounded-lg border border-[#5865F2]/50 bg-[#5865F2]/15 px-4 py-2 text-sm font-semibold text-[#e8eaff] transition hover:bg-[#5865F2]/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5865F2]/40"
         >
           Login with Discord
-        </button>
+        </DiscordSignInButton>
       </div>
     );
   }
