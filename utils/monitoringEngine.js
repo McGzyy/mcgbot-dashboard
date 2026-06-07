@@ -5,7 +5,6 @@ const {
   getTrackedCall,
   clearApprovalRequest,
   setApprovalStatus,
-  setXPostState,
   applyUserCallAutoXApproval
 } = require('./trackedCallsService');
 const {
@@ -18,11 +17,8 @@ const {
   createDumpEmbed
 } = require('./alertEmbeds');
 const { enqueueAlert } = require('./alertQueue');
-const { createPost } = require('./xPoster');
-const { buildXPostText } = require('./buildXPostText');
 const { AttachmentBuilder } = require('discord.js');
 const { buildOhlcvCandlestickBuffer, resolveOhlcvPairAddress } = require('./ohlcvCandlestickBuffer');
-const { buildMilestoneHeroPng } = require('./milestoneHeroImage');
 const { getCandlestickOverlayProps } = require('./candlestickOverlayFromTracked');
 const { persistChartMarkerEvents } = require('./chartEventPersistence');
 const { buildOhlcvTimeframeRows } = require('./ohlcvChartControls');
@@ -32,6 +28,7 @@ const {
   determineLifecycleStatus,
   getLifecycleChangeReason
 } = require('./lifecycleEngine');
+const { mirrorMilestoneToTelegram } = require('./telegramAlerts');
 
 let monitoringIntervalUser = null;
 let monitoringIntervalBot = null;
@@ -40,6 +37,12 @@ let isRunning = false;
 /** When the main scanner is off, still push live MC / spot_multiple to Supabase for the dashboard. */
 let performanceMirrorInterval = null;
 let isPerformanceMirrorRunning = false;
+/** `#bot-calls` (or any guild text channel) used only for `queueApprovalReview` → `#mod-approvals` when scanner is off. */
+let mirrorApprovalRelayChannel = null;
+
+function sleepMonitoring(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 /**
  * =========================
@@ -47,7 +50,8 @@ let isPerformanceMirrorRunning = false;
  * =========================
  */
 
-// Discord alert ladder
+// Discord milestone embeds (#user-calls / #bot-calls) when the **scanner monitor** is running.
+// Not used for X or #mod-approvals — those use `approvalMilestoneService` (trigger + ladder in scanner settings).
 const DISCORD_MILESTONE_LEVELS = [
   { key: '2x', x: 2, threshold: 100 },
   { key: '4x', x: 4, threshold: 300 },
@@ -65,7 +69,8 @@ const DISCORD_MILESTONE_LEVELS = [
   { key: '100x', x: 100, threshold: 9900 }
 ];
 
-const APPROVAL_EXPIRY_MINUTES = 20;
+/** Pending bot-call reviews in #mod-approvals expire after this many minutes. */
+const APPROVAL_EXPIRY_MINUTES = 60;
 
 // Top approval pool size
 const MAX_ACTIVE_APPROVALS = 3;
@@ -148,18 +153,26 @@ function getResolutionLines(trackedCall) {
       ? postedMilestones[postedMilestones.length - 1]
       : null;
 
-    const postType = trackedCall.xOriginalPostId && !trackedCall.xLastReplyPostId
-      ? 'Original Thread'
-      : trackedCall.xLastReplyPostId
-        ? 'Reply Post'
-        : trackedCall.xOriginalPostId
-          ? 'Original Thread'
-          : 'Not Posted';
+    const latestId =
+      trackedCall.xActiveQuotePostId ||
+      trackedCall.xLatestMilestonePostId ||
+      trackedCall.xOriginalPostId ||
+      null;
+    const kept = Array.isArray(trackedCall.xKeptQuotePostIds)
+      ? trackedCall.xKeptQuotePostIds.length
+      : 0;
+    const postType = trackedCall.xOriginalPostId
+      ? latestId === trackedCall.xActiveQuotePostId
+        ? `Anchor + live quote${kept ? ` (+${kept} kept)` : ''}`
+        : 'Anchor'
+      : latestId
+        ? 'Posted'
+        : 'Not Posted';
 
-    lines.push(`**Posted to X:** ${trackedCall.xOriginalPostId || trackedCall.xLastReplyPostId ? 'Yes' : 'No'}`);
+    lines.push(`**Posted to X:** ${latestId ? 'Yes' : 'No'}`);
     lines.push(`**Post Type:** ${postType}`);
     lines.push(`**Last X Milestone:** ${lastMilestone ? `${lastMilestone}x` : 'N/A'}`);
-    lines.push(`**X Post ID:** ${trackedCall.xLastReplyPostId || trackedCall.xOriginalPostId || 'N/A'}`);
+    lines.push(`**X Post ID:** ${latestId || 'N/A'}`);
   }
 
   return lines;
@@ -196,104 +209,10 @@ function getPublicCallerLabel(trackedCall, fallback = 'Unknown') {
 
 async function maybePublishApprovedMilestoneToX(trackedCall, latestScan = null) {
   try {
-    if (!trackedCall || !trackedCall.xApproved) {
-      return { success: false, reason: 'not_approved' };
-    }
-
-    const ath = Number(
-      trackedCall.ath ||
-      trackedCall.athMc ||
-      trackedCall.athMarketCap ||
-      trackedCall.latestMarketCap ||
-      trackedCall.firstCalledMarketCap ||
-      0
-    );
-
-    const firstCalledMc = Number(trackedCall.firstCalledMarketCap || 0);
-    const currentX = firstCalledMc > 0 ? ath / firstCalledMc : 0;
-
-    const milestoneX = getHighestEligibleApprovalMilestone(currentX);
-
-    if (!milestoneX) {
-      return { success: false, reason: 'no_milestone' };
-    }
-
-    const postedMilestones = Array.isArray(trackedCall.xPostedMilestones)
-      ? trackedCall.xPostedMilestones
-      : [];
-
-    if (postedMilestones.includes(milestoneX)) {
-      return { success: false, reason: 'already_posted' };
-    }
-
-    const hasOriginal = !!trackedCall.xOriginalPostId;
-
-    const postText = await buildXPostText(trackedCall, {
-      milestoneX,
-      isReply: hasOriginal
-    });
-
-    let chartBuf = null;
-    if (!hasOriginal) {
-      try {
-        chartBuf = await buildMilestoneHeroPng({
-          milestoneX,
-          seedKey: trackedCall.contractAddress || trackedCall.ticker || '',
-          callSourceType: trackedCall.callSourceType,
-          ticker: trackedCall.ticker
-        });
-      } catch (_e) {
-        chartBuf = null;
-      }
-    }
-
-    const srcForAudit = String(trackedCall.callSourceType || 'user_call').toLowerCase();
-    const milestoneAuditCat =
-      srcForAudit === 'bot_call'
-        ? 'milestone_bot'
-        : srcForAudit === 'watch_only'
-          ? 'milestone_watch'
-          : 'milestone_user';
-
-    const result = await createPost(postText, hasOriginal ? trackedCall.xOriginalPostId : null, chartBuf || undefined, {
-      audit: { category: milestoneAuditCat, callSourceType: trackedCall.callSourceType || null }
-    });
-
-    if (!result.success || !result.id) {
-      return {
-        success: false,
-        reason: 'x_post_failed',
-        error: result.error || null
-      };
-    }
-
-    const updatedMilestones = [...postedMilestones, milestoneX].sort((a, b) => a - b);
-
-    const updates = {
-      xLastPostedAt: new Date().toISOString(),
-      xPostedMilestones: updatedMilestones
-    };
-
-    if (!hasOriginal) {
-      updates.xOriginalPostId = result.id;
-    } else {
-      updates.xLastReplyPostId = result.id;
-    }
-
-    setXPostState(trackedCall.contractAddress, updates);
-
-    console.log(
-      `[X AutoThread] Posted ${hasOriginal ? 'reply' : 'original'} for ${trackedCall.tokenName || trackedCall.contractAddress} at ${milestoneX}x`
-    );
-
-    return {
-      success: true,
-      milestoneX,
-      reply: hasOriginal,
-      postId: result.id
-    };
+    const { publishMilestoneToX } = require('./xMilestonePublish');
+    return await publishMilestoneToX(trackedCall, { latestScan });
   } catch (error) {
-    console.error('[X AutoThread] Failed to publish approved milestone:', error.message);
+    console.error('[XMilestone] Failed to publish approved milestone:', error.message);
     return {
       success: false,
       reason: 'exception',
@@ -712,6 +631,14 @@ function queueMilestone(channel, coin, scan, key, perf, realXFromCall) {
     }
 
     await channel.send(payload);
+
+    void mirrorMilestoneToTelegram({
+      coin,
+      scan,
+      milestoneKey: key,
+      performancePercent: perf,
+      realXFromCall
+    });
   }, {
     type: 'milestone',
     contractAddress: coin.contractAddress,
@@ -796,7 +723,8 @@ async function checkTrackedCoins(channel, sourceBucket = 'all') {
 
   for (const coin of activeCoins) {
     try {
-      if (String(coin.approvalStatus || '').toLowerCase() === 'denied') {
+      const approvalStatus = String(coin.approvalStatus || '').toLowerCase();
+      if (approvalStatus === 'denied' || approvalStatus === 'excluded') {
         continue;
       }
 
@@ -1117,16 +1045,36 @@ function stopMonitoring() {
  * then mirror to Supabase. No Discord milestones / dumps.
  * Use when `SCANNER_ENABLED` is false so dashboard live X still updates.
  *
- * @param {{ intervalMs?: number }} [opts]
+ * Uses a single-threaded loop: **wait idleMs after each full pass completes** (not wall-clock interval).
+ * Avoids stacking ticks when DexScreener throttling makes one pass slower than idleMs — the old
+ * `setInterval(tick)` pattern overlapped dozens of scans and triggered mass 429s.
+ *
+ * Env: PERFORMANCE_MIRROR_INTERVAL_MS (min 10_000), overrides opts.intervalMs when set.
+ *
+ * @param {{ intervalMs?: number, botChannel?: import('discord.js').TextChannel | null }} [opts]
  */
 function startUserPerformanceSupabaseMirror(opts = {}) {
+  if (opts.botChannel && opts.botChannel.guild) {
+    mirrorApprovalRelayChannel = opts.botChannel;
+  }
+
   if (isPerformanceMirrorRunning) return;
-  const ms = Number(opts.intervalMs);
-  const intervalMs = Number.isFinite(ms) && ms >= 10_000 ? ms : 30_000;
+
+  const fromOpts = Number(opts.intervalMs);
+  const fromEnv = Number(process.env.PERFORMANCE_MIRROR_INTERVAL_MS);
+  const intervalMs =
+    Number.isFinite(fromEnv) && fromEnv >= 10_000 ? fromEnv
+    : Number.isFinite(fromOpts) && fromOpts >= 10_000 ? fromOpts : 30_000;
+
+  if (performanceMirrorInterval) {
+    clearInterval(performanceMirrorInterval);
+    performanceMirrorInterval = null;
+  }
 
   isPerformanceMirrorRunning = true;
   console.log(
-    `[PerformanceMirror] Starting Supabase stats mirror every ${intervalMs / 1000}s (scanner alerts may be off)`
+    `[PerformanceMirror] Scanner off: Dex MC → Supabase + idle ${intervalMs / 1000}s; ` +
+      `X approval ladder + approved milestones ${mirrorApprovalRelayChannel ? 'enabled (#bot-calls relay)' : 'DISABLED (missing bot channel)'}`
   );
 
   const tick = async () => {
@@ -1137,6 +1085,7 @@ function startUserPerformanceSupabaseMirror(opts = {}) {
       const ct = String(coin.callSourceType || 'user_call');
       if (ct !== 'user_call' && ct !== 'bot_call') return false;
       if (String(coin.approvalStatus || '').toLowerCase() === 'denied') return false;
+      if (String(coin.approvalStatus || '').toLowerCase() === 'excluded') return false;
       if (!String(coin.callPerformanceId || '').trim()) return false;
       return true;
     });
@@ -1145,6 +1094,7 @@ function startUserPerformanceSupabaseMirror(opts = {}) {
 
     let ok = 0;
     for (const coin of coins) {
+      if (!isPerformanceMirrorRunning) return;
       try {
         const scan = await generateRealScan(coin.contractAddress, null, lockedPairScanOpts(coin));
         if (!isSuccessfulMarketScan(scan)) continue;
@@ -1171,13 +1121,44 @@ function startUserPerformanceSupabaseMirror(opts = {}) {
 
         const { queueUpdateUserCallPerformanceAth } = require('./callPerformanceSync');
         queueUpdateUserCallPerformanceAth(coin.contractAddress);
+
+        const relay = mirrorApprovalRelayChannel;
+        if (relay) {
+          const refreshedTrackedCall = getTrackedCall(coin.contractAddress) || persisted;
+          const athXForApproval = calculateCurrentX(firstMc, athMc);
+          const approvalCheck = shouldCreateApprovalRequest(refreshedTrackedCall, athXForApproval);
+          if (approvalCheck.shouldSend) {
+            const src = String(refreshedTrackedCall.callSourceType || '');
+            const envAuto = String(process.env.X_AUTO_APPROVE_USER_CALLS || '')
+              .trim()
+              .toLowerCase();
+            const autoUserX = envAuto === '1' || envAuto === 'true' || envAuto === 'yes';
+            if (autoUserX && src === 'user_call') {
+              applyUserCallAutoXApproval(
+                refreshedTrackedCall.contractAddress,
+                approvalCheck.triggerX
+              );
+            } else {
+              queueApprovalReview(relay, refreshedTrackedCall, scan, approvalCheck.triggerX);
+            }
+          }
+          const latestTrackedCall = getTrackedCall(coin.contractAddress) || refreshedTrackedCall;
+          await maybePublishApprovedMilestoneToX(
+            { ...latestTrackedCall, athMc, latestMarketCap: currentMc },
+            scan
+          );
+        }
+
         ok += 1;
       } catch (err) {
-        console.error(
-          '[PerformanceMirror]',
-          coin.contractAddress,
-          err && err.message ? err.message : err
-        );
+        const quiet429 = String(err?.message || '').includes('429');
+        if (!quiet429) {
+          console.error(
+            '[PerformanceMirror]',
+            coin.contractAddress,
+            err && err.message ? err.message : err
+          );
+        }
       }
     }
 
@@ -1186,10 +1167,17 @@ function startUserPerformanceSupabaseMirror(opts = {}) {
     }
   };
 
-  void tick();
-  performanceMirrorInterval = setInterval(() => {
-    void tick();
-  }, intervalMs);
+  void (async () => {
+    while (isPerformanceMirrorRunning) {
+      try {
+        await tick();
+      } catch (err) {
+        console.error('[PerformanceMirror] tick failed:', err?.message || err);
+      }
+      if (!isPerformanceMirrorRunning) break;
+      await sleepMonitoring(intervalMs);
+    }
+  })();
 }
 
 function stopUserPerformanceSupabaseMirror() {
@@ -1198,6 +1186,7 @@ function stopUserPerformanceSupabaseMirror() {
     performanceMirrorInterval = null;
   }
   isPerformanceMirrorRunning = false;
+  mirrorApprovalRelayChannel = null;
 }
 
 module.exports = {
