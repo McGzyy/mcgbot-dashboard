@@ -112,12 +112,12 @@ const SECONDARY_DASHBOARD_WIDGET_TOGGLES: {
 ];
 
 const SETTINGS_NAV = [
-  { href: "#notifications", id: "notifications", label: "Notifications" },
-  { href: "#security", id: "security", label: "Security" },
-  { href: "#account", id: "account", label: "Account & X" },
-  { href: "#public-profile", id: "public-profile", label: "Public profile" },
-  { href: "#dashboard", id: "dashboard", label: "Home layout" },
-  { href: "#referral-link", id: "referral-link", label: "Referral link" },
+  { href: "#notifications", id: "notifications", label: "Notifications", blurb: "Sounds, toasts, and alert filters" },
+  { href: "#security", id: "security", label: "Security", blurb: "Authenticator 2FA and recovery codes" },
+  { href: "#account", id: "account", label: "Account & X", blurb: "Linked X handle and milestone tags" },
+  { href: "#public-profile", id: "public-profile", label: "Public profile", blurb: "What others see on your page" },
+  { href: "#dashboard", id: "dashboard", label: "Home layout", blurb: "Dashboard widgets and guided tour" },
+  { href: "#referral-link", id: "referral-link", label: "Referral link", blurb: "Vanity mcgbot.xyz/ref link" },
 ] as const;
 
 const SETTINGS_BTN_PRIMARY =
@@ -186,6 +186,58 @@ function parseProfileVisibility(raw: unknown): ProfileVisibility {
     if (typeof o[k] === "boolean") out[k] = o[k] as boolean;
   }
   return out;
+}
+
+function notificationStatusLine(prefs: PrefsState): string {
+  const parts: string[] = [];
+  if (prefs.sound_enabled) parts.push("Sound on");
+  else parts.push("Silent");
+  if (prefs.own_calls) parts.push("My calls");
+  else if (prefs.include_global) parts.push("Global feed");
+  else if (prefs.include_following) parts.push("Following");
+  else parts.push("Filters off");
+  parts.push(`${prefs.min_multiple}× min`);
+  return parts.join(" · ");
+}
+
+function profileVisibilitySummary(v: ProfileVisibility): string {
+  const on = Object.values(v).filter(Boolean).length;
+  return `${on} of ${Object.keys(v).length} sections visible`;
+}
+
+function widgetSummary(w: WidgetsEnabled): string {
+  const on = WIDGET_KEYS.filter((k) => w[k]).length;
+  return `${on} widgets on`;
+}
+
+function SettingsOverviewCard({
+  href,
+  label,
+  blurb,
+  status,
+  active,
+}: {
+  href: string;
+  label: string;
+  blurb: string;
+  status: string;
+  active: boolean;
+}) {
+  return (
+    <a
+      href={href}
+      aria-current={active ? "location" : undefined}
+      className={`block rounded-xl border p-3.5 transition ${
+        active
+          ? "border-cyan-500/35 bg-cyan-500/10 shadow-[0_0_24px_-14px_rgba(34,211,238,0.45)]"
+          : "border-zinc-800/85 bg-zinc-950/50 hover:border-zinc-700 hover:bg-zinc-900/40"
+      }`}
+    >
+      <p className="text-sm font-semibold text-zinc-100">{label}</p>
+      <p className="mt-1 text-[11px] leading-snug text-zinc-500">{blurb}</p>
+      <p className="mt-2 text-[11px] font-medium text-cyan-300/80">{status}</p>
+    </a>
+  );
 }
 
 function SettingsSection({
@@ -322,7 +374,7 @@ function SettingsSaveCluster({
 }
 
 function SettingsPageInner() {
-  const { status, update } = useSession();
+  const { status, data: session, update } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -1082,6 +1134,28 @@ function SettingsPageInner() {
 
   const isOwnOnly = prefs.own_calls;
 
+  const sectionStatus: Record<(typeof SETTINGS_NAV)[number]["id"], string> = {
+    notifications: notificationStatusLine(prefs),
+    security:
+      totpStatus?.enabled === true
+        ? "Authenticator 2FA on"
+        : totpStatus?.pendingSetup
+          ? "2FA setup in progress"
+          : totpStatus?.configured
+            ? "2FA available — not enabled"
+            : settingsLoading
+              ? "Loading…"
+              : "2FA off",
+    account: xVerified && xHandle ? `@${xHandle.replace(/^@+/, "")} linked` : "X not connected",
+    "public-profile": profileVisibilitySummary(profileVisibility),
+    dashboard: widgetSummary(widgets),
+    "referral-link": referralSlug ? `mcgbot.xyz/ref/${referralSlug}` : "Using numeric ID link",
+  };
+
+  const userName = session?.user?.name ?? "Member";
+  const userImage = session?.user?.image ?? null;
+  const userInitial = userName.slice(0, 1).toUpperCase() || "?";
+
   return (
     <>
     <div className="mx-auto max-w-6xl px-4 pb-[calc(2rem+var(--mcg-dock-stack,0px)+env(safe-area-inset-bottom,0px))] pt-4 sm:px-6">
@@ -1094,12 +1168,13 @@ function SettingsPageInner() {
             <p className="px-2.5 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
               Sections
             </p>
-            {SETTINGS_NAV.map(({ href, id, label }) => (
+            {SETTINGS_NAV.map(({ href, id, label, blurb }) => (
               <a
                 key={href}
                 href={href}
                 aria-current={activeSection === id ? "location" : undefined}
                 className={settingsNavLinkClass(activeSection === id, "side")}
+                title={blurb}
               >
                 {label}
               </a>
@@ -1111,16 +1186,29 @@ function SettingsPageInner() {
           <header className={`${terminalChrome.headerRule} pb-6 pt-1`} data-tutorial="settings.header">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
-                  Control panel
-                </p>
-                <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                  Settings
-                </h1>
-                <p className={`${terminalPage.sectionHint} mt-3 max-w-2xl text-sm leading-relaxed`}>
-                  Notifications, security, connected accounts, profile visibility, home layout, and
-                  referral link. Save when you are done editing.
-                </p>
+                <div className="flex items-start gap-4">
+                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 text-sm font-bold text-zinc-200">
+                    {userImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={userImage} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      userInitial
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
+                      Your preferences
+                    </p>
+                    <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                      Settings
+                    </h1>
+                    <p className="mt-1 truncate text-sm text-zinc-400">{userName}</p>
+                    <p className={`${terminalPage.sectionHint} mt-2 max-w-2xl text-sm leading-relaxed`}>
+                      Alerts, security, connected accounts, and how your dashboard looks. Jump to a section below —
+                      save when you are done.
+                    </p>
+                  </div>
+                </div>
               </div>
               <div className="hidden shrink-0 lg:block">
                 <SettingsSaveCluster
@@ -1133,18 +1221,18 @@ function SettingsPageInner() {
               </div>
             </div>
             <nav
-              className={`mt-4 flex gap-1.5 overflow-x-auto pb-1 lg:hidden ${terminalChrome.scrollYHidden}`}
+              className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:hidden"
               aria-label="Settings sections"
             >
-              {SETTINGS_NAV.map(({ href, id, label }) => (
-                <a
+              {SETTINGS_NAV.map(({ href, id, label, blurb }) => (
+                <SettingsOverviewCard
                   key={href}
                   href={href}
-                  aria-current={activeSection === id ? "location" : undefined}
-                  className={settingsNavLinkClass(activeSection === id, "pill")}
-                >
-                  {label}
-                </a>
+                  label={label}
+                  blurb={blurb}
+                  status={sectionStatus[id]}
+                  active={activeSection === id}
+                />
               ))}
             </nav>
           </header>

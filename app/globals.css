@@ -37,6 +37,12 @@ body {
   overflow-x: clip;
 }
 
+@media (display-mode: standalone) {
+  html {
+    overscroll-behavior-y: none;
+  }
+}
+
 @keyframes dashboard-fade-in {
   from {
     opacity: 0;

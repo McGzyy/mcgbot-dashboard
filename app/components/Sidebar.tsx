@@ -96,6 +96,9 @@ type SidebarBodyProps = {
   hasProFeatures: boolean;
   navFeedStats: SidebarNavFeedStats | null;
   navFeedStatsPending: boolean;
+  /** Mobile slide-out drawer: tighter header and roomier nav taps. */
+  mobileDrawer?: boolean;
+  onCloseDrawer?: () => void;
 };
 
 function isCallsNavPath(pathname: string): boolean {
@@ -125,6 +128,8 @@ function SidebarBody({
   hasProFeatures,
   navFeedStats,
   navFeedStatsPending,
+  mobileDrawer = false,
+  onCloseDrawer,
 }: SidebarBodyProps) {
   const pick = onNavigate
     ? () => {
@@ -138,42 +143,72 @@ function SidebarBody({
   }, [pathname]);
 
   const getSubNavItemClass = (active: boolean) =>
-    `relative flex w-full items-center justify-between gap-2 rounded-md py-1.5 pl-3 pr-3 text-[13px] transition-all duration-150 hover:bg-zinc-900/55 ${
+    `relative flex w-full items-center justify-between gap-2 rounded-md ${
+      mobileDrawer ? "py-2 pl-3 pr-3 text-[13px]" : "py-1.5 pl-3 pr-3 text-[13px]"
+    } transition-all duration-150 hover:bg-zinc-900/55 ${
       active
         ? "bg-zinc-800/90 text-white border border-zinc-700/80 shadow-[0_0_8px_rgba(56,189,248,0.1)]"
         : "text-zinc-400 hover:text-zinc-100"
     }`;
 
   const callsGroupActive = isCallsNavPath(pathname);
+  const navSectionClass = mobileDrawer
+    ? "mt-3 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600"
+    : "mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600";
+  const navStackClass = mobileDrawer
+    ? "mt-2 flex flex-col gap-1.5 px-2"
+    : "mt-4 flex flex-col gap-1 px-2";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-zinc-800 px-4 py-3">
-        <Link
-          href="/"
-          onClick={pick}
-          data-tutorial="sidebar.logo"
-          className="group flex items-center rounded-xl px-1 py-1 transition-colors hover:bg-white/[0.03]"
-          aria-label="McGBot Terminal — go to dashboard"
-        >
-          <Image
-            src="/brand/mcgbot-terminal-logo.png"
-            alt="McGBot Terminal"
-            width={472}
-            height={147}
-            priority
-            quality={100}
-            sizes="(max-width: 1024px) 480px, 560px"
-            className="h-12 w-auto max-w-full object-contain object-left sm:h-14"
-          />
-        </Link>
+      <div
+        className={`shrink-0 border-b border-zinc-800 ${
+          mobileDrawer ? "px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))]" : "px-4 py-3"
+        }`}
+      >
+        <div className={`flex items-center gap-2 ${mobileDrawer ? "justify-between" : ""}`}>
+          <Link
+            href="/"
+            onClick={pick}
+            data-tutorial="sidebar.logo"
+            className={`group flex min-w-0 flex-1 items-center rounded-xl transition-colors hover:bg-white/[0.03] ${
+              mobileDrawer ? "px-0.5 py-0.5" : "px-1 py-1"
+            }`}
+            aria-label="McGBot Terminal — go to dashboard"
+          >
+            <Image
+              src="/brand/mcgbot-terminal-logo.png"
+              alt="McGBot Terminal"
+              width={472}
+              height={147}
+              priority
+              quality={100}
+              sizes="(max-width: 1024px) 480px, 560px"
+              className={`w-auto max-w-full object-contain object-left ${
+                mobileDrawer ? "h-9 sm:h-10" : "h-12 sm:h-14"
+              }`}
+            />
+          </Link>
+          {mobileDrawer && onCloseDrawer ? (
+            <button
+              type="button"
+              onClick={onCloseDrawer}
+              className="shrink-0 rounded-md p-2 text-zinc-400 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+              aria-label="Close navigation"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden>
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <nav
         className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain no-scrollbar"
         aria-label="Main"
       >
-        <div className="mt-4 flex flex-col gap-1 px-2">
+        <div className={navStackClass}>
           <Link href="/" onClick={pick} data-tutorial="sidebar.nav.dashboard" className={getNavItemClass(isActive(pathname, "/"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
@@ -183,7 +218,7 @@ function SidebarBody({
             <span>Dashboard</span>
           </Link>
 
-          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Markets</p>
+          <p className={navSectionClass}>Markets</p>
           <div className="flex flex-col gap-0.5">
             <button
               type="button"
@@ -352,7 +387,7 @@ function SidebarBody({
             <span>PnL Showcase</span>
           </Link>
 
-          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Workspace</p>
+          <p className={navSectionClass}>Workspace</p>
           <Link href="/calls" onClick={pick} data-tutorial="sidebar.nav.calls" className={getNavItemClass(isActive(pathname, "/calls"))}>
             <div
               className={`absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded ${
@@ -417,7 +452,7 @@ function SidebarBody({
               <span>Copy trade</span>
             </Link>
           )}
-          <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Community</p>
+          <p className={navSectionClass}>Community</p>
           <Link
             href="/lounge/discord-chats"
             onClick={() => {
@@ -474,7 +509,7 @@ function SidebarBody({
 
           {staffNav || adminNav ? (
             <>
-              <p className="mt-5 px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Staff</p>
+              <p className={navSectionClass}>Staff</p>
               {staffNav ? <div className="px-3"><ModStaffResignBanner /></div> : null}
               {staffNav ? (
                 <Link
@@ -523,7 +558,32 @@ function SidebarBody({
         <FixItTicketLauncher placement="sidebar" />
       </div>
 
-      <div className="shrink-0 border-t border-zinc-800 p-3">
+      <div className={`shrink-0 border-t border-zinc-800 ${mobileDrawer ? "px-2 py-2" : "p-3"}`}>
+        <Link
+          href="/settings"
+          onClick={pick}
+          data-tutorial="sidebar.nav.settings"
+          className={`mb-1 flex items-center gap-3 rounded-md px-2 py-2 text-sm transition hover:bg-zinc-900 ${
+            isActive(pathname, "/settings") ? "bg-zinc-900/80 text-white" : "text-zinc-400 hover:text-zinc-100"
+          }`}
+        >
+          <svg
+            className="h-4 w-4 shrink-0 text-zinc-500"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            aria-hidden
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"
+            />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>Settings</span>
+        </Link>
         <Link
           href={
             profileId
@@ -847,8 +907,8 @@ export function Sidebar() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, setOpen]);
 
-  const getNavItemClass = (active: boolean) =>
-    `relative flex items-center gap-3 px-4 py-2 rounded-md text-sm transition-all duration-150 hover:bg-zinc-900/60 ${
+  const getNavItemClass = (active: boolean, forMobileDrawer = false) =>
+    `relative flex items-center gap-3 px-4 ${forMobileDrawer ? "py-2.5" : "py-2"} rounded-md text-sm transition-all duration-150 hover:bg-zinc-900/60 ${
       active
         ? "bg-zinc-800 text-white border border-zinc-700 shadow-[0_0_10px_rgba(56,189,248,0.12)]"
         : "text-zinc-400 hover:text-white hover:bg-zinc-900"
@@ -900,20 +960,14 @@ export function Sidebar() {
           <aside
             className={`relative z-[1] flex h-full w-[min(18rem,88vw)] shrink-0 flex-col border-r border-zinc-800/65 bg-gradient-to-b from-black via-zinc-950 to-black shadow-[24px_0_48px_-12px_rgba(0,0,0,0.85)] ${dashboardChrome.sidebar}`}
           >
-            <div className="flex items-center justify-end px-2 py-2">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-md p-2 text-zinc-400 transition hover:bg-zinc-900 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
-                aria-label="Close navigation"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden>
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain no-scrollbar">
-              <SidebarBody {...bodyProps} onNavigate={() => setOpen(false)} />
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain no-scrollbar pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+              <SidebarBody
+                {...bodyProps}
+                getNavItemClass={(active) => getNavItemClass(active, true)}
+                mobileDrawer
+                onCloseDrawer={() => setOpen(false)}
+                onNavigate={() => setOpen(false)}
+              />
             </div>
           </aside>
         </div>

@@ -1,8 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { getServerSession } from "next-auth";
 import { AppChrome } from "./components/AppChrome";
+import { InstallPrompt } from "./components/pwa/InstallPrompt";
+import { MobileViewportFix } from "./components/pwa/MobileViewportFix";
+import { ServiceWorkerRegister } from "./components/pwa/ServiceWorkerRegister";
 import { Providers } from "./providers";
 import { authOptions } from "@/lib/auth";
 import "./globals.css";
@@ -48,6 +51,25 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "McGBot Terminal",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "McGBot",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#050505",
 };
 
 /** Session must be resolved on the server so staff/admin flags match JWT before client hydration. */
@@ -64,7 +86,10 @@ export default async function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100 antialiased">
+      <body className="min-h-screen bg-[color:var(--mcg-page)] text-zinc-100 antialiased supports-[padding:env(safe-area-inset-bottom)]:pb-[env(safe-area-inset-bottom)]">
+        <InstallPrompt />
+        <MobileViewportFix />
+        <ServiceWorkerRegister />
         <Providers session={session}>
           <AppChrome>{children}</AppChrome>
         </Providers>
