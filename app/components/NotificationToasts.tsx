@@ -114,7 +114,7 @@ export function NotificationToasts() {
 
   return (
     <div
-      className="pointer-events-none fixed right-4 top-4 z-50 flex flex-col gap-3"
+      className="pointer-events-none fixed right-4 top-[calc(var(--dashboard-topbar-height,6rem)+0.75rem)] z-[60] flex flex-col gap-3 sm:right-6"
       aria-live="polite"
       aria-relevant="additions"
     >

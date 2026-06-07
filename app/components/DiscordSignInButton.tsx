@@ -1,11 +1,11 @@
 "use client";
 
 import {
-  discordSignInAbsoluteUrl,
+  discordSignInPath,
   isStandalonePwa,
-  startDiscordSignIn,
+  sanitizeOAuthCallbackUrl,
 } from "@/lib/discordSignIn";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 
 type DiscordSignInButtonProps = {
   callbackUrl?: string;
@@ -28,8 +28,8 @@ export function PwaDiscordSignInHint({ className }: { className?: string }) {
 
   return (
     <p className={className}>
-      Installed app: sign-in opens in Safari so you can use the keyboard. When you are done, return
-      to McGBot — you stay signed in.
+      Installed app: sign-in continues in this window (Safari may open briefly). Stay until you
+      return to McGBot — then you&apos;re signed in.
     </p>
   );
 }
@@ -48,29 +48,27 @@ export function DiscordSignInButton({
     setStandalone(isStandalonePwa());
   }, []);
 
-  const control =
-    standalone ? (
-      <a
-        href={discordSignInAbsoluteUrl(callbackUrl)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={className}
-        aria-label={ariaLabel}
-      >
-        {children}
-      </a>
-    ) : (
-      <button
-        type="button"
-        className={className}
-        aria-label={ariaLabel}
-        onClick={() => startDiscordSignIn(callbackUrl)}
-      >
-        {children}
-      </button>
-    );
+  const onNavigate = (event: MouseEvent<HTMLAnchorElement>) => {
+    sanitizeOAuthCallbackUrl();
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    window.location.assign(event.currentTarget.href);
+  };
 
-  if (!showPwaHint) return control;
+  const control = (
+    <a
+      href={discordSignInPath(callbackUrl)}
+      className={className}
+      aria-label={ariaLabel}
+      onClick={onNavigate}
+    >
+      {children}
+    </a>
+  );
+
+  if (!showPwaHint || !standalone) return control;
 
   return (
     <div>

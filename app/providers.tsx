@@ -1,6 +1,7 @@
 "use client";
 
 import { HelpHotkey } from "@/app/components/HelpHotkey";
+import { PwaAuthSessionSync } from "@/app/components/PwaAuthSessionSync";
 import { SessionGateRecovery } from "@/app/components/SessionGateRecovery";
 import { SolanaWalletProviders } from "@/app/components/SolanaWalletProviders";
 import { NotificationToasts } from "@/app/components/NotificationToasts";
@@ -25,6 +26,7 @@ export function Providers({
       session={session ?? undefined}
     >
       <SessionGateRecovery />
+      <PwaAuthSessionSync />
       <SolanaWalletProviders>
         <DashboardWalletProvider>
           <VoiceSessionProvider>

@@ -37,6 +37,7 @@ import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DiscordSignInButton } from "@/app/components/DiscordSignInButton";
+import { pwaDiscordAuthErrorMessage } from "@/lib/discordSignIn";
 import { useSession } from "next-auth/react";
 import {
   abbreviateCa,
@@ -3944,7 +3945,7 @@ export default function Home() {
 
     addNotification({
       id: crypto.randomUUID(),
-      text: desc ? `Discord auth failed: ${desc}` : `Discord auth failed (${err})`,
+      text: pwaDiscordAuthErrorMessage(err, desc || null),
       type: "call",
       createdAt: Date.now(),
       priority: "medium",

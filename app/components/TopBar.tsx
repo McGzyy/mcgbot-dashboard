@@ -916,7 +916,6 @@ export function TopBar() {
                 </div>
               ) : (
                 <DiscordSignInButton
-                  showPwaHint
                   className="max-w-[min(100%,9.5rem)] shrink-0 rounded-lg bg-[#5865F2] px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-[#4752c4] focus:outline-none focus:ring-2 focus:ring-sky-500/50 sm:max-w-none sm:px-3 sm:text-sm"
                 >
                   <span className="sm:hidden">Discord</span>
