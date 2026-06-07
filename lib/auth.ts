@@ -1,6 +1,8 @@
 import type { NextAuthOptions } from "next-auth";
 import { createClient } from "@supabase/supabase-js";
+import CredentialsProvider from "next-auth/providers/credentials";
 import DiscordProvider from "next-auth/providers/discord";
+import { consumePwaHandoffRedeemToken } from "@/lib/pwaAuthHandoff";
 import { meetsModerationMinTier, resolveHelpTier, resolveHelpTierAsync } from "@/lib/helpRole";
 import {
   isProtectedFromGuildFalsePositive,
@@ -48,6 +50,24 @@ function discordAvatarUrlFromDiscordProfile(p: {
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    CredentialsProvider({
+      id: "pwa-handoff",
+      name: "PWA Handoff",
+      credentials: {
+        token: { label: "Token", type: "text" },
+      },
+      async authorize(credentials) {
+        const token = typeof credentials?.token === "string" ? credentials.token.trim() : "";
+        if (!token) return null;
+        const user = await consumePwaHandoffRedeemToken(token);
+        if (!user) return null;
+        return {
+          id: user.id,
+          name: user.name,
+          image: user.image,
+        };
+      },
+    }),
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID!,
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,

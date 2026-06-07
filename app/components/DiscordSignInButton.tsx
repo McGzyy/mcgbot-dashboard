@@ -1,9 +1,10 @@
 "use client";
 
 import {
-  discordSignInPath,
+  discordSignInHref,
   isStandalonePwa,
   sanitizeOAuthCallbackUrl,
+  startDiscordSignIn,
 } from "@/lib/discordSignIn";
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 
@@ -28,8 +29,8 @@ export function PwaDiscordSignInHint({ className }: { className?: string }) {
 
   return (
     <p className={className}>
-      Installed app: sign-in continues in this window (Safari may open briefly). Stay until you
-      return to McGBot — then you&apos;re signed in.
+      Installed app: next screen explains how to sign in with Safari, then McGBot finishes automatically
+      when you return.
     </p>
   );
 }
@@ -54,12 +55,12 @@ export function DiscordSignInButton({
       return;
     }
     event.preventDefault();
-    window.location.assign(event.currentTarget.href);
+    startDiscordSignIn(callbackUrl);
   };
 
   const control = (
     <a
-      href={discordSignInPath(callbackUrl)}
+      href={discordSignInHref(callbackUrl, standalone)}
       className={className}
       aria-label={ariaLabel}
       onClick={onNavigate}
