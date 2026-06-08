@@ -37,7 +37,6 @@ import { useFollowingIds } from "./hooks/useFollowingIds";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DiscordSignInButton } from "@/app/components/DiscordSignInButton";
-import { pwaDiscordAuthErrorMessage } from "@/lib/discordSignIn";
 import { useSession } from "next-auth/react";
 import {
   abbreviateCa,
@@ -3744,7 +3743,6 @@ export default function Home() {
   const { addNotification } = useNotifications();
   const { openTokenChart } = useTokenChartModal();
   useDashboardAlertInboxToasts(status === "authenticated");
-  const oauthErrorHandledRef = useRef(false);
   const lastSeenActivityKeysRef = useRef(new Set<string>());
   /** Avoid rank / calls “skeleton flash” on `homeDataRefreshNonce` background refetch. */
   const leaderboardRankBootstrapUserRef = useRef<string | null>(null);
@@ -3922,41 +3920,6 @@ export default function Home() {
     }, 20_000);
     return () => window.clearInterval(id);
   }, [status, session?.user?.id]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (status !== "unauthenticated") return;
-    if (oauthErrorHandledRef.current) return;
-
-    const sp = new URLSearchParams(window.location.search);
-    const err = sp.get("error");
-    if (!err) return;
-
-    oauthErrorHandledRef.current = true;
-
-    const descRaw = sp.get("error_description") ?? "";
-    const desc = (() => {
-      try {
-        return decodeURIComponent(descRaw.replace(/\+/g, " "));
-      } catch {
-        return descRaw.replace(/\+/g, " ");
-      }
-    })();
-
-    addNotification({
-      id: crypto.randomUUID(),
-      text: pwaDiscordAuthErrorMessage(err, desc || null),
-      type: "call",
-      createdAt: Date.now(),
-      priority: "medium",
-    });
-
-    // Clean the URL so refresh doesn't keep re-triggering the toast.
-    const url = new URL(window.location.href);
-    url.searchParams.delete("error");
-    url.searchParams.delete("error_description");
-    window.history.replaceState({}, "", url.toString());
-  }, [addNotification, status]);
 
   useEffect(() => {
     let cancelled = false;

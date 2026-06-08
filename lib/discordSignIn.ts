@@ -1,4 +1,4 @@
-import { signOut } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 
 /** Home-screen / installed PWA (iOS `navigator.standalone`, display-mode standalone). */
 export function isStandalonePwa(): boolean {
@@ -25,28 +25,26 @@ export function sanitizeOAuthCallbackUrl(): void {
   window.history.replaceState({}, "", url.toString());
 }
 
-function resolveCallbackUrl(callbackUrl: string): string {
-  if (callbackUrl.startsWith("http")) return callbackUrl;
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${origin}${callbackUrl.startsWith("/") ? callbackUrl : `/${callbackUrl}`}`;
+function normalizeCallbackPath(callbackUrl: string): string {
+  const trimmed = callbackUrl.trim();
+  if (!trimmed) return "/";
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return trimmed;
+  try {
+    const parsed = new URL(trimmed);
+    return `${parsed.pathname}${parsed.search}${parsed.hash}` || "/";
+  } catch {
+    return "/";
+  }
 }
 
-/** NextAuth Discord sign-in path (same-tab navigation). */
-export function discordSignInPath(callbackUrl = "/"): string {
-  return `/api/auth/signin/discord?${new URLSearchParams({
-    callbackUrl: resolveCallbackUrl(callbackUrl),
-  })}`;
-}
-
-export function discordSignInAbsoluteUrl(callbackUrl = "/"): string {
-  if (typeof window === "undefined") return discordSignInPath(callbackUrl);
-  return `${window.location.origin}${discordSignInPath(callbackUrl)}`;
-}
-
-/** Full-page Discord OAuth — one tap, same window. */
+/**
+ * Start Discord OAuth via NextAuth client `signIn()` (POST + CSRF).
+ * Do NOT link to GET /api/auth/signin/discord when pages.signIn is custom — NextAuth
+ * mis-reads the provider id as an error and redirects to /?error=discord.
+ */
 export function startDiscordSignIn(callbackUrl = "/"): void {
   sanitizeOAuthCallbackUrl();
-  window.location.assign(discordSignInAbsoluteUrl(callbackUrl));
+  void signIn("discord", { callbackUrl: normalizeCallbackPath(callbackUrl), redirect: true });
 }
 
 export function signOutToHome(): void {
@@ -55,17 +53,34 @@ export function signOutToHome(): void {
   void signOut({ callbackUrl });
 }
 
+const NEXTAUTH_ERROR_LABELS: Record<string, string> = {
+  OAuthSignin: "Could not reach Discord. Try again in a moment.",
+  OAuthCallback: "Discord sign-in was interrupted. Try again.",
+  OAuthCreateAccount: "Could not create your account. Try again or contact support.",
+  AccessDenied: "Discord sign-in was cancelled.",
+  Configuration: "Sign-in is misconfigured on the server. Try again later.",
+  Verification: "Sign-in link expired. Try again.",
+  Default: "Discord sign-in failed. Try again.",
+};
+
 export function pwaDiscordAuthErrorMessage(errorCode: string, description: string | null): string {
-  if (isStandalonePwa() && isIosDevice()) {
-    if (errorCode === "OAuthCallback" || errorCode === "OAuthSignin") {
-      return "Discord sign-in was interrupted. Try again — if you use the Discord app, approve when it opens.";
-    }
-    if (errorCode === "AccessDenied") {
-      return "Discord sign-in was cancelled. Tap Continue with Discord to try again.";
-    }
+  if (errorCode === "discord") {
+    return "Tap Continue with Discord again to sign in.";
   }
 
-  return description
-    ? `Discord auth failed: ${description}`
-    : `Discord auth failed (${errorCode})`;
+  const known = NEXTAUTH_ERROR_LABELS[errorCode];
+  if (known) return known;
+  if (description) return `Discord auth failed: ${description}`;
+  return `Discord auth failed (${errorCode}). Try again.`;
+}
+
+/** Remove spurious ?error=discord left by old GET sign-in links. */
+export function cleanSpuriousOAuthErrorParams(): boolean {
+  if (typeof window === "undefined") return false;
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("error") !== "discord") return false;
+  url.searchParams.delete("error");
+  url.searchParams.delete("error_description");
+  window.history.replaceState({}, "", url.toString());
+  return true;
 }

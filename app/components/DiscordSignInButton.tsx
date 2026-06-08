@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  discordSignInPath,
-  isIosDevice,
-  isStandalonePwa,
-  sanitizeOAuthCallbackUrl,
-  startDiscordSignIn,
-} from "@/lib/discordSignIn";
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { isIosDevice, isStandalonePwa, startDiscordSignIn } from "@/lib/discordSignIn";
+import { useEffect, useState, type ReactNode } from "react";
 
 type DiscordSignInButtonProps = {
   callbackUrl?: string;
@@ -44,24 +38,15 @@ export function DiscordSignInButton({
   showIosAppHint = false,
   hintClassName = "mt-2 text-[11px] leading-snug text-zinc-500",
 }: DiscordSignInButtonProps) {
-  const onNavigate = (event: MouseEvent<HTMLAnchorElement>) => {
-    sanitizeOAuthCallbackUrl();
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
-      return;
-    }
-    event.preventDefault();
-    startDiscordSignIn(callbackUrl);
-  };
-
   const control = (
-    <a
-      href={discordSignInPath(callbackUrl)}
+    <button
+      type="button"
       className={className}
       aria-label={ariaLabel}
-      onClick={onNavigate}
+      onClick={() => startDiscordSignIn(callbackUrl)}
     >
       {children}
-    </a>
+    </button>
   );
 
   if (!showIosAppHint) return control;
