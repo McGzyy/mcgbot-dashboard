@@ -83,7 +83,8 @@ export async function requireModOrAdmin(
       response: Response.json({ success: false, ...moderationStaffForbiddenPayload() }, { status: 403 }),
     };
   }
-  if (!options?.skipAgreement) {
+  // Discord admins / owners use mod APIs without the mod-staff roster agreement gate.
+  if (tier !== "admin" && !options?.skipAgreement) {
     const name =
       typeof session?.user?.name === "string" ? session.user.name : null;
     const gate = await assertModStaffAgreementGate(staffDiscordId, name);

@@ -3,8 +3,10 @@ import { authOptions } from "@/lib/auth";
 import { staffTierFromDiscord } from "@/lib/discordStaffTier";
 import {
   meetsModerationMinTier,
+  mergeHelpTiers,
   resolveHelpTier,
   resolveHelpTierWithSource,
+  type HelpTier,
 } from "@/lib/helpRole";
 import { getModStaffByDiscordId } from "@/lib/mod/modStaffDb";
 
@@ -20,7 +22,13 @@ export async function GET() {
 
   const envTier = resolveHelpTier(id);
   const discordTierRaw = await staffTierFromDiscord(id);
-  const { tier: role, source: staffSource } = await resolveHelpTierWithSource(id);
+  const { tier: liveRole, source: staffSource } = await resolveHelpTierWithSource(id);
+  const sessionTierRaw = session?.user?.helpTier;
+  const sessionTier: HelpTier =
+    sessionTierRaw === "admin" || sessionTierRaw === "mod" || sessionTierRaw === "user"
+      ? sessionTierRaw
+      : "user";
+  const role = mergeHelpTiers(sessionTier, liveRole);
   const modChatConfigured = !!(process.env.DISCORD_MOD_CHAT_CHANNEL_ID ?? "").trim();
   const guildStaffConfigured = !!(
     (process.env.DISCORD_GUILD_ID ?? "").trim() &&

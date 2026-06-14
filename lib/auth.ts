@@ -1,7 +1,13 @@
 import type { NextAuthOptions } from "next-auth";
 import { createClient } from "@supabase/supabase-js";
 import DiscordProvider from "next-auth/providers/discord";
-import { meetsModerationMinTier, resolveHelpTier, resolveHelpTierAsync } from "@/lib/helpRole";
+import {
+  meetsModerationMinTier,
+  mergeHelpTiers,
+  resolveHelpTier,
+  resolveHelpTierAsync,
+  type HelpTier,
+} from "@/lib/helpRole";
 import {
   isProtectedFromGuildFalsePositive,
   isStaffFromToken,
@@ -280,14 +286,19 @@ export const authOptions: NextAuthOptions = {
           ]);
           token.subscriptionActiveUntil = end;
           token.subscriptionExempt = exempt;
-          // Never demote staff (or any known tier) to "user" on transient resolution failures — the
-          // inner .catch used to return "user", which made Promise.all succeed and skipped the outer catch.
-          const resolvedHelpTier =
+          // Never demote staff on transient Discord failures or a single stale live lookup — merge with
+          // previous JWT tier so mobile/PWA sessions stay consistent with sidebar + staff APIs.
+          const prevNormalized: HelpTier =
+            prevTier === "admin" || prevTier === "mod" || prevTier === "user" ? prevTier : "user";
+          const liveNormalized: HelpTier =
             helpTierRaw === "admin" || helpTierRaw === "mod" || helpTierRaw === "user"
               ? helpTierRaw
-              : prevTier === "admin" || prevTier === "mod" || prevTier === "user"
-                ? prevTier
-                : "user";
+              : prevNormalized;
+          const envNormalized = resolveHelpTier(discordId);
+          const resolvedHelpTier = mergeHelpTiers(
+            prevNormalized,
+            mergeHelpTiers(envNormalized, liveNormalized)
+          );
           token.helpTier = resolvedHelpTier;
           token.canModerate = meetsModerationMinTier(resolvedHelpTier);
           token.subscriptionRefreshAt = Date.now();

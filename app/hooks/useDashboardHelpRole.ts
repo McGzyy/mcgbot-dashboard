@@ -2,15 +2,24 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import type { HelpTier } from "@/lib/helpRole";
+import { mergeHelpTiers, type HelpTier } from "@/lib/helpRole";
+
+function normalizeHelpTier(raw: unknown): HelpTier {
+  const t = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (t === "admin" || t === "mod" || t === "user") return t;
+  return "user";
+}
 
 export function useDashboardHelpRole(): {
   helpTier: HelpTier;
   modChatConfigured: boolean;
   loading: boolean;
 } {
-  const { status } = useSession();
-  const [helpTier, setHelpTier] = useState<HelpTier>("user");
+  const { data: session, status } = useSession();
+  const sessionTier = normalizeHelpTier(
+    (session?.user as { helpTier?: string } | undefined)?.helpTier
+  );
+  const [helpTier, setHelpTier] = useState<HelpTier>(sessionTier);
   const [modChatConfigured, setModChatConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -26,6 +35,8 @@ export function useDashboardHelpRole(): {
       return;
     }
 
+    setHelpTier((prev) => mergeHelpTiers(prev, sessionTier));
+
     let cancelled = false;
     setLoading(true);
     void (async () => {
@@ -36,17 +47,18 @@ export function useDashboardHelpRole(): {
           modChatConfigured?: boolean;
         };
         if (cancelled) return;
-        const r = json.role;
-        if (r === "user" || r === "mod" || r === "admin") {
-          setHelpTier(r);
-          if (r === "mod" || r === "admin") {
-            setModChatConfigured(json.modChatConfigured === true);
-          } else {
-            setModChatConfigured(false);
-          }
+        const r = normalizeHelpTier(json.role);
+        const merged = mergeHelpTiers(sessionTier, r);
+        setHelpTier(merged);
+        if (merged === "mod" || merged === "admin") {
+          setModChatConfigured(json.modChatConfigured === true);
+        } else {
+          setModChatConfigured(false);
         }
       } catch {
-        /* keep defaults */
+        if (!cancelled) {
+          setHelpTier((prev) => mergeHelpTiers(prev, sessionTier));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -55,7 +67,7 @@ export function useDashboardHelpRole(): {
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [sessionTier, status]);
 
   return { helpTier, modChatConfigured, loading };
 }

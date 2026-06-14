@@ -86,7 +86,40 @@ export function SessionGateRecovery() {
       return;
     }
 
-    if (u.helpTier === "admin" || u.helpTier === "mod" || u.canModerate === true) return;
+    const onStaffPath =
+      pathname.startsWith("/admin") || pathname.startsWith("/moderation");
+
+    const sessionSaysStaff =
+      u.helpTier === "admin" || u.helpTier === "mod" || u.canModerate === true;
+
+    /** Stale JWT on mobile PWA: user opened staff routes but session still says member. */
+    if (onStaffPath && !sessionSaysStaff) {
+      bump(true);
+      const onStaffVis = () => {
+        if (document.visibilityState === "visible") bump(false);
+      };
+      window.addEventListener("focus", onStaffVis);
+      document.addEventListener("visibilitychange", onStaffVis);
+      return () => {
+        window.removeEventListener("focus", onStaffVis);
+        document.removeEventListener("visibilitychange", onStaffVis);
+      };
+    }
+
+    if (sessionSaysStaff) {
+      if (onStaffPath) {
+        const onStaffRefresh = () => {
+          if (document.visibilityState === "visible") bump(false);
+        };
+        window.addEventListener("focus", onStaffRefresh);
+        document.addEventListener("visibilitychange", onStaffRefresh);
+        return () => {
+          window.removeEventListener("focus", onStaffRefresh);
+          document.removeEventListener("visibilitychange", onStaffRefresh);
+        };
+      }
+      return;
+    }
 
     if (u.hasDashboardAccess === true) return;
 

@@ -659,8 +659,8 @@ export function Sidebar() {
         };
         if (cancelled) return;
         if (!res.ok) {
-          setApiAdminNav(false);
-          setApiStaffNav(false);
+          setApiAdminNav(sessionAdminNav(session));
+          setApiStaffNav(sessionStaffNav(session));
           setApiRole(null);
           return;
         }
@@ -674,8 +674,8 @@ export function Sidebar() {
         setApiStaffNav(staff);
       } catch {
         if (!cancelled) {
-          setApiStaffNav(false);
-          setApiAdminNav(false);
+          setApiStaffNav(sessionStaffNav(session));
+          setApiAdminNav(sessionAdminNav(session));
           setApiRole(null);
         }
       }
@@ -683,7 +683,7 @@ export function Sidebar() {
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [status, session?.user?.helpTier, session?.user?.canModerate]);
 
   const staffNav = sessionStaffNav(session) || apiStaffNav;
   const adminNav = sessionAdminNav(session) || apiAdminNav;
